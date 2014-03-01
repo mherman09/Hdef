@@ -1,20 +1,25 @@
-      PROGRAM flt2displacement
+      PROGRAM fltxy2displacement
 C----
 C Calculate the north, east and vertical displacements at stations
 C due to shear dislocations in an isotropic halfspace.
 C
 C To run, requires the following files:
 C     faults.txt: list of ruptures
-C     stations.txt: list of receiver lon, lat, and depth (km)
+C     stations.txt: list of receiver position (km), and depth (km)
 C     structure.txt: vp (m/s) vs (m/s) density (kg/m^3)
 C
 C Produces the output file:
-C     disp.out: stlo, stla, uN, uE, uZ
+C     disp.out: x, y, uN, uE, uZ
+C
+C MODIFICATIONS
+C   2014-02-24: Added help/usage option
+C
 C----
       IMPLICIT NONE
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
       
+      LOGICAL verbose
       CHARACTER*20 srcfile,stafile,haffile
       INTEGER flt,nflt,maxflt
       PARAMETER (maxflt=50)
@@ -27,6 +32,8 @@ C----
       REAL*8 vp,vs,dens
 
       REAL*8 ux,uy,uN,uE,uZ,uNnet,uEnet,uZnet
+
+      call gcmdln(verbose)
 C----
 C Input files
 C----
@@ -42,7 +49,7 @@ C----
 C----
 C Parse fault file
 C List of:
-C  x y dep(km) str dip rak slip(m) dy(km) dx(km) flttyp
+C  x(km) y(km) dep(km) str dip rak slip(m) dy(km) dx(km) flttyp
 C Last column indicates fault type:
 C   0 for point source
 C   1 for finite source
@@ -62,6 +69,7 @@ C----
               delx = stx - evx(flt)
               dely = sty - evy(flt)
               dist = dsqrt(delx*delx+dely*dely)
+              dist = dist*1.0d3
               az = datan2(delx,dely)
               x = dist*dcos(az-d2r*str(flt))
               y = dist*(-dsin(az-d2r*str(flt)))
@@ -154,7 +162,8 @@ C----
           write (*,8889)
           write (*,8886)
           read *,srcfile
-          if (srcfile.eq.'quit'.or.srcfile.eq.'q') stop
+          if (srcfile.eq.'quit') stop
+          if (srcfile.eq.'help') call usage()
           goto 11
       else
            write(*,9999)
@@ -169,6 +178,7 @@ C----
           write (*,8887)
           read *,stafile
           if (stafile.eq.'quit') stop
+          if (stafile.eq.'help') call usage()
           goto 12
       else
            write(*,9999)
@@ -183,6 +193,7 @@ C----
           write (*,8888)
           read *,haffile
           if (haffile.eq.'quit') stop
+          if (haffile.eq.'help') call usage()
           goto 13
       else
            write(*,9999)
@@ -192,10 +203,77 @@ C----
  9997 format('Looking for station file:    ',A20)
  9998 format('Looking for half-space file: ',A20)
  9999 format('FOUND')
- 8886 format('Enter name of fault file or "quit":')
- 8887 format('Enter name of station file or "quit":')
- 8888 format('Enter name of half-space file or "quit":')
+ 8886 format('Enter name of fault file, "quit" or "help":')
+ 8887 format('Enter name of station file, "quit" or "help":')
+ 8888 format('Enter name of half-space file, "quit" or "help":')
  8889 format('NOT FOUND')
 
       RETURN
+      END
+      
+C----------------------------------------------------------------------C
+
+      SUBROUTINE gcmdln(verbose)
+
+      IMPLICIT none
+      INTEGER i,narg
+      CHARACTER*25 tag
+      LOGICAL verbose
+
+      verbose = .false.
+
+      narg = iargc()
+      i = 0
+  101 i = i + 1
+      if (i.gt.narg) goto 102
+      call getarg(i,tag)
+      if (tag(1:2).eq.'-V') then
+          verbose = .true.
+      elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
+          call usage()
+      endif
+      goto 101
+  102 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE usage()
+      IMPLICIT none
+      write (*,*)
+     1 'Usage: fltxy2displacement -V -h/-?'
+      write (*,*)
+     1 '  -V (default false) turn on verbose operation'
+      write (*,*)
+     1 '  -h/-?              help'
+      write (*,*) ''
+      write (*,*)
+     1 '  fltxy2displacement calculates NEZ displacements from faults',
+     2   ' at user-defined locations.'
+      write (*,*)
+     1 '  (Note: x-axis is parallel to E, y-axis is parallel to N)'
+      write (*,*)
+     1 '  Output file: disp.out'
+      write (*,*)
+     1 '  Required input files:'
+      write (*,*) ''
+      write (*,*)
+     1 '    faults.txt: list of dislocation sources'
+      write (*,*)
+     1 '      evx evy evdp str dip rak slip width length fault_type'
+      write (*,*)
+     1 '      (all in km)              (m)  (km)   (km)  (0=pt/1=fin)'
+      write (*,*) ''
+      write (*,*)
+     1 '    stations.txt: list of station locations and depths'
+      write (*,*)
+     1 '      stx stx stdp'
+      write (*,*)
+     1 '      (all in km)'
+      write (*,*) ''
+      write (*,*)
+     1 '    structure.txt: vp vs dens (only vp/vs ratio matters)'
+      write (*,*) ''
+      stop
       END
