@@ -3,8 +3,8 @@ C----
 C Create a horizontal 2-dimensional grid
 C----
       IMPLICIT NONE
-      REAL x1,x2,y1,y2,dx,dy
-      REAL x,y,z
+      REAL*8 x1,x2,y1,y2,dx,dy
+      REAL*8 x,y,z
       INTEGER i,j,nx,ny,chk,p
 
 C----
@@ -16,28 +16,43 @@ C----
           rewind 101
       endif
 
-      if (nx.eq.0) then
-          dx = 0.0
+C----
+C Calculate grid increments
+C----
+      if (nx.le.0) then
+          print *,'Number of x grid points must be 1 or greater'
+          call usage()
+      elseif (nx.eq.1) then
+          dx = 0.0d0
       else
-          dx = (x2-x1)/real(nx)
-      endif
-      if (ny.eq.0) then
-          dy = 0.0
-      else
-          dy = (y2-y1)/real(ny)
+          dx = (x2-x1)/dble(nx-1)
       endif
 
-      do 16 i = 0,nx
-          x = x1 + real(i)*dx
-          do 15 j = 0,ny
-              y = y1 + real(j)*dy
+      if (ny.le.0) then
+          print *,'Number of y grid points must be 1 or greater'
+          call usage()
+      elseif (ny.eq.1) then
+          dy = 0.0d0
+      else
+          dy = (y2-y1)/dble(ny-1)
+      endif
+
+C----
+C Generate grid
+C----
+      do 16 i = 0,nx-1
+          x = x1 + dble(i)*dx
+          do 15 j = 0,ny-1
+              y = y1 + dble(j)*dy
               if (p.eq.0) then
-                  write(101,*) x,y,z
+                  write(101,9999) x,y,z
               else
-                  write(*,*) x,y,z
+                  write(*,9999) x,y,z
               endif
    15     continue
    16 continue
+
+ 9999 format (3F16.8)
 
       END 
 
@@ -46,16 +61,16 @@ C======================================================================C
       SUBROUTINE gcmdln(x1,x2,y1,y2,nx,ny,z,p)
       IMPLICIT none
       CHARACTER*20 tag
-      REAL x1,x2,y1,y2,z
+      REAL*8 x1,x2,y1,y2,z
       INTEGER narg,i,nx,ny,p
 
-      x1 = 0.0
-      x2 = 1.0
-      y1 = 0.0
-      y2 = 1.0
-      nx = 0
-      ny = 0
-      z = 0.0
+      x1 = 0.0d0
+      x2 = 1.0d0
+      y1 = 0.0d0
+      y2 = 1.0d0
+      nx = 1
+      ny = 1
+      z = 0.0d0
       p = 0
       
       narg = iargc()
@@ -117,9 +132,9 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '  -z [Z]     (Default Z=0) define z'
       write(*,*)
-     1 '  -nx [NX]   (Default NX=1) define number of x-subdivisions'
+     1 '  -nx [NX]   (Default NX=1) define number of x grid points'
       write(*,*)
-     1 '  -ny [NY]   (Default NY=1) define number of y-subdivisions'
+     1 '  -ny [NY]   (Default NY=1) define number of y grid points'
       write(*,*)
      1 '  -p         (Default off) print output to stdout (will not ',
      2                            'write file grid.out)'
