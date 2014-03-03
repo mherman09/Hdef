@@ -2,9 +2,9 @@
 
       IMPLICIT none
       INTEGER stdin,stdout
-      REAL r2d
-      PARAMETER (stdin=5,stdout=6,r2d=180.0/3.14159265)
-      REAL lon1,lat1,lon2,lat2,dist,az
+      REAL*8 r2d,pi
+      PARAMETER (stdin=5,stdout=6,pi=4.0d0*atan(1.0d0),r2d=1.8d2/pi)
+      REAL*8 lon1,lat1,lon2,lat2,dist,az
       CHARACTER*30 ifile,ofile
       INTEGER manual,p
       
