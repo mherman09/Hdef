@@ -9,8 +9,8 @@ C inside.mines.edu/~gmurray/ArbitraryAxisRotation
 C----
 
       IMPLICIT none
-      REAL olon,olat,ilon,ilat,plon,plat,angle
-      REAL ix,iy,iz,px,py,pz,ox,oy,oz
+      REAL*8 olon,olat,ilon,ilat,plon,plat,angle
+      REAL*8 ix,iy,iz,px,py,pz,ox,oy,oz
       CHARACTER*30 ifile,ofile
 
       call gcmdln(ifile,ofile)
@@ -31,7 +31,7 @@ C----
   102     continue
       endif
 
- 9999 format(2F8.2)
+ 9999 format(2F14.6)
 
       END
 
@@ -39,10 +39,10 @@ C----------------------------------------------------------------------c
 
       SUBROUTINE rotate(olon,olat,ilon,ilat,plon,plat,angle)
       IMPLICIT NONE
-      REAL olon,olat,ilon,ilat,plon,plat,angle
-      REAL ix,iy,iz,px,py,pz,ox,oy,oz
-      REAL pi,d2r,r2d
-      PARAMETER (pi=3.14159265,d2r=pi/180.,r2d=180./pi)
+      REAL*8 olon,olat,ilon,ilat,plon,plat,angle
+      REAL*8 ix,iy,iz,px,py,pz,ox,oy,oz
+      REAL*8 pi,d2r,r2d
+      PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
 
       call lonlat2xyz(ix,iy,iz,ilon,ilat)
       call lonlat2xyz(px,py,pz,plon,plat)
@@ -68,9 +68,9 @@ C----------------------------------------------------------------------C
       SUBROUTINE lonlat2xyz(x,y,z,lon,lat)
 
       IMPLICIT none
-      REAL pi,d2r
-      PARAMETER (pi=3.14159265,d2r=pi/180.0)
-      REAL lon,lat,x,y,z
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 lon,lat,x,y,z
 
       x = cos(lon*d2r)*cos(lat*d2r)
       y = sin(lon*d2r)*cos(lat*d2r)
