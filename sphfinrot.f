@@ -128,7 +128,8 @@ C----------------------------------------------------------------------C
      1 '  -h/-?        help'
       write (*,*) ''
       write (*,*)
-     1 '  sphfinrot makes a finite rotation of a point around a pole'
+     1 '  sphfinrot makes a counter-clockwise finite rotation of a',
+     2     ' point around a pole'
       write (*,*) ''
       write (*,*)
      1 '    input file'
