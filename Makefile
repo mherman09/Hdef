@@ -17,7 +17,8 @@ all: $(BIN)/ff2displacement $(BIN)/ff2coulomb $(BIN)/flt2displacement $(BIN)/flt
      $(BIN)/simpleinversion \
      $(BIN)/sphfinrot \
      $(BIN)/readkik \
-     $(BIN)/pole2vel
+     $(BIN)/pole2vel \
+     $(BIN)/eventfrequency
 
 $(BIN)/ff2displacement:    $(OBJ)/ff2displacement.o $(OKADA) $(GEOM)
 	$(FC) -o $(BIN)/ff2displacement $(OBJ)/ff2displacement.o $(OKADA) $(GEOM)
@@ -40,8 +41,8 @@ $(BIN)/flt2coulomb:        $(OBJ)/flt2coulomb.o $(OKADA) $(GEOM) $(ELAST)
 $(BIN)/testokada:          $(OBJ)/testokada.o $(OKADA)
 	$(FC) -o $(BIN)/testokada $(OBJ)/testokada.o $(OKADA)
 
-$(BIN)/grid:               $(OBJ)/grid.o $(GEOM)
-	$(FC) -o $(BIN)/grid $(OBJ)/grid.o $(OBJ)/geomsubs.o
+$(BIN)/grid:               $(OBJ)/grid.o
+	$(FC) -o $(BIN)/grid $(OBJ)/grid.o
 
 $(BIN)/nez2los:            $(OBJ)/nez2los.o
 	$(FC) -o $(BIN)/nez2los $(OBJ)/nez2los.o
@@ -75,6 +76,9 @@ $(BIN)/readkik:            $(OBJ)/readkik.o
 
 $(BIN)/sphfinrot:          $(OBJ)/sphfinrot.o
 	$(FC) -o $(BIN)/sphfinrot $(OBJ)/sphfinrot.o
+
+$(BIN)/eventfrequency:       $(OBJ)/eventfrequency.o
+	$(FC) -o $(BIN)/eventfrequency $(OBJ)/eventfrequency.o
 
 $(OBJ)/%.o: %.f
 	$(FC) -c $<

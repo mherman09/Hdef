@@ -1,43 +1,51 @@
       PROGRAM daycount
  
       IMPLICIT none
-      INTEGER yr1,mo1,dy1,yr2,mo2,dy2,ndy1,ndy2
+      INTEGER yr1,mo1,dy1,yr2,mo2,dy2,ndy1,ndy2,ndy
       CHARACTER*30 ifile,ofile,date1,date2
+      INTEGER user
 
-      call gcmdln(ifile,ofile)
+      call gcmdln(ifile,ofile,user)
  
-      if (ifile.eq.'none') then
-          print *,'To see options, use -h flag'
-          print *,'Enter year1 month1 day1 year2 month2 day2:'
+      if (user.eq.1) then
+          write (*,*),'Enter year1 month1 day1 year2 month2 day2:'
           read *, yr1,mo1,dy1,yr2,mo2,dy2
           call ndays(ndy1,yr1,mo1,dy1)
           call ndays(ndy2,yr2,mo2,dy2)
-          print *, ndy2 - ndy1
+          ndy = ndy2 - ndy1
+          write (*,8889), ndy
       else      
           open (unit=11,file=ifile,status='old')
           open (unit=12,file=ofile,status='unknown')
   101     read (11,*,end=102) yr1,mo1,dy1,yr2,mo2,dy2
               call ndays(ndy1,yr1,mo1,dy1)
               call ndays(ndy2,yr2,mo2,dy2)
-              write (12,*) ndy2 - ndy1
+              ndy = ndy2 - ndy1
+              write (12,9999) ndy
               goto 101
   102     continue
       endif
+
+ 8889 format('Number of days =',I7)
+ 9999 format(I7)
 
       END
 
 C======================================================================C
  
-      SUBROUTINE gcmdln(ifile,ofile)
+      SUBROUTINE gcmdln(ifile,ofile,user)
  
       IMPLICIT NONE
       CHARACTER*30 ifile,ofile,tag
-      INTEGER i,narg
+      INTEGER i,narg,user
 
-      ifile = 'none'
+      user = 0
+      ifile = 'daycount.in'
       ofile = 'daycount.out'
 
       narg = iargc()
+      if (narg.eq.0) call usage()
+
       i = 0
   201 i = i + 1
       if (i.gt.narg) goto 202
@@ -48,6 +56,10 @@ C======================================================================C
           elseif (tag(1:2).eq.'-o') then
               i = i + 1
               call getarg(i,ofile)
+          elseif (tag(1:2).eq.'-d') then
+              write(*,*) 'Running with default file names'
+          elseif (tag(1:2).eq.'-u') then
+              user = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
               call usage()
           endif
@@ -55,6 +67,47 @@ C======================================================================C
   202 continue
 
       RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE usage()
+      IMPLICIT none
+
+      write(*,*)
+     1 'Usage: daycount -f [IFILE] -o [OFILE] -d -u -h/-?'
+      write(*,*)
+     1 '  -f [IFILE] (Default daycount.in) name of input file'
+      write(*,*)
+     1 '  -o [OFILE] (Default daycount.out) name of output file'
+      write(*,*)
+     1 '  -d         Run with default file names'
+      write (*,*)
+     1 '  -u         Prompt user to enter information through standard'
+      write (*,*)
+     1 '                 input for single calculation'
+      write (*,*)
+     1 '  -h/-?      Online help (this screen)'
+      write (*,*) ''
+      write (*,*)
+     1 '  daycount calculates number of days between calendar dates'
+      write (*,*) ''
+      write (*,*)
+     1 '    Input file'
+      write (*,*)
+     1 '        yr1 mo1 dy1 yr2 mo2 dy2'
+      write (*,*)
+     1 '         :  :'
+      write (*,*) ''
+      write (*,*)
+     1 '    Output file'
+      write (*,*)
+     1 '        number of days (starting from date1, ending at date2)'
+      write (*,*)
+     1 '            :  '
+      write (*,*) ''
+
+      STOP
       END
 
 C----------------------------------------------------------------------C
@@ -101,39 +154,3 @@ C----------------------------------------------------------------------C
       RETURN
       END
 
-C----------------------------------------------------------------------C
-
-      SUBROUTINE usage()
-      IMPLICIT none
-
-      write(*,*)
-     1 'Usage: daycount -f [IFILE] -o [OFILE] -h/-?'
-      write(*,*)
-     1 '  -f [IFILE] (Default none) name of input file'
-      write(*,*)
-     1 '                            if no file name given, fault ',
-     2                            'parameters prompted for manual input'
-      write(*,*)
-     1 '  -o [OFILE] (Default daycount.out) name of output file'
-      write (*,*)
-     1 '  -h/-?        help'
-      write (*,*) ''
-      write (*,*)
-     1 '  daycount calculates number of days between calendar dates'
-      write (*,*) ''
-      write (*,*)
-     1 '    input file'
-      write (*,*)
-     1 '        yr1 mo1 dy1 yr2 mo2 dy2'
-      write (*,*)
-     1 '         :  :'
-      write (*,*)
-     1 '    output file'
-      write (*,*)
-     1 '        no. days (starting from date1, ending at date2)'
-      write (*,*)
-     1 '         :  :'
-      write (*,*) ''
-
-      STOP
-      END

@@ -5,15 +5,32 @@ C----
       IMPLICIT NONE
       REAL*8 x1,x2,y1,y2,dx,dy
       REAL*8 x,y,z
-      INTEGER i,j,nx,ny,chk,p
+      INTEGER i,j,nx,ny,chk,p,user
 
 C----
 C Get parameters from the command line
 C----
-      call gcmdln(x1,x2,y1,y2,nx,ny,z,p)
+      call gcmdln(x1,x2,y1,y2,nx,ny,z,p,user)
       if (p.eq.0) then
           open (unit=101,file='grid.out',status='unknown')
           rewind 101
+      endif
+
+      if (user.eq.1) then
+          write(*,*) 'Enter starting and ending x-points X1 X2:'
+          read *,x1,x2
+          write(*,*) 'Enter number of grid points along x-dimension:'
+          read *,nx
+          write(*,*) 'Enter starting and ending y-points Y1 Y2:'
+          read *,y1,y2
+          write(*,*) 'Enter number of grid points along y-dimension:'
+          read *,ny
+          write(*,*) 'Enter z value for grid:'
+          read *,z
+          if (p.eq.0) then
+              write(*,*) ''
+              write(*,*) 'Grid written to file grid.out'
+          endif
       endif
 
 C----
@@ -58,11 +75,11 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(x1,x2,y1,y2,nx,ny,z,p)
+      SUBROUTINE gcmdln(x1,x2,y1,y2,nx,ny,z,p,user)
       IMPLICIT none
       CHARACTER*20 tag
       REAL*8 x1,x2,y1,y2,z
-      INTEGER narg,i,nx,ny,p
+      INTEGER narg,i,nx,ny,p,user
 
       x1 = 0.0d0
       x2 = 1.0d0
@@ -72,6 +89,7 @@ C======================================================================C
       ny = 1
       z = 0.0d0
       p = 0
+      user = 0
       
       narg = iargc()
       if (narg.eq.0) call usage()
@@ -110,6 +128,8 @@ C======================================================================C
           call usage()
       elseif (tag(1:2).eq.'-p') then
           p = 1
+      elseif (tag(1:2).eq.'-u') then
+          user = 1
       endif
       goto 11
 
@@ -124,7 +144,7 @@ C----------------------------------------------------------------------C
       IMPLICIT none
       write(*,*)
      1 'Usage: grid -x [X1 X2] -y [Y1 Y2] -z [Z] -nx [NX] -ny [NY] ',
-     2 '-p -h/-?'
+     2 '-p -u -h/-?'
       write(*,*)
      1 '  -x [X1 X2] (Default X1=0 X2=1) define x limits'
       write(*,*)
@@ -139,7 +159,12 @@ C----------------------------------------------------------------------C
      1 '  -p         (Default off) print output to stdout (will not ',
      2                            'write file grid.out)'
       write (*,*)
-     1 '  -h/-?        help'
+     1 '  -u         Prompt user to enter information through standard'
+      write (*,*)
+     1 '                 input for single calculation'
+      write (*,*)
+     1 '  -h/-?      Online help (this screen)'
+      write (*,*) ''
       write (*,*)
      1 '  grid creates an evenly spaced file grid.out'
       write (*,*)

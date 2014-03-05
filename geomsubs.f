@@ -12,6 +12,14 @@ C----
       REAL lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a,arg
       REAL dist,az
 C----
+C Check if points are polar opposite
+C----
+      if (lat1.eq.-lat2.and.mod(lon1-lon2,1.8e2).eq.0) then
+          dist = pi
+          az = 0.0e0
+          goto 11
+      endif
+C----
 C   12/13/12 - use the Haversine formula to get distance:
 C              more accurate over short distances
 C----
@@ -84,6 +92,14 @@ C----
       REAL*8 lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a,arg
       REAL*8 dist,az
 C----
+C Check if points are polar opposite
+C----
+      if (lat1.eq.-lat2.and.mod(lon1-lon2,1.8d2).eq.0) then
+          dist = pi
+          az = 0.0d0
+          goto 11
+      endif
+C----
 C   12/13/12 - use the Haversine formula to get distance:
 C              more accurate over short distances
 C----
@@ -137,6 +153,28 @@ C      if (az.lt.0.0) az = az+2.0d0*pi
      1                      dcos(lat1*d2r)*dsin(lat2*d2r)
      2                       - dsin(lat1*d2r)*dcos(lat2*d2r)*dcos(dlon))
    11 continue
+
+      RETURN
+      END
+
+c----------------------------------------------------------------------c
+
+      SUBROUTINE dlola(lon2,lat2,lon1,lat1,dist,az)
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 lon1,lat1,lon2,lat2,dist,az
+
+      dist = dist/6371.0d0
+      az = az*d2r
+      lat1 = lat1*d2r
+      lon1 = lon1*d2r
+
+      lat2 = dasin(dsin(lat1)*dcos(dist)+dcos(lat1)*dsin(dist)*dcos(az))
+
+      lon2 = lon1 + datan2(dsin(az)*dsin(dist)*dcos(lat1),
+     1                           dcos(dist)-dsin(lat1)*dsin(lat2))
+
 
       RETURN
       END

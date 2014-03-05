@@ -3,53 +3,54 @@
       IMPLICIT none
       INTEGER stdin,stdout
       REAL*8 r2d,pi
-      PARAMETER (stdin=5,stdout=6,pi=4.0d0*atan(1.0d0),r2d=1.8d2/pi)
+      PARAMETER (stdin=5,stdout=6,pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az
       CHARACTER*30 ifile,ofile
-      INTEGER manual,p
+      INTEGER user,p
       
-      call gcmdln(ifile,ofile,manual,p)
+      call gcmdln(ifile,ofile,user,p)
 
-      if (manual.eq.1) then
+      if (user.eq.1) then
           print *,'Enter lon1 lat1 dist(km) az(deg):'
           read *,lon1,lat1,dist,az
-          call lola(lon2,lat2,lon1,lat1,dist,az)
-          write (6,9998) lon2*r2d,lat2*r2d
+          call dlola(lon2,lat2,lon1,lat1,dist,az)
+          write (6,8889) lon2*r2d,lat2*r2d
       else
           open (unit=11,file=ifile,status='old')
           open (unit=12,file=ofile,status='unknown')
   101     read (11,*,end=102) lon1,lat1,dist,az
-              call lola(lon2,lat2,lon1,lat1,dist,az)
+              call dlola(lon2,lat2,lon1,lat1,dist,az)
               if (p.eq.0) then
                   write (12,9999) lon2*r2d,lat2*r2d
               else
-                  write (6,9999) lon2*r2d,lat2*r2d
+                  write (stdout,9999) lon2*r2d,lat2*r2d
               endif
               goto 101
   102     continue
       endif
 
- 9998 format('(lon,lat) = (',F9.4,',',F8.4,')')
- 9999 format(2F15.4)
+ 8889 format('(lon,lat) = (',F14.6,',',F14.6,')')
+ 9999 format(2F18.6)
 
       END
 
 C======================================================================C
 
  
-      SUBROUTINE gcmdln(ifile,ofile,manual,p)
+      SUBROUTINE gcmdln(ifile,ofile,user,p)
       
       IMPLICIT NONE
       CHARACTER*30 ifile,ofile,tag
-      INTEGER i,narg,manual,p
+      INTEGER i,narg,user,p
       
-      manual = 0
+      user = 0
       p = 0
-      ifile = 'none'
+      ifile = 'distaz2lola.in'
       ofile = 'distaz2lola.out'
       
       narg = iargc()
       if (narg.eq.0) call usage()
+
       i = 0
  9998 i = i + 1
       if (i.gt.narg) goto 9999
@@ -60,8 +61,10 @@ C======================================================================C
           elseif (tag(1:2).eq.'-o') then
               i = i + 1
               call getarg(i,ofile)
-          elseif (tag(1:2).eq.'-m') then
-              manual = 1
+          elseif (tag(1:2).eq.'-d') then
+              write(*,*) 'Running with default file names'
+          elseif (tag(1:2).eq.'-u') then
+              user = 1
           elseif (tag(1:2).eq.'-p') then
               p = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
@@ -79,37 +82,37 @@ C----------------------------------------------------------------------C
       IMPLICIT none
 
       write(*,*)
-     1 'Usage: distaz2lola -f [IFILE] -o [OFILE] -p -m -h/-?'
+     1 'Usage: distaz2lola -f [IFILE] -o [OFILE] -d -p -u -h/-?'
       write(*,*)
-     1 '  -f [IFILE]      name of input file'
+     1 '  -f [IFILE] (Default distaz2lola.in) name of input file'
       write(*,*)
-     1 '  -o [OFILE]      name of output file'
+     1 '  -o [OFILE] (Default distaz2lola.out) name of output file'
       write(*,*)
-     1 '                    if -o option not used, OFILE = ',
-     2                   '"distaz2lola.out"'
+     1 '  -d         Run with default file names'
       write(*,*)
-     1 '  -p (Default no) print to standard out instead of file'
-      write(*,*)
-     1 '  -m (Default no) manually input origin, distance, and azimuth'
-      write(*,*)
-     1 '                    and print results to standard out'
+     1 '  -p         Print to standard out instead of file'
       write (*,*)
-     1 '  -h/-?           this online help'
+     1 '  -u         Prompt user to enter information through standard'
+      write (*,*)
+     1 '                 input for single calculation'
+      write (*,*)
+     1 '  -h/-?      Online help (this screen)'
       write (*,*) ''
       write (*,*)
-     1 'distaz2lola calculates end coordinates given starting'
+     1 'distaz2lola calculates end coordinates given starting',
+     2 ' coordinates,'
       write (*,*)
-     1 '  coordinates, distance (in km) and bearing (in degrees)'
+     1 '    distance (in km), and bearing (in degrees)'
       write (*,*) ''
       write (*,*)
-     1 '    input file [IFILE] format'
+     1 '    Input file'
       write (*,*)
      1 '        lon1 lat1 dist(km) az(deg)'
       write (*,*)
      1 '         :       :'
       write (*,*)
       write (*,*)
-     1 '    output file [OFILE] format'
+     1 '    Output file'
       write (*,*)
      1 '        lon2 lat2 '
       write (*,*)
