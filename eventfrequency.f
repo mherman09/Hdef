@@ -66,14 +66,14 @@ C----
       iend = mxval - mnval + 1
       niter = iend/NMAX + 1
       do 107 j = 1,niter
-          itmin = (j-1)*NMAX + 1
+          itmin = (j-1)*NMAX
           itmax = j*NMAX
           do 103 i = 1,NMAX
               ct(i) = 0
   103     continue
           rewind 11
   104     read (11,*,end=105) val
-              if (val.ge.itmax+mnval.or.val.le.itmin-mnval) goto 104
+              if (val.ge.itmax+mnval.or.val.lt.mnval+itmin) goto 104
               val = val - itmin - mnval + 2
               ct(val) = ct(val) + 1
               goto 104
