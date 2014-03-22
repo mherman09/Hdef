@@ -9,12 +9,12 @@ C----
       PARAMETER (NMAX=1000)
       INTEGER ct(NMAX)
       INTEGER mnval,mxval,dumval,mnsrch,mxsrch,val,diff
-      INTEGER i,istart,iend,itmin,itmax,j,niter,user,p
+      INTEGER i,istart,iend,itmin,itmax,j,niter,user,p,z
       
       mnsrch = 0
       mxsrch = 0
 
-      call gcmdln(ifile,ofile,mnval,mxval,p,user)
+      call gcmdln(ifile,ofile,mnval,mxval,z,p,user)
       open (unit=12,file=ofile,status='unknown')
       if (mnval.eq.-99999) mnsrch = 1
       if (mxval.eq.-99999) mxsrch = 1
@@ -80,10 +80,18 @@ C----
   105     continue
           do 106 i = 1,NMAX
               val = i - 2 + mnval + itmin
-              if (ct(i).gt.0.and.p.eq.0) then
-                  write (12,9999) val,ct(i)
-              elseif (ct(i).gt.0.and.p.eq.1) then
-                  write (*,9999) val,ct(i)
+              if (z.eq.0) then
+                  if (ct(i).gt.0.and.p.eq.0) then
+                      write (12,9999) val,ct(i)
+                  elseif (ct(i).gt.0.and.p.eq.1) then
+                      write (*,9999) val,ct(i)
+                  endif
+              else
+                  if (p.eq.0) then
+                      write (12,9999) val,ct(i)
+                  elseif (p.eq.1) then
+                      write (*,9999) val,ct(i)
+                  endif
               endif
   106     continue
   107 continue
@@ -94,13 +102,13 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(ifile,ofile,mnval,mxval,p,user)
+      SUBROUTINE gcmdln(ifile,ofile,mnval,mxval,z,p,user)
 
       IMPLICIT none
       CHARACTER*30 tag
       CHARACTER*30 ifile,ofile
       INTEGER narg,i
-      INTEGER mnval,mxval,user,p
+      INTEGER mnval,mxval,user,p,z
 
       ifile = 'eventfrequency.in'
       ofile = 'eventfrequency.out'
@@ -108,6 +116,7 @@ C======================================================================C
       mxval = -99999
       user = 0
       p = 0
+      z = 0
 
       narg = iargc()
       if (narg.eq.0) call usage()
@@ -129,6 +138,8 @@ C======================================================================C
               p = 1
           elseif (tag(1:2).eq.'-p') then
               p = 1
+          elseif (tag(1:2).eq.'-z') then
+              z = 1
           elseif (tag(1:4).eq.'-min') then
               i = i + 1
               call getarg(i,tag)
@@ -153,7 +164,7 @@ C----------------------------------------------------------------------C
 
       write(*,*)
      1 'Usage: eventfrequency -f [IFILE] -o [OFILE] -d -u -p',
-     2                        '-min [MNVAL] -max [MXVAL] -h/-?'
+     2                        ' -min [MNVAL] -max [MXVAL] -z -h/-?'
       write(*,*)
      1 '  -f [IFILE] (Default eventfrequency.in) name of input file'
       write(*,*)
@@ -170,6 +181,8 @@ C----------------------------------------------------------------------C
      1 '  -min [MNVAL] (Default undefined) minimum value in the list'
       write (*,*)
      1 '  -max [MXVAL] (Default undefined) maximum value in the list'
+      write (*,*)
+     1 '  -z         Print values with counts of zero'
       write (*,*)
      1 '  -h/-?        Online help (this screen)'
       write (*,*) ''
