@@ -94,7 +94,7 @@ C----
           goto 101
   103 continue
 
- 9999 format (2(f10.3),3(f8.3)) 
+ 9999 format (2(f10.3),3(f12.3)) 
 
       END
 
