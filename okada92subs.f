@@ -81,8 +81,8 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipconst(dipin)
-      call spaceconst(vp,vs,dens)
+      call dipterms(dipin)
+      call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
 
 C----
@@ -189,8 +189,8 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipconst(dipin)
-      call spaceconst(vp,vs,dens)
+      call dipterms(dipin)
+      call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
 C----
 C x in direction of strike
@@ -338,8 +338,8 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipconst(dipin)
-      call spaceconst(vp,vs,dens)
+      call dipterms(dipin)
+      call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin)
 C----
 C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
@@ -499,8 +499,8 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipconst(dipin)
-      call spaceconst(vp,vs,dens)
+      call dipterms(dipin)
+      call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin) 
 C----
 C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
@@ -632,17 +632,19 @@ c----
       END
 
 C======================================================================C
-
 C----------------------------------------------------------------------C
-C Subroutines common to all Okada subroutines                          C
+C-------------------------- SUBROUTINES -------------------------------C
 C----------------------------------------------------------------------C
+C======================================================================C
 
-      SUBROUTINE dipconst(dipin)
+      SUBROUTINE dipterms(dipin)
 C----
-C Calculate source constants dependent on dip: sin(dip), cos(dip), etc.
+C Pre-calculate dip terms (sin(dip), cos(dip), etc.)
 C
 C Note: double precision math can tolerate fault dips close to 90, but
-C not equal to 90; if dip > 89.9999 set dip = 89.9999.
+C not equal to 90 (ends up with divide by zero problems):
+C     
+C     if (dip.gt.89.9999d0) dip = 89.9999d0
 C----
       IMPLICIT none
       REAL*8 pi,d2r
@@ -660,8 +662,8 @@ C----
       cd = dcos(dip)
       s2d = dsin(2.0d0*dip)
       c2d = dcos(2.0d0*dip)
-      sdsd = sd*sd
       cdcd = cd*cd
+      sdsd = sd*sd
       cdsd = sd*cd
 
       RETURN
@@ -669,10 +671,11 @@ C----
 
 C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-      SUBROUTINE spaceconst(vp,vs,dens)
+      SUBROUTINE hafspc(vp,vs,dens)
 C----
-C Calculate half-space constants.
-C Reminder: in Poisson halfspace, vs = vp/sqrt(3), lamda = mu, a = 2/3
+C Calculate half-space constants (Lame parameters, etc.)
+C
+C Note: in Poisson half-space, vs = vp/sqrt(3), lamda = mu, a = 2/3
 C----
       IMPLICIT none
       REAL*8 vp,vs,dens,mu,lamda
@@ -690,15 +693,16 @@ C----
       RETURN
       END
 
-
 C----------------------------------------------------------------------C
-C Source size (moment) subroutines                                     C
+C------------------- Source Moment Subroutines ------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE moment0(Mss,Mds,slip,rakin,area)
 C----
-C Divide slip into strike slip and dip slip, and calculate moment of
+C Divide slip into strike-slip and dip-slip, and calculate moment of
 C each component (POINT SOURCE).
+C
+C Note: These values are not strictly seismic moments.
 C----
       IMPLICIT none
       REAL*8 pi,d2r
@@ -716,8 +720,10 @@ C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
       SUBROUTINE moment1(Mss,Mds,slip,rakin)
 C----
-C Divide slip into strike slip and dip slip, and calculate moment of
+C Divide slip into strike-slip and dip-slip, and calculate moment of
 C each component (FINITE SOURCE).
+C
+C Note: These values are not strictly seismic moments.
 C----
       IMPLICIT none
       REAL*8 pi,d2r
@@ -732,25 +738,28 @@ C----
       END
 
 C----------------------------------------------------------------------C
-C Point source subroutines                                             C
+C----------------------------------------------------------------------C
+C------------------- Point Source Subroutines -------------------------C
+C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE geomvars0(x,y,d)
 C----
-C Calculate geometric variables from x, y, and d (difference in z
+C Calculate geometric variables from x, y, and d (difference in depth
 C between source and station)
 C----
       IMPLICIT none
       REAL*8 x,y,d
 
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-      REAL*8 R,R2,R3,R4,R5,R7,Rd,p,q,s,t
+      REAL*8 R,R2,R3,R4,R5,R7,Rd,Rd2,Rd3,Rd4,p,q,s,t
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 I1,I2,I3,I4,I5
       REAL*8 J1,J2,J3,J4
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
       REAL*8 U3,V3,W3
+      REAL*8 xx,yy,xy,dd
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
       COMMON /RVARS0/ R,R2,R3,R4,R5,R7,Rd,p,q,s,t
@@ -760,11 +769,14 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
       COMMON /ZVARS0/ U3,V3,W3
+      
+      xx = x*x
+      yy = y*y
+      xy = x*y
+      dd = d*d
 
-C----
-C R = distance between source and station
-C----
-      R  = dsqrt(x*x+y*y+d*d)
+C R = total distance between source and station
+      R  = dsqrt(xx+yy+dd)
       R2 = R*R
       R3 = R2*R
       R4 = R3*R
@@ -772,22 +784,13 @@ C----
       R7 = R5*R2
 
       Rd = R + d
+      Rd2 = Rd*Rd
+      Rd3 = Rd2*Rd
+      Rd4 = Rd3*Rd
 
-      A3 = 1.0d0 - 3.0d0*x*x/R2
-      A5 = 1.0d0 - 5.0d0*x*x/R2
-      A7 = 1.0d0 - 7.0d0*x*x/R2
-      B3 = 1.0d0 - 3.0d0*y*y/R2
-      B5 = 1.0d0 - 5.0d0*y*y/R2 
-      B7 = 1.0d0 - 7.0d0*y*y/R2
-      C3 = 1.0d0 - 3.0d0*d*d/R2
-      C5 = 1.0d0 - 5.0d0*d*d/R2
-      C7 = 1.0d0 - 7.0d0*d*d/R2
-
-C----
 C p, q, s, t = distances in rotated reference frame.
 C p = fault dip-parallel distance
 C q = fault dip-perpendicular distance
-C----
       p = y*cd + d*sd
       q = y*sd - d*cd
       s = p*sd + q*cd
@@ -796,29 +799,40 @@ C----
 C----
 C Other variables
 C----
-      I1 =  y*(1.0d0/(R*Rd*Rd) - x*x*(3.0d0*R+d)/(R3*Rd*Rd*Rd))
-      I2 =  x*(1.0d0/(R*Rd*Rd) - y*y*(3.0d0*R+d)/(R3*Rd*Rd*Rd))
-      I3 =  x/R3 - I2
-      I4 = -x*y*(2.0d0*R+d)/(R3*Rd*Rd)
-      I5 =  1.0d0/(R*Rd) - x*x*(2.0d0*R+d)/(R3*Rd*Rd)
+      A3 = 1.0d0 - 3.0d0*xx/R2
+      A5 = 1.0d0 - 5.0d0*xx/R2
+      A7 = 1.0d0 - 7.0d0*xx/R2
+      B3 = 1.0d0 - 3.0d0*yy/R2
+      B5 = 1.0d0 - 5.0d0*yy/R2 
+      B7 = 1.0d0 - 7.0d0*yy/R2
+      C3 = 1.0d0 - 3.0d0*dd/R2
+      C5 = 1.0d0 - 5.0d0*dd/R2
+      C7 = 1.0d0 - 7.0d0*dd/R2
 
-      J1 = -3.0d0*x*y*((3.0d0*R+d)/(R3*Rd*Rd*Rd)
-     1                  - x*x*(5.0d0*R2+4.0d0*R*d+d*d)/(R5*Rd*Rd*Rd*Rd))
-      J2 = 1.0d0/R3 - 3.0d0/(R*Rd*Rd)
-     1         + 3.0d0*x*x*y*y*(5.0d0*R2+4.0d0*R*d+d*d)/(R5*Rd*Rd*Rd*Rd)
+      I1 =  y*(1.0d0/(R*Rd2) - xx*(3.0d0*R+d)/(R3*Rd3))
+      I2 =  x*(1.0d0/(R*Rd2) - yy*(3.0d0*R+d)/(R3*Rd3))
+      I3 =  x/R3 - I2
+      I4 = -xy*(2.0d0*R+d)/(R3*Rd2)
+      I5 =  1.0d0/(R*Rd) - xx*(2.0d0*R+d)/(R3*Rd2)
+
+      J1 = -3.0d0*xy*((3.0d0*R+d)/(R3*Rd3)
+     1                  - xx*(5.0d0*R2+4.0d0*R*d+dd)/(R5*Rd4))
+      J2 = 1.0d0/R3 - 3.0d0/(R*Rd2)
+     1         + 3.0d0*xx*yy*(5.0d0*R2+4.0d0*R*d+dd)/(R5*Rd4)
       J3 = A3/R3 - J2
-      J4 = -3.0d0*x*y/R5 - J1
-      K1 = -y*((2.0d0*R+d)/(R3*Rd*Rd)
-     1               - x*x*(8.0d0*R2+9.0d0*R*d+3.0d0*d*d)/(R5*Rd*Rd*Rd))
-      K2 = -x*((2.0d0*R+d)/(R3*Rd*Rd)
-     1               - y*y*(8.0d0*R2+9.0d0*R*d+3.0d0*d*d)/(R5*Rd*Rd*Rd))
+      J4 = -3.0d0*xy/R5 - J1
+
+      K1 = -y*((2.0d0*R+d)/(R3*Rd2)
+     1               - xx*(8.0d0*R2+9.0d0*R*d+3.0d0*dd)/(R5*Rd3))
+      K2 = -x*((2.0d0*R+d)/(R3*Rd2)
+     1               - yy*(8.0d0*R2+9.0d0*R*d+3.0d0*dd)/(R5*Rd3))
       K3 = -3.0d0*x*d/R5 - K2
 
       U2 = sd - 5.0d0*y*q/R2
-      V2 = s    - 5.0d0*y*p*q/R2
+      V2 = s  - 5.0d0*y*p*q/R2
       W2 = sd + U2
       U3 = cd + 5.0d0*d*q/R2
-      V3 = t    + 5.0d0*d*p*q/R2
+      V3 = t  + 5.0d0*d*p*q/R2
       W3 = cd + U3
 
       RETURN
