@@ -166,6 +166,7 @@ C----
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
       REAL*8 U3,V3,W3
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -177,6 +178,7 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
       COMMON /ZVARS0/ U3,V3,W3
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/ thru
 C----
       thru = 0
@@ -387,14 +389,14 @@ C----
           call rectvars(ksi(ii),eta(jj),q,z,ek(jj),ee(ii),eps)
 
           if (thru.eq.0) then
-              call rectdisp(f,ksi(ii),eta(jj),q,z)
+              call disp1(f,ksi(ii),eta(jj),q,z)
               do 305 i = 1,6
                   do 304 j = 1,3
                       u(i,j) = u(i,j) + fac*f(i,j)
   304             continue
   305         continue
           else
-              call rectdisp(f,ksi(ii),eta(jj),q,z)
+              call disp1(f,ksi(ii),eta(jj),q,z)
               do 306 i = 1,6
                   u(i,1) = u(i,1) - fac*f(i,1)
   306         continue
@@ -544,10 +546,10 @@ C----
           call rectvars(ksi(ii),eta(jj),q,z,ek(jj),ee(ii),eps)
 
           if (thru.eq.0) then
-              call rectxder(fx,ksi(ii),eta(jj),q,z)
-              call rectyder(fy,ksi(ii),eta(jj),q,z)
-              call rectzder(fz,ksi(ii),eta(jj),q,z)
-              call rectstndisp(f ,ksi(ii),eta(jj),q,z)
+              call xderiv1(fx,ksi(ii),eta(jj),q,z)
+              call yderiv1(fy,ksi(ii),eta(jj),q,z)
+              call zderiv1(fz,ksi(ii),eta(jj),q,z)
+              call disp1stn(f ,ksi(ii),eta(jj),q,z)
 
               do 405 i = 1,6
                   u(i)  =  u(i) + fac*f(i)
@@ -558,9 +560,9 @@ C----
   404             continue
   405         continue
           else
-              call rectxder(fx,ksi(ii),eta(jj),q,z)
-              call rectyder(fy,ksi(ii),eta(jj),q,z)
-              call rectzder(fz,ksi(ii),eta(jj),q,z)
+              call xderiv1(fx,ksi(ii),eta(jj),q,z)
+              call yderiv1(fy,ksi(ii),eta(jj),q,z)
+              call zderiv1(fz,ksi(ii),eta(jj),q,z)
               do 406 i = 1,6
                   fj(i,1) = fj(i,1) - fac*fx(i,1)
                   fk(i,1) = fk(i,1) - fac*fy(i,1)
@@ -1418,9 +1420,9 @@ C----
       RETURN
       END
 
-C-------------------
+C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-      SUBROUTINE rectdisp(f,ksi,eta,q,z)
+      SUBROUTINE disp1(f,ksi,eta,q,z)
 C----
 C Components of displacement from finite source
 C----
@@ -1476,7 +1478,7 @@ C----
 
 C-------------------
 
-      SUBROUTINE rectxder(fx,ksi,eta,q,z)
+      SUBROUTINE xderiv1(fx,ksi,eta,q,z)
 C----
 C Components of x-derivatives of displacement from finite source
 C----
@@ -1533,7 +1535,7 @@ C----
 
 C-------------------
 
-      SUBROUTINE rectyder(fy,ksi,eta,q,z)
+      SUBROUTINE yderiv1(fy,ksi,eta,q,z)
 C----
 C Components of y-derivatives of displacement from finite source
 C----
@@ -1595,7 +1597,7 @@ C----
 
 C-------------------
 
-      SUBROUTINE rectzder(fz,ksi,eta,q,z)
+      SUBROUTINE zderiv1(fz,ksi,eta,q,z)
 C----
 C Components of z-derivatives of displacement from finite source
 C----
@@ -1660,7 +1662,7 @@ C----
 
 C-------------------
 
-      SUBROUTINE rectstndisp(f,ksi,eta,q,z)
+      SUBROUTINE disp1stn(f,ksi,eta,q,z)
 C----
 C Components of displacement due to finite source for calculating
 C partial derivatives
