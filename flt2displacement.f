@@ -166,7 +166,7 @@ C----
           if (srcfile.eq.'help') call usage()
           goto 11
       else
-           if (verbose) write(*,9999)
+          if (verbose) write(*,9999)
       endif
 C----
 C Stations
@@ -181,7 +181,7 @@ C----
           if (stafile.eq.'help') call usage()
           goto 12
       else
-           if (verbose) write(*,9999)
+          if (verbose) write(*,9999)
       endif
 C----
 C Halfspace
@@ -196,7 +196,7 @@ C----
           if (haffile.eq.'help') call usage()
           goto 13
       else
-           if (verbose) write(*,9999)
+          if (verbose) write(*,9999)
       endif
 
  9996 format('Looking for fault file:      ',A20)

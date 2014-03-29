@@ -37,7 +37,7 @@ C----
 C----
 C Input files
 C----
-      call checkctrlfiles(srcfile,stafile,haffile)
+      call checkctrlfiles(srcfile,stafile,haffile,verbose)
       open (unit=21,file=srcfile,status='old')
       open (unit=22,file=stafile,status='old')
       open (unit=23,file=haffile,status='old')
@@ -94,7 +94,7 @@ C----
           goto 101
   103 continue
 
- 9999 format (2(f10.3),3(f8.3)) 
+ 9999 format (2(f10.3),3(f12.3)) 
 
       END
 
@@ -145,10 +145,10 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE checkctrlfiles(srcfile,stafile,haffile)
+      SUBROUTINE checkctrlfiles(srcfile,stafile,haffile,verbose)
       IMPLICIT none
       CHARACTER*20 srcfile,stafile,haffile
-      LOGICAL ex
+      LOGICAL ex,verbose
 
       srcfile = 'faults.txt'
       stafile = 'stations.txt'
@@ -156,47 +156,47 @@ C----------------------------------------------------------------------C
 C----
 C Fault file
 C----
-   11 write (*,9996,advance='no'),srcfile
+   11 if (verbose) write (*,9996,advance='no'),srcfile
       inquire(file=srcfile,EXIST=ex)
       if (.not.ex) then
-          write (*,8889)
+          write (*,8889) srcfile
           write (*,8886)
           read *,srcfile
           if (srcfile.eq.'quit') stop
           if (srcfile.eq.'help') call usage()
           goto 11
       else
-           write(*,9999)
+          if (verbose) write(*,9999)
       endif
 C----
 C Stations
 C----
-   12 write (*,9997,advance='no'),stafile
+   12 if (verbose) write (*,9997,advance='no'),stafile
       inquire (file=stafile,EXIST=ex)
       if (.not.ex) then
-          write (*,8889)
+          write (*,8889) stafile
           write (*,8887)
           read *,stafile
           if (stafile.eq.'quit') stop
           if (stafile.eq.'help') call usage()
           goto 12
       else
-           write(*,9999)
+          if (verbose) write(*,9999)
       endif
 C----
 C Halfspace
 C----
-   13 write (*,9998,advance='no'),haffile
+   13 if (verbose) write (*,9998,advance='no'),haffile
       inquire (file=haffile,EXIST=ex)
       if (.not.ex) then
-          write (*,8889)
+          write (*,8889) haffile
           write (*,8888)
           read *,haffile
           if (haffile.eq.'quit') stop
           if (haffile.eq.'help') call usage()
           goto 13
       else
-           write(*,9999)
+          if (verbose) write(*,9999)
       endif
 
  9996 format('Looking for fault file:      ',A20)
@@ -206,7 +206,7 @@ C----
  8886 format('Enter name of fault file, "quit" or "help":')
  8887 format('Enter name of station file, "quit" or "help":')
  8888 format('Enter name of half-space file, "quit" or "help":')
- 8889 format('NOT FOUND')
+ 8889 format('No file named ',A20)
 
       RETURN
       END
