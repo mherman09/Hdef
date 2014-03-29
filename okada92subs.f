@@ -49,6 +49,7 @@ C----
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
       REAL*8 U3,V3,W3
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -60,6 +61,7 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
       COMMON /ZVARS0/ U3,V3,W3
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
 
 C----
@@ -95,7 +97,7 @@ C----
       z = -stdp
   103 d = c - z
 
-      call geomvars0(x,y,d)
+      call geomvars0(x,y,c,d)
 
       if (thru.eq.0) then
           call disp0(f,x,y,c,d)
@@ -201,13 +203,13 @@ C----
       z = -stdp
   301 d = c - z
 
-      call geomvars0(x,y,d)
+      call geomvars0(x,y,c,d)
 
       if (thru.eq.0) then
           call xderiv0(fx,x,y,c,d)
           call yderiv0(fy,x,y,c,d)
           call zderiv0(fz,x,y,c,d)
-          call ptstndisp(f,x,y,c,d)
+          call disp0stn(f,x,y,c,d)
 
            do 308 i = 1,6
                u(i) = u(i) + f(i)
@@ -743,13 +745,13 @@ C------------------- Point Source Subroutines -------------------------C
 C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
-      SUBROUTINE geomvars0(x,y,d)
+      SUBROUTINE geomvars0(x,y,c,d)
 C----
 C Calculate geometric variables from x, y, and d (difference in depth
 C between source and station)
 C----
       IMPLICIT none
-      REAL*8 x,y,d
+      REAL*8 x,y,c,d
 
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
       REAL*8 R,R2,R3,R4,R5,R7,Rd,Rd2,Rd3,Rd4,p,q,s,t
@@ -759,7 +761,7 @@ C----
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
       REAL*8 U3,V3,W3
-      REAL*8 xx,yy,xy,dd
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
       COMMON /RVARS0/ R,R2,R3,R4,R5,R7,Rd,p,q,s,t
@@ -769,11 +771,14 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
       COMMON /ZVARS0/ U3,V3,W3
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       
       xx = x*x
-      yy = y*y
       xy = x*y
+      yy = y*y
       dd = d*d
+      xd = x*d
+      xc = x*c
 
 C R = total distance between source and station
       R  = dsqrt(xx+yy+dd)
@@ -795,6 +800,11 @@ C q = fault dip-perpendicular distance
       q = y*sd - d*cd
       s = p*sd + q*cd
       t = p*cd - q*sd
+
+      xq = x*q
+      yq = y*q
+      dq = d*q
+      pq = p*q
 
 C----
 C Other variables
@@ -828,11 +838,11 @@ C----
      1               - yy*(8.0d0*R2+9.0d0*R*d+3.0d0*dd)/(R5*Rd3))
       K3 = -3.0d0*x*d/R5 - K2
 
-      U2 = sd - 5.0d0*y*q/R2
-      V2 = s  - 5.0d0*y*p*q/R2
+      U2 = sd - 5.0d0*yq/R2
+      V2 = s  - 5.0d0*y*pq/R2
       W2 = sd + U2
-      U3 = cd + 5.0d0*d*q/R2
-      V3 = t  + 5.0d0*d*p*q/R2
+      U3 = cd + 5.0d0*dq/R2
+      V3 = t  + 5.0d0*d*pq/R2
       W3 = cd + U3
 
       RETURN
@@ -853,7 +863,7 @@ C----
       REAL*8 R,R2,R3,R4,R5,R7,Rd,p,q,s,t
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 I1,I2,I3,I4,I5
-      REAL*8 xx,xy,pq,cx
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -861,12 +871,8 @@ C----
       COMMON /RVARS0/ R,R2,R3,R4,R5,R7,Rd,p,q,s,t
       COMMON /ABC0/   A3,A5,A7,B3,B5,B7,C3,C5,C7
       COMMON /IVARS0/ I1,I2,I3,I4,I5
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
-
-      xx = x*x
-      xy = x*y
-      pq = p*q
-      cx = c*x
 
 C----
 C When calculating terms from real source (thru = 0), include all
@@ -883,17 +889,17 @@ C----
 
           f(1,2) = -3.0d0*xx*q/R5 - CB*I1*sd
           f(2,2) = -3.0d0*xy*q/R5 - CB*I2*sd
-          f(3,2) = -3.0d0*cx*q/R5 - CB*I4*sd
+          f(3,2) = -3.0d0*xc*q/R5 - CB*I4*sd
           f(4,2) = -3.0d0*x*pq/R5 + CB*I3*cdsd
           f(5,2) = -3.0d0*y*pq/R5 + CB*I1*cdsd
           f(6,2) = -3.0d0*c*pq/R5 + CB*I5*cdsd
 
           f(1,3) = -CC*A3*cd/R3 + a*3.0d0*c*q*A5/R5 
           f(2,3) =  CC*3.0d0*xy*cd/R5
-     1                              + a*3.0d0*cx*(sd-5.0d0*y*q/R2)/R5
+     1                              + a*3.0d0*xc*(sd-5.0d0*y*q/R2)/R5
           f(3,3) = -CC*3.0d0*xy*sd/R5
-     1                              + a*3.0d0*cx*(cd+5.0d0*d*q/R2)/R5
-          f(4,3) =  CC*3.0d0*x*t/R5 - a*15.0d0*cx*pq/R7
+     1                              + a*3.0d0*xc*(cd+5.0d0*d*q/R2)/R5
+          f(4,3) =  CC*3.0d0*x*t/R5 - a*15.0d0*xc*pq/R7
           f(5,3) = -CC*(c2d-3.0d0*y*t/R2)/R3
      1                                 + a*3.0d0*c*(s-5.0d0*y*pq/R2)/R5
           f(6,3) = -CC*A3*cdsd/R3 + a*3.0d0*c*(t+5.0d0*d*pq/R2)/R5
@@ -959,7 +965,7 @@ C----
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 J1,J2,J3,J4
       REAL*8 K1,K2,K3
-      REAL*8 xy,xc,xq,yq,dq,pq
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -968,14 +974,8 @@ C----
       COMMON /ABC0/   A3,A5,A7,B3,B5,B7,C3,C5,C7
       COMMON /JVARS0/ J1,J2,J3,J4
       COMMON /KVARS0/ K1,K2,K3
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
-      
-      xy = x*y
-      xc = x*c
-      xq = x*q
-      yq = y*q
-      dq = d*q
-      pq = p*q
 
 C----
 C When calculating terms from real source (thru = 0), include all
@@ -1072,7 +1072,7 @@ C----
       REAL*8 J1,J2,J3,J4
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
-      REAL*8 xx,xy,cx,pq
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1082,12 +1082,8 @@ C----
       COMMON /JVARS0/ J1,J2,J3,J4
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/ thru
-      
-      xx = x*x
-      xy = x*y
-      cx = c*x
-      pq = p*q
 
       if (thru.eq.0) then
           fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*xx*U2/R5
@@ -1106,7 +1102,7 @@ C          fy(12,1) =  CA1*3.0d0*y*d/R5
 
           fy(1,2) = -3.0d0*xx*U2/R5                - CB*J2*sd
           fy(2,2) = -3.0d0*xy*U2/R5 - 3.0d0*x*q/R5 - CB*J4*sd
-          fy(3,2) = -3.0d0*cx*U2/R5                - CB*K2*sd
+          fy(3,2) = -3.0d0*xc*U2/R5                - CB*K2*sd
           fy(4,2) = -3.0d0*x*V2/R5                  + CB*J1*sd*cd
           fy(5,2) = -3.0d0*y*V2/R5   - 3.0d0*p*q/R5 + CB*J2*sd*cd
           fy(6,2) = -3.0d0*c*V2/R5                  + CB*K1*sd*cd
@@ -1120,11 +1116,11 @@ C          fy(12,2) =                                -CB*3.0d0*y*d/R5
           fy(1,3) =  CC*3.0d0*y*A5*cd/R5
      1                          + a*3.0d0*c*(A5*sd-5.0d0*y*q*A7/R2)/R5
           fy(2,3) =  CC*3.0d0*x*B5*cd/R5
-     1                             - a*15.0d0*cx*(2.0d0*y*sd+q*B7)/R7
+     1                             - a*15.0d0*xc*(2.0d0*y*sd+q*B7)/R7
           fy(3,3) = -CC*3.0d0*x*B5*sd/R5
-     1                           + a*15.0d0*cx*(d*B7*sd-y*C7*cd)/R7
+     1                           + a*15.0d0*xc*(d*B7*sd-y*C7*cd)/R7
           fy(4,3) =  CC*3.0d0*x*(c2d-5.0d0*y*t/R2)/R5
-     1                              - a*15.0d0*cx*(s-7.0d0*y*pq/R2)/R7
+     1                              - a*15.0d0*xc*(s-7.0d0*y*pq/R2)/R7
           fy(5,3) =  CC*3.0d0*(2.0d0*y*c2d+t*B5)/R5
      1              + a*3.0d0*c*(s2d-10.0d0*y*s/R2-5.0d0*pq*B7/R2)/R5
           fy(6,3) =  CC*3.0d0*y*A5*sd*cd/R5
@@ -1175,7 +1171,7 @@ C----
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 K1,K2,K3
       REAL*8 U3,V3,W3
-      REAL*8 xx,xy,xd,cx,pq
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1184,13 +1180,8 @@ C----
       COMMON /ABC0/ A3,A5,A7,B3,B5,B7,C3,C5,C7
       COMMON /KVARS0/ K1,K2,K3
       COMMON /ZVARS0/ U3,V3,W3
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/ thru
-      
-      xx = x*x
-      xy = x*y
-      xd = x*d
-      cx = c*x
-      pq = p*q
 
       if (thru.eq.0) then
           fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*xx*U3/R5
@@ -1210,7 +1201,7 @@ C          fz(12,1) =  CA1*C3/R3
 
           fz(1,2) = -3.0d0*xx*U3/R5 + CB*K1*sd
           fz(2,2) = -3.0d0*xy*U3/R5 + CB*K2*sd
-          fz(3,2) = -3.0d0*cx*U3/R5 + CB*3.d0*xy*sd/R5
+          fz(3,2) = -3.0d0*xc*U3/R5 + CB*3.d0*xy*sd/R5
           fz(4,2) = -3.0d0*x*V3/R5   - CB*K3*sd*cd
           fz(5,2) = -3.0d0*y*V3/R5   - CB*K1*sd*cd
           fz(6,2) = -3.0d0*c*V3/R5   + CB*A3*sd*cd/R3
@@ -1224,9 +1215,9 @@ C          fz(12,2) = -CB*C3/R3
           fz(1,3) = -CC*3.0d0*d*A5*cd/R5
      1                          + a*3.0d0*c*(A5*cd+5.0d0*d*q*A7/R2)/R5
           fz(2,3) =  CC*15.0d0*xy*d*cd/R7
-     1                           + a*15.0d0*cx*(d*B7*sd-y*C7*cd)/R7
+     1                           + a*15.0d0*xc*(d*B7*sd-y*C7*cd)/R7
           fz(3,3) = -CC*15.0d0*xy*d*sd/R7
-     1                             + a*15.0d0*cx*(2.0d0*d*cd-q*C7)/R7
+     1                             + a*15.0d0*xc*(2.0d0*d*cd-q*C7)/R7
           fz(4,3) = -CC*3.0d0*x*(s2d-5.0d0*d*t/R2)/R5
      1                              - a*15.0d0*c*x*(t+7.0d0*d*pq/R2)/R7
           fz(5,3) = -CC*3.0d0*(d*B5*c2d+y*C5*s2d)/R5 
@@ -1267,7 +1258,7 @@ C          fz(12,1) =  CA1*C3/R3
 
 C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-      SUBROUTINE ptstndisp(f,x,y,c,d)
+      SUBROUTINE disp0stn(f,x,y,c,d)
       IMPLICIT none
       REAL*8 f(6),x,y,c,d
 
@@ -1275,32 +1266,34 @@ C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
       REAL*8 a,CA1,CA2,CB,CC
       REAL*8 R,R2,R3,R4,R5,R7,Rd,p,q,s,t
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
+      REAL*8 xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
       COMMON /ELAST/ a,CA1,CA2,CB,CC
       COMMON /RVARS0/ R,R2,R3,R4,R5,R7,Rd,p,q,s,t
       COMMON /ABC0/ A3,A5,A7,B3,B5,B7,C3,C5,C7
+      COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
+
 
            f(1) = -CC*A3*cd/R3 + a*3.0d0*c*q*A5/R5
-           f(2) =  CC*3.0d0*x*y*cd/R5
-     1                              + a*3.0d0*c*x*(sd-5.0d0*y*q/R2)/R5
-           f(3) = -CC*3.0d0*x*y*sd/R5
-     1                              + a*3.0d0*c*x*(cd+5.0d0*d*q/R2)/R5
-           f(4) =  CC*3.0d0*x*t/R5 - a*15.0d0*c*x*p*q/R7
+           f(2) =  CC*3.0d0*xy*cd/R5
+     1                              + a*3.0d0*xc*(sd-5.0d0*yq/R2)/R5
+           f(3) = -CC*3.0d0*xy*sd/R5
+     1                              + a*3.0d0*xc*(cd+5.0d0*dq/R2)/R5
+           f(4) =  CC*3.0d0*x*t/R5 - a*15.0d0*xc*pq/R7
            f(5) = -CC*(c2d-3.0d0*y*t/R2)/R3
-     1                                   + a*3.0d0*c*(s-5.0*y*p*q/R2)/R5
-           f(6) = -CC*A3*sd*cd/R3  + a*3.0d0*c*(t+5.0*d*p*q/R2)/R5
+     1                                   + a*3.0d0*c*(s-5.0*y*pq/R2)/R5
+           f(6) = -CC*A3*sd*cd/R3  + a*3.0d0*c*(t+5.0*d*pq/R2)/R5
 
       RETURN
       END
 
 
 C----------------------------------------------------------------------C
-C Finite source subroutines
-C----
-
-
-C-------------------
+C----------------------------------------------------------------------C
+C------------------- Finite Source Subroutines ------------------------C
+C----------------------------------------------------------------------C
+C----------------------------------------------------------------------C
 
       SUBROUTINE rectvars(ksi,eta,q,z,ek,ee,eps)
 C----
