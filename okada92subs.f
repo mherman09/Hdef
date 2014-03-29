@@ -959,6 +959,7 @@ C----
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 J1,J2,J3,J4
       REAL*8 K1,K2,K3
+      REAL*8 xy,xc,xq,yq,dq,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -968,6 +969,13 @@ C----
       COMMON /JVARS0/ J1,J2,J3,J4
       COMMON /KVARS0/ K1,K2,K3
       COMMON /TAG/    thru
+      
+      xy = x*y
+      xc = x*c
+      xq = x*q
+      yq = y*q
+      dq = d*q
+      pq = p*q
 
 C----
 C When calculating terms from real source (thru = 0), include all
@@ -975,31 +983,31 @@ C components of displacement. Using mirror source (thru = 1), only
 C include first column of fx.
 C----
       if (thru.eq.0) then
-          fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*x*q*(1.0d0+A5)/R5
-          fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*y*q*A5/R5
-          fx(3,1) = -CA1*A3*cd/R3     + CA2*3.0d0*d*q*A5/R5
-          fx(4,1) =                     CA2*3.0d0*p*q*A5/R5
-          fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*x*y*p*q/R7
-          fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*p*q/R7
+          fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*xq*(1.0d0+A5)/R5
+          fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*yq*A5/R5
+          fx(3,1) = -CA1*A3*cd/R3     + CA2*3.0d0*dq*A5/R5
+          fx(4,1) =                     CA2*3.0d0*pq*A5/R5
+          fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*xy*pq/R7
+          fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*pq/R7
 
-          fx(1,2) = -3.0d0 *x*q*(1.0d0+A5)/R5 - CB*J1*sd
-          fx(2,2) = -3.0d0 *y*q*A5/R5         - CB*J2*sd
+          fx(1,2) = -3.0d0 *xq*(1.0d0+A5)/R5 - CB*J1*sd
+          fx(2,2) = -3.0d0 *yq*A5/R5         - CB*J2*sd
           fx(3,2) = -3.0d0 *c*q*A5/R5         - CB*K1*sd
-          fx(4,2) = -3.0d0 *p*q*A5/R5         + CB*J3*sd*cd
-          fx(5,2) =  15.0d0*x*y*p*q/R7        + CB*J1*sd*cd
-          fx(6,2) =  15.0d0*x*c*p*q/R7        + CB*K3*sd*cd
+          fx(4,2) = -3.0d0 *pq*A5/R5         + CB*J3*sd*cd
+          fx(5,2) =  15.0d0*xy*pq/R7        + CB*J1*sd*cd
+          fx(6,2) =  15.0d0*xc*pq/R7        + CB*K3*sd*cd
 
           fx(1,3) =  CC*3.0d0*x*(2.0d0+A5)*cd/R5
-     1                                    - a*15.0d0*c*x*q*(2.0d0+A7)/R7
+     1                                    - a*15.0d0*c*xq*(2.0d0+A7)/R7
           fx(2,3) =  CC*3.0d0*y*A5*cd/R5
-     1                          + a*3.0d0*c*(A5*sd-5.0d0*y*q*A7/R2)/R5
+     1                          + a*3.0d0*c*(A5*sd-5.0d0*yq*A7/R2)/R5
           fx(3,3) = -CC*3.0d0*y*A5*sd/R5
-     1                          + a*3.0d0*c*(A5*cd+5.0d0*d*q*A7/R2)/R5
-          fx(4,3) =  CC*3.0d0*t*A5/R5 - a*15.0d0*c*p*q*A7/R7
+     1                          + a*3.0d0*c*(A5*cd+5.0d0*dq*A7/R2)/R5
+          fx(4,3) =  CC*3.0d0*t*A5/R5 - a*15.0d0*c*pq*A7/R7
           fx(5,3) =  CC*3.0d0*x*(c2d-5.0d0*y*t/R2)/R5
-     1                              - a*15.0d0*c*x*(s-7.0d0*y*p*q/R2)/R7
+     1                              - a*15.0d0*xc*(s-7.0d0*y*pq/R2)/R7
           fx(6,3) =  CC*3.0d0*x*(2.0d0+A5)*sd*cd/R5
-     1                              - a*15.0d0*c*x*(t+7.0d0*d*p*q/R2)/R7
+     1                              - a*15.0d0*xc*(t+7.0d0*d*pq/R2)/R7
 
 C----
 C Tensile and volume sources
@@ -1026,12 +1034,12 @@ C          fx(10,3) =  CC*3.0d0*d*A5/R5
 C          fx(11,3) = -CC*15.0d0*x*y*d/R7
 C          fx(12,3) = -CC*3.0d0*x*C5/R5
       else
-          fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*x*q*(1.0d0+A5)/R5
-          fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*y*q*A5/R5
-          fx(3,1) = -CA1*A3*cd/R3     + CA2*3.0d0*d*q*A5/R5
-          fx(4,1) =                     CA2*3.0d0*p*q*A5/R5
-          fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*x*y*p*q/R7
-          fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*p*q/R7
+          fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*xq*(1.0d0+A5)/R5
+          fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*yq*A5/R5
+          fx(3,1) = -CA1*A3*cd/R3     + CA2*3.0d0*dq*A5/R5
+          fx(4,1) =                     CA2*3.0d0*pq*A5/R5
+          fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*xy*pq/R7
+          fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*pq/R7
 
 C----
 C Tensile and volume sources
@@ -1064,6 +1072,7 @@ C----
       REAL*8 J1,J2,J3,J4
       REAL*8 K1,K2,K3
       REAL*8 U2,V2,W2
+      REAL*8 xx,xy,cx,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1074,14 +1083,19 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /YVARS0/ U2,V2,W2
       COMMON /TAG/ thru
+      
+      xx = x*x
+      xy = x*y
+      cx = c*x
+      pq = p*q
 
       if (thru.eq.0) then
-          fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*x*x*U2/R5
-          fy(2,1) = -CA1*3.0d0*x*y*sd/R5     + CA2*3.0d0*x*(y*U2+q)/R5
-          fy(3,1) =  CA1*3.0d0*x*y*cd/R5       + CA2*3.0d0*x*d*U2/R5
+          fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*xx*U2/R5
+          fy(2,1) = -CA1*3.0d0*xy*sd/R5     + CA2*3.0d0*x*(y*U2+q)/R5
+          fy(3,1) =  CA1*3.0d0*xy*cd/R5       + CA2*3.0d0*x*d*U2/R5
           fy(4,1) =                                CA2*3.0d0*x*V2/R5
           fy(5,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3
-     1                                         + CA2*3.0d0*(y*V2+p*q)/R5
+     1                                         + CA2*3.0d0*(y*V2+pq)/R5
           fy(6,1) = -CA1*(c2d-3.0d0*y*t/R2)/R3 + CA2*3.0d0*d*V2/R5
 C          fy(7,1) = -CA1*3.0d0*x*y/R5 - CA2*3.0d0*x*q*W2/R5
 C          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
@@ -1090,9 +1104,9 @@ C          fy(10,1) =  CA1*3.0d0*x*y/R5
 C          fy(11,1) = -CA1*B3/R3
 C          fy(12,1) =  CA1*3.0d0*y*d/R5
 
-          fy(1,2) = -3.0d0*x*x*U2/R5                - CB*J2*sd
-          fy(2,2) = -3.0d0*x*y*U2/R5 - 3.0d0*x*q/R5 - CB*J4*sd
-          fy(3,2) = -3.0d0*c*x*U2/R5                - CB*K2*sd
+          fy(1,2) = -3.0d0*xx*U2/R5                - CB*J2*sd
+          fy(2,2) = -3.0d0*xy*U2/R5 - 3.0d0*x*q/R5 - CB*J4*sd
+          fy(3,2) = -3.0d0*cx*U2/R5                - CB*K2*sd
           fy(4,2) = -3.0d0*x*V2/R5                  + CB*J1*sd*cd
           fy(5,2) = -3.0d0*y*V2/R5   - 3.0d0*p*q/R5 + CB*J2*sd*cd
           fy(6,2) = -3.0d0*c*V2/R5                  + CB*K1*sd*cd
@@ -1106,15 +1120,15 @@ C          fy(12,2) =                                -CB*3.0d0*y*d/R5
           fy(1,3) =  CC*3.0d0*y*A5*cd/R5
      1                          + a*3.0d0*c*(A5*sd-5.0d0*y*q*A7/R2)/R5
           fy(2,3) =  CC*3.0d0*x*B5*cd/R5
-     1                             - a*15.0d0*c*x*(2.0d0*y*sd+q*B7)/R7
+     1                             - a*15.0d0*cx*(2.0d0*y*sd+q*B7)/R7
           fy(3,3) = -CC*3.0d0*x*B5*sd/R5
-     1                           + a*15.0d0*c*x*(d*B7*sd-y*C7*cd)/R7
+     1                           + a*15.0d0*cx*(d*B7*sd-y*C7*cd)/R7
           fy(4,3) =  CC*3.0d0*x*(c2d-5.0d0*y*t/R2)/R5
-     1                              - a*15.0d0*c*x*(s-7.0d0*y*p*q/R2)/R7
+     1                              - a*15.0d0*cx*(s-7.0d0*y*pq/R2)/R7
           fy(5,3) =  CC*3.0d0*(2.0d0*y*c2d+t*B5)/R5
-     1              + a*3.0d0*c*(s2d-10.0d0*y*s/R2-5.0d0*p*q*B7/R2)/R5
+     1              + a*3.0d0*c*(s2d-10.0d0*y*s/R2-5.0d0*pq*B7/R2)/R5
           fy(6,3) =  CC*3.0d0*y*A5*sd*cd/R5
-     1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*p*q/R4)/R5
+     1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*pq/R4)/R5
 C          fy(7,3) = -CC*3.0d0*x*(s2d-5.0d0*y*s/R2)/R5
 C     1          - a*15.0d0*c*x*(t-y+7.0d0*y*q*q/R2)/R7 + a*15.0d0*x*y*z/R7
 C          fy(8,3) = -CC*3.0d0*(2.0d0*y*s2d+s*B5)/R5
@@ -1127,12 +1141,12 @@ C          fy(10,3) = -CC*15.0d0*x*y*d/R7
 C          fy(11,3) =  CC*3.0d0*d*B5/R5
 C          fy(12,3) = -CC*3.0d0*y*C5/R5
       else
-          fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*x*x*U2/R5
-          fy(2,1) = -CA1*3.0d0*x*y*sd/R5     + CA2*3.0d0*x*(y*U2+q)/R5
-          fy(3,1) =  CA1*3.0d0*x*y*cd/R5       + CA2*3.0d0*x*d*U2/R5
+          fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*xx*U2/R5
+          fy(2,1) = -CA1*3.0d0*xy*sd/R5     + CA2*3.0d0*x*(y*U2+q)/R5
+          fy(3,1) =  CA1*3.0d0*xy*cd/R5       + CA2*3.0d0*x*d*U2/R5
           fy(4,1) =                                CA2*3.0d0*x*V2/R5
           fy(5,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3
-     1                                         + CA2*3.0d0*(y*V2+p*q)/R5
+     1                                         + CA2*3.0d0*(y*V2+pq)/R5
           fy(6,1) = -CA1*(c2d-3.0d0*y*t/R2)/R3 + CA2*3.0d0*d*V2/R5
 C          fy(7,1) = -CA1*3.0d0*x*y/R5 - CA2*3.0d0*x*q*W2/R5
 C          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
@@ -1161,6 +1175,7 @@ C----
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 K1,K2,K3
       REAL*8 U3,V3,W3
+      REAL*8 xx,xy,xd,cx,pq
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1170,15 +1185,21 @@ C----
       COMMON /KVARS0/ K1,K2,K3
       COMMON /ZVARS0/ U3,V3,W3
       COMMON /TAG/ thru
+      
+      xx = x*x
+      xy = x*y
+      xd = x*d
+      cx = c*x
+      pq = p*q
 
       if (thru.eq.0) then
-          fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*x*x*U3/R5
-          fz(2,1) =  CA1*3.0d0*x*d*sd/R5       + CA2*3.0d0*x*y*U3/R5
-          fz(3,1) = -CA1*3.0d0*x*d*cd/R5     + CA2*3.0d0*x*(d*U3-q)/R5
+          fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*xx*U3/R5
+          fz(2,1) =  CA1*3.0d0*xd*sd/R5       + CA2*3.0d0*xy*U3/R5
+          fz(3,1) = -CA1*3.0d0*xd*cd/R5     + CA2*3.0d0*x*(d*U3-q)/R5
           fz(4,1) =                                CA2*3.0d0*x*V3/R5
           fz(5,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3 + CA2*3.0d0*y*V3/R5
           fz(6,1) =  CA1*(s2d-3.0d0*d*t/R2)/R3
-     1                                      + CA2*3.0d0*(d*V3-p*q)/R5
+     1                                      + CA2*3.0d0*(d*V3-pq)/R5
 C          fz(7,1) =  CA1*3.0d0*x*d/R5 - CA2*3.0d0*x*q*W3/R5
 C          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*y*q*W3/R5
 C          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
@@ -1187,9 +1208,9 @@ C          fz(10,1) = -CA1*3.0d0*x*d/R5
 C          fz(11,1) = -CA1*3.0d0*y*d/R5
 C          fz(12,1) =  CA1*C3/R3
 
-          fz(1,2) = -3.0d0*x*x*U3/R5 + CB*K1*sd
-          fz(2,2) = -3.0d0*x*y*U3/R5 + CB*K2*sd
-          fz(3,2) = -3.0d0*c*x*U3/R5 + CB*3.d0*x*y*sd/R5
+          fz(1,2) = -3.0d0*xx*U3/R5 + CB*K1*sd
+          fz(2,2) = -3.0d0*xy*U3/R5 + CB*K2*sd
+          fz(3,2) = -3.0d0*cx*U3/R5 + CB*3.d0*xy*sd/R5
           fz(4,2) = -3.0d0*x*V3/R5   - CB*K3*sd*cd
           fz(5,2) = -3.0d0*y*V3/R5   - CB*K1*sd*cd
           fz(6,2) = -3.0d0*c*V3/R5   + CB*A3*sd*cd/R3
@@ -1202,16 +1223,16 @@ C          fz(12,2) = -CB*C3/R3
 
           fz(1,3) = -CC*3.0d0*d*A5*cd/R5
      1                          + a*3.0d0*c*(A5*cd+5.0d0*d*q*A7/R2)/R5
-          fz(2,3) =  CC*15.0d0*x*y*d*cd/R7
-     1                           + a*15.0d0*c*x*(d*B7*sd-y*C7*cd)/R7
-          fz(3,3) = -CC*15.0d0*x*y*d*sd/R7
-     1                             + a*15.0d0*c*x*(2.0d0*d*cd-q*C7)/R7
+          fz(2,3) =  CC*15.0d0*xy*d*cd/R7
+     1                           + a*15.0d0*cx*(d*B7*sd-y*C7*cd)/R7
+          fz(3,3) = -CC*15.0d0*xy*d*sd/R7
+     1                             + a*15.0d0*cx*(2.0d0*d*cd-q*C7)/R7
           fz(4,3) = -CC*3.0d0*x*(s2d-5.0d0*d*t/R2)/R5
-     1                              - a*15.0d0*c*x*(t+7.0d0*d*p*q/R2)/R7
+     1                              - a*15.0d0*c*x*(t+7.0d0*d*pq/R2)/R7
           fz(5,3) = -CC*3.0d0*(d*B5*c2d+y*C5*s2d)/R5 
-     1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*p*q/R4)/R5
+     1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*pq/R4)/R5
           fz(6,3) = -CC*3.0d0*d*A5*sd*cd/R5
-     1               - a*3.0d0*c*(s2d-(10.0d0*d*t-5.0d0*p*q*C7)/R2)/R5
+     1               - a*3.0d0*c*(s2d-(10.0d0*d*t-5.0d0*pq*C7)/R2)/R5
 C          fz(7,3) = -CC*3.0d0*x*(c2d+5.0d0*d*s/R2)/R5
 C     1       + a*15.0d0*c*x*(s-d+7.0d0*d*q*q/R2)/R7
 C     2       - a*3.0d0*x*(1.0d0+5.0d0*d*z/R2)/R5
@@ -1225,13 +1246,13 @@ C          fz(10,3) = -CC*3.0d0*x*C5/R5
 C          fz(11,3) = -CC*3.0d0*y*C5/D5
 C          fz(12,3) =  CC*3.0d0*d*(2.0d0+C5)/R5
       else
-          fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*x*x*U3/R5
-          fz(2,1) =  CA1*3.0d0*x*d*sd/R5       + CA2*3.0d0*x*y*U3/R5
-          fz(3,1) = -CA1*3.0d0*x*d*cd/R5     + CA2*3.0d0*x*(d*U3-q)/R5
+          fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*xx*U3/R5
+          fz(2,1) =  CA1*3.0d0*xd*sd/R5       + CA2*3.0d0*xy*U3/R5
+          fz(3,1) = -CA1*3.0d0*xd*cd/R5     + CA2*3.0d0*x*(d*U3-q)/R5
           fz(4,1) =                                CA2*3.0d0*x*V3/R5
           fz(5,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3 + CA2*3.0d0*y*V3/R5
           fz(6,1) =  CA1*(s2d-3.0d0*d*t/R2)/R3
-     1                                      + CA2*3.0d0*(d*V3-p*q)/R5
+     1                                      + CA2*3.0d0*(d*V3-pq)/R5
 C          fz(7,1) =  CA1*3.0d0*x*d/R5 - CA2*3.0d0*x*q*W3/R5
 C          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*y*q*W3/R5
 C          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
