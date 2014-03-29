@@ -853,6 +853,7 @@ C----
       REAL*8 R,R2,R3,R4,R5,R7,Rd,p,q,s,t
       REAL*8 A3,A5,A7,B3,B5,B7,C3,C5,C7
       REAL*8 I1,I2,I3,I4,I5
+      REAL*8 xx,xy,pq,cx
       INTEGER thru
 
       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -862,35 +863,40 @@ C----
       COMMON /IVARS0/ I1,I2,I3,I4,I5
       COMMON /TAG/    thru
 
+      xx = x*x
+      xy = x*y
+      pq = p*q
+      cx = c*x
+
 C----
 C When calculating terms from real source (thru = 0), include all
 C components of displacement. Using mirror source (thru = 1), only
 C include first column of f.
 C----
       if (thru.eq.0) then
-          f(1,1) =  CA1*q/R3    + CA2*3.0d0*x*x*q/R5
-          f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*x*y*q/R5
+          f(1,1) =  CA1*q/R3    + CA2*3.0d0*xx*q/R5
+          f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*xy*q/R5
           f(3,1) = -CA1*x*cd/R3 + CA2*3.0d0*x*d*q/R5
-          f(4,1) =                CA2*3.0d0*x*p*q/R5
-          f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*p*q/R5
-          f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*p*q/R5
+          f(4,1) =                CA2*3.0d0*x*pq/R5
+          f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*pq/R5
+          f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*pq/R5
 
-          f(1,2) = -3.0d0*x*x*q/R5 - CB*I1*sd
-          f(2,2) = -3.0d0*x*y*q/R5 - CB*I2*sd
-          f(3,2) = -3.0d0*c*x*q/R5 - CB*I4*sd
-          f(4,2) = -3.0d0*x*p*q/R5 + CB*I3*cdsd
-          f(5,2) = -3.0d0*y*p*q/R5 + CB*I1*cdsd
-          f(6,2) = -3.0d0*c*p*q/R5 + CB*I5*cdsd
+          f(1,2) = -3.0d0*xx*q/R5 - CB*I1*sd
+          f(2,2) = -3.0d0*xy*q/R5 - CB*I2*sd
+          f(3,2) = -3.0d0*cx*q/R5 - CB*I4*sd
+          f(4,2) = -3.0d0*x*pq/R5 + CB*I3*cdsd
+          f(5,2) = -3.0d0*y*pq/R5 + CB*I1*cdsd
+          f(6,2) = -3.0d0*c*pq/R5 + CB*I5*cdsd
 
           f(1,3) = -CC*A3*cd/R3 + a*3.0d0*c*q*A5/R5 
-          f(2,3) =  CC*3.0d0*x*y*cd/R5
-     1                              + a*3.0d0*c*x*(sd-5.0d0*y*q/R2)/R5
-          f(3,3) = -CC*3.0d0*x*y*sd/R5
-     1                              + a*3.0d0*c*x*(cd+5.0d0*d*q/R2)/R5
-          f(4,3) =  CC*3.0d0*x*t/R5 - a*15.0d0*c*x*p*q/R7
+          f(2,3) =  CC*3.0d0*xy*cd/R5
+     1                              + a*3.0d0*cx*(sd-5.0d0*y*q/R2)/R5
+          f(3,3) = -CC*3.0d0*xy*sd/R5
+     1                              + a*3.0d0*cx*(cd+5.0d0*d*q/R2)/R5
+          f(4,3) =  CC*3.0d0*x*t/R5 - a*15.0d0*cx*pq/R7
           f(5,3) = -CC*(c2d-3.0d0*y*t/R2)/R3
-     1                                 + a*3.0d0*c*(s-5.0d0*y*p*q/R2)/R5
-          f(6,3) = -CC*A3*cdsd/R3 + a*3.0d0*c*(t+5.0d0*d*p*q/R2)/R5
+     1                                 + a*3.0d0*c*(s-5.0d0*y*pq/R2)/R5
+          f(6,3) = -CC*A3*cdsd/R3 + a*3.0d0*c*(t+5.0d0*d*pq/R2)/R5
 
 C----
 C Tensile and volume sources
@@ -916,12 +922,12 @@ C          f(10,3) = CC*3.0d0*x*d/R5
 C          f(11,3) = CC*3.0d0*y*d/R5
 C          f(12,3) = CC*C3/R3
       else
-          f(1,1) =  CA1*q/R3    + CA2*3.0d0*x*x*q/R5
-          f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*x*y*q/R5
+          f(1,1) =  CA1*q/R3    + CA2*3.0d0*xx*q/R5
+          f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*xy*q/R5
           f(3,1) = -CA1*x*cd/R3 + CA2*3.0d0*x*d*q/R5
-          f(4,1) =                CA2*3.0d0*x*p*q/R5
-          f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*p*q/R5
-          f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*p*q/R5
+          f(4,1) =                CA2*3.0d0*x*pq/R5
+          f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*pq/R5
+          f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*pq/R5
 C----
 C Tensile and volume sources
 C----
