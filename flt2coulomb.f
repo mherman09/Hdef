@@ -27,7 +27,7 @@ C----
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
 
-      LOGICAL verbose
+      LOGICAL verbose,trgmatchsta
       CHARACTER*20 srcfile,stafile,haffile,trgfile
       INTEGER flt,nflt,maxflt
       PARAMETER (maxflt=50)
@@ -36,12 +36,16 @@ C----
      1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),dy(maxflt),
      2       area(maxflt)
 
+      INTEGER prog,prog100,progtag,stact,trgct
+
       REAL*8 stlo,stla,stdp,dist,az,x,y
       REAL*8 vp,vs,dens,trgstr,trgdip,trgrak,frict
 
       REAL*8 e(3,3),enet(3,3),stress(3,3),norml,shear,coul,n(3)
 
       call gcmdln(verbose)
+
+      trgmatchsta = .false.
 
 C----
 C Input files
@@ -52,7 +56,39 @@ C----
       open (unit=23,file=haffile,status='old')
       open (unit=24,file=trgfile,status='old')
       read (23,*) vp,vs,dens
-      read (24,*) trgstr,trgdip,trgrak,frict
+
+C----
+C Compare number of lines in stations.txt and targetparams.txt
+C and use line count of stations.txt to initialize progress indicator
+C----
+      stact = 0
+  112 read (22,*,end=113)
+          stact = stact + 1
+          goto 112
+  113 continue
+      trgct = 0
+  114 read (24,*,end=115)
+           trgct = trgct + 1
+           goto 114
+  115 continue
+      rewind 22
+      rewind 24
+
+      prog100 = stact
+      if (trgct.eq.1) then
+          if (verbose) write (*,8997)
+      elseif (trgct.eq.stact) then
+          if (verbose) write (*,8998)
+          trgmatchsta = .true.
+      else
+          write (*,8999)
+          call usage()
+      endif
+ 8997 format ('NL in targetparams.txt = 1')
+ 8998 format ('NL in targetparams.txt = NL in stations.txt')
+ 8999 format ('Error: NL in targetparams.txt must be 1 or',
+     1        ' equal to NL in stations.txt')
+
 C----
 C Output files
 C----
@@ -73,7 +109,12 @@ C----
 C----
 C Calculate net strain, stress, coulomb stress change at each station
 C----
+      prog = 0
+      progtag = 0
+      call progbar(prog,prog100,progtag)
+      if (.not.trgmatchsta) read(24,*) trgstr,trgdip,trgrak,frict
   101 read (22,*,end=107) stlo,stla,stdp
+          if (trgmatchsta) read(24,*) trgstr,trgdip,trgrak,frict
           stdp = 1.0d3*stdp
           do 103 i = 1,3
               do 102 j = 1,3
@@ -114,6 +155,9 @@ C----
           write (13,9999) stlo,stla,norml
           write (14,*) stlo,stla,enet(1,1),enet(2,2),enet(3,3),
      1                           enet(1,2),enet(1,3),enet(2,3)
+
+          prog = prog + 1
+          call progbar(prog,prog100,progtag)
           goto 101
   107 continue
 
@@ -202,6 +246,26 @@ C----------------------------------------------------------------------C
               matout(i,j) = matin(j,i)
  1001     CONTINUE
  1002 CONTINUE
+
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE progbar(prog,prog100,progtag)
+      IMPLICIT none
+      INTEGER prog,prog100,progtag
+      CHARACTER*1 CR
+
+      CR = char(13)
+      if (100*prog/prog100.ge.progtag) then
+          write (*,1000,advance='no') 100*prog/prog100,CR
+          progtag = progtag + 10
+      endif
+
+      if (100*prog/prog100.ge.100) write (*,1000) 100*prog/prog100
+
+ 1000 format ('[',I3,'% Complete]',A)
 
       RETURN
       END
