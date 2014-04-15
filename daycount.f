@@ -57,7 +57,7 @@ C======================================================================C
               i = i + 1
               call getarg(i,ofile)
           elseif (tag(1:2).eq.'-d') then
-              write(*,*) 'Running with default file names'
+              write(*,*) 'daycount: running with default file names'
           elseif (tag(1:2).eq.'-u') then
               user = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
