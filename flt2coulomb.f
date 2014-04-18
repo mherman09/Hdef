@@ -30,7 +30,7 @@ C----
       LOGICAL verbose,trgmatchsta
       CHARACTER*20 srcfile,stafile,haffile,trgfile
       INTEGER flt,nflt,maxflt
-      PARAMETER (maxflt=50)
+      PARAMETER (maxflt=200)
       INTEGER flttyp(maxflt),i,j
       REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
      1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),dy(maxflt),
