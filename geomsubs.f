@@ -161,8 +161,8 @@ c----------------------------------------------------------------------c
 
       SUBROUTINE dlola(lon2,lat2,lon1,lat1,dist,az)
       IMPLICIT none
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 pi,d2r,r2d
+      PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az
 
       dist = dist/6371.0d0
@@ -175,6 +175,10 @@ c----------------------------------------------------------------------c
       lon2 = lon1 + datan2(dsin(az)*dsin(dist)*dcos(lat1),
      1                           dcos(dist)-dsin(lat1)*dsin(lat2))
 
+C     Return azimuth, latitude, and longitude in degrees
+      az = az*r2d
+      lat1 = lat1*r2d
+      lon1 = lon1*r2d
 
       RETURN
       END
