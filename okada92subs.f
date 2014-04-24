@@ -5,7 +5,7 @@ C   America 82, pp. 1018-1040.                                         C
 C                                                                      C
 C MODIFICATIONS:                                                       C
 C   Fall 2012: Original file created                                   C
-C   Summer 2013: Instead of 4 large subroutines, comparmentalize       C
+C   Summer 2013: Instead of 4 large subroutines, compartmentalize       C
 C                calculations into several smaller subroutines.        C
 C                Pass variables to and from subroutines via common     C
 C                blocks to make variable list shorter.                 C
@@ -16,7 +16,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE o92pt(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,area,slip,
      1                 vp,vs,dens)
 C----
-C Static elastic displacement at a location (internal or surface due to
+C Static elastic displacement at a location (internal or surface) due to
 C a point source shear dislocation in an isotropic halfspace.
 C
 C INPUTS (ALL IN SI UNITS):
@@ -239,7 +239,8 @@ C----
           z = -stdp
       endif
 C----
-C Chug, chug, chug...partial derivatives
+C Chug, chug, chug...partial derivatives of displacement (+x in strike
+C direction, +y in updip direction)
 C----
       uxx = Mss*(ux(1,1)+ux(1,2)+z*ux(1,3))
      1                                 + Mds*(ux(4,1)+ux(4,2)+z*ux(4,3))
@@ -414,10 +415,11 @@ C----
       else
           z = -stdp
       endif
-c----
-c Cross your fingers, knock on wood, or pray to your God. Whatever
-c works for you.....ALAKAZAM! Displacements at the receiver.
-c----
+C----
+C Cross your fingers, knock on wood, or pray to your God. Whatever
+C works for you.....ALAKAZAM! Displacements at the receiver. Same
+C as above, +x in strike direction, +y in updip horizontal direction
+C----
       ux = Mss*((u(1,1)+u(1,2)+z*u(1,3)))
      1   + Mds*((u(4,1)+u(4,2)+z*u(4,3)))
       uy = Mss*((u(2,1)+u(2,2)+z*u(2,3))*cd
@@ -511,6 +513,8 @@ C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
 C----
       ksi(1) = x+len/2.0d0
       ksi(2) = x-len/2.0d0
+C      ksi(1) = x
+C      ksi(2) = x-len
       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
       if (dabs(ksi(2)).lt.eps) ksi(2) = zro
 
@@ -522,6 +526,8 @@ C----
 
       eta(1) = p+wid/2.0d0
       eta(2) = p-wid/2.0d0
+C      eta(1) = p
+C      eta(2) = p-wid
       if (dabs(eta(1)).lt.eps) eta(1) = zro
       if (dabs(eta(2)).lt.eps) eta(2) = zro
       if (dabs(q)     .lt.eps) q      = zro
@@ -583,7 +589,7 @@ C----
           z = -stdp
       endif
 c----
-c If this works, I'm getting a beer.
+c If this works, I'm getting a beer. 'Nuff said.
 c----
       uxx = Mss*(fj(1,1)+fj(1,2)+z*fj(1,3))
      1    + Mds*(fj(4,1)+fj(4,2)+z*fj(4,3))
