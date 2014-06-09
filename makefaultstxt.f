@@ -1,7 +1,7 @@
       PROGRAM makefaultstxt
       IMPLICIT none
       INTEGER f,nflt,typ,pf,batch
-      REAL lon,lat,dep,str,dip,rak,wid,len,slip,mag,mom,area,mod
+      REAL*8 lon,lat,dep,str,dip,rak,wid,len,slip,mag,mom,area,mod
 
       call gcmdln(batch)
       open (unit=11,file='faults.txt',status='unknown')
@@ -26,9 +26,9 @@
           write (6,9996) f
           read *,mag
           call wellscoppersmith(wid,len,mag,typ)
-          mom = (10**(1.5*(mag+10.7)))/1e7
-          area = wid*len*1e6
-          mod = 35.0e9
+          mom = (10.0d0**(1.5d0*(mag+10.7d0)))/1.0d7
+          area = wid*len*1.0d6
+          mod = 35.0d9
           slip = mom/(area*mod)
           print *,mom,area,mod
     
@@ -46,9 +46,9 @@
           open (unit=12,file='makefaults.in',status='old')
   103     read(12,*,end=104) lon,lat,dep,str,dip,rak,typ,mag
               call wellscoppersmith(wid,len,mag,typ)
-              mom = (10**(1.5*(mag+10.7)))/1e7
-              area = wid*len*1e6
-              mod = 35.0e9
+              mom = (10.0d0**(1.5d0*(mag+10.7d0)))/1.0d7
+              area = wid*len*1.0d6
+              mod = 35.0d9
               slip = mom/(area*mod)
               write (11,9994) lon,lat,dep,str,dip,rak,slip,wid,len,pf
               goto 103
@@ -67,20 +67,20 @@
       SUBROUTINE wellscoppersmith(wid,len,mag,typ)
       IMPLICIT none
       INTEGER typ
-      REAL wid,len,mag
+      REAL*8 wid,len,mag
 
       if (typ.eq.1) then
-          len = 10.0**(-2.57+0.62*mag)
-          wid = 10.0**(-0.76+0.27*mag)
+          len = 10.0d0**(-2.57d0+0.62d0*mag)
+          wid = 10.0d0**(-0.76d0+0.27d0*mag)
       elseif (typ.eq.2) then
-          len = 10.0**(-2.42+0.58*mag)
-          wid = 10.0**(-1.61+0.41*mag)
+          len = 10.0d0**(-2.42d0+0.58d0*mag)
+          wid = 10.0d0**(-1.61d0+0.41d0*mag)
       elseif (typ.eq.3) then
-          len = 10.0**(-1.88+0.50*mag)
-          wid = 10.0**(-1.14+0.35*mag)
+          len = 10.0d0**(-1.88d0+0.50d0*mag)
+          wid = 10.0d0**(-1.14d0+0.35d0*mag)
       else
-          len = 10.0**(-2.44+0.59*mag)
-          wid = 10.0**(-1.01+0.32*mag)
+          len = 10.0d0**(-2.44d0+0.59d0*mag)
+          wid = 10.0d0**(-1.01d0+0.32d0*mag)
       endif
 
       RETURN
