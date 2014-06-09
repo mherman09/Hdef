@@ -15,6 +15,7 @@ C     coul.out: stlo, stla, coulomb stress change
 C     shear.out: stlo, stla, shear stress on target faults
 C     norml.out: stlo, stla, normal stress on fault (+ compressive)
 C     strain.out: stlo, stla, eEE, eNN, eZZ, eEN, eEZ, eNZ
+C     stress.out: stlo, stla, sEE, sNN, sZZ, sEN, sEZ, sNZ
 C
 C MODIFICATIONS:
 C   2013-02-27: Original file created
@@ -30,7 +31,7 @@ C----
       LOGICAL verbose,trgmatchsta
       CHARACTER*20 srcfile,stafile,haffile,trgfile
       INTEGER flt,nflt,maxflt
-      PARAMETER (maxflt=200)
+      PARAMETER (maxflt=1000)
       INTEGER flttyp(maxflt),i,j
       REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
      1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),dy(maxflt),
@@ -96,6 +97,7 @@ C----
       open (unit=12,file='shear.out',status='unknown')
       open (unit=13,file='norml.out',status='unknown')
       open (unit=14,file='strain.out',status='unknown')
+      open (unit=15,file='stress.out',status='unknown')
 C----
 C Parse fault file
 C List of:
@@ -155,6 +157,8 @@ C----
           write (13,9999) stlo,stla,norml
           write (14,*) stlo,stla,enet(1,1),enet(2,2),enet(3,3),
      1                           enet(1,2),enet(1,3),enet(2,3)
+          write (15,*) stlo,stla,stress(1,1),stress(2,2),stress(3,3),
+     1                           stress(1,2),stress(1,3),stress(2,3)
 
           prog = prog + 1
           call progbar(prog,prog100,progtag)
@@ -265,7 +269,7 @@ C----------------------------------------------------------------------C
 
       if (100*prog/prog100.ge.100) write (*,1000) 100*prog/prog100
 
- 1000 format ('[',I3,'% Complete]',A)
+ 1000 format ('flt2coulomb: [',I3,'% Complete]',A)
 
       RETURN
       END
