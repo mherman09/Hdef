@@ -1,385 +1,497 @@
       PROGRAM ff2displacement
 C----
-C Calculate the north, east and vertical displacements at stations
-C due to subfault shear dislocations comprising a finite fault model
-C in an isotropic halfspace.
-C
-C To run, requires the input files:
-C     static_out: finite fault model in subfault format
-C     stations.txt: list of receiver lon, lat, and depth (km)
-C     structure.txt: vp (m/s) vs (m/s) density (kg/m^3)
-C     targetparameters.txt: target fault strike, dip, rake, and
-C                             coefficient of friction
-C
-C Produces the output file:
-C     disp.out: stlo, stla, uN, uE, uZ
-C
-C MODIFICATIONS:
-C   Summer 2012: Original file created, propagation added
-C   2013-07-23: Subroutine to check that input files exist
-C   2013-08-09: Added verbose option
-C   2013-08-09: Added help/usage option
-C
+C Calculate the north, east and vertical displacements at receivers in
+C an isotropic elastic half-space due to shear dislocations from a
+C finite fault model in standard subfault format.
 C----
       IMPLICIT NONE
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-
-      LOGICAL verbose
-      INTEGER flt,nflt,maxflt,ct
-      PARAMETER (maxflt=1000)
-      REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
-     1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),
-     2       dy(maxflt),area(maxflt),trup(maxflt)
-
-      REAL*8 stlo,stla,stdp,dist,az,x,y
+      CHARACTER*40 ffmfile,stafile,haffile,dspfile
+      LOGICAL ex
+      INTEGER flttyp,auto
+      INTEGER nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area(FMAX),
+     2       trup(FMAX),hypolon,hypolat
+      REAL*8 stlo,stla,stdp
       REAL*8 vp,vs,dens
-
-      REAL*8 time,vel,dt,lag,tt
-      INTEGER flttyp
-
-      REAL*8 ux,uy,uN,uE,uZ,uNnet,uEnet,uZnet
-      CHARACTER*20 ffmfile,stafile,haffile
+      INTEGER prog,prog100,progtag
+      REAL*8 uNnet,uEnet,uZnet
 
 C----
-C Parse the command line.
-C time: all contributions that occur before time will be accounted for;
-C       the rest will be discarded (default 10000 seconds)
-C vel:  velocity of propagation for static displacement from subfault to
-C       receiver (default infinite)
-C dt:   to get "instantaneous" displacements, input a positive real
-C       (accounts for contributions arriving between time-dt and time;
-C       default 0.0); otherwise includes all contributions arriving
-C       before time
-C flttyp: default is finite source, choose -p to force point source
+C Parse the command line, check for FFM file, and read FFM
 C----
-      call gcmdln(time,vel,dt,flttyp,verbose)
+      call gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto)
+      inquire(file=ffmfile,EXIST=ex)
+      if (.not.ex) call usage('!! Error: no file named '//ffmfile)
+      call readffm(ffmfile,nflt,hypolon,hypolat,evlo,evla,evdp,str,dip,
+     1             rak,dx,dy,area,slip,trup)
 
 C----
-C Input files
+C If auto=0: use existing input files
+C If auto=1: generate half-space and station inputs
 C----
-      call checkctrlfiles(ffmfile,stafile,haffile,verbose)
-      open (unit=21,file=ffmfile,status='old')
-      open (unit=22,file=stafile,status='old')
-      open (unit=23,file=haffile,status='old')
-      read (23,*) vp,vs,dens
+      if (auto.eq.0) then
+          inquire(file=haffile,EXIST=ex)
+          if (.not.ex) then
+              write(0,*) '!! Warning: no file named '//haffile
+              write(0,*) '!! Using default half-space parameters'
+              call sethafdef(vp,vs,dens)
+          else
+              open (unit=23,file=haffile,status='old')
+              read (23,*) vp,vs,dens
+          endif
+          inquire(file=stafile,EXIST=ex)
+          if (.not.ex) call usage('!! Error: no file named '//stafile)
+          open (unit=22,file=stafile,status='old')
+      elseif (auto.eq.1) then
+          call sethafdef(vp,vs,dens)
+          call autogrid(stafile,nflt,hypolon,hypolat,evlo,evla,evdp,str,
+     1                  dip,rak,dx,dy,area,slip,vp,vs,dens,flttyp)
+          open (unit=22,file=stafile,status='old')
+      endif
+
 C----
-C Output files
+C Output file
 C----
-      open (unit=10,file='disp.out',status='unknown')
+      open (unit=10,file=dspfile,status='unknown')
       rewind 10
 
 C----
-C Read finite fault file
+C Initialize progress indicator
 C----
-      vel = vel*1.0d3
-      call readstaticout(nflt,evlo,evla,evdp,str,dip,rak,dx,dy,area,
-     1                   slip,trup,maxflt)
-C
+      prog100 = 0
+  112 read (22,*,end=113)
+          prog100 = prog100 + 1
+          goto 112
+  113 continue
+      rewind 22
+      prog = 0
+      progtag = 0
+      call progbar(prog,prog100,progtag)
+
 C----
 C Calculate net displacements at each station
 C----
   101 read (22,*,end=103) stlo,stla,stdp
           stdp = 1.0d3*stdp
-          uNnet = 0.0d0
-          uEnet = 0.0d0
-          uZnet = 0.0d0
-          
-          do 102 flt = 1,nflt
-              call ddistaz(dist,az,evlo(flt),evla(flt),stlo,stla)
-              dist = dist*6.371d6
-              x = dist*( dcos(az-d2r*str(flt)))
-              y = dist*(-dsin(az-d2r*str(flt)))
-              
-              if (vel.le.0.0) then
-                  lag = 0.0d0
-              else
-                  lag = dist/vel
-              endif
-              tt = trup(flt) + lag
-
-              if (dt.le.0.0) then
-                  if (tt.lt.time.and.flttyp.eq.0) then
-                      call o92pt(ux,uy,uz,x,y,stdp,evdp(flt),
-     1                           dip(flt),rak(flt),area(flt),slip(flt),
-     2                           vp,vs,dens)
-                  elseif (tt.lt.time.and.flttyp.eq.1) then
-                      ct = ct + 1
-                      call o92rect(ux,uy,uz,x,y,stdp,evdp(flt),
-     2                             dip(flt),rak(flt),dy(flt),dx(flt),
-     3                             slip(flt),vp,vs,dens)
-                  else
-                      ux = 0.0d0
-                      uy = 0.0d0
-                      uz = 0.0d0
-                  endif
-              else
-                  if (tt.lt.time.and.tt.gt.time-dt.and.
-     1                                                 flttyp.eq.0) then
-                      call o92pt(ux,uy,uz,x,y,stdp,evdp(flt),
-     1                           dip(flt),rak(flt),area(flt),slip(flt),
-     2                           vp,vs,dens)
-                  elseif (tt.lt.time.and.tt.gt.time-dt.and.
-     1                                                 flttyp.eq.1) then
-                      call o92rect(ux,uy,uz,x,y,stdp,evdp(flt),
-     2                             dip(flt),rak(flt),dy(flt),dx(flt),
-     3                             slip(flt),vp,vs,dens)
-                  else
-                      ux = 0.0d0
-                      uy = 0.0d0
-                      uz = 0.0d0
-                  endif
-              endif
-
-              call xy2NE(uN,uE,ux,uy,str(flt))
-              
-              uNnet = uNnet + uN
-              uEnet = uEnet + uE
-              uZnet = uZnet + uZ
-  102     continue
-          
-          write (10,9999) stlo,stla,uNnet,uEnet,uZnet
+          call calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,
+     1                  evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,
+     2                  vp,vs,dens,flttyp)
+          write (10,9999) stlo,stla,uEnet,uNnet,uZnet
+          prog = prog + 1
+          call progbar(prog,prog100,progtag)
           goto 101
   103 continue
-
- 9999 format (2f10.3,3f10.3)
+ 9999 format (2F12.4,X,3F12.4)
 
       END
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(time,vel,dt,flttyp,verbose)
+      SUBROUTINE readffm(ffmfile,nflt,hypolon,hypolat,evlo,evla,evdp,
+     1                   str,dip,rak,dx,dy,area,slip,trup)
+C----
+C Read FFM in standard subfault format.
+C   - number of fault segments (nseg) is in first line
+C   - number (nx, ny) and dimensions (dx, dy) of subfaults and epicenter
+C     location (hypolon, hypolat) are in 9-line segment headers.
+C   - lat lon dep(km) slip(cm) rak str dip t_rup t_ris mo
+C----
       IMPLICIT none
-      CHARACTER*25 tag
-      INTEGER narg,i,flttyp
-      REAL*8 time,vel,dt,trgstr,trgdip,frict
-      LOGICAL verbose
+      CHARACTER*40 ffmfile,dum
+      INTEGER nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),dx(FMAX),dy(FMAX),area(FMAX),slip(FMAX),
+     2       trup(FMAX),hypolon,hypolat
+      INTEGER seg,nseg,ct,i,nx,ny,ptr
+      CHARACTER*10 dxc,dyc
+      REAL*8 dxr,dyr
 
-      time = 1.0d6
-      vel = -1.0d0
-      dt = -1.0d0
+      open (unit=21,file=ffmfile,status='old')
+      ct = 0
+      read (21,*) dum,dum,dum,dum,nseg
+      do 103 seg = 1,nseg
+          read (21,*) dum,dum,dum,dum,nx,dum,dxc,dum,ny,dum,dyc
+          ptr = index(dxc,'km')
+          dxc(ptr:ptr+1) = ''
+          ptr = index(dyc,'km')
+          dyc(ptr:ptr+1) = ''
+          read (dxc,*) dxr
+          read (dyc,*) dyr
+          dxr = 1.0d3*dxr
+          dyr = 1.0d3*dyr
+          read (21,*) dum,dum,dum,dum,dum,dum,dum,dum,dum,dum,hypolon,
+     1                dum,hypolat
+          do 101 i=1,7
+              read (21,*) dum
+  101     continue
+          do 102 i = 1,nx*ny
+              read (21,*) evla(ct+i),evlo(ct+i),evdp(ct+i),slip(ct+i),
+     1                    rak(ct+i),str(ct+i),dip(ct+i),trup(ct+i)
+              slip(ct+i) = 1.0d-2*slip(ct+i)
+              dx(ct+i) = dxr
+              dy(ct+i) = dyr
+              area(ct+i) = dx(ct+i)*dy(ct+i)
+              evdp(ct+i) = 1.0d3*evdp(ct+i)
+  102     continue
+          ct = ct + nx*ny
+  103 continue
+      nflt = ct
+      close(21)
+
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,
+     1                    evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,
+     2                    vp,vs,dens,flttyp)
+C----
+C Compute NEZ displacements at (stlo,stla,stdp) from FFM
+C----
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
+      REAL*8 stlo,stla,stdp,dist,az,x,y
+      INTEGER f,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),area(FMAX),dx(FMAX),dy(FMAX)
+      INTEGER flttyp
+      REAL*8 vp,vs,dens
+
+      uNnet = 0.0d0
+      uEnet = 0.0d0
+      uZnet = 0.0d0
+      do 102 f = 1,nflt
+          call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+          dist = dist*6.371d6
+          x = dist*( dcos(az-d2r*str(f)))
+          y = dist*(-dsin(az-d2r*str(f)))
+          if (flttyp.eq.0) then
+              call o92pt(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
+     1                   area(f),slip(f),vp,vs,dens)
+          else
+              call o92rect(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
+     1                     dy(f),dx(f),slip(f),vp,vs,dens)
+          endif
+          call xy2NE(uN,uE,ux,uy,str(f))
+          uNnet = uNnet + uN
+          uEnet = uEnet + uE
+          uZnet = uZnet + uz
+  102 continue
+
+      RETURN
+      END
+
+C- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - C
+
+      SUBROUTINE xy2NE(uN,uE,ux,uy,str)
+      IMPLICIT none
+      REAL*8 uN,uE,ux,uy,str,theta,uhor
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      theta = datan2(uy,ux)
+      uhor = dsqrt(ux*ux+uy*uy)
+      theta = d2r*str - theta
+      uN = uhor*dcos(theta)
+      uE = uhor*dsin(theta)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE sethafdef(vp,vs,dens)
+      IMPLICIT none
+      REAL*8 vp,vs,dens
+      vp = 6800.0d0
+      vs = 3926.0d0
+      dens = 2800.0d0
+      RETURN
+      END
+
+C- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - C
+
+      SUBROUTINE autogrid(stafile,nflt,hypolon,hypolat,evlo,evla,evdp,
+     1                    str,dip,rak,dx,dy,area,slip,vp,vs,dens,flttyp)
+C----
+C Automatically determine grid of stations to calculate displacements
+C----
+      IMPLICIT none
+      REAL*8 pi,r2d,d2r
+      PARAMETER (pi=4.0d0*atan(1.0d0),r2d=180.0d0/pi,d2r=pi/180.0d0)
+      INTEGER STER
+      PARAMETER (STER=0)
+      CHARACTER*40 stafile
+      INTEGER nflt,FMAX,i,j,NTHR,flttyp,dir
+      PARAMETER (FMAX=1500,NTHR=3)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),area(FMAX),dx(FMAX),dy(FMAX),
+     2       dl(NTHR),thr(NTHR)
+      REAL*8 stdp,lon,lat,hypolon,hypolat,az,Nmax,Smax,Emax,Wmax,
+     1       vp,vs,dens,dN,dE,dZ,N,S,E,W,incr,distmax
+
+      write(STER,'(A)') 'Determining receiver grid limits...'
+C----
+C Limit maximum extent of receiver grid
+C NB: Nmax and Smax are returned in RADIANS!
+C----
+      distmax = 750.0d0 ! km
+      az = 0.0d0
+      call dlola(lon,Nmax,hypolon,hypolat,distmax,az)
+      az = 180.0d0
+      call dlola(lon,Smax,hypolon,hypolat,distmax,az) 
+      Emax = hypolon+distmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hypolat*d2r))
+      Wmax = hypolon-distmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hypolat*d2r))
+C----
+C Set up distance steps and corresponding displacement thresholds
+C----
+      dl(1) = 1.0d0 ! Amounts to move test location
+      dl(2) = 0.1d0
+      dl(3) = 0.05d0
+      thr(1) = 0.5d0 ! Displacement thresholds
+      thr(2) = 0.01d0
+      thr(3) = 0.001d0
+C----
+C Find limits to north, south, east, and west
+C Variable 'dir' controls direction: 1=N, 2=S, 3=E, 4=W
+C----
+      stdp = 0.0d0
+      do 103 dir = 1,4
+          lon = hypolon
+          lat = hypolat
+C         Take first step (by increment of dl(1))
+          if (dir.eq.1) lat = dnint((lat+dl(1))*1.d2)*1.d-2
+          if (dir.eq.2) lat = dnint((lat-dl(1))*1.d2)*1.d-2
+          if (dir.eq.3) lon = dnint((lon+dl(1))*1.d2)*1.d-2
+          if (dir.eq.4) lon = dnint((lon-dl(1))*1.d2)*1.d-2
+C         Take steps of decreasing size and threshold value
+          i = 1
+  101     if (i.gt.NTHR) goto 102
+C             Check if lon, lat exceed maximum allowed values
+              if (dir.eq.1.and.lat.gt.Nmax*r2d) then
+                  lat = Nmax*r2d
+                  goto 102
+              elseif (dir.eq.2.and.lat.lt.Smax*r2d) then
+                  lat = Smax*r2d
+                  goto 102
+              elseif (dir.eq.3.and.lon.gt.Emax) then
+                  lat = Emax
+                  goto 102
+              elseif (dir.eq.4.and.lon.lt.Wmax) then
+                  lon = Wmax
+                  goto 102
+              endif
+C             Calculate displacement and compare to current threshold
+              call calcdisp(dN,dE,dZ,lon,lat,stdp,nflt,evlo,evla,evdp,
+     1                      str,dip,rak,dx,dy,area,slip,vp,vs,dens,
+     2                      flttyp)
+              dN = dabs(dN)
+              dE = dabs(dE)
+              dZ = dabs(dZ)
+              if (dN.gt.thr(i).or.dE.gt.thr(i).or.dZ.gt.thr(i)) then
+                  if (dir.eq.1) lat = lat + dl(i)
+                  if (dir.eq.2) lat = lat - dl(i)
+                  if (dir.eq.3) lon = lon + dl(i)
+                  if (dir.eq.4) lon = lon - dl(i)
+                  goto 101
+              else
+                  i = i + 1
+                  goto 101
+              endif
+  102     continue
+          if (dir.eq.1) N = lat
+          if (dir.eq.2) S = lat
+          if (dir.eq.3) E = lon
+          if (dir.eq.4) W = lon
+  103 continue
+C----
+C Create gridded stafile with separation between points = 'incr'
+C----
+      incr = 0.10d0
+      open(unit=51,file=stafile,status='unknown')
+      i = 0
+      lon = W
+  104 if (lon.gt.E) goto 107
+          i = i + 1
+          lat = S
+          j = 0
+  105     if (lat.gt.N) goto 106
+              write(51,8001) lon,lat,stdp
+              lat = lat + incr
+              j = j + 1
+              goto 105
+  106     continue
+          lon = lon + incr
+          goto 104
+  107 continue
+      open(unit=52,file='autogrid.dat',status='unknown')
+      write(STER,9001) W,E,S,N
+      write(STER,9002) incr
+      write(STER,9003) dnint((E-W)*(N-S)/(incr*incr))
+      write(52,9001) W,E,S,N
+      write(52,9002) incr
+      write(52,9003) dnint((E-W)*(N-S)/(incr*incr))
+      write(52,9004) i
+      write(52,9005) j
+ 8001 format(3F10.2)
+ 9001 format('Grid limits (WESN):',4F8.2)
+ 9002 format('Grid spacing: ',F10.2)
+ 9003 format('Number of points: ',F10.0)
+ 9004 format('nlon: ',I10)
+ 9005 format('nlat: ',I10)
+      close(51)
+
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE progbar(prog,prog100,progtag)
+      IMPLICIT none
+      INTEGER prog,prog100,progtag
+      CHARACTER*1 CR
+      CR = char(13) ! Carriage return
+      if (100*prog/prog100.ge.progtag) then
+          write (*,1000,advance='no') 100*prog/prog100,CR
+          progtag = progtag + 1
+      endif
+      if (100*prog/prog100.ge.100) write (*,1000) 100*prog/prog100
+ 1000 format ('ff2displacement: [',I3,'% Complete]',A)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto)
+      IMPLICIT none
+      CHARACTER*40 tag
+      INTEGER narg,i
+      CHARACTER*40 ffmfile,stafile,haffile,dspfile
+      INTEGER flttyp,auto
+
+      ffmfile = 'static_out'
+      stafile = 'stations.txt'
+      haffile = 'structure.txt'
+      dspfile = 'disp.out'
       flttyp = 1
-      verbose = .false.
+      auto = 0
 
       narg = iargc()
-
       i = 0
-   11 i = i + 1
-      if (i.gt.narg) goto 12
+  101 i = i + 1
+      if (i.gt.narg) goto 102
           call getarg(i,tag)
-          if (tag(1:2).eq.'-t'.or.tag(1:5).eq.'-time') then
+          if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
+              call usage(' ')
+          elseif (tag(1:4).eq.'-ffm') then
               i = i + 1
-              call getarg(i,tag)
-              read (tag,'(BN,F10.0)') time
-          elseif (tag(1:2).eq.'-v'.or.tag(1:4).eq.'-vel') then
+              call getarg(i,ffmfile)
+          elseif (tag(1:4).eq.'-sta') then
               i = i + 1
-              call getarg(i,tag)
-              read (tag,'(BN,F5.0)') vel
-          elseif (tag(1:2).eq.'-i'.or.tag(1:5).eq.'-inst') then
+              call getarg(i,stafile)
+          elseif (tag(1:3).eq.'-haf') then
               i = i + 1
-              call getarg(i,tag)
-              read (tag,'(BN,F4.0)') dt
-          elseif (tag(1:2).eq.'-p') then
-              flttyp = 0
-          elseif (tag(1:2).eq.'-f') then
+              call getarg(i,haffile)
+          elseif (tag(1:4).eq.'-dsp') then
+              i = i + 1
+              call getarg(i,dspfile)
+          elseif (tag(1:3).eq.'-fn') then
               flttyp = 1
-          elseif (tag(1:5).eq.'-verb') then
-              verbose = .true.
-          elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-              call usage()
+          elseif (tag(1:3).eq.'-pt') then
+              flttyp = 0
+          elseif (tag(1:5).eq.'-auto') then
+              !i = i + 1
+              !call getarg(i,tag)
+              !read(tag,'(BN,I10)') auto
+              auto = 1
+          else
+              call usage('!! Error: no option '//tag)
           endif
-      goto 11
-   12 continue
+          goto 101
+  102 continue
 
       RETURN
       END
     
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readstaticout(nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                         area,slip,trup,maxflt)
-      
+      SUBROUTINE usage(str)
       IMPLICIT none
-      CHARACTER*1 dum
-      INTEGER ct,seg,nseg,nx,ny,i,maxflt,nflt,ptr
-      CHARACTER*10 dxc,dyc
-      REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
-     1       dip(maxflt),rak(maxflt),dx(maxflt),dy(maxflt),area(maxflt),
-     2       slip(maxflt),trup(maxflt)
-C----
-C Read header with number of fault segments
-C----
-      ct = 0
-      read (21,*) dum,dum,dum,dum,nseg
-C----
-C Each segment has a fixed line header with information about number
-C and size of subfaults.
-C----
-      do 13 seg = 1,nseg
-          read (21,*) dum,dum,dum,dum,nx,dum,dxc,dum,ny,dum,dyc
-              ptr = index(dxc,'km')
-              dxc(ptr:ptr+1) = ''
-              ptr = index(dyc,'km')
-              dyc(ptr:ptr+1) = ''
-          do 11 i=1,8
-              read (21,*) dum
-   11     continue
-C Read subfault parameters
-          do 12 i = 1,nx*ny
-              read (21,*) evla(ct+i),evlo(ct+i),evdp(ct+i),slip(ct+i),
-     1                    rak(ct+i),str(ct+i),dip(ct+i),trup(ct+i)
-C Convert to SI units
-              slip(ct+i) = 1.0d-2*slip(ct+i)
-              read (dxc,*) dx(ct+i)
-              read (dyc,*) dy(ct+i)
-              dx(ct+i) = 1.0d3*dx(ct+i)
-              dy(ct+i) = 1.0d3*dy(ct+i)
-              area(ct+i) = dx(ct+i)*dy(ct+i)
-              evdp(ct+i) = 1.0d3*evdp(ct+i)
-   12     continue
-          ct = ct + nx*ny
-   13 continue
-      nflt = ct
-      
-      RETURN
-      END
+      INTEGER STER,lstr
+      PARAMETER (STER=0)
+      CHARACTER str*(*)
 
-C----------------------------------------------------------------------C
-
-      SUBROUTINE xy2NE(uN,uE,ux,uy,str)
-      
-      IMPLICIT none
-      REAL*8 uN,uE,ux,uy,str,theta,uhor
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-      
-      theta = datan2(uy,ux)
-      uhor = dsqrt(ux*ux+uy*uy)
-      theta = d2r*str - theta
-      uN = uhor*dcos(theta)
-      uE = uhor*dsin(theta)
-      
-      RETURN
-      END
-
-C----------------------------------------------------------------------C
-
-      SUBROUTINE checkctrlfiles(ffmfile,stafile,haffile,verbose)
-      IMPLICIT none
-      CHARACTER*20 ffmfile,stafile,haffile
-      LOGICAL ex,verbose
-
-      ffmfile = 'static_out'
-      stafile = 'stations.txt'
-      haffile = 'structure.txt'
-C----
-C Finite fault model
-C----
-   11 if (verbose) write (*,9996,advance='no'),ffmfile
-      inquire(file=ffmfile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) ffmfile
-          write (*,8886)
-          read *,ffmfile
-          if (ffmfile.eq.'quit') stop
-          if (ffmfile.eq.'help') call usage()
-          goto 11
-      else
-          if (verbose) write(*,9999)
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(STER,*)
+          write(STER,*) str(1:lstr)
+          write(STER,*)
       endif
-C----
-C Stations
-C----
-   12 if (verbose) write (*,9997,advance='no'),stafile
-      inquire (file=stafile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) stafile
-          write (*,8887)
-          read *,stafile
-          if (stafile.eq.'quit') stop
-          if (stafile.eq.'help') call usage()
-          goto 12
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Halfspace
-C----
-   13 if (verbose) write (*,9998,advance='no'),haffile
-      inquire (file=haffile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) haffile
-          write (*,8888)
-          read *,haffile
-          if (haffile.eq.'quit') stop
-          if (haffile.eq.'help') call usage()
-          goto 13
-      else
-          if (verbose) write(*,9999)
-      endif
-
- 9996 format('Looking for finite fault file: ',A20)
- 9997 format('Looking for station file:      ',A20)
- 9998 format('Looking for half-space file:   ',A20)
- 9999 format('FOUND')
- 8886 format('Enter name of finite fault file, "quit", or "help":')
- 8887 format('Enter name of station file, "quit", or "help":')
- 8888 format('Enter name of half-space file, "quit", or "help":')
- 8889 format('No file named ',A20)
-
-      RETURN
-      END
-
-C----------------------------------------------------------------------C
-
-      SUBROUTINE usage()
-      IMPLICIT none
-
-      write (*,*)
-     1 'Usage: ff2displacement -v/-vel [VEL] -t/-time [TIME] -i/-inst ',
-     2 '[DT] -p/-f -verb -h/-?'
-      write (*,*)
-     1 '  -v/-vel [VEL]   (default -1.0) velocity (km/s) of propagation'
-      write (*,*)
-     1 '                              negative => infinite velocity'
-      write (*,*)
-     1 '  -t/-time [TIME] (default 1.0e6 sec) only displacements that ',
-     2                                   'arrive before TIME contribute'
-      write (*,*)
-     1 '  -i/-inst [DT]   (default -1.0) include displacements ',
-     2                               'arriving between TIME-DT and TIME'
-      write (*,*)
-     1 '                              negative => add all ',
-     2                               'contributions before TIME'
-      write (*,*)
-     1 '  -p/-f        (default finite) subfaults are ',
-     2                            'treated as point (-p) or finite (-f)'
-      write (*,*)
-     1 '  -verb           (default false) turn on verbose operation'
-      write (*,*)
-     1 '  -h/-?              help'
-      write (*,*) ''
-      write (*,*)
-     1 '  ff2displacement calculates NEZ displacements from finite',
-     2   ' fault model at user-defined locations.'
-      write (*,*)
-     1 '  Output file: disp.out'
-      write (*,*)
-     1 '  Required input files:'
-      write (*,*) ''
-      write (*,*)
-     1 '    static_out: finite fault model in standard subfault format'
-      write (*,*) ''
-      write (*,*)
-     1 '    stations.txt: list of station locations and depths'
-      write (*,*)
-     1 '      stlo stla stdp'
-      write (*,*)
-     1 '                (km)'
-      write (*,*) ''
-      write (*,*)
-     1 '    structure.txt: vp vs dens (only vp/vs ratio matters)'
-      write (*,*) ''
+      write (STER,*)
+     1 'Usage: ff2displacement -ffm FFMFILE -sta STAFILE ',
+     2                        '-haf HAFFILE -dsp DSPFILE ',
+     3                        '-fn -pt -auto ',
+     4                        '-h -?'
+      write(STER,*)
+      write(STER,*)
+     1 'Compute NEZ displacements resulting from finite fault model'
+      write(STER,*)
+      write (STER,*)
+     1 '-ffm FFMFILE   (static_out)     name of finite fault model file'
+      write (STER,*)
+     1 '-sta STAFILE   (stations.txt)   name of receiver location file'
+      write (STER,*)
+     1 '-haf HAFFILE   (structure.txt)  name of half-space parameter ',
+     2                                  'file'
+      write (STER,*)
+     1 '-dsp DSPFILE   (disp.out)       name of output displacement ',
+     2                                  'file'
+      write (STER,*)
+     1 '-fn            (default)        treat subfaults as ',
+     2                                    'finite sources'
+      write (STER,*)
+     1 '-pt                             treat subfaults as ',
+     2                                       'point sources'
+      write (STER,*)
+     1 '-auto                           automatically create ',
+     2                               'receiver grid'
+      write (STER,*)
+     1 '-h                              this online help'
+      write (STER,*)
+     1 '-?                              this online help'
+      write (STER,*)
+      write (STER,*)
+     1 'FILE FORMATS'
+      write (STER,*)
+     1 '------------'
+      write (STER,*)
+     1 'FFMFILE: finite fault model in standard subfault format'
+      write (STER,*)
+     1 'STAFILE: list of station/receiver locations and depths'
+      write (STER,*)
+     1 '    stlo stla stdp(km)'
+      write (STER,*)
+     1 'HAFFILE: half-space parameters'
+      write (STER,*)
+     1 '    vp(km/s) vs(km/s) dens(kg/m^3)'
+      write (STER,*)
+     1 'DSPFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and displacements'
+      write (STER,*)
+     1 '    stlo stla uE(m) uN(m) uZ(m)'
+      write (STER,*)
+      write (STER,*)
+     1 'If "-auto" is selected, a receiver grid is automatically' 
+      write (STER,*)
+     1 'generated, and surface displacements are computed at each site.'
+      write (STER,*)
+     1 'A file "autogrid.dat" contains information about the grid.'
+      write (STER,*)
 
       STOP
       END
