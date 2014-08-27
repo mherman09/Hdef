@@ -4,29 +4,24 @@ C Calculate the north, east and vertical displacements at receivers in
 C an isotropic elastic half-space due to shear dislocations.
 C----
       IMPLICIT NONE
-      LOGICAL verbose
-      CHARACTER*20 srcfile,stafile,haffile
-      INTEGER nflt,maxflt
-      PARAMETER (maxflt=1500)
-      INTEGER flttyp(maxflt)
-      REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
-     1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),dy(maxflt),
-     2       area(maxflt)
-
+      CHARACTER*40 fltfile,stafile,haffile,dspfile
+      LOGICAL ex
+      INTEGER auto
+      INTEGER nflt,FMAX
+      PARAMETER (FMAX=1500)
+      INTEGER flttyp(FMAX)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area(FMAX)
       REAL*8 stlo,stla,stdp
       REAL*8 vp,vs,dens
-
+      INTEGER prog,prog100,progtag
       REAL*8 uNnet,uEnet,uZnet
 
-      call gcmdln(verbose)
 C----
-C Input files
+C Parse the command line, check for FFM file, and read FFM
 C----
-      call checkctrlfiles(srcfile,stafile,haffile,verbose)
-      open (unit=21,file=srcfile,status='old')
-      open (unit=22,file=stafile,status='old')
-      open (unit=23,file=haffile,status='old')
-      read (23,*) vp,vs,dens
+      call gcmdln(fltfile,stafile,haffile,dspfile,auto)
+
 C----
 C Output file
 C----
@@ -40,7 +35,7 @@ C   0 for point source
 C   1 for finite source
 C----
       call readfaults(nflt,evlo,evla,evdp,str,dip,rak,slip,dy,dx,area,
-     1                flttyp,maxflt)
+     1                flttyp,FMAX)
 C----
 C Calculate net displacements at each station
 C----
@@ -53,21 +48,21 @@ C----
           goto 101
   103 continue
 
- 9999 format (2(f10.3),3(f14.4)) 
+ 9999 format (2(f10.3),3(f14.4))
 
       END
 
 C======================================================================C
 
       SUBROUTINE readfaults(nflt,evlo,evla,evdp,str,dip,rak,slip,dy,dx,
-     1                      area,flttyp,maxflt)
+     1                      area,flttyp,FMAX)
 
       IMPLICIT none
-      INTEGER flt,nflt,maxflt,flttyp(maxflt)
-      REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
-     1       dip(maxflt),rak(maxflt),slip(maxflt),dy(maxflt),dx(maxflt),
-     2       area(maxflt)
-      
+      INTEGER flt,nflt,FMAX,flttyp(FMAX)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),
+     1       dip(FMAX),rak(FMAX),slip(FMAX),dy(FMAX),dx(FMAX),
+     2       area(FMAX)
+
       flt = 0
   201 flt = flt + 1
       read (21,*,END=202) evlo(flt),evla(flt),evdp(flt),str(flt),
@@ -76,22 +71,22 @@ C======================================================================C
           evdp(flt) = 1.0d3*evdp(flt)
           dx(flt) = 1.0d3*dx(flt)
           dy(flt) = 1.0d3*dy(flt)
-          area(flt) = dx(flt)*dy(flt)     
+          area(flt) = dx(flt)*dy(flt)
           goto 201
   202 continue
       nflt = flt - 1
-      
+
       RETURN
       END
-      
+
 C----------------------------------------------------------------------C
 
-      SUBROUTINE calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,                                
-     1                    evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,                           
+      SUBROUTINE calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,
+     1                    evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,
      2                    vp,vs,dens,flttyp)
-C----                                                                                           
+C----
 C Compute NEZ displacements at (stlo,stla,stdp) from faults
-C----                                                                                           
+C----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
@@ -130,119 +125,82 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE xy2NE(uN,uE,ux,uy,str)
-      
+
       IMPLICIT none
       REAL*8 uN,uE,ux,uy,str,theta,uhor
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-      
+
       theta = datan2(uy,ux)
       uhor = dsqrt(ux*ux+uy*uy)
       theta = d2r*str - theta
       uN = uhor*dcos(theta)
       uE = uhor*dsin(theta)
-      
+
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE checkctrlfiles(srcfile,stafile,haffile,verbose)
+      SUBROUTINE gcmdln(fltfile,stafile,haffile,dspfile,auto)
       IMPLICIT none
-      CHARACTER*20 srcfile,stafile,haffile
-      LOGICAL ex,verbose
+      CHARACTER*40 tag
+      INTEGER narg,i
+      CHARACTER*40 fltfile,stafile,haffile,dspfile
+      INTEGER auto
 
-      srcfile = 'faults.txt'
+      fltfile = 'faults.txt'
       stafile = 'stations.txt'
       haffile = 'structure.txt'
-C----
-C Fault file
-C----
-   11 if (verbose) write (*,9996,advance='no'),srcfile
-      inquire(file=srcfile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) srcfile
-          write (*,8886)
-          read *,srcfile
-          if (srcfile.eq.'quit') stop
-          if (srcfile.eq.'help') call usage()
-          goto 11
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Stations
-C----
-   12 if (verbose) write (*,9997,advance='no'),stafile
-      inquire (file=stafile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) stafile
-          write (*,8887)
-          read *,stafile
-          if (stafile.eq.'quit') stop
-          if (stafile.eq.'help') call usage()
-          goto 12
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Halfspace
-C----
-   13 if (verbose) write (*,9998,advance='no'),haffile
-      inquire (file=haffile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) haffile
-          write (*,8888)
-          read *,haffile
-          if (haffile.eq.'quit') stop
-          if (haffile.eq.'help') call usage()
-          goto 13
-      else
-          if (verbose) write(*,9999)
-      endif
-
- 9996 format('Looking for fault file:      ',A20)
- 9997 format('Looking for station file:    ',A20)
- 9998 format('Looking for half-space file: ',A20)
- 9999 format('FOUND')
- 8886 format('Enter name of fault file, "quit", or "help":')
- 8887 format('Enter name of station file, "quit", or "help":')
- 8888 format('Enter name of half-space file, "quit" or "help":')
- 8889 format('No file named ',A20)
-
-      RETURN
-      END
-
-C----------------------------------------------------------------------C
-
-      SUBROUTINE gcmdln(verbose)
-
-      IMPLICIT none
-      INTEGER i,narg
-      CHARACTER*25 tag
-      LOGICAL verbose
-
-      verbose = .false.
+      dspfile = 'disp.out'
+      auto = 0
 
       narg = iargc()
       i = 0
   101 i = i + 1
       if (i.gt.narg) goto 102
-      call getarg(i,tag)
-      if (tag(1:2).eq.'-V') then
-          verbose = .true.
-      elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-          call usage()
-      endif
-      goto 101
+          call getarg(i,tag)
+          if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
+              call usage(' ')
+          elseif (tag(1:4).eq.'-flt') then
+              i = i + 1
+              call getarg(i,fltfile)
+          elseif (tag(1:4).eq.'-sta') then
+              i = i + 1
+              call getarg(i,stafile)
+          elseif (tag(1:3).eq.'-haf') then
+              i = i + 1
+              call getarg(i,haffile)
+          elseif (tag(1:4).eq.'-dsp') then
+              i = i + 1
+              call getarg(i,dspfile)
+          elseif (tag(1:5).eq.'-auto') then
+              !i = i + 1
+              !call getarg(i,tag)
+              !read(tag,'(BN,I10)') auto
+              auto = 1
+          else
+              call usage('!! Error: no option '//tag)
+          endif
+          goto 101
   102 continue
+
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE usage()
+      SUBROUTINE usage(str)
       IMPLICIT none
+      INTEGER STER,lstr
+      PARAMETER (STER=0)
+      CHARACTER str*(*)
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(STER,*)
+          write(STER,*) str(1:lstr)
+          write(STER,*)
+      endif
       write (*,*)
      1 'Usage: flt2displacement -V -h/-?'
       write (*,*)
