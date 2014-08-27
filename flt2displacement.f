@@ -4,6 +4,8 @@ C Calculate the north, east and vertical displacements at receivers in
 C an isotropic elastic half-space due to shear dislocations.
 C----
       IMPLICIT NONE
+      INTEGER STER
+      PARAMETER (STER=0)
       CHARACTER*40 fltfile,stafile,haffile,dspfile
       LOGICAL ex
       INTEGER auto
@@ -21,21 +23,40 @@ C----
 C Parse the command line, check for FFM file, and read FFM
 C----
       call gcmdln(fltfile,stafile,haffile,dspfile,auto)
+      inquire(file=fltfile,exist=ex)
+      if (.not.ex) call usage('!! Error: no file named '//fltfile)
+      call readfaults(fltfile,nflt,evlo,evla,evdp,str,dip,rak,slip,dy,
+     1                dx,area,flttyp)
+
+C----
+C If auto=0: use existing input files
+C If auto=1: generate half-space and station inputs
+C----
+      if (auto.eq.0) then
+          inquire(file=haffile,exist=ex)
+          if (.not.ex) then
+              write(STER,*) '!! Warning: no file named '//haffile
+              write(STER,*) '!! Using default half-space parameters'
+              call sethafdef(vp,vs,dens)
+          else
+              open (unit=23,file=haffile,status='old')
+              read (23,*) vp,vs,dens
+          endif
+          inquire(file=stafile,exist=ex)
+          if (.not.ex) call usage('!! Error: no file named '//stafile)
+          open(unit=22,file=stafile,status='old')
+      elseif (auto.eq.1) then
+          call sethafdef(vp,vs,dens)
+C          call autogrid(stafile,nflt,hypolon,hypolat,evlo,evla,evdp,str,
+C     1                  dip,rak,dx,dy,area,slip,vp,vs,dens,flttyp)
+          open (unit=22,file=stafile,status='old')
+      endif
 
 C----
 C Output file
 C----
-      open (unit=11,file='disp.out',status='unknown')
-C----
-C Parse fault file
-C List of:
-C  lon lat dep(km) str dip rak slip(m) dy(km) dx(km) flttyp
-C Last column indicates fault type:
-C   0 for point source
-C   1 for finite source
-C----
-      call readfaults(nflt,evlo,evla,evdp,str,dip,rak,slip,dy,dx,area,
-     1                flttyp,FMAX)
+      open (unit=11,file=dspfile,status='unknown')
+
 C----
 C Calculate net displacements at each station
 C----
@@ -45,6 +66,7 @@ C----
      1                  evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,
      2                  vp,vs,dens,flttyp)
           write (11,9999) stlo,stla,uNnet,uEnet,uZnet
+          write (STER,9999) stlo,stla,uNnet,uEnet,uZnet
           goto 101
   103 continue
 
@@ -54,27 +76,32 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE readfaults(nflt,evlo,evla,evdp,str,dip,rak,slip,dy,dx,
-     1                      area,flttyp,FMAX)
+      SUBROUTINE readfaults(fltfile,nflt,evlo,evla,evdp,str,dip,rak,
+     1                      slip,dy,dx,area,flttyp)
 
       IMPLICIT none
-      INTEGER flt,nflt,FMAX,flttyp(FMAX)
+      CHARACTER*40 fltfile
+      INTEGER f,nflt,FMAX
+      PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),
      1       dip(FMAX),rak(FMAX),slip(FMAX),dy(FMAX),dx(FMAX),
      2       area(FMAX)
+      INTEGER flttyp(FMAX)
 
-      flt = 0
-  201 flt = flt + 1
-      read (21,*,END=202) evlo(flt),evla(flt),evdp(flt),str(flt),
-     1                    dip(flt),rak(flt),slip(flt),dy(flt),dx(flt),
-     2                    flttyp(flt)
-          evdp(flt) = 1.0d3*evdp(flt)
-          dx(flt) = 1.0d3*dx(flt)
-          dy(flt) = 1.0d3*dy(flt)
-          area(flt) = dx(flt)*dy(flt)
+      open (unit=21,file=fltfile,status='old')
+      f = 0
+  201 f = f + 1
+      read (21,*,END=202) evlo(f),evla(f),evdp(f),str(f),
+     1                    dip(f),rak(f),slip(f),dy(f),dx(f),
+     2                    flttyp(f)
+          evdp(f) = 1.0d3*evdp(f)
+          dx(f) = 1.0d3*dx(f)
+          dy(f) = 1.0d3*dy(f)
+          area(f) = dx(f)*dy(f)
           goto 201
   202 continue
-      nflt = flt - 1
+      nflt = f - 1
+      close(21)
 
       RETURN
       END
@@ -125,18 +152,26 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE xy2NE(uN,uE,ux,uy,str)
-
       IMPLICIT none
       REAL*8 uN,uE,ux,uy,str,theta,uhor
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-
       theta = datan2(uy,ux)
       uhor = dsqrt(ux*ux+uy*uy)
       theta = d2r*str - theta
       uN = uhor*dcos(theta)
       uE = uhor*dsin(theta)
+      RETURN
+      END
 
+C----------------------------------------------------------------------C
+
+      SUBROUTINE sethafdef(vp,vs,dens)
+      IMPLICIT none
+      REAL*8 vp,vs,dens
+      vp = 6800.0d0
+      vs = 3926.0d0
+      dens = 2800.0d0
       RETURN
       END
 
