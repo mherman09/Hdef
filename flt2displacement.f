@@ -1,40 +1,22 @@
       PROGRAM flt2displacement
 C----
-C Calculate the north, east and vertical displacements at stations
-C due to shear dislocations in an isotropic halfspace.
-C
-C To run, requires the following files:
-C     faults.txt: list of ruptures
-C     stations.txt: list of receiver lon, lat, and depth (km)
-C     structure.txt: vp (m/s) vs (m/s) density (kg/m^3)
-C
-C Produces the output file:
-C     disp.out: stlo, stla, uN, uE, uZ
-C
-C MODIFICATIONS:
-C   2013-02-21: Original file created
-C   2013-07-22: Subroutine to check that input files exist
-C   2013-08-08: Added verbose option
-C   2013-08-08: Added help/usage option
-C
+C Calculate the north, east and vertical displacements at receivers in
+C an isotropic elastic half-space due to shear dislocations.
 C----
       IMPLICIT NONE
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-
       LOGICAL verbose
       CHARACTER*20 srcfile,stafile,haffile
-      INTEGER flt,nflt,maxflt
-      PARAMETER (maxflt=50)
-      INTEGER flttyp(maxflt),i,j
+      INTEGER nflt,maxflt
+      PARAMETER (maxflt=1500)
+      INTEGER flttyp(maxflt)
       REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
      1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),dy(maxflt),
      2       area(maxflt)
 
-      REAL*8 stlo,stla,stdp,dist,az,x,y
+      REAL*8 stlo,stla,stdp
       REAL*8 vp,vs,dens
 
-      REAL*8 ux,uy,uN,uE,uZ,uNnet,uEnet,uZnet
+      REAL*8 uNnet,uEnet,uZnet
 
       call gcmdln(verbose)
 C----
@@ -64,37 +46,14 @@ C Calculate net displacements at each station
 C----
   101 read (22,*,end=103) stlo,stla,stdp
           stdp = 1.0d3*stdp
-          uNnet = 0.0d0
-          uEnet = 0.0d0
-          uZnet = 0.0d0
-          
-          do 102 flt = 1,nflt
-              call ddistaz(dist,az,evlo(flt),evla(flt),stlo,stla)
-              dist = dist*6.371d6
-              x = dist*dcos(az-d2r*str(flt))
-              y = dist*(-dsin(az-d2r*str(flt)))
-
-              if (flttyp(flt).eq.0) then
-                  call o92pt(ux,uy,uz,x,y,stdp,evdp(flt),dip(flt),
-     1                       rak(flt),area(flt),slip(flt),vp,vs,dens)
-              else
-                  call o92rect(ux,uy,uz,x,y,stdp,evdp(flt),dip(flt),
-     1                         rak(flt),dy(flt),dx(flt),slip(flt),
-     2                         vp,vs,dens)
-              endif
-
-              call xy2NE(uN,uE,ux,uy,str(flt))
-
-              uNnet = uNnet + uN
-              uEnet = uEnet + uE
-              uZnet = uZnet + uZ
-  102     continue
-  
+          call calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,
+     1                  evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,
+     2                  vp,vs,dens,flttyp)
           write (11,9999) stlo,stla,uNnet,uEnet,uZnet
           goto 101
   103 continue
 
- 9999 format (2(f10.3),3(f12.3)) 
+ 9999 format (2(f10.3),3(f14.4)) 
 
       END
 
@@ -125,6 +84,49 @@ C======================================================================C
       RETURN
       END
       
+C----------------------------------------------------------------------C
+
+      SUBROUTINE calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,                                
+     1                    evlo,evla,evdp,str,dip,rak,dx,dy,area,slip,                           
+     2                    vp,vs,dens,flttyp)
+C----                                                                                           
+C Compute NEZ displacements at (stlo,stla,stdp) from faults
+C----                                                                                           
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
+      REAL*8 stlo,stla,stdp,dist,az,x,y
+      INTEGER f,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),area(FMAX),dx(FMAX),dy(FMAX)
+      INTEGER flttyp(FMAX)
+      REAL*8 vp,vs,dens
+
+      uNnet = 0.0d0
+      uEnet = 0.0d0
+      uZnet = 0.0d0
+      do 102 f = 1,nflt
+          call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+          dist = dist*6.371d6
+          x = dist*( dcos(az-d2r*str(f)))
+          y = dist*(-dsin(az-d2r*str(f)))
+          if (flttyp(f).eq.0) then
+              call o92pt(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
+     1                   area(f),slip(f),vp,vs,dens)
+          else
+              call o92rect(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
+     1                     dy(f),dx(f),slip(f),vp,vs,dens)
+          endif
+          call xy2NE(uN,uE,ux,uy,str(f))
+          uNnet = uNnet + uN
+          uEnet = uEnet + uE
+          uZnet = uZnet + uz
+  102 continue
+      RETURN
+      END
+
 C----------------------------------------------------------------------C
 
       SUBROUTINE xy2NE(uN,uE,ux,uy,str)
