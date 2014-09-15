@@ -1,20 +1,21 @@
       PROGRAM polyfit
       IMPLICIT none
-      CHARACTER*30 ifile,ofile
+      CHARACTER*30 ifile,ofile,cfile
       LOGICAL ex
       INTEGER NMAX,nobs
-      PARAMETER (NMAX=40000)
+      PARAMETER (NMAX=100000)
       REAL*8 xobs(NMAX),yobs(NMAX)
 
-      INTEGER ORDMAX,ord
-      PARAMETER (ORDMAX=10)
-      REAL*8 coeff(ORDMAX),xpre,ypre,dx,xconst,yconst
+      INTEGER ORDMAX,ord,CONSTRMAX,nconstr
+      PARAMETER (ORDMAX=10,CONSTRMAX=11)
+      REAL*8 coeff(ORDMAX),xconstr(CONSTRMAX),yconstr(CONSTRMAX),
+     1       xpre,ypre
       INTEGER i,j,npre
 
 C----
 C Parse command line and check for input file
 C----
-      call gcmdln(ifile,ofile,ord)
+      call gcmdln(ifile,ofile,cfile,ord)
       inquire(file=ifile,EXIST=ex)
       if (.not.ex) then
           print *,'No input file: ',ifile
@@ -33,34 +34,55 @@ C----
       nobs = i - 1
 
 C----
-C Compute polynomial coefficients
+C Check if a constraint file was defined, and compute coefficients
 C----
-      call polylsq(coeff,xobs,yobs,nobs,ord)
+      if (cfile.eq.'none') then
+          call polylsq(coeff,xobs,yobs,nobs,ord)
+      else
+          open(unit=13,file=cfile,status='unknown')
+          i = 1
+ 103      read(13,*,end=104) xconstr(i),yconstr(i)
+              i = i + 1
+              goto 103
+ 104      continue
+          nconstr = i - 1
+          call polylsqconstr(coeff,xobs,yobs,nobs,ord,xconstr,yconstr,
+     1                         nconstr)
+      endif
+
+C----
+C Write polynomial coefficients to file
+C----
+      open(unit=14,file='coeff.tmp',status='unknown')
+      do 105 i = 1,ord+1
+          write (14,*) coeff(i),'ORDER=',i-1
+  105 continue
 
 C----
 C Write predicted results to ofile
 C----
       open(unit=12,file=ofile,status='unknown')
-      do 104 i = 1,nobs
+      do 107 i = 1,nobs
           ypre = 0.0d0
-          do 103 j = 1,ord+1
+          do 106 j = 1,ord+1
               ypre = ypre + coeff(j)*xobs(i)**(j-1)
-  103     continue
+  106     continue
           write (12,*) xobs(i),ypre
-  104 continue
+  107 continue
 
       END
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(ifile,ofile,ord)
+      SUBROUTINE gcmdln(ifile,ofile,cfile,ord)
       
       IMPLICIT NONE
-      CHARACTER*30 ifile,ofile,tag
+      CHARACTER*30 ifile,ofile,cfile,tag
       INTEGER i,narg,ord
       
       ifile = 'polyfit.in'
       ofile = 'polyfit.out'
+      cfile = 'none'
       ord = 1
       
       narg = iargc()
@@ -81,6 +103,9 @@ C======================================================================C
           elseif (tag(1:2).eq.'-o') then
               i = i + 1
               call getarg(i,ofile)
+          elseif (tag(1:7).eq.'-constr') then
+              i = i + 1
+              call getarg(i,cfile)
           endif
           goto 101
   102 continue
@@ -93,7 +118,8 @@ C----------------------------------------------------------------------C
       SUBROUTINE usage()
       IMPLICIT none
       write(*,*)
-     1 'Usage: polyfit -f [IFILE] -o [OFILE] -ord [ORDER]'
+     1 'Usage: polyfit -f [IFILE] -o [OFILE] -ord [ORDER] -constr ',
+     2                '[CFILE] -h/-?'
       write(*,*)
      1 '  -f [IFILE] (Default polyfit.in) name of input file'
       write(*,*)
@@ -101,10 +127,46 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '  -ord [ORDER] (Default 1) order of polynomial'
       write(*,*)
+     1 '  -constr [CFILE] (Default none) equality constraint file'
       write(*,*)
-     1 'polyfit computes a least squares fit through a dataset with a'
+     1 '  -h/-?    Online help (this screen)'
       write(*,*)
-     1 '    polynomial of order [ORDER]'
+      write(*,*)
+     1 'polyfit computes a least squares polynomial fit'
+      write(*,*)
+      write(*,*)
+     1 '  Input files'
+      write(*,*)
+     1 '    polyfit.in: list of ordered pairs to fit'
+      write(*,*)
+     1 '      xobs1 yobs1'
+      write(*,*)
+     1 '        :     :'
+      write(*,*)
+      write(*,*)
+     1 '    constraints.in (optional with -constr): equality ',
+     2                                                'constraints'
+      write(*,*)
+     1 '      xconstr1 yconstr1'
+      write(*,*)
+     1 '         :        :'
+      write(*,*)
+      write(*,*)
+     1 '  Output files'
+      write(*,*)
+     1 '    polyfit.out: list of observed x and predicted y values'
+      write(*,*)
+     1 '      xobs1 ypre1'
+      write(*,*)
+     1 '        :     :'
+      write(*,*)
+      write(*,*)
+     1 '    coeff.tmp: polynomial coefficients (c_0*x^0 + ',
+     2                                             '...c_ord*x^ord)'
+      write(*,*)
+     1 '      coeff0 ORDER= order'
+      write(*,*)
+     1 '         :           :'
       STOP
       END
 
