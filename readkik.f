@@ -1,215 +1,297 @@
       PROGRAM readkik
 C----
-C Program to read in Japanese KiK-net files (strong motion).
+C Program to read in Japanese KiK-net files (strong motion)
+C and output acceleration time series, and optional numerical
+C integration to output velocity or displacement time series
 C----
       IMPLICIT none
-      CHARACTER*80 ifile,ofile,dfile
-      CHARACTER*18 fmtc,fmtf,fmti,lbl
-      CHARACTER*20 stnm,otimec,rtimec,sfreqc,scalc
-      REAL evlo,evla,evdp,stlo,stla,stdp
-      REAL mag,freq,dt,dur,n,d,scal,maxacc
-      INTEGER dir,i,termout,trap
-      INTEGER yr0,mo0,dy0,hr0,mn0,sc0,yr1,mo1,dy1,hr1,mn1,sc1,t1
-
-      INTEGER ct
-      REAL a(32000),vel(32000),disp(32000),avg,mx
-      LOGICAL ex,opt
+      CHARACTER*80 kikfile,accfile,velfile,dspfile
+      LOGICAL ex
+      
+      INTEGER n,ntot,NMAX,nstart,nfinish
+      PARAMETER (NMAX=100000)
+      REAL*8 acc(NMAX),vel(NMAX),dsp(NMAX),tstart,dt,first
 
 C----
-C Input the strong motion file as a command line argument
+C Parse command line
 C----
-      call gcmdln(ifile,ofile,dfile,termout,trap)
-  100 inquire(file=ifile,exist=ex)
+      call gcmdln(kikfile,accfile,velfile,dspfile,first)
+      inquire(file=kikfile,exist=ex)
       if (.not.ex) then
-          print *,ifile,'does not exist'
+          write(*,9999),kikfile
+          write(*,*)
           call usage()
       endif
-      open(unit=11,file=ifile,status='old')
+      open(unit=11,file=kikfile,status='old')
+ 9999 format('Strong motion file ',A20,'does not exist')
+
+      if (accfile.eq.'none'.and.velfile.eq.'none'.and.
+     1                                        dspfile.eq.'none') then
+          print *,'No output file designated!'
+          call usage()
+      endif    
 
 C----
-C Parse the header of the strong motion file
+C Parse the strong motion file
 C----
-      fmtc = '(A18,A)'
-      fmtf = '(A18,F9.0)'
-      fmti = '(A18,I3)'
-      read(11,fmtc) lbl,otimec
-      read(11,fmtf) lbl,evla
-      read(11,fmtf) lbl,evlo
-      read(11,fmtf) lbl,evdp
-      read(11,fmtf) lbl,mag
-      read(11,fmtc) lbl,stnm
-      read(11,fmtf) lbl,stla
-      read(11,fmtf) lbl,stlo
-      read(11,fmtf) lbl,stdp
-      read(11,fmtc) lbl,rtimec
-      read(11,fmtc) lbl,sfreqc
-      read(11,fmtf) lbl,dur
-      read(11,fmti) lbl,dir
-      read(11,fmtc) lbl,scalc
-      read(11,fmtf) lbl,maxacc
-      read(11,*)    lbl
-      read(11,*)    lbl
-
-      read(otimec,1001) yr0,mo0,dy0,hr0,mn0,sc0
-      read(rtimec,1001) yr1,mo1,dy1,hr1,mn1,sc1
- 1001 format(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2)
-      t1 = (hr1-hr0)*60*60 + (mn1-mn0)*60 + (sc1-sc0)
-
-      i = index(sfreqc,'Hz')
-      sfreqc(i:i+1) = ''
-      read(sfreqc,*) freq
-      dt = 1.0/freq
-
-      i = index(scalc,'(gal)/')
-      scalc(i:i+5) = ' '
-      read (scalc,*) n,d
-      scal = n/d
+      call readsmfile(kikfile,acc,ntot,tstart,dt)
+      if (first.gt.0.0d0) then
+          nstart = 1
+          nfinish = int((first-tstart)/dt) + nstart
+          call removemean(acc,ntot,nstart,nfinish)
+      endif
 
 C----
-C Read in acceleration time series, correct to gals, remove offset
+C Write acceleration time series
 C----
-      ct = 0
-  101 read(11,*,end=103) a(ct+1),a(ct+2),a(ct+3),a(ct+4),a(ct+5),
-     1                   a(ct+6),a(ct+7),a(ct+8)
-          do 102 i = 1,8
-              a(ct+i) = a(ct+i)*scal
+      if (accfile.ne.'none') then
+          open (unit=21,file=accfile,status='unknown')
+          do 101 n = 1,ntot
+              write(21,9998) tstart+dble(n-1)*dt,acc(n)
+  101     continue
+      endif
+C----
+C Integrate to get velocity and displacement time series
+C----
+      if (velfile.ne.'none'.or.dspfile.ne.'none') then
+          call numint(vel,acc,dt,ntot)
+      endif
+      if (velfile.ne.'none') then
+          open (unit=22,file=velfile,status='unknown')
+          do 102 n = 1,ntot
+              write(22,9998) tstart+dble(n-1)*dt,vel(n)
   102     continue
-          ct = ct + 8
+      endif
+      if (dspfile.ne.'none') then
+          call numint(dsp,vel,dt,ntot)
+          open (unit=23,file=dspfile,status='unknown')
+          do 103 n = 1,ntot
+              write(23,9998) tstart+dble(n-1)*dt,dsp(n)
+  103     continue
+      endif
+ 9998 format(F10.3,E18.6)
+
+      END
+      
+C======================================================================C
+
+      SUBROUTINE readsmfile(kikfile,acc,ntot,tstart,dt)
+      IMPLICIT none
+      CHARACTER*80 kikfile
+C----
+C Parameters read from kikfile header
+C----
+      CHARACTER*20 lbl,otimec,rtimec,stnm,sampfreqc,scalefactc
+      REAL*8 evla,evlo,evdp,mag,stla,stlo,stel,dur,maxacc
+      INTEGER cmp
+C----
+C Parameters to compute
+C----
+      REAL*8 sampfreq,dt,scaletop,scalebot,scalefact
+      REAL*8 yr0,mo0,dy0,hr0,mn0,sc0,yr1,mo1,dy1,hr1,mn1,sc1
+      REAL*8 tstart
+      INTEGER i
+      
+      INTEGER n,ntot,NMAX
+      PARAMETER (NMAX=100000)
+      REAL*8 acc(NMAX),avg
+      
+      open (unit=11,file=kikfile,status='old')
+      read(11,1001) lbl,otimec
+      read(11,1002) lbl,evla
+      read(11,1002) lbl,evlo
+      read(11,1002) lbl,evdp
+      read(11,1002) lbl,mag
+      read(11,1001) lbl,stnm
+      read(11,1002) lbl,stla
+      read(11,1002) lbl,stlo
+      read(11,1002) lbl,stel
+      read(11,1001) lbl,rtimec
+      read(11,1001) lbl,sampfreqc
+      read(11,1002) lbl,dur
+      read(11,1003) lbl,cmp
+      read(11,1001) lbl,scalefactc
+      read(11,1002) lbl,maxacc
+      read(11,*)    lbl
+      read(11,*)    lbl
+ 1001 format(A18,A)
+ 1002 format(A18,F9.0)
+ 1003 format(A18,I3)
+
+C----
+C Start time of recording (tstart, in seconds after origin time)
+C Note: Recording start time includes 15 second trigger delay
+C       in data logger. The true start time is obtained by
+C       subtracting 15 seconds from this "Recording start time"
+C       (www.kyoshin.bosai.go.jp/kyoshin/man/knetform_en.html)
+C----
+      read(otimec,1111) yr0,mo0,dy0,hr0,mn0,sc0
+      read(rtimec,1111) yr1,mo1,dy1,hr1,mn1,sc1
+C      write(*,1112) yr0,mo0,dy0,hr0,mn0,sc0
+C      write(*,1112) yr1,mo1,dy1,hr1,mn1,sc1
+ 1111 format(F4.0,1X,F2.0,1X,F2.0,1X,F2.0,1X,F2.0,1X,F2.0)
+ 1112 format(F5.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0)
+      tstart = (hr1-hr0)*3.6d3 + (mn1-mn0)*6.0d1 + (sc1-sc0)
+      tstart = tstart - 15.0d0
+
+C----
+C Calculate sampling interval (dt) and scale factor (scalefact)
+C----
+      i = index(sampfreqc,'Hz')
+      sampfreqc(i:i+1) = ''
+      read(sampfreqc,*) sampfreq
+      dt = 1.0d0/sampfreq
+
+      i = index(scalefactc,'(gal)/')
+      scalefactc(i:i+5) = ' '
+      read (scalefactc,*) scaletop,scalebot
+      scalefact = scaletop/scalebot
+      
+C----
+C Read in acceleration time series
+C----
+      avg = 0.0d0
+      n = 0
+  101 read(11,*,end=103) acc(n+1),acc(n+2),acc(n+3),acc(n+4),
+     1                   acc(n+5),acc(n+6),acc(n+7),acc(n+8)
+          do 102 i = 1,8
+              acc(n+i) = acc(n+i)*scalefact
+              avg = avg + acc(n+i)
+  102     continue
+          n = n + 8
           goto 101
   103 continue
-      print *,'Raw data read and converted to gals.'
-
-      avg = 0.0
-      do 104 i = 1,ct
-          avg = avg + a(i)
+      ntot = n
+      avg = avg/dble(ntot)
+C----
+C Remove DC offset and convert to m/s^2 (1 gal = 0.01 m/s^2)
+C----
+      do 104 n = 1,ntot
+          acc(n) = acc(n) - avg
+          acc(n) = 1.0d-2*acc(n)
   104 continue
-      avg = avg/real(ct)
-C      mx = 0.0
-      do 105 i = 1,ct
-          a(i) = a(i) - avg
-C          if (abs(a(i)).gt.mx) mx = abs(a(i))
-  105 continue
-      print *,'Offset removed.'
-
-      do 106 i = 1,ct
-          a(i) = 1.0e-2*a(i)
-  106 continue
-
-C----
-C Option to print time series to a file
-C----
-      if (ofile.ne.'none') then
-          print *,'Output file: ',ofile
-      elseif (termout.eq.1) then
-          do 107 i = 1,ct
-               write (6,*) real(t1)+dt*real(i-1)-15.0,a(i)
-  107     continue
-      else
-          call usage()
-      endif
-
-      open(unit=12,file=ofile,status='unknown')
-      write (12,*) 0,0
-      do 108 i = 1,ct
-          write (12,*) real(t1)+dt*real(i-1)-15.0,a(i)
-  108 continue
-
-C----
-C Numerically integrate to get velocity time series
-C----
-      if (trap.eq.1) then
-          open (unit=13,file=dfile,status='unknown')
-          do 201 i = 1,ct
-              if (i.eq.1) then
-                  vel(i) = 0.0
-              else
-                  vel(i) = vel(i-1) + dt*0.5*(a(i-1)+a(i))
-              endif
-  201     continue
-
-          do 202 i = 1,ct
-              if (i.eq.1) then
-                  disp(i) = 0.0
-              else
-                  disp(i) = disp(i-1) + dt*0.5*(vel(i-1)+vel(i))
-              endif
-  202     continue
-      endif
-      write (13,*) 'V',0,0
-      do 203 i = 1,ct
-          write (13,*) 'V',real(t1)+dt*real(i-1)-15.0,vel(i)
-  203 continue
-      write (13,*) 'D',0,0
-      do 204 i = 1,ct
-          write (13,*) 'D',real(t1)+dt*real(i-1)-15.0,disp(i)
-  204 continue
-
+      
+      RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ifile,ofile,dfile,termout,trap)
-      IMPLICIT none
-      CHARACTER*5 tag
-      CHARACTER*80 ifile,ofile,dfile
-      INTEGER i,narg,termout,trap
+      SUBROUTINE numint(oser,iser,dt,npts)
+      
+      INTEGER n,npts,NMAX
+      PARAMETER (NMAX=100000)
+      REAL*8 oser(NMAX),iser(NMAX),dt
+      
+      do 101 n = 1,npts
+          if (n.eq.1) then
+              oser(n) = 0.0d0
+          else
+              oser(n) = oser(n-1) + dt*0.5d0*(iser(n-1)+iser(n))
+          endif
+  101 continue
+      
+      RETURN
+      END
+C----------------------------------------------------------------------C
 
-      ifile = 'none'
-      ofile = 'none'
-      dfile = 'none'
-      termout = 0
-      trap = 0
+      SUBROUTINE removemean(tseries,npts,nstart,nfinish)
+      IMPLICIT none
+      INTEGER i,npts,NMAX,nstart,nfinish
+      PARAMETER (NMAX=100000)
+      REAL*8 tseries(NMAX),avg
+ 
+      avg = 0.0d0
+      do 101 i = nstart,nfinish
+          avg = avg + tseries(i)
+  101 continue
+      avg = avg/dble(nfinish-nstart+1)
+      do 102 i = 1,npts
+          tseries(i) = tseries(i) - avg
+  102 continue
+      
+      RETURN
+      END
+      
+C----------------------------------------------------------------------C
+
+      SUBROUTINE gcmdln(kikfile,accfile,velfile,dspfile,first)
+      IMPLICIT none
+      CHARACTER*30 tag
+      CHARACTER*80 kikfile,accfile,velfile,dspfile
+      INTEGER i,narg,termout,trap
+      REAL*8 first
+
+      kikfile = 'none'
+      accfile = 'none'
+      velfile = 'none'
+      dspfile = 'none'
+      first = -1.0d0
 
       narg = iargc()
       if (narg.eq.0) call usage()
-
       i = 0
   101 i = i + 1
       if (i.gt.narg) goto 102
-      call getarg(i,tag)
-      if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-          call usage()
-      elseif (tag(1:2).eq.'-f') then
-          i = i + 1
-          call getarg(i,ifile)
-      elseif (tag(1:2).eq.'-o') then
-          i = i + 1
-          call getarg(i,ofile)
-      elseif (tag(1:2).eq.'-p') then
-          termout = 1
-      elseif (tag(1:2).eq.'-i') then
-          trap = 1
-          i = i + 1
-          call getarg(i,dfile)
-      endif
-      goto 101
+          call getarg(i,tag)
+          if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
+              call usage()
+          elseif (tag(1:4).eq.'-acc') then
+              i = i + 1
+              call getarg(i,accfile)
+          elseif (tag(1:4).eq.'-vel') then
+              i = i + 1
+              call getarg(i,velfile)
+          elseif (tag(1:4).eq.'-dsp') then
+              i = i + 1
+              call getarg(i,dspfile)
+          elseif (tag(1:6).eq.'-first') then
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F12.0)') first
+          elseif (tag(1:2).eq.'-f') then
+              i = i + 1
+              call getarg(i,kikfile)
+          endif
+          goto 101
   102 continue
 
       RETURN
       END
-      
+
+C----------------------------------------------------------------------C
 
       SUBROUTINE usage()
       IMPLICIT none
       write(*,*)
-     1 'Usage: readkik -f [IN_FILE] -o [OUT_FILE] -i [DISP_FILE] -p ',
-     2                '-h/-?'
+     1 'readkik -f [KIKFILE] -acc [ACCFILE] -vel [VELFILE] ',
+     2                '-dsp [DSPFILE] -first [FIRST_ARR] -h/-?'
       write(*,*)
-     1 '  -f [IN_FILE] Strong motion data in KIK format'
       write(*,*)
-     1 '  -o [OUT_FILE] For use with GMT command psxy'
+     1 '  Parse a strong motion file in KiK-net format into a two-',
+     2    'column time series.'
       write(*,*)
-     1 '      1st column: time from origin in seconds'
+     1 '  Options to integrate numerically to velocity and ',
+     2    'displacement, and'
       write(*,*)
-     1 '      2nd column: acceleration in mgal'
+     1 '  remove mean from segment of time series (default ',
+     2    'removes mean from entire time series).'
       write(*,*)
-     1 '  -i [DISP_FILE] (default no) integrate to displacement'
       write(*,*)
-     1 '  -p (default no) print to standard out instead of to file'
+     1 '  -f [KIKFILE]   Strong motion data in KIK format (required)'
       write(*,*)
-     1 '  -h/-? print help'
+     1 '  -acc [ACCFILE] Write acceleration (in mgal) time series ',
+     2                  'to ACCFILE'
       write(*,*)
-     1 ''
+     1 '  -vel [VELFILE] Integrate to velocity (in m/s) and write ',
+     2                  'time series to VELFILE'
+      write(*,*)
+     1 '  -dsp [DSPFILE] Integrate to displacement (in m) and write ',
+     2                  'time series to DSPFILE'
+      write(*,*)
+     1 ' -first [FIRST_ARR] (Default -1.0 s) Remove mean between ',
+     2     'first point and FIRST_ARR time'
+      write(*,*)
+     1 '  -h/-?          online help (this screen)'
       write(*,*)
      1 ''
       STOP
