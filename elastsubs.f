@@ -1,3 +1,33 @@
+
+      SUBROUTINE strain2stress(stress,strain,vp,vs,dens)
+C----
+C CALCULATE STRESS FROM STRAIN ASSUMING ELASTIC, ISOTROPIC MATERIAL.
+C----
+      IMPLICIT NONE
+      REAL*8 stress(3,3),strain(3,3),vp,vs,dens,lam,mu,diag
+      
+      mu  = dens*vs*vs
+      lam = dens*vp*vp - 2.0d0*mu
+      if (mu.lt.10.0e9) mu = 10.0e9
+      if (lam.lt.10.0e9) lam = 10.0e9
+
+      diag = strain(1,1) + strain(2,2) + strain(3,3)
+
+      stress(1,1) = lam*diag + 2.0d0*mu*strain(1,1)
+      stress(2,2) = lam*diag + 2.0d0*mu*strain(2,2)
+      stress(3,3) = lam*diag + 2.0d0*mu*strain(3,3)
+      stress(1,2) = 2.0d0*mu*strain(1,2)
+      stress(1,3) = 2.0d0*mu*strain(1,3)
+      stress(2,3) = 2.0d0*mu*strain(2,3)
+      stress(2,1) = stress(1,2)
+      stress(3,1) = stress(1,3)
+      stress(3,2) = stress(2,3)
+
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE coulomb(coul,norml,shear,stress,strin,dipin,rakin,
      1                   coeffr)
 C----
@@ -59,31 +89,6 @@ C----
       RETURN
       END
 
-c----------------------------------------------------------------------c
 
-      SUBROUTINE strain2stress(stress,strain,vp,vs,dens)
-C----
-C CALCULATE STRESS FROM STRAIN ASSUMING ELASTIC, ISOTROPIC MATERIAL.
-C----
-      IMPLICIT NONE
-      REAL*8 stress(3,3),strain(3,3),vp,vs,dens,lam,mu,diag
-      
-      mu  = dens*vs*vs
-      lam = dens*vp*vp - 2.0d0*mu
-      if (mu.lt.10.0e9) mu = 10.0e9
-      if (lam.lt.10.0e9) lam = 10.0e9
 
-      diag = strain(1,1) + strain(2,2) + strain(3,3)
 
-      stress(1,1) = lam*diag + 2.0d0*mu*strain(1,1)
-      stress(2,2) = lam*diag + 2.0d0*mu*strain(2,2)
-      stress(3,3) = lam*diag + 2.0d0*mu*strain(3,3)
-      stress(1,2) = 2.0d0*mu*strain(1,2)
-      stress(1,3) = 2.0d0*mu*strain(1,3)
-      stress(2,3) = 2.0d0*mu*strain(2,3)
-      stress(2,1) = stress(1,2)
-      stress(3,1) = stress(1,3)
-      stress(3,2) = stress(2,3)
-
-      RETURN
-      END
