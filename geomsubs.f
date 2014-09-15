@@ -9,7 +9,7 @@ C----
       IMPLICIT none
       REAL pi,r2d,d2r
       PARAMETER (pi=3.14159265,r2d=1.8e2/pi,d2r=pi/1.8e2)
-      REAL lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a,arg
+      REAL lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a
       REAL dist,az
 C----
 C Check if points are polar opposite
@@ -89,7 +89,7 @@ C----
       IMPLICIT none
       REAL*8 pi,r2d,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi,d2r=pi/1.8d2)
-      REAL*8 lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a,arg
+      REAL*8 lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a
       REAL*8 dist,az
 C----
 C Check if points are polar opposite
@@ -175,10 +175,12 @@ c----------------------------------------------------------------------c
       lon2 = lon1 + datan2(dsin(az)*dsin(dist)*dcos(lat1),
      1                           dcos(dist)-dsin(lat1)*dsin(lat2))
 
-C     Return azimuth, latitude, and longitude in degrees
+C     Return input values in initial units
+      dist = dist*6371.0d0
       az = az*r2d
       lat1 = lat1*r2d
       lon1 = lon1*r2d
+      
 
       RETURN
       END
@@ -263,5 +265,3 @@ c CW from north
       END
 
 c----------------------------------------------------------------------c
-
-
