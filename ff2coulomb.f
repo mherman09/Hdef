@@ -8,7 +8,7 @@ C To run, requires the input files:
 C     static_out: finite fault model in subfault format
 C     stations.txt: list of receiver lon, lat, and depth (km)
 C     structure.txt: vp (m/s) vs (m/s) density (kg/m^3)
-C     targetparams.txt: target fault strike, dip, rake, and
+C     trgparams.txt: target fault strike, dip, rake, and
 C                             coefficient of friction
 C
 C Produces the output files:
@@ -16,6 +16,7 @@ C     coul.out: stlo, stla, coulomb stress change
 C     shear.out: stlo, stla, shear stress on target faults
 C     norml.out: stlo, stla, normal stress on fault (+ compressive)
 C     strain.out: stlo, stla, eEE, eNN, eZZ, eEN, eEZ, eNZ
+C     stress.out: stlo, stla, sEE, sNN, sZZ, sEN, sEZ, sNZ
 C
 C MODIFICATIONS:
 C   Fall 2012: Original file created
@@ -30,8 +31,7 @@ C----
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
 
-      LOGICAL verbose,trgmatchsta
-      INTEGER f,nflt,maxflt
+      INTEGER f,nflt,maxflt,trgmatchsta
       PARAMETER (maxflt=1000)
       REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
      1       dip(maxflt),rak(maxflt),slip(maxflt),dx(maxflt),
@@ -43,22 +43,19 @@ C----
       INTEGER prog,prog100,progtag,stact,trgct
       INTEGER flttyp,i,j
       REAL*8 e(3,3),enet(3,3),stress(3,3),norml,shear,coul
-      CHARACTER*20 ffmfile,stafile,haffile,trgfile
-
-      trgmatchsta = .false.
-
-C----
-C Read the command line to choose the fault type, and read the finite
-C fault model. Default is finite source, choose -p to force point
-C source.
-C----
-      call gcmdln(flttyp,verbose)
+      CHARACTER*80 ffmfile,stafile,haffile,trgfile,strafile,strefile,
+     1             norfile,shrfile,coufile
 
 C----
-C Input files
+C Parse the command line
 C----
-      call checkctrlfiles(ffmfile,stafile,haffile,trgfile,verbose)
-      open (unit=21,file=ffmfile,status='old')
+      call gcmdln(ffmfile,stafile,haffile,trgfile,strafile,strefile,
+     1            norfile,shrfile,coufile,flttyp)
+
+C----
+C Check for input files
+C----
+      call checkctrlfiles(ffmfile,stafile,haffile,trgfile)
       open (unit=22,file=stafile,status='old')
       open (unit=23,file=haffile,status='old')
       open (unit=24,file=trgfile,status='old')
@@ -66,7 +63,6 @@ C----
 
 C----
 C Compare number of lines in stations.txt and targetparams.txt
-C and use line count of stations.txt to initialize progress indicator
 C----
       stact = 0
   112 read (22,*,end=113)
@@ -83,33 +79,27 @@ C----
 
       prog100 = stact
       if (trgct.eq.1) then
-          if (verbose) write (*,8997) 
+          trgmatchsta = 0
       elseif (trgct.eq.stact) then
-          if (verbose) write (*,8998)
-          trgmatchsta = .true.
+          trgmatchsta = 1
       else
-          write (*,8999)
-          call usage()
+          call usage('!! Error: NTRG must be equal to 1 or NSTA')
       endif
- 8997 format ('NL in targetparams.txt = 1')
- 8998 format ('NL in targetparams.txt = NL in stations.txt')
- 8999 format ('Error: NL in targetparams.txt must be 1 or',
-     1        ' equal to NL in stations.txt')
 
 C----
 C Output files
 C----
-      open (unit=11,file='coul.out',status='unknown')
-      open (unit=12,file='shear.out',status='unknown')
-      open (unit=13,file='norml.out',status='unknown')
-      open (unit=14,file='strain.out',status='unknown')
-      open (unit=15,file='stress.out',status='unknown')
+      open (unit=11,file=coufile,status='unknown')
+      open (unit=12,file=shrfile,status='unknown')
+      open (unit=13,file=norfile,status='unknown')
+      open (unit=14,file=strafile,status='unknown')
+      open (unit=15,file=strefile,status='unknown')
 
 C----
 C Read finite fault file
 C----
-      call readstaticout(nflt,evlo,evla,evdp,str,dip,rak,dx,dy,area,
-     1                   slip,maxflt)
+      call readstaticout(ffmfile,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1                   area,slip,maxflt)
 
 C----
 C Calculate strain, stress, and coulomb stress change at each station
@@ -117,9 +107,9 @@ C----
       prog = 0
       progtag = 0
       call progbar(prog,prog100,progtag)
-      if (.not.trgmatchsta) read(24,*) trgstr,trgdip,trgrak,frict
+      if (trgmatchsta.eq.0) read(24,*) trgstr,trgdip,trgrak,frict
   101 read (22,*,end=107) stlo,stla,stdp
-          if (trgmatchsta) read(24,*) trgstr,trgdip,trgrak,frict
+          if (trgmatchsta.eq.1) read(24,*) trgstr,trgdip,trgrak,frict
           stdp = 1.0d3*stdp
           do 103 i = 1,3
               do 102 j = 1,3
@@ -149,7 +139,7 @@ C
   104             continue
   105         continue
   106     continue
-C
+
           call strain2stress(stress,enet,vp,vs,dens)
           call coulomb(coul,norml,shear,stress,trgstr,trgdip,trgrak,
      1                 frict)
@@ -174,49 +164,89 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(flttyp,verbose)
+      SUBROUTINE gcmdln(ffmfile,stafile,haffile,trgfile,strafile,
+     1                  strefile,norfile,shrfile,coufile,flttyp)
       IMPLICIT none
-      CHARACTER*5 tag
-      INTEGER narg,i,flttyp
-      LOGICAL verbose
+      CHARACTER*80 tag
+      INTEGER narg,i
+      CHARACTER*80 ffmfile,stafile,haffile,trgfile,strafile,strefile,
+     1             norfile,shrfile,coufile
+      INTEGER flttyp
 
+      ffmfile = 'static_out'
+      stafile = 'stations.txt'
+      haffile = 'structure.txt'
+      trgfile = 'trgparams.txt'
+      strafile = 'strain.out'
+      strefile = 'stress.out'
+      norfile = 'norml.out'
+      shrfile = 'shear.out'
+      coufile = 'coul.out'
       flttyp = 1
-      verbose = .false.
 
       narg = iargc()
       i = 0
-   11 i = i + 1
-      if (i.gt.narg) goto 12
+  101 i = i + 1
+      if (i.gt.narg) goto 102
           call getarg(i,tag)
-          if (tag(1:2).eq.'-p') then
-              flttyp = 0
-          elseif (tag(1:2).eq.'-f') then
+          if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
+              call usage(' ')
+          elseif (tag(1:4).eq.'-ffm') then
+              i = i + 1
+              call getarg(i,ffmfile)
+          elseif (tag(1:4).eq.'-sta') then
+              i = i + 1
+              call getarg(i,stafile)
+          elseif (tag(1:4).eq.'-haf') then
+              i = i + 1
+              call getarg(i,haffile)
+          elseif (tag(1:4).eq.'-trg') then
+              i = i + 1
+              call getarg(i,trgfile)
+          elseif (tag(1:5).eq.'-stra') then
+              i = i + 1
+              call getarg(i,strafile)
+          elseif (tag(1:5).eq.'-stre') then
+              i = i + 1
+              call getarg(i,strefile)
+          elseif (tag(1:4).eq.'-nor') then
+              i = i + 1
+              call getarg(i,norfile)
+          elseif (tag(1:4).eq.'-shr') then
+              i = i + 1
+              call getarg(i,shrfile)
+          elseif (tag(1:5).eq.'-coul') then
+              i = i + 1
+              call getarg(i,coufile)
+          elseif (tag(1:3).eq.'-fn') then
               flttyp = 1
-          elseif (tag(1:2).eq.'-V') then
-              verbose = .true.
-          elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-              call usage() 
+          elseif (tag(1:3).eq.'-pt') then
+              flttyp = 0
+          else
+              call usage('!! Error: no option '//tag)
           endif
-      goto 11
-   12 continue
+          goto 101
+  102 continue
 
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readstaticout(nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                         area,slip,maxflt)
+      SUBROUTINE readstaticout(ffmfile,nflt,evlo,evla,evdp,str,dip,rak,
+     1                         dx,dy,area,slip,maxflt)
       IMPLICIT none
       CHARACTER*1 dum
       INTEGER ct,seg,nseg,nx,ny,i,maxflt,nflt,ptr
       CHARACTER*10 dxc,dyc
+      CHARACTER*80 ffmfile
       REAL*8 evlo(maxflt),evla(maxflt),evdp(maxflt),str(maxflt),
      1       dip(maxflt),rak(maxflt),dx(maxflt),dy(maxflt),area(maxflt),
      2       slip(maxflt)
 C----
 C Read header with number of fault segments
 C----
+      open (unit=21,file=ffmfile,status='old')
       ct = 0
       read (21,*) dum,dum,dum,dum,nseg
 C----
@@ -278,6 +308,8 @@ C----------------------------------------------------------------------C
       RETURN
       END
 
+C----------------------------------------------------------------------C
+
       SUBROUTINE matmult(matout,mat1,mat2)
       IMPLICIT none
       REAL*8 mat1(3,3),mat2(3,3),matout(3,3)
@@ -294,6 +326,8 @@ C----------------------------------------------------------------------C
 
       RETURN
       END
+
+C----------------------------------------------------------------------C
 
       SUBROUTINE mattr(matout,matin)
       IMPLICIT none
@@ -331,135 +365,138 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE checkctrlfiles(ffmfile,stafile,haffile,trgfile,verbose)
+      SUBROUTINE checkctrlfiles(ffmfile,stafile,haffile,trgfile)
       IMPLICIT none
       CHARACTER*20 ffmfile,stafile,haffile,trgfile
-      LOGICAL ex,verbose
-
-      ffmfile = 'static_out'
-      stafile = 'stations.txt'
-      haffile = 'structure.txt'
-      trgfile = 'targetparams.txt'
-C----
-C Finite fault model
-C----
-   11 if (verbose) write (*,9995,advance='no'),ffmfile
+      LOGICAL ex
       inquire(file=ffmfile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) ffmfile
-          write (*,8885)
-          read *,ffmfile
-          if (ffmfile.eq.'quit') stop
-          if (ffmfile.eq.'help') call usage()
-          goto 11
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Stations
-C----
-   12 if (verbose) write (*,9996,advance='no'),stafile
-      inquire (file=stafile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) stafile
-          write (*,8886)
-          read *,stafile
-          if (stafile.eq.'quit') stop
-          if (stafile.eq.'help') call usage()
-          goto 12
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Half-space
-C----
-   13 if (verbose) write (*,9997,advance='no'),haffile
-      inquire (file=haffile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) haffile
-          write (*,8887)
-          read *,haffile
-          if (haffile.eq.'quit') stop
-          if (haffile.eq.'help') call usage()
-          goto 13
-      else
-          if (verbose) write(*,9999)
-      endif
-C----
-C Target faults
-C----
-   14 if (verbose) write (*,9998,advance='no'),trgfile
+      if (.not.ex) call usage('!! Error: no file named '//ffmfile)
+      inquire(file=stafile,EXIST=ex)
+      if (.not.ex) call usage('!! Error: no file named '//stafile)
+      inquire(file=haffile,EXIST=ex)
+      if (.not.ex) call usage('!! Error: no file named '//haffile)
       inquire (file=trgfile,EXIST=ex)
-      if (.not.ex) then
-          write (*,8889) trgfile
-          write (*,8888)
-          read *,trgfile
-          if (trgfile.eq.'quit') stop
-          if (trgfile.eq.'help') call usage()
-          goto 14
-      else
-          if (verbose) write(*,9999)
-      endif
-
- 9995 format('Looking for finite fault file: ',A20)
- 9996 format('Looking for station file:      ',A20)
- 9997 format('Looking for half-space file:   ',A20)
- 9998 format('Looking for target fault file: ',A20)
- 9999 format('FOUND')
- 8885 format('Enter name of finite fault file, "quit", or "help":')
- 8886 format('Enter name of station file, "quit", or "help":')
- 8887 format('Enter name of half-space file, "quit", or "help":')
- 8888 format('Enter name of target fault file, "quit", or "help":')
- 8889 format('No file named ',A20)
-
+      if (.not.ex) call usage('!! Error: no file named '//trgfile)
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE usage()
+      SUBROUTINE usage(str)
       IMPLICIT none
+      INTEGER STER,lstr
+      PARAMETER (STER=0)
+      CHARACTER str*(*)
 
-      write (*,*)
-     1 'Usage: ff2coulomb -p/-f -V -h/-?'
-      write (*,*)
-     1 '  -p/-f        (default finite) subfaults are ',
-     2                            'treated as point (-p) or finite (-f)'
-      write (*,*)
-     1 '  -V           (default false) turn on verbose operation'
-      write (*,*)
-     1 '  -h/-?              help'
-      write (*,*) ''
-      write (*,*)
-     1 '  ff2coulomb calculates strain, normal, shear, and coulomb ',
-     2    'stresses from finite fault model at user-defined locations.'
-      write (*,*)
-     1 '  Output files: strain.out, norml.out (pos. = dilation), ',
-     2    'shear.out, coul.out'
-      write (*,*)
-     1 '  Required input files:'
-      write (*,*) ''
-      write (*,*)
-     1 '    static_out: finite fault model in standard subfault format'
-      write (*,*) ''
-      write (*,*)
-     1 '    stations.txt: list of station locations and depths'
-      write (*,*)
-     1 '      stlo stla stdp'
-      write (*,*)
-     1 '                (km)'
-      write (*,*) ''
-      write (*,*)
-     1 '    structure.txt: vp vs dens (only vp/vs ratio matters)'
-      write (*,*) ''
-      write (*,*)
-     1 '    targetparams.txt: str dip rak coeff_frict'
-      write (*,*)
-     1 '      NTRG = 1: use str/dip/rak/frict for all locations'
-      write (*,*)
-     1 '      NTRG = NSTA: str/dip/rak/frict correspond to station',
-     2        ' locations'
-      write (*,*) ''
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(STER,*)
+          write(STER,*) str(1:lstr)
+          write(STER,*)
+      endif
+
+      write (STER,*)
+     1 'Usage: ff2coulomb -ffm FFMFILE ',
+     2                   '-sta STAFILE -haf HAFFILE ',
+     2                   '-haf HAFFILE -trg TRGFILE ',
+     3                   '-stra STRAFILE -stre STREFILE ',
+     4                   '-nor NORMLFILE -shr SHEARFILE ',
+     5                   '-coul COULFILE ',
+     6                   '-fn -pt -AUTO ',
+     7                   '-h -?'
+      write(STER,*)
+      write(STER,*)
+     1 'Compute strains and stresses resulting from finite fault model'
+      write(STER,*)
+      write (STER,*)
+     1 '-ffm FFMFILE   (static_out)     name of finite fault model file'
+      write (STER,*)
+     1 '-sta STAFILE   (stations.txt)   name of receiver location file'
+      write (STER,*)
+     1 '-haf HAFFILE   (structure.txt)  name of half-space ',
+     2                                  'parameter file'
+      write (STER,*)
+     1 '-trg TRGFILE   (trgparams.txt)  name of target fault file'
+      write (STER,*)
+     1 '-stra STRAFILE (strain.out)     name of output strain matrix ',
+     2                                  'file'
+      write (STER,*)
+     1 '-stre STREFILE (stress.out)     name of output stress matrix ',
+     2                                  'file'
+      write (STER,*)
+     1 '-nor NORMLFILE (norml.out)      name of output normal stress ',
+     2                                  'file'
+      write (STER,*)
+     1 '-shr SHEARFILE (shear.out)      name of output shear stress ',
+     2                                  'file'
+      write (STER,*)
+     1 '-coul COULFILE (coul.out)       name of output Coulomb stress ',
+     2                                  'file'
+      write (STER,*)
+     1 '-fn            (default)        treat subfaults as ',
+     2                                    'finite sources'
+      write (STER,*)
+     1 '-pt                             treat subfaults as ',
+     2                                       'point sources'
+      write (STER,*)
+     1 '-AUTO'
+      write (STER,*)
+     1 '-h                              this online help'
+      write (STER,*)
+     1 '-?                              this online help'
+      write (STER,*)
+      write (STER,*)
+     1 'FILE FORMATS'
+      write (STER,*)
+     1 '------------'
+      write (STER,*)
+     1 'FFMFILE: finite fault model in standard subfault format'
+      write (STER,*)
+     1 'STAFILE: list of station/receiver locations and depths'
+      write (STER,*)
+     1 '    stlo stla stdp(km)'
+      write (STER,*)
+     1 'HAFFILE: half-space parameters'
+      write (STER,*)
+     1 '    vp(km/s) vs(km/s) dens(kg/m^3)'
+      write (STER,*)
+     1 'TRGFILE: target fault parameters'
+      write (STER,*)
+     1 '    str(deg) dip(deg) rak(deg) coeff_frict'
+      write (STER,*)
+     1 '    NOTE: If NTRG = 1, all faults have same parameters'
+      write (STER,*)
+     1 '          If NTRG = NSTA, parameters correspond to location'
+      write (STER,*)
+     1 'STRAFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and strain components at receiver'
+      write (STER,*)
+     1 '    stlo stla eEE eNN eZZ eEN eEZ eNZ'
+      write (STER,*)
+     1 'STREFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and stress components at receiver'
+      write (STER,*)
+     1 '    stlo stla sEE(Pa) sNN(Pa) sZZ(Pa) sEN(Pa) sEZ(Pa) sNZ(Pa)'
+      write (STER,*)
+     1 'NORMLFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and normal stresses on receiver'
+      write (STER,*)
+     1 '    stlo stla norml_stress(Pa)'
+      write (STER,*)
+     1 '    NOTE: positive => dilation'
+      write (STER,*)
+     1 'SHEARFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and shear stresses on receiver'
+      write (STER,*)
+     1 '    stlo stla shear_stress(Pa)'
+      write (STER,*)
+     1 '    NOTE: projection of shear traction along rake direction'
+      write (STER,*)
+     1 'COULFILE: list of station locations (corresponds to STAFILE) ',
+     2           'and Coulomb stresses on receiver'
+      write (STER,*)
+     1 '    stlo stla coul_stress(Pa)'
+      write (STER,*)
 
       STOP
       END
