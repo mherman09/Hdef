@@ -8,7 +8,7 @@ C----
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
 
       LOGICAL ex,verbose
-      CHARACTER*25 ifile
+      CHARACTER*40 ifile
       INTEGER flt,nflt,maxflt
       PARAMETER (maxflt=1000)
       REAL*8 evlo(maxflt),evla(maxflt),str(maxflt),dip(maxflt),
@@ -116,7 +116,7 @@ C----------------------------------------------------------------------c
 
       SUBROUTINE gcmdln(time,dt,ifile,verbose)
       IMPLICIT none
-      CHARACTER*25 tag,ifile
+      CHARACTER*40 tag,ifile
       INTEGER narg,i
       REAL*8 dt,time
       LOGICAL verbose
