@@ -5,9 +5,9 @@ C an isotropic elastic half-space due to shear dislocations from a
 C finite fault model in standard subfault format.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,stafile,haffile,dspfile
+      CHARACTER*40 ffmfile,stafile,haffile,dspfile,gmtfile
       LOGICAL ex
-      INTEGER flttyp,auto
+      INTEGER flttyp,auto,gmt
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -21,7 +21,8 @@ C----
 C----
 C Parse the command line, check for FFM file, and read FFM
 C----
-      call gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto)
+      call gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto,
+     1            gmtfile,gmt)
       inquire(file=ffmfile,EXIST=ex)
       if (.not.ex) call usage('!! Error: no file named '//ffmfile)
       call readffm(ffmfile,nflt,hypolon,hypolat,evlo,evla,evdp,str,dip,
@@ -84,6 +85,9 @@ C----
           goto 101
   103 continue
  9999 format (2F12.4,X,3F12.4)
+
+      if (gmt.eq.1) call makegmtfile(gmtfile,nflt,evlo,evla,str,dip,dx,
+     1                               dy,slip)
 
       END
 
@@ -332,20 +336,42 @@ C----
       open(unit=52,file='autogrid.dat',status='unknown')
       write(STER,9001) W,E,S,N
       write(STER,9002) incr
-      write(STER,9003) dnint((E-W)*(N-S)/(incr*incr))
+      write(STER,9003) i*j
       write(52,9001) W,E,S,N
       write(52,9002) incr
-      write(52,9003) dnint((E-W)*(N-S)/(incr*incr))
+      write(52,9003) i*j
       write(52,9004) i
       write(52,9005) j
  8001 format(3F10.2)
  9001 format('Grid limits (WESN):',4F8.2)
  9002 format('Grid spacing: ',F10.2)
- 9003 format('Number of points: ',F10.0)
+ 9003 format('Number of points: ',I10)
  9004 format('nlon: ',I10)
  9005 format('nlat: ',I10)
       close(51)
 
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE makegmtfile(gmtfile,nflt,evlo,evla,str,dip,dx,dy,slip)
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
+      CHARACTER*40 gmtfile
+      INTEGER i,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),str(FMAX),dip(FMAX),
+     1       slip(FMAX),dx(FMAX),dy(FMAX),cosd
+      open(unit=71,file=gmtfile,status='unknown')
+      do 301, i = 1,nflt
+          cosd = dcos(dip(i)*d2r)
+          write(71,1001) evlo(i),evla(i),slip(i),str(i),
+     1                   dx(i)*1.0d-3,dy(i)*1.0d-3*cosd
+  301 continue
+      close(71)
+ 1001 format(2F10.3,F8.2,F8.1,2F10.3)
       RETURN
       END
 
@@ -367,19 +393,22 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto)
+      SUBROUTINE gcmdln(ffmfile,stafile,haffile,dspfile,flttyp,auto,
+     1                  gmtfile,gmt)
       IMPLICIT none
       CHARACTER*40 tag
       INTEGER narg,i
-      CHARACTER*40 ffmfile,stafile,haffile,dspfile
-      INTEGER flttyp,auto
+      CHARACTER*40 ffmfile,stafile,haffile,dspfile,gmtfile
+      INTEGER flttyp,auto,gmt
 
       ffmfile = 'static_out'
       stafile = 'stations.txt'
       haffile = 'structure.txt'
       dspfile = 'disp.out'
+      gmtfile = 'none'
       flttyp = 1
       auto = 0
+      gmt = 0
 
       narg = iargc()
       i = 0
@@ -404,6 +433,10 @@ C----------------------------------------------------------------------C
               flttyp = 1
           elseif (tag(1:3).eq.'-pt') then
               flttyp = 0
+          elseif (tag(1:4).eq.'-gmt') then
+              gmt = 1
+              i = i + 1
+              call getarg(i,gmtfile)
           elseif (tag(1:5).eq.'-auto') then
               !i = i + 1
               !call getarg(i,tag)
@@ -434,41 +467,50 @@ C----------------------------------------------------------------------C
       endif
       write (STER,*)
      1 'Usage: ff2displacement -ffm FFMFILE -sta STAFILE ',
-     2                        '-haf HAFFILE -dsp DSPFILE ',
-     3                        '-fn -pt -auto ',
+     2                        '-haf HAFFILE -dsp DSPFILE '
+      write (STER,*)
+     3 '                       -fn -pt -auto -gmt GMTFILE ',
      4                        '-h -?'
       write(STER,*)
       write(STER,*)
-     1 'Compute NEZ displacements resulting from finite fault model'
+     1 'Compute ENZ displacements resulting from a finite fault model ',
+     2 'in a uniform'
       write(STER,*)
+     1 'elastic half-space.'
+      write(STER,*)
+      write(STER,*)
+     1 'OPTION         DEFAULT_VALUE      DESCRIPTION'
       write (STER,*)
-     1 '-ffm FFMFILE   (static_out)     name of finite fault model file'
+     1 '-ffm FFMFILE   (static_out)       name of finite fault model ',
+     2                                            'file'
       write (STER,*)
-     1 '-sta STAFILE   (stations.txt)   name of receiver location file'
+     1 '-sta STAFILE   (stations.txt)     name of receiver location ',
+     2                                            'file'
       write (STER,*)
-     1 '-haf HAFFILE   (structure.txt)  name of half-space parameter ',
+     1 '-haf HAFFILE   (structure.txt)    name of half-space ',
+     2                                            'parameter file'
+      write (STER,*)
+     1 '-dsp DSPFILE   (disp.out)         name of output displacement ',
      2                                  'file'
       write (STER,*)
-     1 '-dsp DSPFILE   (disp.out)       name of output displacement ',
-     2                                  'file'
-      write (STER,*)
-     1 '-fn            (default)        treat subfaults as ',
+     1 '-fn            (default)          treat subfaults as ',
      2                                    'finite sources'
       write (STER,*)
-     1 '-pt                             treat subfaults as ',
+     1 '-pt                               treat subfaults as ',
      2                                       'point sources'
       write (STER,*)
-     1 '-auto                           automatically create ',
+     1 '-auto                             automatically create ',
      2                               'receiver grid'
       write (STER,*)
-     1 '-h                              this online help'
+     1 '-gmt GMTFILE                      create file for use with ',
+     2                                         'GMT "psxy -SJ"'
       write (STER,*)
-     1 '-?                              this online help'
+     1 '-h                                this online help'
+      write (STER,*)
+     1 '-?                                this online help'
       write (STER,*)
       write (STER,*)
-     1 'FILE FORMATS'
-      write (STER,*)
-     1 '------------'
+     1 '----- FILE FORMATS -----'
       write (STER,*)
      1 'FFMFILE: finite fault model in standard subfault format'
       write (STER,*)
@@ -480,17 +522,24 @@ C----------------------------------------------------------------------C
       write (STER,*)
      1 '    vp(km/s) vs(km/s) dens(kg/m^3)'
       write (STER,*)
-     1 'DSPFILE: list of station locations (corresponds to STAFILE) ',
-     2           'and displacements'
+     1 'DSPFILE: list of station locations (STAFILE coordinates) and ',
+     2           'displacements'
       write (STER,*)
      1 '    stlo stla uE(m) uN(m) uZ(m)'
       write (STER,*)
+     1 'GMTFILE: list of subfault patches for use with "psxy -SJ"'
       write (STER,*)
-     1 'If "-auto" is selected, a receiver grid is automatically' 
+     1 '    evlo evla slip(m) str len(km) hor_wid(km)'
       write (STER,*)
-     1 'generated, and surface displacements are computed at each site.'
       write (STER,*)
-     1 'A file "autogrid.dat" contains information about the grid.'
+     1 '----- NOTES -----'
+      write (STER,*)
+     1 '1. If "-auto" is selected, a receiver grid is automatically ',
+     2       'generated,'
+      write (STER,*)
+     1 '   and surface displacements are computed at each site.'
+      write (STER,*)
+     1 '2. A file "autogrid.dat" contains information about the grid.'
       write (STER,*)
 
       STOP
