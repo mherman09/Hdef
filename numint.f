@@ -2,7 +2,7 @@
 
       IMPLICIT none
       INTEGER NMAX
-      PARAMETER (NMAX=50000)
+      PARAMETER (NMAX=100000)
       REAL*8 x(NMAX),f(NMAX),fint(NMAX),dx
       CHARACTER*30 ifile,ofile
       LOGICAL ex
@@ -14,7 +14,7 @@ C----
       call gcmdln(ifile,ofile)
       inquire(file=ifile,EXIST=ex)
       if (.not.ex) then
-          write(*,*) 'No inpute file:',ifile
+          write(*,*) 'No input file:',ifile
           call usage()
       endif
 
@@ -35,7 +35,6 @@ C----
       fint(1) = 0.0d0
       do 103 i = 2,ntot
           dx = x(i) - x(i-1)
-          print *,fint(i-1),dx,f(i),f(i-1)
           fint(i) = fint(i-1) + dx*0.5d0*(f(i)+f(i-1))
   103 continue
 
@@ -93,7 +92,7 @@ C----------------------------------------------------------------------C
      1 '  -h/-?    Online help (this screen)'
       write(*,*)
       write(*,*)
-     1 'polyfit numerically integrates a time series using trapezoidal',
+     1 'numint numerically integrates a time series using trapezoidal',
      2 ' integration'
       write(*,*)
       write(*,*)
