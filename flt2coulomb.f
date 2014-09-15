@@ -83,7 +83,7 @@ C----
           trgmatchsta = .true.
       else
           write (*,8999)
-          call usage()
+          call usage(' ')
       endif
  8997 format ('NL in targetparams.txt = 1')
  8998 format ('NL in targetparams.txt = NL in stations.txt')
@@ -295,7 +295,7 @@ C----
           write (*,8885)
           read *,srcfile
           if (srcfile.eq.'quit') stop
-          if (srcfile.eq.'help') call usage()
+          if (srcfile.eq.'help') call usage(' ')
           goto 11
       else
            if (verbose) write(*,9999)
@@ -310,7 +310,7 @@ C----
           write (*,8886)
           read *,stafile
           if (stafile.eq.'quit') stop
-          if (stafile.eq.'help') call usage()
+          if (stafile.eq.'help') call usage(' ')
           goto 12
       else
           if (verbose) write(*,9999)
@@ -325,7 +325,7 @@ C----
           write (*,8887)
           read *,haffile
           if (haffile.eq.'quit') stop
-          if (haffile.eq.'help') call usage()
+          if (haffile.eq.'help') call usage(' ')
           goto 13
       else
            if (verbose) write(*,9999)
@@ -340,7 +340,7 @@ C----
           write (*,8888)
           read *,trgfile
           if (trgfile.eq.'quit') stop
-          if (trgfile.eq.'help') call usage()
+          if (trgfile.eq.'help') call usage(' ')
           goto 14
       else
           if (verbose) write(*,9999)
@@ -379,7 +379,7 @@ C----------------------------------------------------------------------C
       if (tag(1:2).eq.'-V') then
           verbose = .true.
       elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-          call usage()
+          call usage(' ')
       endif
       goto 101
   102 continue
@@ -388,43 +388,99 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE usage()
+      SUBROUTINE usage(str)
       IMPLICIT none
-      write (*,*)
-     1 'Usage: flt2coulomb -V -h/-?'
-      write (*,*)
-     1 '  -V (default false) turn on verbose operation'
-      write (*,*)
-     1 '  -h/-?              help'
-      write (*,*) ''
-      write (*,*)
-     1 '  flt2coulomb calculates strain, normal, shear, and ',
-     2   'coulomb stresses from faults at user-defined locations.'
-      write (*,*)
-     1 '  Output files: strain.out, norml.out (pos. = dilation), ',
-     2    'shear.out, coul.out'
-      write (*,*)
-     1 '  Required input files:'
-      write (*,*) ''
-      write (*,*)
-     1 '    faults.txt: list of dislocation sources'
-      write (*,*)
-     1 '      evlo evla evdp str dip rak slip width length fault_type'
-      write (*,*)
-     1 '                (km)             (m)  (km)   (km)  (0=pt/1=fin)'
-      write (*,*) ''
-      write (*,*)
-     1 '    stations.txt: list of station locations and depths'
-      write (*,*)
-     1 '      stlo stla stdp'
-      write (*,*)
-     1 '                (km)'
-      write (*,*) ''
-      write (*,*)
-     1 '    structure.txt: vp vs dens (only vp/vs ratio matters)'
-      write (*,*) ''
-      write (*,*)
-     1 '    targetparams.txt: str dip rak coeff_frict'
-      write (*,*) ''
-      stop
+      INTEGER STO,lstr
+      PARAMETER (STO=6)
+      CHARACTER str*(*)
+
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(STO,*)
+          write(STO,*) str(1:lstr)
+          write(STO,*)
+      endif
+      write (STO,*)
+     1 'Usage: flt2coulomb -flt FLTFILE -mt MTFILE -sta STAFILE ',
+     2                    '-haf HAFFILE -trg TRGFILE '
+      write (STO,*)
+     3 '                   -stra STRAFILE -stre STREFILE ',
+     4                    '-nor NORMLFILE -shr SHEARFILE '
+      write (STO,*)
+     1 '                   -coul COULFILE -fn -pt -auto -gmt GMTFILE ',
+     4                        '-h -?'
+      write(STO,*)
+      write(STO,*)
+     1 'Compute strains and stresses displacements resulting from ',
+     2 'dislocations'
+      write(STO,*)
+     1 'Note: the "-mt MTFILE" option overrides "-flt FLTFILE"'
+      write(STO,*)
+      write(STO,*)
+     1 'OPTION         DEFAULT_VALUE      DESCRIPTION'
+      write (STO,*)
+     1 '-flt FLTFILE   (faults.txt)       name of fault file'
+      write (STO,*)
+     1 '-mt  MTFILE                       name of fault file (psmeca ',
+     2                                    '-Sa format)'
+      write (STO,*)
+     1 '-sta STAFILE   (stations.txt)     name of receiver location ',
+     2                                            'file'
+      write (STO,*)
+     1 '-haf HAFFILE   (structure.txt)    name of half-space ',
+     2                                            'parameter file'
+      write (STO,*)
+     1 '-dsp DSPFILE   (disp.out)         name of output displacement ',
+     2                                  'file'
+      write (STO,*)
+     1 '-fn            (default)          treat subfaults as ',
+     2                                    'finite sources'
+      write (STO,*)
+     1 '-pt                               treat subfaults as ',
+     2                                       'point sources'
+      write (STO,*)
+     1 '-auto                             automatically create ',
+     2                               'receiver grid'
+      write (STO,*)
+     1 '-gmt GMTFILE                      create file for use with ',
+     2                                         'GMT "psxy -SJ"'
+      write (STO,*)
+     1 '-h                                this online help'
+      write (STO,*)
+     1 '-?                                this online help'
+      write (STO,*)
+      write (STO,*)
+     1 '----- FILE FORMATS -----'
+      write (STO,*)
+     1 'FFMFILE: finite fault model in standard subfault format'
+      write (STO,*)
+     1 'STAFILE: list of station/receiver locations and depths'
+      write (STO,*)
+     1 '    stlo stla stdp(km)'
+      write (STO,*)
+     1 'HAFFILE: half-space parameters'
+      write (STO,*)
+     1 '    vp(km/s) vs(km/s) dens(kg/m^3)'
+      write (STO,*)
+     1 'DSPFILE: list of station locations (STAFILE coordinates) and ',
+     2           'displacements'
+      write (STO,*)
+     1 '    stlo stla uE(m) uN(m) uZ(m)'
+      write (STO,*)
+     1 'GMTFILE: list of subfault patches for use with "psxy -SJ"'
+      write (STO,*)
+     1 '    evlo evla slip(m) str len(km) hor_wid(km)'
+      write (STO,*)
+      write (STO,*)
+     1 '----- NOTES -----'
+      write (STO,*)
+     1 '1. If "-auto" is selected, a receiver grid is automatically ',
+     2       'generated,'
+      write (STO,*)
+     1 '   and surface displacements are computed at each site.'
+      write (STO,*)
+     1 '2. A file "autogrid.dat" contains information about the grid.'
+      write (STO,*)
+
+      STOP
       END
