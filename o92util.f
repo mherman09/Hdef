@@ -7,8 +7,8 @@ C----
       CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
      1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
      2             gmtfile
-      INTEGER flttyp,auto
-      REAL*8 incr
+      INTEGER flttyp,auto,xy
+      REAL*8 incr,depth
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -25,7 +25,10 @@ C Parse command line
 C----
       call gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
      1            dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2            gmtfile,flttyp,auto,incr)
+     2            gmtfile,flttyp,auto,incr,depth,xy)
+      call dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
+     1                     trgfile,dspfile,stnfile,stsfile,norfile,
+     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -49,7 +52,12 @@ c           use option like -coul COUFILE to compute stresses on grid
 C----
       if (auto.eq.1) then
           call autodispgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                      slip,hylo,hyla,nflt,incr,dspfile)
+     1                      slip,hylo,hyla,nflt,incr,depth,dspfile,xy)
+      elseif (auto.eq.2) then
+          call autocoulgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1                      slip,hylo,hyla,nflt,incr,depth,coufile,xy)
+C      elseif (auto.eq.3) then
+C          call autocoulffm()
       endif
 
 C----
@@ -64,7 +72,7 @@ C Compute displacements, strains, and stresses
 C----
       call calcdefm(stafile,trgfile,nsta,ntrg,nflt,evlo,evla,evdp,str,
      1              dip,rak,dx,dy,slip,flttyp,vp,vs,dens,dspfile,
-     2              stnfile,stsfile,norfile,shrfile,coufile)
+     2              stnfile,stsfile,norfile,shrfile,coufile,xy)
 
 C----
 C Write fault input to GMT-compatible file
@@ -182,7 +190,7 @@ C     Check for target parameter file if resolving stress on faults
           if (ktrg.eq.0) then
               write(*,*) '!! Error: -normal, -shear, and -coul '//
      1                             'require target faults'
-              call usage('!! Use -trg TRGFILE')
+              call usage('!! Use -trg TRGFILE or -trg S/D/R/F')
           elseif (ktrg.eq.1) then
               inquire(file=trgfile,EXIST=ex)
               if (.not.ex) then
@@ -456,7 +464,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE calcdefm(stafile,trgfile,nsta,ntrg,nflt,evlo,evla,evdp,
      1                    str,dip,rak,dx,dy,slip,flttyp,vp,vs,dens,
      2                    dspfile,stnfile,stsfile,norfile,shrfile,
-     3                    coufile)
+     3                    coufile,xy)
 C----
 C Compute displacements, strains, and stresses from shear dislocations.
 C----
@@ -465,7 +473,7 @@ C----
      4             shrfile,coufile
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
-      INTEGER nflt,FMAX,flttyp
+      INTEGER nflt,FMAX,flttyp,xy
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
@@ -486,28 +494,29 @@ C     Initialize progress indicator
       progout = 0
       call progbar(i,nsta,progout)
 C     If NTRG=1, read target fault parameters here
-      if (ktrg.eq.1) open(unit=13,file=trgfile,status='old')
       if (ktrg.eq.2) read(trgfile,*) trgstr,trgdip,trgrak,frict
+      if (ktrg.eq.1) open(unit=13,file=trgfile,status='old')
       if (ntrg.eq.1.and.ktrg.eq.1) read(13,*) trgstr,trgdip,trgrak,frict
 C     Compute deformation for each receiver location
       open(unit=12,file=stafile,status='old')
       do 201 i = 1,nsta
           read(12,*) stlo,stla,stdp
-          if (ntrg.eq.nsta.and.ktrg.eq.1) then
+          stdp = stdp*1.0d3
+          if (ntrg.eq.nsta.and.ktrg.eq.1.and.nsta.ne.1) then
               read(13,*) trgstr,trgdip,trgrak,frict
           endif
 C         Compute displacements
           if (kdsp.eq.1) then
               call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,
      1                      evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     2                      vp,vs,dens,flttyp)
+     2                      vp,vs,dens,flttyp,xy)
               write(21,9990) stlo,stla,uE,uN,uZ
           endif
 C         Compute (3x3) strain matrix
           if (kstn.ge.1) then
               call calcstn(strain,stlo,stla,stdp,nflt,
      1                     evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     2                     vp,vs,dens,flttyp)
+     2                     vp,vs,dens,flttyp,xy)
               if (kstn.eq.1) then
                   write(22,9991) stlo,stla,strain(1,1),strain(2,2),
      1                          strain(3,3),strain(1,2),strain(1,3),
@@ -558,7 +567,7 @@ C----------------------------------------------------------------------C
           progout = progout + 1
       endif
       if (100*prog/prog100.ge.100) write (*,1000) 100*prog/prog100
- 1000 format ('Progress: [',I3,'% Complete]',A)
+ 1000 format (' Progress: [',I3,'% Complete]',A)
       RETURN
       END
 
@@ -566,7 +575,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE calcdisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,
      1                    evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     2                    vp,vs,dens,flttyp)
+     2                    vp,vs,dens,flttyp,xy)
 C----
 C Compute north, east, and vertical (positive up) displacements at
 C (stlo,stla,stdp) from shear dislocations.
@@ -575,19 +584,26 @@ C----
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
       REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
-      REAL*8 stlo,stla,stdp,dist,az,x,y
+      REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area
-      INTEGER flttyp
+      INTEGER flttyp,xy
       REAL*8 vp,vs,dens
       uNnet = 0.0d0
       uEnet = 0.0d0
       uZnet = 0.0d0
       do 211 f = 1,nflt
-          call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
-          dist = dist*6.371d6
+          if (xy.eq.0) then
+              call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+              dist = dist*6.371d6
+          else
+              delx = (stlo-evlo(f))*1.0d3
+              dely = (stla-evla(f))*1.0d3
+              dist = dsqrt(delx*delx + dely*dely)
+              az = datan2(delx,dely)
+          endif
           x = dist*( dcos(az-d2r*str(f)))
           y = dist*(-dsin(az-d2r*str(f)))
           if (flttyp.eq.0) then
@@ -625,7 +641,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE calcstn(strain,stlo,stla,stdp,nflt,
      1                    evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     2                    vp,vs,dens,flttyp)
+     2                    vp,vs,dens,flttyp,xy)
 C----
 C Compute (3x3) strain matrix (x=E, y=N, positive up) at (stlo,stla,
 C stdp) from shear dislocations.
@@ -634,12 +650,12 @@ C----
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
       REAL*8 strain(3,3),stntmp(3,3)
-      REAL*8 stlo,stla,stdp,dist,az,x,y
+      REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area
-      INTEGER flttyp
+      INTEGER flttyp,xy
       REAL*8 vp,vs,dens
       INTEGER i,j
       do 222 i = 1,3
@@ -648,8 +664,15 @@ C----
   221     continue
   222 continue 
       do 225 f = 1,nflt
-          call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
-          dist = dist*6.371d6
+          if (xy.eq.0) then
+              call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+              dist = dist*6.371d6
+          else
+              delx = (stlo-evlo(f))*1.0d3
+              dely = (stla-evla(f))*1.0d3
+              dist = dsqrt(delx*delx + dely*dely)
+              az = datan2(delx,dely)
+          endif
           x = dist*( dcos(az-d2r*str(f)))
           y = dist*(-dsin(az-d2r*str(f)))
           if (flttyp.eq.0) then
@@ -790,53 +813,89 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE autodispgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                        slip,hylo,hyla,nflt,incr,dspfile)
+     1                        slip,hylo,hyla,nflt,incr,depth,dspfile,xy)
 C----
 C Automatically determine receiver grid for displacement computation,
 C write grid to STAFILE.
 C----
       IMPLICIT NONE
       CHARACTER*40 stafile,dspfile
-      INTEGER nflt,FMAX
+      INTEGER nflt,FMAX,xy
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
-      REAL*8 W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,incr
-      write(*,'(A)') 'Creating receiver grid in file: '//stafile
+      REAL*8 W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,incr,depth
+      write(*,'(A)') ' Creating receiver grid in file: '//stafile
       dmax = 750.0d0 ! km
-      call getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax)
+      call getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
       call getautodisplims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
-     1                 evlo,evla,evdp,str,dip,rak,dx,dy,slip,nflt)
-      call writestafile(stafile,W,E,S,N,incr)
-      write(*,'(A)') 'Displacements written to file: '//dspfile
+     1                     evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     2                     nflt,xy,depth)
+      call writestafile(stafile,W,E,S,N,incr,depth)
+      write(*,'(A)') ' Displacements written to file: '//dspfile
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+c
+      SUBROUTINE autocoulgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1                        slip,hylo,hyla,nflt,incr,depth,coufile,xy)
+C----
+C Automatically determine receiver grid for Coulomb stress computation,
+C write grid to COUFILE.
+C----
+      IMPLICIT NONE
+      CHARACTER*40 stafile,coufile
+      INTEGER nflt,FMAX,xy
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
+      REAL*8 W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,incr,depth
+      write(*,'(A)') ' Creating receiver grid in file: '//stafile
+      dmax = 750.0d0 ! km
+      call getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
+      call getautostnlims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
+     1                    evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     2                    nflt,xy,depth)
+      call writestafile(stafile,W,E,S,N,incr,depth)
+      write(*,'(A)') ' Coulomb stress written to file: '//coufile
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax)
+      SUBROUTINE getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
       IMPLICIT NONE
       REAL*8 pi,r2d,d2r
       PARAMETER (pi=4.0d0*atan(1.0d0),r2d=180.0d0/pi,d2r=pi/180.0d0)
       REAL*8 az,dmax,WMAX,EMAX,SMAX,NMAX,hylo,hyla,junk
+      INTEGER xy
 C----
 C Determine maximum geographic limits of receiver grid to W,E,S,N.
 C----
-      WMAX = hylo-dmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hyla*d2r))
-      EMAX = hylo+dmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hyla*d2r))
-      az = 180.0d0
-      call dlola(junk,SMAX,hylo,hyla,dmax,az)
-      SMAX = SMAX*r2d
-      az = 0.0d0
-      call dlola(junk,NMAX,hylo,hyla,dmax,az)
-      NMAX = NMAX*r2d
+      if (xy.eq.0) then
+          WMAX = hylo-dmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hyla*d2r))
+          EMAX = hylo+dmax*3.6d2/(2.0d0*pi*6.371d3*dcos(hyla*d2r))
+          az = 180.0d0
+          call dlola(junk,SMAX,hylo,hyla,dmax,az)
+          SMAX = SMAX*r2d
+          az = 0.0d0
+          call dlola(junk,NMAX,hylo,hyla,dmax,az)
+          NMAX = NMAX*r2d
+      else
+          WMAX = hylo - dmax
+          EMAX = hylo + dmax
+          SMAX = hyla - dmax
+          NMAX = hyla + dmax
+      endif
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
       SUBROUTINE getautodisplims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
-     1                       evlo,evla,evdp,str,dip,rak,dx,dy,slip,nflt)
+     1                           evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     2                           nflt,xy,depth)
 C----
 C Get limits of receiver grid by taking steps along longitude and
 C latitudes until displacements smaller than minimum threshold value.
@@ -847,21 +906,27 @@ C----
       PARAMETER (NTHR=3)
       REAL*8 dl(NTHR),thr(NTHR)
       REAL*8 hylo,hyla,WMAX,EMAX,SMAX,NMAX,W,E,S,N,lo,la
-      REAL*8 uE,uN,uZ,stdp,vp,vs,dens
-      INTEGER nflt,FMAX
+      REAL*8 uE,uN,uZ,stdp,vp,vs,dens,depth
+      INTEGER nflt,FMAX,xy
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       INTEGER dir,flttyp
-      dl(1) = 1.0d0 ! Amounts to move test location (deg)
-      dl(2) = 0.1d0
-      dl(3) = 0.05d0
+      if (xy.eq.0) then
+          dl(1) = 1.0d0 ! Amounts to move test location (deg)
+          dl(2) = 0.1d0
+          dl(3) = 0.05d0
+      else
+          dl(1) = 100.0d0 ! Amounts to move test location (km)
+          dl(2) = 10.0d0
+          dl(3) = 5.0d0
+      endif
       thr(1) = 0.5d0 ! Displacement thresholds (m)
       thr(2) = 0.01d0
       thr(3) = 0.001d0
       flttyp = 1
       call autohalfspace(vp,vs,dens)
-      stdp = 0.0d0
+      stdp = depth
       do 903 dir = 1,4
           lo = hylo
           la = hyla
@@ -890,7 +955,7 @@ C             Check if lon, lat exceed maximum allowed values
 C             Calculate displacement and compare to current threshold
               call calcdisp(uN,uE,uZ,lo,la,stdp,nflt,evlo,evla,evdp,
      1                      str,dip,rak,dx,dy,slip,vp,vs,dens,
-     2                      flttyp)
+     2                      flttyp,xy)
               uN = dabs(uN)
               uE = dabs(uE)
               uZ = dabs(uZ)
@@ -915,15 +980,104 @@ C             Calculate displacement and compare to current threshold
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE writestafile(stafile,W,E,S,N,incr)
+      SUBROUTINE getautostnlims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
+     1                          evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     2                          nflt,xy,depth)
+C----
+C Get limits of receiver grid by taking steps along longitude and
+C latitudes until strains smaller than minimum threshold value.
+C Variable 'dir' determines direction: 1=N, 2=S, 3=E, 4=W
+C----
+      IMPLICIT NONE
+      INTEGER i,NTHR
+      PARAMETER (NTHR=3)
+      REAL*8 dl(NTHR),thr(NTHR)
+      REAL*8 hylo,hyla,WMAX,EMAX,SMAX,NMAX,W,E,S,N,lo,la
+      REAL*8 stn(3,3),stdp,vp,vs,dens,stnmax,stnmin,depth
+      INTEGER nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
+      INTEGER dir,flttyp,xy
+      if (xy.eq.0) then
+          dl(1) = 1.0d0 ! Amounts to move test location (deg)
+          dl(2) = 0.1d0
+          dl(3) = 0.05d0
+      else
+          dl(1) = 100.0d0 ! Amounts to move test location (km)
+          dl(2) = 10.0d0
+          dl(3) = 5.0d0
+      endif
+      thr(1) = 1.0d-7 ! Strain thresholds (m)
+      thr(2) = 5.0d-8
+      thr(3) = 1.0d-8
+      flttyp = 1
+      call autohalfspace(vp,vs,dens)
+      stdp = depth
+      do 913 dir = 1,4
+          lo = hylo
+          la = hyla
+C         Take first step (by increment of dl(1))
+          if (dir.eq.1) la = dnint((la+dl(1))*1.0d2)*1.0d-2
+          if (dir.eq.2) la = dnint((la-dl(1))*1.0d2)*1.0d-2
+          if (dir.eq.3) lo = dnint((lo+dl(1))*1.0d2)*1.0d-2
+          if (dir.eq.4) lo = dnint((lo-dl(1))*1.0d2)*1.0d-2
+C         Take steps of decreasing size and threshold value
+          i = 1
+  911     if (i.gt.NTHR) goto 912
+C             Check if lon, lat exceed maximum allowed values
+              if (dir.eq.1.and.la.gt.NMAX) then
+                  la = NMAX
+                  goto 912
+              elseif (dir.eq.2.and.la.lt.SMAX) then
+                  la = SMAX
+                  goto 912
+              elseif (dir.eq.3.and.lo.gt.EMAX) then
+                  lo = EMAX
+                  goto 912
+              elseif (dir.eq.4.and.lo.lt.WMAX) then
+                  lo = WMAX
+                  goto 912
+              endif
+C             Calculate strain and compare to current threshold
+              call calcstn(stn,lo,la,stdp,nflt,evlo,evla,evdp,
+     1                     str,dip,rak,dx,dy,slip,vp,vs,dens,
+     2                     flttyp,xy)
+              stnmax = dmax1(stn(1,1),stn(2,2),stn(3,3),stn(1,2),
+     1                       stn(1,3),stn(2,3))
+              stnmin = dmin1(stn(1,1),stn(2,2),stn(3,3),stn(1,2),
+     1                       stn(1,3),stn(2,3))
+              stnmax = dmax1(dabs(stnmax),dabs(stnmin))
+              if (stnmax.gt.thr(i)) then
+                  if (dir.eq.1) la = la + dl(i)
+                  if (dir.eq.2) la = la - dl(i)
+                  if (dir.eq.3) lo = lo + dl(i)
+                  if (dir.eq.4) lo = lo - dl(i)
+                  goto 911
+              else
+                  i = i + 1
+                  goto 911
+              endif
+  912     continue
+          if (dir.eq.1) N = la
+          if (dir.eq.2) S = la
+          if (dir.eq.3) E = lo
+          if (dir.eq.4) W = lo
+  913 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE writestafile(stafile,W,E,S,N,incr,depth)
 C----
 C Write receiver grid to STAFILE.
 C----
       IMPLICIT NONE
       CHARACTER*40 stafile
-      REAL*8 W,E,S,N,incr,lat,lon,stdp
+      REAL*8 W,E,S,N,incr,lat,lon,stdp,depth
       INTEGER i,j
-      stdp = 0.0d0
+      stdp = depth
       open(unit=95,file=stafile,status='unknown')
       i = 0
       lon = W
@@ -953,11 +1107,11 @@ C----
       write(96,9005) j
       write(*,*) 'This information is saved in autogrid.dat'
  8001 format(3F10.2)
- 9001 format('Grid limits (WESN):',4F8.2)
- 9002 format('Grid spacing: ',F10.2)
- 9003 format('Number of points: ',I10)
- 9004 format('nlon: ',I10)
- 9005 format('nlat: ',I10)
+ 9001 format(' Grid limits (WESN):',4F8.2)
+ 9002 format(' Grid spacing: ',F10.2)
+ 9003 format(' Number of points: ',I10)
+ 9004 format(' nlon: ',I10)
+ 9005 format(' nlat: ',I10)
       close(95)
       close(96)
       RETURN
@@ -978,6 +1132,8 @@ C----
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),wid,len
+      rak(1) = rak(1) 
+      evdp(1) = evdp(1)
       open(unit=51,file=gmtfile,status='unknown')
       do 511 i = 1,nflt
           len = dx(i)*1.0d-3
@@ -992,15 +1148,15 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
      1                  dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2                  gmtfile,flttyp,auto,incr)
+     2                  gmtfile,flttyp,auto,incr,depth,xy)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr
       CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
      1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
      2             gmtfile
-      INTEGER flttyp,auto
-      REAL*8 incr
+      INTEGER flttyp,auto,xy
+      REAL*8 incr,depth
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
@@ -1020,7 +1176,9 @@ C----------------------------------------------------------------------C
       gmtfile = 'none'
       flttyp = 1
       auto = 0
+      xy = 0
       incr = 0.1d0
+      depth = 0.0d0
 C     Input file status indicators (ICHECK block variables)
 C     0=unspecified; 1=specified; -1=specified, but file not found
       kffm = 0
@@ -1061,6 +1219,8 @@ C     0=unused; 1=output value; 2=use value, do not output
               flttyp = 1
           elseif (tag(1:3).eq.'-pt') then
               flttyp = 0
+          elseif (tag(1:3).eq.'-xy') then
+              xy = 1
           elseif (tag(1:4).eq.'-sta') then
               ksta = 1
               i = i + 1
@@ -1073,7 +1233,7 @@ C     0=unused; 1=output value; 2=use value, do not output
               ktrg = 1
               i = i + 1
               call getarg(i,trgfile)
-              ptr = index(trgfile,'/')
+              ptr = index(trgfile,'/') ! check format of argument
               if (ptr.ne.0) then
                   ktrg = 2
               endif
@@ -1114,17 +1274,25 @@ C     0=unused; 1=output value; 2=use value, do not output
               if (kdsp.eq.0) dspfile = 'autodisp.dat'
               ksta = 1
               kdsp = 1
+          elseif (tag(1:9).eq.'-autocoul') then
+              if (ksta.eq.0) stafile = 'autosta.dat'
+              if (kcou.eq.0) coufile = 'autocoul.dat'
+              if (kstn.eq.0) kstn = 2
+              if (ksts.eq.0) ksts = 2
+              ksta = 1
+              kcou = 1
               i = i + 1
-              if (i.gt.narg) then
-                  goto 102
-              else
-                  call getarg(i,tag)
-                  if (tag(1:1).eq.'-') then
-                      i = i - 1
-                      goto 101
-                  endif
-              endif
+              call getarg(i,tag)
+              read(tag,'(BN,I10)') auto
+              auto = auto + 1
+          elseif (tag(1:5).eq.'-incr') then
+              i = i + 1
+              call getarg(i,tag)
               read(tag,'(BN,F10.0)') incr
+          elseif (tag(1:4).eq.'-dep') then
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F10.0)') depth
           elseif (tag(1:4).eq.'-gmt') then
               kgmt = 1
               i = i + 1
@@ -1155,16 +1323,19 @@ C----------------------------------------------------------------------C
       endif
       write(STO,*)
      1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
-     2                        '-fn -pt'
+     2                        '[-fn -pt] [-xy]'
       write(STO,*)
-     1 '               -sta STAFILE -haf HAFFILE -trg TRGFILE'
+     1 '               -sta STAFILE -haf HAFFILE -trg TRGFILE ',
+     2                                          '[or S/D/R/F]'
       write(STO,*)
      1 '               -disp DSPFILE -strain STRAFILE -stress ',
      2                             'STREFILE '
       write(STO,*)
      1 '               -normal NORMFILE -shear SHEARFILE -coul COULFILE'
       write(STO,*)
-     1 '               -autodisp INCR -gmt GMTFILE -h/-help -d/-details'
+     1 '               -autodisp -autocoul OPT -incr INCR ',
+     2                      '-gmt GMTFILE -h/-help ',
+     2                                     '-d/-details'
       write(STO,*)
       if (str.eq.'long') then
           write(STO,*)
@@ -1211,9 +1382,28 @@ C----------------------------------------------------------------------C
           write(STO,*)
       endif
       write(STO,*)
-     1 '-fn          (default)  Treat subfaults as finite sources'
+     1 '-fn                     Treat subfaults as finite sources ',
+     2                                    '(default)'
       write(STO,*)
      1 '-pt                     Treat subfaults as point sources'
+      write(STO,*)
+     1 '-xy                     Treat all input coordinates as X-Y ',
+     2                          'instead of lon-lat (in km)'
+      if (str.eq.'long') then
+          write(STO,*)
+          write(STO,*)
+     1 '    All input fault file and receiver location formats are the',
+     2      ' same,'
+          write(STO,*)
+     1 '    except evlo, evla, stlo, and stla are treated ',
+     2      'as kilometers from origin'
+          write(STO,*)
+     1 '    in Cartesian coordinates.'
+          write(STO,*)
+     1 '    Designed for problems where user is interested in cross-',
+     2      'sections.'
+          write(STO,*)
+      endif
       if (str.eq.'long') then
           write(STO,*)
       endif
@@ -1241,7 +1431,7 @@ C----------------------------------------------------------------------C
      1 '-trg TRGFILE [S/D/R/F]  Target fault ',
      2            'file (required for -normal, -shear, -coul)'
       write(STO,*)
-     1 '                          Alternatively, define str/dip/rak/',
+     1 '                          Alternatively, use str/dip/rak/',
      2                               'frict as argument'
       if (str.eq.'long') then
           write(STO,*)
@@ -1256,7 +1446,7 @@ C----------------------------------------------------------------------C
           write(STO,*)
       endif
       write(STO,*)
-     1 '-disp DSPFILE           Displacement (ENZ)'
+     1 '-disp DSPFILE           Displacement (E N Z)'
       if (str.eq.'long') then
           write(STO,*)
           write(STO,*)
@@ -1334,11 +1524,8 @@ C----------------------------------------------------------------------C
           write(STO,*)
       endif
       write(STO,*)
-     1 '-autodisp [INCR]        Generate receiver grid (spacing ',
-     2                          'INCR optional),'
-      write(STO,*)
-     1'                          and compute displacements (def: INCR=',
-     2                                                            '0.1)'
+     1 '-autodisp               Determine receiver grid, compute ',
+     2                          'displacements'
       if (str.eq.'long') then
           write(STO,*)
           write(STO,*)
@@ -1352,6 +1539,38 @@ C----------------------------------------------------------------------C
      2             'x 1500km.'
           write(STO,*)
       endif
+      write(STO,*)
+     1 '-autocoul OPT           Determine receiver grid, compute ',
+     2                         'Coulomb stresses'
+      write(STO,*)
+     1 '                          OPT=1: Create a receiver grid at ',
+     2                                         'fixed depth'
+      write(STO,*)
+     1 '                          OPT=2: Create a receiver grid on ',
+     2                                    'finite fault (requires -ffm)'
+      if (str.eq.'long') then
+          write(STO,*)
+          write(STO,*)
+     1 '    Determines maximum extent of receiver grid to W, E, S, N, ',
+     2      'then writes'
+          write(STO,*)
+     1 '    grid to STAFILE (if unspecified, default to autosta.dat). ',
+     2      'Maximum distance'
+          write(STO,*)
+     1 '    in each direction is 750 km from hypocenter, i.e. 1500km ',
+     2             'x 1500km.'
+          write(STO,*)
+     1 '    TYPE="map": Compute Coulomb stress along depth slice'
+          write(STO,*)
+     1 '    TYPE="fault": Compute Coulomb stress along fault geometry ',
+     2                           '(requires -ffm)'
+          write(STO,*)
+      endif
+      write(STO,*)
+     1 '-incr INCR              Change grid spacing for -auto options'
+      write(STO,*)
+     1 '-dep DEPTH              Change receiver depth for -auto ',
+     2                          'options (def: 0.0 km)'
       write(STO,*)
      1 '-gmt GMTFILE            Fault file for use with "psxy -SJ ',
      2                                   '-C<cptfile>"'
@@ -1379,3 +1598,36 @@ c     2 '12345678901234567890'
       END
 
       
+      SUBROUTINE dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
+     1                     trgfile,dspfile,stnfile,stsfile,norfile,
+     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
+      IMPLICIT none
+      CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
+     1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
+     2             gmtfile
+      INTEGER flttyp,auto
+      REAL*8 incr
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+      print *,'DEBUGGING SUBROUTINE GCMDLN'
+      print *,'---------------------------'
+      print *,'KFFM',kffm,ffmfile
+      print *,'KFLT',kflt,fltfile
+      print *,'KMAG',kmag,magfile
+      print *,'KSTA',ksta,stafile
+      print *,'KHAF',khaf,haffile
+      print *,'KTRG',ktrg,trgfile
+      print *,'KDSP',kdsp,dspfile
+      print *,'KSTN',kstn,stnfile
+      print *,'KSTS',ksts,stsfile
+      print *,'KNOR',knor,norfile
+      print *,'KSHR',kshr,shrfile
+      print *,'KCOU',kcou,coufile
+      print *,'KGMT',kgmt,gmtfile
+      print *,'FLTTYP',flttyp
+      print *,'AUTO',auto
+      print *,'INCR',incr
+      RETURN
+      END
