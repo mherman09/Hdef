@@ -1,37 +1,27 @@
-C----------------------------------------------------------------------C
-C Okada, Y., 1992, Internal deformation due to shear and tensile       C
-C   faults in a half-space. Bulletin of the Seismological Society of   C
-C   America 82, pp. 1018-1040.                                         C
-C                                                                      C
-C MODIFICATIONS:                                                       C
-C   Fall 2012: Original file created                                   C
-C   Summer 2013: Instead of 4 large subroutines, compartmentalize       C
-C                calculations into several smaller subroutines.        C
-C                Pass variables to and from subroutines via common     C
-C                blocks to make variable list shorter.                 C
-C   2013-10-16: Began commenting code thoroughly, renaming variables   C
-C               and subroutines to be more consistent throughout code. C
-C----------------------------------------------------------------------C
+C======================================================================C
+C SUBROUTINES TO COMPUTE DEFORMATION FROM POINT AND FINITE SOURCES IN
+C AN ELASTIC HALF-SPACE.
+C
+C REFERENCE:
+C OKADA, Y., 1992, INTERNAL DEFORMATION DUE TO SHEAR AND TENSILE
+C   FAULTS IN A HALF-SPACE. BULLETIN OF THE SEISMOLOGICAL SOCIETY OF
+C   AMERICA 82, PP. 1018-1040.
+C
+C NOTES:
+C - ALL SUBROUTINE INPUTS ARE IN SI UNITS.
+C - ANGLE INPUTS ARE IN DEGREES.
+C - COORDINATE SYSTEM IS RELATIVE TO THE FAULT ORIENTATION:
+C   - X POINTS IN THE ALONG-STRIKE DIRECTION
+C   - Y POINTS IN THE HORIZONTAL UP-DIP DIRECTION
+C   - DEPTHS ARE DEFINED POSITIVE DOWN
+C======================================================================C
 
       SUBROUTINE o92pt(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,area,slip,
      1                 vp,vs,dens)
 C----
-C Static elastic displacement at a location (internal or surface) due to
-C a point source shear dislocation in an isotropic halfspace.
-C
-C INPUTS (ALL IN SI UNITS):
-C   - Geometric Parameters (relative to source location):
-C         x (along-strike), y (horizontal up-dip), station depth,
-C         event depth
-C   - Source parameters:
-C         fault dip (deg), fault rake (deg), fault area, slip
-C   - Physical parameters of half-space:
-C         vp, vs, density
-C OUTPUT: x, y, z displacements at station (in x-y coordinates, not N-E)
+C COMPUTE COMPONENTS OF THE DISPLACEMENT VECTOR DUE TO A POINT SOURCE.
 C----
       IMPLICIT none
-      REAL*8 pi,d2r,eps
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,eps=1.0d-4)
       REAL*8 x,y,stdp,evdp,z,c,d
       REAL*8 dipin,rakin,area,slip,Mss,Mds
       REAL*8 vp,vs,dens
@@ -65,11 +55,10 @@ C----
       COMMON /TAG/    thru
 
 C----
-C Initialize components of displacement
-C u(1-3) - strike slip sources
-C u(4-6) - dip slip sources
-C f(i,j) - dummy displacement variables
-C
+C INITIALIZE COMPONENTS OF DISPLACEMENT
+C   U(1-3): DISPLACEMENT FROM UNIT STRIKE-SLIP SOURCE
+C   U(4-6): DISPLACEMENT FROM UNIT DIP-SLIP SOURCE
+C   F(I,J): DUMMY DISPLACEMENT VARIABLES
 C thru   - a tag indicating number of times through calculation;
 C          used for generating mirror source
 C----
@@ -83,7 +72,7 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipterms(dipin)
+      call DIPVAR(dipin)
       call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
 
@@ -133,6 +122,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE o92ptstn(strain,x,y,stdp,evdp,dipin,rakin,area,slip,
      1                    vp,vs,dens)
+C      SUBROUTINE STN0(STRAIN,X,Y,STDP,EVDP,DIPIN,RAKIN,AREA,SLIP,VP,VS,DENS)
 C----
 C Static elastic strain at a location (internal or surface) due to
 C a point source shear dislocation in an isotropic halfspace.
@@ -148,8 +138,6 @@ C         vp, vs, density
 C OUTPUT: strain matrix at receiver (in x-y coordinates)
 C----
       IMPLICIT NONE
-      REAL*8 pi,d2r,eps
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,eps=1.0d-4)
       REAL*8 x,y,stdp,evdp,z,c,d
       REAL*8 dipin,rakin,area,slip,Mss,Mds
       REAL*8 vp,vs,dens
@@ -193,7 +181,7 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipterms(dipin)
+      call DIPVAR(dipin)
       call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
 C----
@@ -281,6 +269,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE o92rect(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,wid,len,
      1                   slip,vp,vs,dens)
+C      SUBROUTINE DSPFN(UX,UY,UZ,X,Y,STDP,EVDP,DIPIN,RAKIN,WID,LEN,SLIP,VP,VS,DENS)
 C----
 C Static elastic displacement at a location (internal or surface) due
 C to a finite rectangular source shear dislocation in a uniform, 
@@ -298,8 +287,8 @@ C         vp, vs, density
 C OUTPUT: x, y, z displacements at station (in x-y coordinates, not N-E)
 C----
       IMPLICIT none
-      REAL*8 pi,d2r,eps
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,eps=1.0d-4)
+      REAL*8 eps
+      PARAMETER (eps=1.0d-4)
       REAL*8 x,y,stdp,evdp,z,c,d,p,q,ksi(2),eta(2)
       REAL*8 dipin,rakin,wid,len,slip,Mss,Mds
       REAL*8 vp,vs,dens
@@ -343,7 +332,7 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipterms(dipin)
+      call DIPVAR(dipin)
       call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin)
 C----
@@ -456,8 +445,8 @@ C         vp, vs, density
 C OUTPUT: strain at receiver
 C----
       IMPLICIT NONE
-      REAL*8 pi,d2r,eps
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,eps=1.0d-4)
+      REAL*8 eps
+      PARAMETER (eps=1.0d-4)
       REAL*8 x,y,stdp,evdp,z,c,d,p,q,ksi(2),eta(2)
       REAL*8 dipin,rakin,wid,len,slip,Mss,Mds
       REAL*8 vp,vs,dens
@@ -505,7 +494,7 @@ C----
 C----
 C Source and halfspace constants
 C----
-      call dipterms(dipin)
+      call DIPVAR(dipin)
       call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin) 
 C----
@@ -647,35 +636,29 @@ C-------------------------- SUBROUTINES -------------------------------C
 C----------------------------------------------------------------------C
 C======================================================================C
 
-      SUBROUTINE dipterms(dipin)
+      SUBROUTINE DIPVAR(DIPIN)
 C----
-C Pre-calculate dip terms (sin(dip), cos(dip), etc.)
-C
-C Note: double precision math can tolerate fault dips close to 90, but
-C not equal to 90 (ends up with divide by zero problems):
-C     
-C     if (dip.gt.89.9999d0) dip = 89.9999d0
+C PRE-CALCULATE DIP VARIABLES.
+C IF (DIP.GT.89.9999D0) DIP = 89.9999D0 (TO AVOID DIVIDE BY ZERO ERROR)
 C----
-      IMPLICIT none
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-      REAL*8 dip,dipin
-      REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-      COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-
-      if (dipin.gt.89.9999d0) then
-          dip = 89.9999d0*d2r
-      else
-          dip = dipin*d2r
-      endif
-      sd = dsin(dip)
-      cd = dcos(dip)
-      s2d = dsin(2.0d0*dip)
-      c2d = dcos(2.0d0*dip)
-      cdcd = cd*cd
-      sdsd = sd*sd
-      cdsd = sd*cd
-
+      IMPLICIT NONE
+      REAL*8 PI,D2R
+      PARAMETER (PI=4.0D0*DATAN(1.0D0),D2R=PI/1.8D2)
+      REAL*8 DIP,DIPIN
+      REAL*8 SD,CD,S2D,C2D,CDCD,SDSD,CDSD
+      COMMON /SOURCE/ SD,CD,S2D,C2D,CDCD,SDSD,CDSD
+      IF (DIPIN.GT.89.9999D0) THEN
+          DIP = 89.9999D0*D2R
+      ELSE
+          DIP = DIPIN*D2R
+      ENDIF
+      SD = DSIN(DIP)
+      CD = DCOS(DIP)
+      S2D = DSIN(2.0D0*DIP)
+      C2D = DCOS(2.0D0*DIP)
+      CDCD = CD*CD
+      SDSD = SD*SD
+      CDSD = SD*CD
       RETURN
       END
 
@@ -695,8 +678,8 @@ C----
       mu = dens*vs*vs
       lamda = dens*vp*vp - 2.0d0*mu
       a   = (lamda+mu)/(lamda+2.0d0*mu)
-      CA1 = (1.0d0-a)/2.0d0
-      CA2 = a/2.0d0
+      CA1 = (1.0d0-a)*0.5d0
+      CA2 = a*0.5d0
       CB  = (1.0d0-a)/a
       CC  = 1.0d0-a
 
