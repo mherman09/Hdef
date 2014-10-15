@@ -4,91 +4,144 @@ C Utilities for converting to/from calendar dates and days
 C----
       IMPLICIT none
       INTEGER yr1,mo1,yr2,mo2
-      REAL*8 dy1,dy2,jd1,jd2,ndy
-      CHARACTER*30 ifile,ofile,date1,date2
-      INTEGER opt,p
+      REAL*8 dy1,dy2,hr1,mn1,sc1,hr2,mn2,sc2,jd1,jd2,ndy,rem
+      CHARACTER*40 ifile,ofile,date1,date2,arg1,arg2
+      INTEGER opt,p,long
       LOGICAL ex
 
-C NOTE TO MATT: PUT IN OPTION (SOMETHING LIKE -hms) TO INCLUDE
-C HOUR, MINUTE, SECONDS IN COMPUTATIONS
-
 C----
-C Parse command line
+C Parse command line and check arguments
 C----
-      call gcmdln(ifile,ofile,opt,p)
-      inquire(file=ifile,EXIST=ex)
-      if (.not.ex) then
-          write(*,*) '!! Error: No input file '//ifile
-          call usage()
+      call gcmdln(ifile,ofile,arg1,arg2,opt,long,p)
+      if (ifile.eq.'none'.and.arg1.eq.'undef') then
+          write(*,*) '!! Error: Input data is not specified'
+          call usage('!! Use -nday[f] or -date[f]')
+      elseif (arg1.eq.'undef') then
+          inquire(file=ifile,EXIST=ex)
+          if (.not.ex) call usage('!! Error: no input file: '//ifile)
+      endif
+      if (ofile.eq.'none'.and.p.eq.0) then
+          write(*,*) '!! Error: no output file specified'
+          call usage('!! Use -o OFILE')
       endif
 
 C----
-C Open input and output files (unless -p flag is on)
+C If dates/days defined on command line, compute and print results
 C----
-      open (unit=11,file=ifile,status='old')
-      if (p.eq.0) open (unit=12,file=ofile,status='unknown')
-
-C----
-C Operation differs depending on input option
-C   opt=1:
-C   opt=2:
-C   opt=3:
-C   opt=4:
-C----
-C     Option 1: Convert from date pairs to number of days
-      if (opt.eq.1) then
-  101     read (11,*,end=102) yr1,mo1,dy1,yr2,mo2,dy2
+      if (arg1.ne.'undef') then
+          call readdatec(arg1,yr1,mo1,dy1,long)
+          call date2jd(jd1,yr1,mo1,dy1)
+          ! DATE1 DATE2 -> NDAY
+          if (opt.eq.1) then
+              call readdatec(arg2,yr2,mo2,dy2,long)
+              call date2jd(jd2,yr2,mo2,dy2)
+              ndy = jd2 - jd1
+              write (*,9997) ndy
+          ! DATE1 NDAY -> DATE2
+          elseif (opt.eq.2) then
+              read(arg2,'(BN,F10.0)') ndy
+              jd2 = jd1 + ndy
+              call jd2date(yr2,mo2,dy2,jd2)
+              if (long.eq.1) then
+                  call dyhrmnsc(dy2,hr2,mn2,sc2)
+                  write(*,9999) yr2,mo2,dy2,hr2,mn2,sc2
+              else
+                  write(*,9998) yr2,mo2,dy2 
+              endif
+          endif
+      else
+          open (unit=11,file=ifile,status='old')
+          if (p.eq.0) open (unit=12,file=ofile,status='unknown')
+          if (opt.eq.1) then
+  111         if (long.eq.0) then
+                  read(11,*,end=113) yr1,mo1,dy1,yr2,mo2,dy2
+              else
+                  read(11,*,end=113) yr1,mo1,dy1,hr1,mn1,sc1,
+     1                               yr2,mo2,dy2,hr2,mn2,sc2
+                  dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
+                  dy2 = dy2 + hr2/2.4d1 + mn2/1.44d3 + sc2/8.64d4
+              endif
               call date2jd(jd1,yr1,mo1,dy1)
               call date2jd(jd2,yr2,mo2,dy2)
               ndy = jd2 - jd1
               if (p.eq.0) then
-                  write (12,9998) ndy
+                  write (12,9997) ndy
               else
-                  write (*,9998) ndy
+                  write (*,9997) ndy
               endif
-              goto 101
-  102     continue
-C     Option 2: Convert from date and number of days to date
-      elseif (opt.eq.2) then
-  103     read(11,*,end=104) yr1,mo1,dy1,ndy
+              goto 111
+          else
+  112         if (long.eq.0) then
+                  read(11,*,end=113) yr1,mo1,dy1,ndy
+              else
+                  read(11,*,end=113) yr1,mo1,dy1,hr1,mn1,sc1,ndy
+                  dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
+              endif
               call date2jd(jd1,yr1,mo1,dy1)
               jd2 = jd1 + ndy
-              call jd2date(yr1,mo1,dy1,jd2)
-              if (p.eq.0) then
-                  write (12,9999) yr1,mo1,dy1
+              call jd2date(yr2,mo2,dy2,jd2)
+              if (long.eq.1) then
+                  call dyhrmnsc(dy2,hr2,mn2,sc2)
+                  if (p.eq.0) then
+                      write(12,9999) yr2,mo2,dy2,hr2,mn2,sc2
+                  else
+                      write(*,9999) yr2,mo2,dy2,hr2,mn2,sc2
+                  endif
               else
-                  write (*,9999) yr1,mo1,dy1
+                  if (p.eq.0) then
+                      write(12,9998) yr2,mo2,dy2
+                  else
+                      write(*,9998) yr2,mo2,dy2
+                  endif
               endif
-              goto 103
-  104     continue
-      elseif (opt.eq.3) then
-  105     read(11,*,end=106) yr1,mo1,dy1
-              call date2jd(jd1,yr1,mo1,dy1)
-              if (p.eq.0) then
-                  write(12,9998) jd1
-              else
-                  write(*,9998) jd1
-              endif
-              goto 105
-  106     continue
-      elseif (opt.eq.4) then
-  107     read(11,*,end=108) jd1
-              call jd2date(yr1,mo1,dy1,jd1)
-              if (p.eq.0) then
-                  write(12,9999) yr1,mo1,dy1
-              else
-                  write(*,9999) yr1,mo1,dy1
-              endif
-              goto 107
-  108     continue
+              goto 112
+          endif
       endif
+  113 continue
 
- 9998 format(F14.6)
- 9999 format(I7,I4,F14.6)
+ 9997 format(F14.5)
+ 9998 format(I6,I4,1F6.1)
+ 9999 format(I6,I4,4F6.1)
 
       END
 
 C======================================================================C
+
+      SUBROUTINE readdatec(datec,yr,mo,dy,long)
+      IMPLICIT none
+      CHARACTER*40 datec
+      INTEGER yr,mo,long
+      REAL*8 dy,hr,mn,sc
+      read(datec(1:4),'(BN,I4)') yr
+      read(datec(5:6),'(BN,I2)') mo
+      read(datec(7:8),'(BN,F10.0)') dy
+      if (long.eq.1) then
+          read(datec(9:10),'(BN,F10.0)') hr
+          read(datec(11:12),'(BN,F10.0)') mn
+          read(datec(13:14),'(BN,F10.0)') sc
+          dy = dy + hr/2.4d1 + mn/1.44d3 + sc/8.64d4
+      endif
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE dyhrmnsc(dy,hr,mn,sc)
+      IMPLICIT none
+      REAL*8 rem,dy,hr,mn,sc
+      rem = mod(dy,1.0d0)
+      dy = dy - rem
+      hr = rem*2.4d1
+      rem = mod(hr,1.0d0)
+      hr = hr - rem
+      mn = rem*6.0d1
+      rem = mod(mn,1.0d0)
+      mn = mn - rem
+      sc = rem*6.0d1 - mod(sc,1.0d0)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
 
       SUBROUTINE date2jd(jd,year,month,day)
 C----
@@ -169,51 +222,59 @@ C----
       END
 
 C----------------------------------------------------------------------C
- 
-      SUBROUTINE gcmdln(ifile,ofile,opt,p)
- 
+
+      SUBROUTINE gcmdln(ifile,ofile,arg1,arg2,opt,long,p)
       IMPLICIT NONE
-      CHARACTER*30 ifile,ofile,tag
-      INTEGER i,narg,opt,p
-
+      CHARACTER*40 ifile,ofile,tag,arg1,arg2
+      INTEGER i,narg,opt,p,long
       ifile = 'none'
-      ofile = 'dateutil.out'
-C     1:date->nday; 2:nday->date; 3:cal->jd; 4:jd->cal
+      ofile = 'none'
+      arg1 = 'undef'
+      arg2 = 'undef'
       opt = 0
+      long = 0
       p = 0
-
       narg = iargc()
-      if (narg.eq.0) call usage()
+      if (narg.eq.0) then
+          call usage('!! Error: no command line arguments specified')
+      endif
       i = 0
   201 i = i + 1
       if (i.gt.narg) goto 202
           call getarg(i,tag)
-          if (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-              call usage()
-          elseif (tag(1:2).eq.'-o') then
-              i = i + 1
-              call getarg(i,ofile)
-          elseif (tag(1:4).eq.'-day') then
+          if (tag(1:6).eq.'-ndayf') then
               opt = 1
+              i = i + 1
+              call getarg(i,ifile)
+          elseif (tag(1:5).eq.'-nday') then
+              opt = 1
+              i = i + 1
+              call getarg(i,arg1)
+              i = i + 1
+              call getarg(i,arg2)
+              p = 1
+          elseif (tag(1:6).eq.'-datef') then
+              opt = 2
               i = i + 1
               call getarg(i,ifile)
           elseif (tag(1:5).eq.'-date') then
               opt = 2
               i = i + 1
-              call getarg(i,ifile)
-          elseif (tag(1:4).eq.'-jd') then
-              opt = 3
+              call getarg(i,arg1)
               i = i + 1
-              call getarg(i,ifile)
-          elseif (tag(1:4).eq.'-cal') then
-              opt = 4
+              call getarg(i,arg2)
+              p = 1
+          elseif (tag(1:5).eq.'-long') then
+              long = 1
+          elseif (tag(1:2).eq.'-o') then
               i = i + 1
-              call getarg(i,ifile)
+              call getarg(i,ofile)
           elseif (tag(1:2).eq.'-p') then
               p = 1
+          elseif (tag(1:2).eq.'-h') then
+              call usage('')
           else
-              write(*,*) '!! Error: No option '//tag
-              call usage()
+              call usage('!! Error: No option '//tag)
           endif
           goto 201
   202 continue
@@ -223,74 +284,50 @@ C     1:date->nday; 2:nday->date; 3:cal->jd; 4:jd->cal
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE usage()
-      IMPLICIT none
-
+      SUBROUTINE usage(str)
+      IMPLICIT NONE
+      INTEGER lstr
+      CHARACTER str*(*)
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(*,*) str(1:lstr)
+          write(*,*)
+      endif
       write(*,*)
-     1 'Usage: dateutil -day DATEFILE -date DAYFILE ',
-     2                 '-jd DATEFILE -cal JDFILE'
+     1 'Usage: dateutil -nday DATE1 DATE2 | -ndayf DATEFILE | -date ',
+     2               'DATE NDAY | -datef DAYFILE'
       write(*,*)
-     3 '                -o OUTFILE -p -h -?'
+     3 '                -o OUTFILE [-long] [-p] [-h]'
       write(*,*)
-      write (*,*)
-     1 'Multiple options for converting between calendar dates, ',
-     2 'number of days, and'
-      write (*,*)
-     1 'Julian calendars.'
-      write (*,*)
       write(*,*)
-     1 'OPTION         DEFAULT_VALUE      DESCRIPTION'
+     1 '-nday DATE1 DATE2  Number of days between ',
+     2                          'dates (YYYYMMDD[HHMMSS])'
       write(*,*)
-     1 '-day DATEFILE                     compute number of days from ',
-     2                                            'date pair'
+     1 '-ndayf DATEFILE    Number of days between dates (YYYY MM DD ',
+     2                           '[HH MM SS]) in DATEFILE'
       write(*,*)
-     1 '-date DAYFILE                     compute calendar date from ',
-     2                                            'date and day'
+     1 '-date DATE NDAY    Calendar date from DATE (YYYYMMDD[HHMMSS]) ',
+     2                      'and # of days (NDAY)'
       write(*,*)
-     1 '-jd CALFILE                       convert calendar date to ',
-     2                                          'Julian days'
+     1 '-dated DAYFILE     Calendar date from DATE (YYYY MM DD [HH ',
+     2                         'MM SS]) and # of days (NDAY) in DAYFILE'
       write(*,*)
-     1 '-cal JDFILE                       convert Julian days to ',
-     2                                           'calendar date'
+     1 '-long              Read/write all dates as YYYYMMDDHHMMSS or ',
+     2                            'YYYY MM DD HH MM SS'
       write(*,*)
-     1 '-o OUTFILE     (dateutil.out)     name of output file'
+     1 '-o OUTFILE         Output of date computation'
       write (*,*)
-     1 '-p                                print results to standard ',
-     2                                       'output'
+     1 '-p                 Print dates or number of days to standard ',
+     2                                       'output (overrides -o)'
       write (*,*)
-     1 '-h                                this online help'
+     1 '-h                 Online help'
+      write(*,*)
+      write(*,*)
+     1 '  NOTE: Dates on command line must be in YYYYMMDD[HHMMSS] ',
+     2               'format, with no spaces.'
+      write(*,*)
+     1 '        Dates in files are delimited by spaces YYYY MM DD ',
+     2                            '[HH MM SS]'
       write (*,*)
-     1 '-?                                this online help'
-      write (*,*)
-      write (*,*)
-     1 '----- FILE FORMATS -----'
-      write (*,*)
-     1 'DATEFILE: list of pairs of calendar dates'
-      write (*,*)
-     1 '    YYYY1 MM1 DD1 YYYY2 MM2 DD2'
-      write (*,*)
-     1 'DAYFILE: list of pairs of calendar dates and number of days'
-      write (*,*)
-     1 '    YYYY MM DD NDAY'
-      write (*,*)
-     1 'CALFILE: list of calendar dates'
-      write (*,*)
-     1 '    YYYY MM DD [HH MM SS]'
-      write (*,*)
-     1 'JDFILE: list of Julian days'
-      write (*,*)
-     1 '    JD.[  ]'
-      write (*,*)
-     1 'OUTFILE:'
-      write (*,*)
-     1 '    (-day)  NDAYS'
-      write (*,*)
-     1 '    (-date) YYYY MM DD'
-      write (*,*)
-     1 '    (-jd)   JD.[   ]'
-      write (*,*)
-     1 '    (-cal)  YYYY MM DD'
-      write (*,*) ''
-
       STOP
       END
