@@ -7,14 +7,15 @@ C
 C (single precision)
 C----
       IMPLICIT none
-      REAL pi,r2d,d2r
-      PARAMETER (pi=3.14159265,r2d=1.8e2/pi,d2r=pi/1.8e2)
+      REAL pi,d2r
+      PARAMETER (pi=3.14159265,d2r=pi/1.8e2)
       REAL lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a
       REAL dist,az
 C----
 C Check if points are polar opposite
 C----
-      if (lat1.eq.-lat2.and.mod(lon1-lon2,1.8e2).eq.0) then
+      if (abs(lat1+lat2).le.1.0e-6.and.
+     1                  abs(mod(lon1-lon2,1.8e2)).le.1.0e-6) then
           dist = pi
           az = 0.0e0
           goto 11
@@ -40,7 +41,7 @@ C Haversine Formula to get distance
 C----
       a = sin(dlat/2.0e0)*sin(dlat/2.0e0) +
      1   cos(lat1*d2r)*cos(lat2*d2r)*sin(dlon/2.0e0)*sin(dlon/2.0e0)
-      if (a.eq.1.0) then
+      if (a.ge.1.0) then
           dist = 0.0e0
       else
           dist = 2.0e0*atan2(sqrt(a),sqrt(1.0-a))
@@ -87,14 +88,15 @@ C
 C (Double precision)
 C----
       IMPLICIT none
-      REAL*8 pi,r2d,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi,d2r=pi/1.8d2)
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
       REAL*8 lon1,lat1,lon2,lat2,colat1,colat2,dlon,dlat,a
       REAL*8 dist,az
 C----
 C Check if points are polar opposite
 C----
-      if (lat1.eq.-lat2.and.mod(lon1-lon2,1.8d2).eq.0) then
+      if (dabs(lat1+lat2).le.1.0d-6.and.
+     1                  dabs(mod(lon1-lon2,1.8d2)).le.1.0d-6) then
           dist = pi
           az = 0.0d0
           goto 11
@@ -119,7 +121,7 @@ C Haversine Formula to get distance
 C----
       a = dsin(dlat/2.0d0)*dsin(dlat/2.0d0) +
      1   dcos(lat1*d2r)*dcos(lat2*d2r)*dsin(dlon/2.0d0)*dsin(dlon/2.0d0)
-      if (a.eq.1.0d0) then
+      if (a.ge.1.0d0) then
           dist = 0.0d0
       else
           dist = 2.0d0*datan2(dsqrt(a),dsqrt(1.0-a))
@@ -236,8 +238,8 @@ c Given x,y position on a mercator projection, compute the lon/lat
 c "c" is the scale factor, in km/radian
 
       IMPLICIT none
-      REAL lon,lat,x,y,c,pi,r2d,d2r
-      PARAMETER (pi=3.14159265,r2d=180/pi,d2r=pi/180)
+      REAL lon,lat,x,y,c,pi,r2d
+      PARAMETER (pi=3.14159265,r2d=180.0/pi)
 
       lon = x/c
       lat = 2*atan(exp(y/c))-pi/2
