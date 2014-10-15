@@ -26,9 +26,9 @@ C----
       call gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
      1            dspfile,stnfile,stsfile,norfile,shrfile,coufile,
      2            gmtfile,flttyp,auto,incr,depth,xy)
-      call dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
-     1                     trgfile,dspfile,stnfile,stsfile,norfile,
-     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
+C      call dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
+C     1                     trgfile,dspfile,stnfile,stsfile,norfile,
+C     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -133,7 +133,7 @@ C----------------------------------------------------------------------C
 C----
 C Verify that an output file is specified.
 C----
-      IMPLICIT NONE      
+      IMPLICIT NONE
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       if (kdsp.eq.0.and.kstn.eq.0) then
@@ -567,7 +567,7 @@ C----------------------------------------------------------------------C
           progout = progout + 1
       endif
       if (100*prog/prog100.ge.100) write (*,1000) 100*prog/prog100
- 1000 format (' Progress: [',I3,'% Complete]',A)
+ 1000 format (' o92util progress: [',I3,'% Complete]',A)
       RETURN
       END
 
@@ -662,7 +662,7 @@ C----
           do 221 j = 1,3
               strain(i,j) = 0.0d0
   221     continue
-  222 continue 
+  222 continue
       do 225 f = 1,nflt
           if (xy.eq.0) then
               call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
@@ -688,7 +688,7 @@ C----
               do 223 j = 1,3
                   strain(i,j) = strain(i,j) + stntmp(i,j)
   223         continue
-  224     continue 
+  224     continue
   225 continue
       RETURN
       END
@@ -1132,7 +1132,7 @@ C----
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),wid,len
-      rak(1) = rak(1) 
+      rak(1) = rak(1)
       evdp(1) = evdp(1)
       open(unit=51,file=gmtfile,status='unknown')
       do 511 i = 1,nflt
@@ -1143,7 +1143,7 @@ C----
       close(51)
       RETURN
       END
-      
+
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
@@ -1283,6 +1283,10 @@ C     0=unused; 1=output value; 2=use value, do not output
               kcou = 1
               i = i + 1
               call getarg(i,tag)
+              if (i.gt.narg.or.tag(1:1).eq.'-') then
+                  call usage('!! Error: option -autocoul requires an '//
+     1                                'argument')
+              endif
               read(tag,'(BN,I10)') auto
               auto = auto + 1
           elseif (tag(1:5).eq.'-incr') then
@@ -1313,291 +1317,366 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE usage(str)
       IMPLICIT NONE
-      INTEGER STO,lstr
-      PARAMETER (STO=6)
+      INTEGER lstr
       CHARACTER str*(*)
+      if (str.eq.'long') goto 100
       if (str.ne.' ') then
           lstr = len(str)
-          write(STO,*) str(1:lstr)
-          write(STO,*)
+          write(*,*) str(1:lstr)
+          write(*,*)
       endif
-      write(STO,*)
+  100 write(*,*)
      1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
-     2                        '[-fn -pt] [-xy]'
-      write(STO,*)
-     1 '               -sta STAFILE -haf HAFFILE -trg TRGFILE ',
-     2                                          '[or S/D/R/F]'
-      write(STO,*)
-     1 '               -disp DSPFILE -strain STRAFILE -stress ',
-     2                             'STREFILE '
-      write(STO,*)
-     1 '               -normal NORMFILE -shear SHEARFILE -coul COULFILE'
-      write(STO,*)
-     1 '               -autodisp -autocoul OPT -incr INCR ',
-     2                      '-gmt GMTFILE -h/-help ',
-     2                                     '-d/-details'
-      write(STO,*)
+     2                        '[-fn|-pt]'
+      write(*,*)
+     1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
+     2                                      '[-haf HAFFILE] [-xy]'
+      write(*,*)
+     1 '               -disp DSPFILE -strain STNFILE -stress ',
+     2                             'STSFILE '
+      write(*,*)
+     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
+      write(*,*)
+     1 '               -autodisp -autocoul OPT [-incr INCR] ',
+     2                              '[-dep DEPTH]'
+      write(*,*)
+     2 '               [-gmt GMTFILE] [-h|-help] ',
+     2                                     '[-d|-details]'
+      write(*,*)
       if (str.eq.'long') then
-          write(STO,*)
+          write(*,*)
      1    'A utility for computing displacements, strains, and ',
      2    'stresses in an elastic'
-          write(STO,*)
-     1    'half-space resulting from rectangular shear dislocations.'
-          write(STO,*)
+          write(*,*)
+     1    'half-space resulting from rectangular shear dislocations ',
+     2    'using the analytical'
+          write(*,*)
+     1    'solutions from Okada (1992).'
+          write(*,*)
+          write(*,*) 'DESCRIPTION OF COMMAND LINE OPTIONS'
+          write(*,9998)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-ffm FFMFILE            Finite fault ',
-     2                          'file (standard subfault format)'
+     2                          'file in standard subfault format'
       if (str.eq.'long') then
-          write(STO,*)
+          write(*,*)
+          write(*,*)
+     1 '    Example of subfault format can be seen at:'
+          write(*,*)
+     2 '    http://comcat.cr.usgs.gov/product/finite-fault/usc000nzvd/',
+     2      'us/1397258114263/'
+          write(*,*)
+     2 '        web/static2_out'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
-     1 '-flt FLTFILE            Fault file in "psmeca -Sa" format ',
-     2                            '(with slip and dimensions)'
+      write(*,*)
+     1 '-flt FLTFILE            Fault file with slip and dimensions ',
+     2                       '(...slip wid len)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: evlo evla evdp(km) str dip rak slip(m)  wid(km)   ',
      2                                                       'len(km)'
-          write(STO,*)
+          write(*,*)
      1 '                                                   along-dip ',
      2                                                    'along-str'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-mag MAGFILE            Fault file in "psmeca -Sa" format ',
-     2                                '(with magnitude)'
+     2                                '(...mag)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: evlo evla evdp(km) str dip rak mag'
-          write(STO,*)
+          write(*,*)
      1 '    The magnitude is converted to slip, width, and length ',
      2      'using Wells and'
-          write (STO,*)
+          write (*,*)
      1 '    Coppersmith (1994) empirical relations, and a hard-coded ',
      2      'shear modulus'
-          write (STO,*)
+          write (*,*)
      1 '    of 43 GPa.'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
-     1 '-fn                     Treat subfaults as finite sources ',
-     2                                    '(default)'
-      write(STO,*)
-     1 '-pt                     Treat subfaults as point sources'
-      write(STO,*)
-     1 '-xy                     Treat all input coordinates as X-Y ',
-     2                          'instead of lon-lat (in km)'
+      write(*,*)
+     1 '-fn|-pt                 Treat faults as finite rectangular ',
+     2                          '(default) or point'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
-     1 '    All input fault file and receiver location formats are the',
-     2      ' same,'
-          write(STO,*)
-     1 '    except evlo, evla, stlo, and stla are treated ',
-     2      'as kilometers from origin'
-          write(STO,*)
-     1 '    in Cartesian coordinates.'
-          write(STO,*)
-     1 '    Designed for problems where user is interested in cross-',
-     2      'sections.'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      if (str.eq.'long') then
-          write(STO,*)
-      endif
-      write(STO,*)
+      write(*,*)
      1 '-sta STAFILE            Receiver location file'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla stdp(km)'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
-     1 '-haf HAFFILE            Elastic half-space parameter file'
+      write(*,*)
+     1 '-trg TRGFILE|S/D/R/F    Target fault kinematics'
+      write(*,*)
+     1 '                          Specify in file TRGFILE or on ',
+     2                              'command line'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
-     1 '    Format: vp(m/s) vs(m/s) dens(kg/m^3)'
-          write(STO,*)
-     1 '    If -haf option not specified, o92util defaults to:'
-          write(STO,*)
-     1 '        vp = 6800 m/s; vs = 3926 m/s; dens = 2800 kg/m^3'
-          write(STO,*)
-      endif
-      write(STO,*)
-     1 '-trg TRGFILE [S/D/R/F]  Target fault ',
-     2            'file (required for -normal, -shear, -coul)'
-      write(STO,*)
-     1 '                          Alternatively, use str/dip/rak/',
-     2                               'frict as argument'
-      if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
-     1 '    Format: str dip rak frict'
-          write(STO,*)
+          write(*,*)
+          write(*,*)
+     1 '    Format: str dip rak frict (TRGFILE)'
+          write(*,*)
      1 '    If NTRG=1: all locations in STAFILE have same ',
      2                    'target parameters'
-          write(STO,*)
+          write(*,*)
      1 '    If NTRG=NSTA: target fault parameters ',
      2                     'correspond to station locations'
-          write(STO,*)
+          write(*,*)
+          write(*,*)
+     1 '    Format: str/dip/rak/frict (command line)'
+          write(*,*)
+     1 '      NTRG=1 automatically'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
+     1 '-haf HAFFILE            Elastic half-space velocity and ',
+     2                             'density file'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Format: vp(m/s) vs(m/s) dens(kg/m^3)'
+          write(*,*)
+     1 '    If -haf option not specified, o92util defaults to:'
+          write(*,*)
+     1 '        vp = 6800 m/s; vs = 3926 m/s; dens = 2800 kg/m^3'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-xy (IN DEVELOPMENT, MIGHT NOT WORK!) Treat all ',
+     2                               'coordinates as ',
+     2                          'X-Y (km) instead of lon-lat'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    All input fault file and receiver location formats are the',
+     2      ' same,'
+          write(*,*)
+     1 '    except evlo, evla, stlo, and stla are treated ',
+     2      'as kilometers from origin'
+          write(*,*)
+     1 '    in Cartesian coordinates.'
+          write(*,*)
+     1 '    Simplifies problems where user is interested in cross-',
+     2      'sections.'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-disp DSPFILE           Displacement (E N Z)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla u_E(m) u_N(m) u_Z(m)'
-          write(STO,*)
+          write(*,*)
      1 '    Vertical displacement is positive up.'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-strain STRNFILE        Strain matrix (EE NN ZZ EN EZ NZ)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla e_EE e_NN e_ZZ e_EN e_EZ e_NZ'
-          write(STO,*)
-     1 '    The strain matrix is symmetric, so only it contains only ',
-     2       'six independent'
-          write(STO,*)
+          write(*,*)
+     1 '    The strain matrix is symmetric; the output contains ',
+     2       'the six independent'
+          write(*,*)
      1 '    components. Strains are unitless.'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-stress STRSFILE        Stress matrix (EE NN ZZ EN EZ NZ)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla s_EE(Pa) s_NN(Pa) s_ZZ(Pa) s_EN(Pa) ',
-     2                         's_EZ(Pa) s_NZ(Pa)}'
-          write(STO,*)
-     1 '    The stress matrix is symmetric, so only it contains only ',
-     2       'six independent'
-          write(STO,*)
+     2                         's_EZ(Pa) s_NZ(Pa)'
+          write(*,*)
+     1 '    The stress matrix is symmetric; the output contains',
+     2       'the six independent'
+          write(*,*)
      1 '    components. In an isotropic, elastic material (summation ',
      2                 'convention):'
-          write(STO,*)
+          write(*,*)
      1 '        stress(i,j) = shear_mod*strain(i,j) + lambda*',
      2             'strain(i,i)*delta(i,j)'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-normal NORMFILE        Normal stress (',
-     2                                     'resolved on TRGFILE faults)'
+     2                                    'resolved on -trg kinematics)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla normal(Pa)'
-          write(STO,*)
+          write(*,*)
      1 '    The convention here is positive = dilation, negative = ',
      2                                    'compression.'
-          write(STO,*)
+          write(*,*)
+     1 '    This differs from many geological applications, where ',
+     2          'greater normal'
+          write(*,*)
+     1 '    stress is compressive.'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-shear SHEARFILE        Shear stress (',
-     2                                     'resolved on TRGFILE faults)'
+     2                                  'resolved on -trg kinematics)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla shear(Pa)'
-          write(STO,*)
+          write(*,*)
      1 '    The reported shear stress is the projection of the shear ',
      2                      'traction'
-          write(STO,*)
-     1 '    on the rake vector.'
-          write(STO,*)
+          write(*,*)
+     1 '    onto the rake vector of the target fault.'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-coul COULFILE          Coulomb stress (',
-     2                                     'resolved on TRGFILE faults)'
+     2                                   'resolved on -trg kinematics)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla coulomb(Pa)'
-          write(STO,*)
+          write(*,*)
      1 '    coulomb = shear + frict*normal'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-autodisp               Determine receiver grid, compute ',
      2                          'displacements'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*) '    Compute displacements on depth slice'
+          write(*,*)
      1 '    Determines maximum extent of receiver grid to W, E, S, N, ',
      2      'then writes'
-          write(STO,*)
+          write(*,*)
      1 '    grid to STAFILE (if unspecified, default to autosta.dat). ',
      2      'Maximum distance'
-          write(STO,*)
+          write(*,*)
      1 '    in each direction is 750 km from hypocenter, i.e. 1500km ',
      2             'x 1500km.'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
+      write(*,*)
      1 '-autocoul OPT           Determine receiver grid, compute ',
      2                         'Coulomb stresses'
-      write(STO,*)
+      write(*,*)
      1 '                          OPT=1: Create a receiver grid at ',
      2                                         'fixed depth'
-      write(STO,*)
-     1 '                          OPT=2: Create a receiver grid on ',
+      write(*,*)
+     1 '                          OPT=2: (IN DEVELOPMENT, DOES NOT ',
+     2                            'WORK!)'
+      write(*,*)
+     1 '                            Create a receiver grid on ',
      2                                    'finite fault (requires -ffm)'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*) '    OPT=1: Compute Coulomb stress on depth slice'
+          write(*,*)
      1 '    Determines maximum extent of receiver grid to W, E, S, N, ',
      2      'then writes'
-          write(STO,*)
+          write(*,*)
      1 '    grid to STAFILE (if unspecified, default to autosta.dat). ',
      2      'Maximum distance'
-          write(STO,*)
+          write(*,*)
      1 '    in each direction is 750 km from hypocenter, i.e. 1500km ',
      2             'x 1500km.'
-          write(STO,*)
-     1 '    TYPE="map": Compute Coulomb stress along depth slice'
-          write(STO,*)
-     1 '    TYPE="fault": Compute Coulomb stress along fault geometry ',
-     2                           '(requires -ffm)'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
-     1 '-incr INCR              Change grid spacing for -auto options'
-      write(STO,*)
+      write(*,*)
+     1 '-incr INCR              Change grid spacing for -auto options ',
+     2                               '(default: 0.1)'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-dep DEPTH              Change receiver depth for -auto ',
-     2                          'options (def: 0.0 km)'
-      write(STO,*)
+     2                          'options (default: 0.0 km)'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-gmt GMTFILE            Fault file for use with "psxy -SJ ',
      2                                   '-C<cptfile>"'
       if (str.eq.'long') then
-          write(STO,*)
-          write(STO,*)
+          write(*,*)
+          write(*,*)
      1 '    Format: stlo stla slip(m) str hor_len(km) hor_wid(km)'
-          write(STO,*)
+          write(*,*)
      1 '    The horizontal length is the along-strike length ',
      2      'from the fault'
-          write(STO,*)
+          write(*,*)
      1 '    definition. The horizontal width is the along-dip ',
      2      'width times cos(dip).'
-          write(STO,*)
+          write(*,*)
+          write(*,9999)
+          write(*,*)
       endif
-      write(STO,*)
-     1 '-h/-help                Short online help'
-      write(STO,*)
-     1 '-d/-details             Long online help'
-      write(STO,*)
-c      write(STO,*)
+      write(*,*)
+     1 '-h|-help                Short online help'
+      write(*,*)
+     1 '-d|-details             Long online help, show file formats ',
+     2                                    'and units'
+      write(*,*)
+ 9998 format('=======================================================',
+     1       '=========================')
+ 9999 format('-------------------------------------------------------',
+     1       '-------------------------')
+c      write(*,*)
 c     1 '123456789012345678901234567890123456789012345678901234567890',
 c     2 '12345678901234567890'
       STOP
       END
 
-      
+
       SUBROUTINE dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
      1                     trgfile,dspfile,stnfile,stsfile,norfile,
      2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
