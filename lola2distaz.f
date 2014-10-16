@@ -3,20 +3,35 @@
       IMPLICIT none
       REAL*8 pi,r2d,radius
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi,radius=6371.0d0)
-      REAL*8 lon1,lat1,lon2,lat2,dist,az
+      REAL*8 lon1,lat1,lon2,lat2,dist,az,cmdin(4)
       CHARACTER*30 ifile,ofile
-      INTEGER user,p
+      INTEGER c,p
+      LOGICAL ex
       
-      call gcmdln(ifile,ofile,user,p)
+      call gcmdln(ifile,ofile,c,cmdin,p)
+      if (c.eq.1) goto 103
+      if (ifile.eq.'none') then
+          write(*,*) '!! Error: Input lon1 lat1 lon2 lat2 file ',
+     1               'unspecified'
+          call usage('!! Use -f IFILE to specify input file')
+      else
+          inquire(file=ifile,EXIST=ex)
+          if (.not.ex) call usage('!! Error: no input file: '//ifile)
+      endif
+      if (ofile.eq.'none'.and.p.eq.0) then
+          write(*,*) '!! Error: No output file specified'
+          call usage('!! Use -o OFILE to specify dist az output file')
+      endif
 
-      if (user.eq.1) then
-          print *,'Enter lon1 lat1 lon2 lat2:'
-          read *,lon1,lat1,lon2,lat2
+  103 if (c.eq.1) then
+          lon1 = cmdin(1)
+          lat1 = cmdin(2)
+          lon2 = cmdin(3)
+          lat2 = cmdin(4)
           call ddistaz(dist,az,lon1,lat1,lon2,lat2)
           dist = dist*radius
           az = az*r2d
-          write (*,8888) dist
-          write (*,8889) az
+          write (*,8889) dist,az
       else
           open (unit=11,file=ifile,status='old')
           open (unit=12,file=ofile,status='unknown')
@@ -33,31 +48,27 @@
   102     continue
       endif
 
- 8888 format('Distance =',F14.6,' km')
- 8889 format('Azimuth  =',F14.6,' degrees')
- 9999 format(2F14.6)
+ 8889 format(2F18.6)
+ 9999 format(2F18.6)
 
       END
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(ifile,ofile,user,p)
-      
+      SUBROUTINE gcmdln(ifile,ofile,c,cmdin,p)
       IMPLICIT NONE
       CHARACTER*30 ifile,ofile,tag
-      INTEGER i,narg,user,p
-      
-      user = 0
+      INTEGER i,narg,c,p
+      REAL*8 cmdin(4)
+      ifile = 'none'
+      ofile = 'none'
+      c = 0
       p = 0
-      ifile = 'lola2distaz.in'
-      ofile = 'lola2distaz.out'
-      
       narg = iargc()
-      if (narg.eq.0) call usage()
-
+      if (narg.eq.0) call usage('!! Error: no command line arguments')
       i = 0
- 9998 i = i + 1
-      if (i.gt.narg) goto 9999
+  901 i = i + 1
+      if (i.gt.narg) goto 902
           call getarg(i,tag)
           if (tag(1:2).eq.'-f') then
               i = i + 1
@@ -65,60 +76,56 @@ C======================================================================C
           elseif (tag(1:2).eq.'-o') then
               i = i + 1
               call getarg(i,ofile)
-          elseif (tag(1:2).eq.'-d') then
-              write(*,*) 'Running with default file names'
-          elseif (tag(1:2).eq.'-u') then
-              user = 1
+          elseif (tag(1:2).eq.'-c') then
+              c = 1
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F12.0)') cmdin(1)
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F12.0)') cmdin(2)
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F12.0)') cmdin(3)
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F12.0)') cmdin(4)
           elseif (tag(1:2).eq.'-p') then
               p = 1
-          elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-              call usage()
+          elseif (tag(1:2).eq.'-h') then
+              call usage(' ')
           endif
-          goto 9998
- 9999 continue
-
+          goto 901
+  902 continue
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE usage()
+      SUBROUTINE usage(str)
       IMPLICIT none
-
+      INTEGER lstr
+      CHARACTER str*(*)
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(*,*) str(1:lstr)
+          write(*,*)
+      endif
       write(*,*)
-     1 'Usage: lola2distaz -f [IFILE] -o [OFILE] -d -p -u -h/-?'
+     1 'Usage: lola2distaz -f IFILE -o OFILE [-c LON1 LAT1 LON2 LAT2] ',
+     2         '[-p] [-h]'
       write(*,*)
-     1 '  -f [IFILE] (Default lola2distaz.in) name of input file'
       write(*,*)
-     1 '  -o [OFILE] (Default lola2distaz.out) name of output file'
+     1 '-f IFILE               Input file: lon1 lat1 lon2 lat2'
       write(*,*)
-     1 '  -d         Run with default file names'
+     1 '-o OFILE               Output file: dist(km) az(deg)'
       write(*,*)
-     1 '  -p         Print to standard out instead of file'
-      write (*,*)
-     1 '  -u         Prompt user to enter information through standard'
-      write (*,*)
-     1 '                 input for single calculation'
-      write (*,*)
-     1 '  -h/-?      Online help (this screen)'
-      write (*,*) ''
-      write (*,*)
-     1 '  lola2distaz calculates distance (in km) and azimuth (in ',
-     2    'degrees) from coordinate pairs'
-      write (*,*) ''
-      write (*,*)
-     1 '    Input file'
-      write (*,*)
-     1 '        lon1 lat1 lon2 lat2'
-      write (*,*)
-     1 '         :       :'
-      write (*,*)
-     1 '    Output file'
-      write (*,*)
-     1 '        dist(km) az(deg) (from coordinate 1 to 2)'
-      write (*,*)
-     1 '         :       :'
-      write (*,*) ''
-
+     1 '-c LON1 LAT1 LON2 LAT2 Compute DIST AZ, ',
+     2                           'print to standard output'
+      write(*,*)
+     1 '-p                     Print to standard output (overrides -o)'
+      write(*,*)
+     1 '-h                     Online help (this screen)'
+      write(*,*)
       STOP
       END
