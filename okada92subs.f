@@ -338,8 +338,8 @@ C----
 C----
 C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
 C----
-      ksi(1) = x+len/2.0d0
-      ksi(2) = x-len/2.0d0
+      ksi(1) = x+len*0.5d0
+      ksi(2) = x-len*0.5d0
 C      ksi(1) = x
 C      ksi(2) = x-len
       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
@@ -351,8 +351,8 @@ C      ksi(2) = x-len
       p = y*cd + d*sd
       q = y*sd - d*cd
 
-      eta(1) = p+wid/2.0d0
-      eta(2) = p-wid/2.0d0
+      eta(1) = p+wid*0.5d0
+      eta(2) = p-wid*0.5d0
 C      eta(1) = p
 C      eta(2) = p-wid
       if (dabs(eta(1)).lt.eps) eta(1) = zro
@@ -500,8 +500,8 @@ C----
 C----
 C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
 C----
-      ksi(1) = x+len/2.0d0
-      ksi(2) = x-len/2.0d0
+      ksi(1) = x+len*0.5d0
+      ksi(2) = x-len*0.5d0
 C      ksi(1) = x
 C      ksi(2) = x-len
       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
@@ -513,8 +513,8 @@ C      ksi(2) = x-len
       p = y*cd + d*sd
       q = y*sd - d*cd
 
-      eta(1) = p+wid/2.0d0
-      eta(2) = p-wid/2.0d0
+      eta(1) = p+wid*0.5d0
+      eta(2) = p-wid*0.5d0
 C      eta(1) = p
 C      eta(2) = p-wid
       if (dabs(eta(1)).lt.eps) eta(1) = zro
@@ -620,9 +620,9 @@ c----
       strain(1,1) = uxx
       strain(2,2) = uyy
       strain(3,3) = uzz
-      strain(1,2) = (uxy+uyx)/2.0d0
-      strain(1,3) = (uxz+uzx)/2.0d0
-      strain(2,3) = (uyz+uzy)/2.0d0
+      strain(1,2) = (uxy+uyx)*0.5d0
+      strain(1,3) = (uxz+uzx)*0.5d0
+      strain(2,3) = (uyz+uzy)*0.5d0
       strain(2,1) = strain(1,2)
       strain(3,1) = strain(1,3)
       strain(3,2) = strain(2,3)
@@ -1434,11 +1434,11 @@ C----
       COMMON /TAG/ thru
 
       if (thru.eq.0) then
-      f(1,1) = TH/2.0d0    + CA2*ksi*q*Y11
+      f(1,1) = TH*0.5d0    + CA2*ksi*q*Y11
       f(2,1) =               CA2*q/R
       f(3,1) = CA1*logRe   - CA2*q*q*Y11
       f(4,1) =               CA2*q/R
-      f(5,1) = TH/2.0d0    + CA2*eta*q*X11
+      f(5,1) = TH*0.5d0    + CA2*eta*q*X11
       f(6,1) = CA1*logRk   - CA2*q*q*X11
 
       f(1,2) = -ksi*q*Y11 - TH - CB*I1*sd
@@ -1455,11 +1455,11 @@ C----
       f(5,3) = CC*ybar*X11 - a*cbar*eta*q*X32
       f(6,3) = -dbar*X11 - ksi*Y11*sd - a*cbar*(X11 - q*q*X32)
       else
-      f(1,1) = TH/2.0d0    + CA2*ksi*q*Y11
+      f(1,1) = TH*0.5d0    + CA2*ksi*q*Y11
       f(2,1) =               CA2*q/R
       f(3,1) = CA1*logRe   - CA2*q*q*Y11
       f(4,1) =               CA2*q/R
-      f(5,1) = TH/2.0d0    + CA2*eta*q*X11
+      f(5,1) = TH*0.5d0    + CA2*eta*q*X11
       f(6,1) = CA1*logRk   - CA2*q*q*X11
       endif
       RETURN
@@ -1492,7 +1492,7 @@ C----
       fx(2,1) =              - CA2*ksi*q/R3
       fx(3,1) =  CA1*ksi*Y11 + CA2*ksi*q*q*Y32
       fx(4,1) =              - CA2*ksi*q/R3
-      fx(5,1) = -q*Y11/2.0d0 - CA2*eta*q/R3
+      fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
       fx(6,1) =  CA1/R       + CA2*q*q/R3
 
       fx(1,2) =  ksi*ksi*q*Y32     - CB*J1*sd
@@ -1515,7 +1515,7 @@ C----
       fx(2,1) =              - CA2*ksi*q/R3
       fx(3,1) =  CA1*ksi*Y11 + CA2*ksi*q*q*Y32
       fx(4,1) =              - CA2*ksi*q/R3
-      fx(5,1) = -q*Y11/2.0d0 - CA2*eta*q/R3
+      fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
       fx(6,1) =  CA1/R       + CA2*q*q/R3
       endif
 
@@ -1547,11 +1547,11 @@ C----
       COMMON /TAG/ thru
 
       if (thru.eq.0) then
-      fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11/2.0d0 + CA2*ksi*F2
+      fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
       fy(2,1) =                                    CA2*E2
       fy(3,1) =  CA1*(cd/R+q*Y11*sd)         - CA2*q*F2
       fy(4,1) =                                    CA2*E2
-      fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd/2.0d0 + CA2*eta*G2
+      fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
       fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
 
       fy(1,2) = -ksi*F2 - dbar*X11     + CB*(ksi*Y11+J4)*sd
@@ -1574,11 +1574,11 @@ C----
       fy(6,3) =  ksi*P2*sd + ybar*dbar*X32
      1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
       else
-      fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11/2.0d0 + CA2*ksi*F2
+      fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
       fy(2,1) =                                    CA2*E2
       fy(3,1) =  CA1*(cd/R+q*Y11*sd)         - CA2*q*F2
       fy(4,1) =                                    CA2*E2
-      fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd/2.0d0 + CA2*eta*G2
+      fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
       fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
       endif
       RETURN
@@ -1611,11 +1611,11 @@ C----
       COMMON /TAG/ thru
 
       if (thru.eq.0) then
-      fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11/2.0d0 + CA2*ksi*F3
+      fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
       fz(2,1) =                                    CA2*E3
       fz(3,1) = -CA1*(sd/R-q*Y11*cd)         - CA2*q*F3
       fz(4,1) =                                    CA2*E3
-      fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd/2.0d0 + CA2*eta*G3
+      fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
       fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
 
       fz(1,2) = -ksi*F3 - ybar*X11     + CB*K1*sd
@@ -1638,11 +1638,11 @@ C----
       fz(6,3) = -ksi*P3*sd + X11 - dbar*dbar*X32
      1                     - a*cbar*((dbar-2.0*q*cd)*X32-dbar*q*q*X53)
       else
-      fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11/2.0d0 + CA2*ksi*F3
+      fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
       fz(2,1) =                                    CA2*E3
       fz(3,1) = -CA1*(sd/R-q*Y11*cd)         - CA2*q*F3
       fz(4,1) =                                    CA2*E3
-      fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd/2.0d0 + CA2*eta*G3
+      fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
       fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
       endif
 
