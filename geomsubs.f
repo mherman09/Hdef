@@ -124,7 +124,7 @@ C----
       if (a.ge.1.0d0) then
           dist = 0.0d0
       else
-          dist = 2.0d0*datan2(dsqrt(a),dsqrt(1.0-a))
+          dist = 2.0d0*datan2(dsqrt(a),dsqrt(1.0d0-a))
       endif
 C----
 C Spherical Law of Sines to get azimuth
@@ -167,7 +167,7 @@ c----------------------------------------------------------------------c
       PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az
 
-      dist = dist/6371.0d0
+      dist = dist/6371.0d0 ! input distance in km
       az = az*d2r
       lat1 = lat1*d2r
       lon1 = lon1*d2r
