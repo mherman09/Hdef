@@ -1,20 +1,23 @@
-      PROGRAM o92util
+      PROGRAM MAIN
 C----
 C Utility for computing displacements, strains, and stresses in an
 C elastic half-space resulting from rectangular shear dislocations.
+C
+C Okada, Y. (1992) Internal deformation due to shear and tensile faults
+C     in a half-space. BULLETIN OF THE SEISMOLOGICAL SOCIETY OF AMERICA
+C     vol. 82, no. 2, pp. 1018-1040.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
-     1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2             gmtfile
-      INTEGER flttyp,auto,xy
+      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
+     1             shrf,coulf,gmtf
+      INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,depth
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
-      INTEGER nsta,ntrg
       REAL*8 vp,vs,dens
+      INTEGER nsta,ntrg
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg        ! kvar definitions
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt   ! in gcmdln comments
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
@@ -23,24 +26,23 @@ C----
 C----
 C Parse command line
 C----
-      call gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
-     1            dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2            gmtfile,flttyp,auto,incr,depth,xy)
-C      call dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
-C     1                     trgfile,dspfile,stnfile,stsfile,norfile,
-C     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
+      call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
+     1            shrf,coulf,gmtf,flttyp,auto,incr,depth,xy,prog,long)
+      call dbggcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
+     2               shrf,coulf,gmtf,flttyp,auto,incr,depth,xy,prog,
+     3               long)
 
 C----
 C Check for input fault source files, and whether output is specified
 C----
-      call chksrc(ffmfile,fltfile,magfile)
+      call chksrc(ffmf,fltf,magf)
       call chkout()
 
 C----
 C Read input fault files
 C----
-      call readsrc(ffmfile,fltfile,magfile,nflt,evlo,evla,evdp,
-     1             str,dip,rak,dx,dy,slip,hylo,hyla)
+      call readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1             slip,hylo,hyla)
 
 C----
 C Check for auto flag
@@ -50,35 +52,35 @@ C           Use default half-space parameters
 C           Designed for only computing displacements, but could also
 c           use option like -coul COUFILE to compute stresses on grid
 C----
-      if (auto.eq.1) then
-          call autodispgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                      slip,hylo,hyla,nflt,incr,depth,dspfile,xy)
-      elseif (auto.eq.2) then
-          call autocoulgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                      slip,hylo,hyla,nflt,incr,depth,coufile,xy)
+C      if (auto.eq.1) then
+c          call autodispgrid(staf,evlo,evla,evdp,str,dip,rak,dx,dy,
+C     1                      slip,hylo,hyla,nflt,incr,depth,dspf,xy)
+C      elseif (auto.eq.2) then
+C          call autocoulgrid(staf,evlo,evla,evdp,str,dip,rak,dx,dy,
+C     1                      slip,hylo,hyla,nflt,incr,depth,coulf,xy)
 C      elseif (auto.eq.3) then
 C          call autocoulffm()
-      endif
+C      endif
 
 C----
 C Check for input receiver, half-space, and target parameter files
 C If resolving stresses, verify NTRG=1 or NTRG=NSTA
 C----
-      call chkstahaftrg(stafile,haffile,trgfile,nsta,ntrg)
-      call readhaffile(haffile,vp,vs,dens)
+      call chkhafstatrg(haff,staf,trgf,nsta,ntrg)
+      call readhaff(haff,vp,vs,dens)
 
 C----
 C Compute displacements, strains, and stresses
 C----
-      call calcdefm(stafile,trgfile,nsta,ntrg,nflt,evlo,evla,evdp,str,
-     1              dip,rak,dx,dy,slip,flttyp,vp,vs,dens,dspfile,
-     2              stnfile,stsfile,norfile,shrfile,coufile,xy)
+      call calcdefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,dip,rak,
+     1              dx,dy,slip,flttyp,vp,vs,dens,dspf,stnf,stsf,norf,
+     2              shrf,coulf,xy,prog,long)
 
 C----
 C Write fault input to GMT-compatible file
 C----
       if (kgmt.eq.1) then
-          call writegmt(gmtfile,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
+          call writegmt(gmtf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
      1                  slip)
       endif
 
@@ -86,43 +88,50 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE chksrc(ffmfile,fltfile,magfile)
+      SUBROUTINE chksrc(ffmf,fltf,magf)
 C----
 C Check (a) that fault source files were defined in gcmdln and (b) that
 C these fault files exist.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,fltfile,magfile
+      CHARACTER*40 ffmf,fltf,magf
       LOGICAL ex
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+
+C Verify input fault files were defined on command line
       if (kffm.eq.0.and.kflt.eq.0.and.kmag.eq.0) then
           write(*,*) '!! Error: No fault file specified'
           call usage('!! Use -ffm FFMFILE, -flt FLTFILE, or -mag '//
      1                  'MAGFILE')
       endif
+
+C Look for defined files in working directory
       if (kffm.eq.1) then
-          inquire(file=ffmfile,EXIST=ex)
+          inquire(file=ffmf,EXIST=ex)
           if (.not.ex) kffm = -1
       endif
       if (kflt.eq.1) then
-          inquire(file=fltfile,EXIST=ex)
+          inquire(file=fltf,EXIST=ex)
           if (.not.ex) kflt = -1
       endif
       if (kmag.eq.1) then
-          inquire(file=magfile,EXIST=ex)
+          inquire(file=magf,EXIST=ex)
           if (.not.ex) kmag = -1
       endif
+
+C Quit to usage if none of input is found. Warn (but do not quit) if
+C at least one input is found but another is not.
       if (kffm.ne.1.and.kflt.ne.1.and.kmag.ne.1) then
           write(*,*) '!! Error: No fault files found'
-          if (kffm.eq.-1) write(*,*) '!! Looked for FFMFILE: '//ffmfile
-          if (kflt.eq.-1) write(*,*) '!! Looked for FLTFILE: '//fltfile
-          if (kmag.eq.-1) write(*,*) '!! Looked for MAGFILE: '//magfile
+          if (kffm.eq.-1) write(*,*) '!! Looked for FFMFILE: '//ffmf
+          if (kflt.eq.-1) write(*,*) '!! Looked for FLTFILE: '//fltf
+          if (kmag.eq.-1) write(*,*) '!! Looked for MAGFILE: '//magf
           call usage('!! Check -ffm, -flt, and -mag arguments')
       else
-          if (kffm.eq.-1) write(*,*) '!! Warning: No FFMFILE: '//ffmfile
-          if (kflt.eq.-1) write(*,*) '!! Warning: No FLTFILE: '//fltfile
-          if (kmag.eq.-1) write(*,*) '!! Warning: No MAGFILE: '//magfile
+          if (kffm.eq.-1) write(*,*) '!! Warning: No FFMFILE: '//ffmf
+          if (kflt.eq.-1) write(*,*) '!! Warning: No FLTFILE: '//fltf
+          if (kmag.eq.-1) write(*,*) '!! Warning: No MAGFILE: '//magf
       endif
       RETURN
       END
@@ -146,16 +155,16 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE chkstahaftrg(stafile,haffile,trgfile,nsta,ntrg)
+      SUBROUTINE chkhafstatrg(haff,staf,trgf,nsta,ntrg)
 C----
 C Check (a) that station and half-space files were defined in gcmdln,
 C and (b) verify that they exist. Count NSTA. If HAFFILE is not
-C specified or does not exist, use default values with autohalfspace.
+C specified or does not exist, use default values with autohaf.
 C If resolving stress on faults, check for target parameter file and
 C verify that NTRG=1 or NTRG=NSTA.
 C----
       IMPLICIT NONE
-      CHARACTER*40 stafile,haffile,trgfile
+      CHARACTER*40 haff,staf,trgf
       LOGICAL ex
       INTEGER nsta,ntrg,ptr,i
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
@@ -166,20 +175,20 @@ C----
           write(*,*) '!! Error: No station file specified'
           call usage('!! Use -sta STAFILE or an -auto option')
       elseif (ksta.eq.1) then
-          inquire(file=stafile,EXIST=ex)
+          inquire(file=staf,EXIST=ex)
           if (.not.ex) then
               write(*,*) '!! Error: No station file found'
-              call usage('!! Looked for STAFILE: '//stafile)
+              call usage('!! Looked for STAFILE: '//staf)
           endif
       endif
-      call linecount(stafile,nsta)
+      call linecount(staf,nsta)
       if (khaf.eq.0) then
 C          write(*,*) '!! Using default half-space parameters'
       elseif (khaf.eq.1) then
-          inquire(file=haffile,EXIST=ex)
+          inquire(file=haff,EXIST=ex)
           if (.not.ex) then
               write(*,*) '!! Warning: No half-space file found'
-              write(*,*) '!! Looked for HAFFILE: '//HAFFILE
+              write(*,*) '!! Looked for HAFFILE: '//haff
               write(*,*) '!! Using default half-space parameters'
               khaf = 0
           endif
@@ -192,16 +201,16 @@ C     Check for target parameter file if resolving stress on faults
      1                             'require target faults'
               call usage('!! Use -trg TRGFILE or -trg S/D/R/F')
           elseif (ktrg.eq.1) then
-              inquire(file=trgfile,EXIST=ex)
+              inquire(file=trgf,EXIST=ex)
               if (.not.ex) then
                   write(*,*) '!! Error: No target fault file found'
-                  call usage('!! Looked for TRGFILE: '//trgfile)
+                  call usage('!! Looked for TRGFILE: '//trgf)
               endif
-              call linecount(trgfile,ntrg)
+              call linecount(trgf,ntrg)
           elseif (ktrg.eq.2) then
               do 911 i = 1,3
-                  ptr = index(trgfile,'/')
-                  trgfile(ptr:ptr) = ' '
+                  ptr = index(trgf,'/')
+                  trgf(ptr:ptr) = ' '
   911         continue
               ntrg = 1
           endif
@@ -230,45 +239,14 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readhaffile(haffile,vp,vs,dens)
-C----
-C Read vp, vs, dens from half-space file, or use default values.
-C----
-      IMPLICIT NONE
-      CHARACTER*40 haffile
-      REAL*8 vp,vs,dens
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
-      if (khaf.eq.0) then
-          call autohalfspace(vp,vs,dens)
-      elseif (khaf.eq.1) then
-          open(unit=11,file=haffile,status='old')
-          read(11,*) vp,vs,dens
-      endif
-      RETURN
-      END
-
-C----------------------------------------------------------------------C
-
-      SUBROUTINE autohalfspace(vp,vs,dens)
-      IMPLICIT NONE
-      REAL*8 vp,vs,dens
-      vp = 6800.0d0
-      vs = 3926.0d0
-      dens = 2800.0d0
-      RETURN
-      END
-
-C----------------------------------------------------------------------C
-
-      SUBROUTINE readsrc(ffmfile,fltfile,magfile,nflt,evlo,evla,evdp,
+      SUBROUTINE readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,
      1                   str,dip,rak,dx,dy,slip,hylo,hyla)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,fltfile,magfile
+      CHARACTER*40 ffmf,fltf,magf
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -279,15 +257,15 @@ C----
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       nflt = 0
       if (kffm.eq.1) then
-          call readffm(ffmfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+          call readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 hylo,hyla,nflt)
       endif
       if (kflt.eq.1) then
-          call readflt(fltfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+          call readflt(fltf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 nflt)
       endif
       if (kmag.eq.1) then
-          call readmag(magfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+          call readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 nflt)
       endif
 C     If FFM not used, use unweighted mean coordinates as hylo and hyla
@@ -300,13 +278,13 @@ C     If FFM not used, use unweighted mean coordinates as hylo and hyla
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readffm(ffmfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+      SUBROUTINE readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                   hylo,hyla,nflt)
 C----
 C Read shear dislocations from FFM in standard subfault format.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,du,dxc,dyc
+      CHARACTER*40 ffmf,du,dxc,dyc
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -314,8 +292,10 @@ C----
       INTEGER g,nseg,ct,i,nx,ny,ptr
       REAL*8 dxr,dyr
       ct = nflt
-      open (unit=31,file=ffmfile,status='old')
+      open (unit=31,file=ffmf,status='old')
+C Header indicates number of fault segments
       read (31,*) du,du,du,du,nseg
+C For each segment, read header describing subfaults
       do 313 g = 1,nseg
           read (31,*) du,du,du,du,nx,du,dxc,du,ny,du,dyc
           ptr = index(dxc,'km')
@@ -330,6 +310,7 @@ C----
           do 311 i=1,7
               read (31,*) du
   311     continue
+C Read subfault data
           do 312 i = 1,nx*ny
               read (31,*) evla(ct+i),evlo(ct+i),evdp(ct+i),slip(ct+i),
      1                    rak(ct+i),str(ct+i),dip(ct+i)
@@ -347,19 +328,19 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readflt(fltfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+      SUBROUTINE readflt(fltf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                   nflt)
 C----
 C Read shear dislocations from fault file in format:
 C   evlo evla evdp(km) str dip rak slip(m) dip_wid(km) str_len(km)
 C----
       IMPLICIT NONE
-      CHARACTER*40 fltfile
+      CHARACTER*40 fltf
       INTEGER i,f,nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
-      open (unit=32,file=fltfile,status='old')
+      open (unit=32,file=fltf,status='old')
       f = 0
   321 f = f + 1
       i = nflt + f
@@ -377,22 +358,22 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readmag(magfile,evlo,evla,evdp,str,dip,rak,dx,dy,
+      SUBROUTINE readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,
      1                   slip,nflt)
 C----
 C Read shear dislocations from fault file in format:
 C   evlo evla evdp(km) str dip rak mag
 C----
       IMPLICIT NONE
-      CHARACTER*40 magfile
+      CHARACTER*40 magf
       INTEGER i,f,nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),mag
       REAL*8 wid,len,mu
       INTEGER typ
-      mu = 4.3d10 ! shear mod hard-coded, corresponds to autohalfspace params
-      open (unit=33,file=magfile,status='old')
+      mu = 4.3d10 ! shear mod hard-coded, corresponds to autohaf params
+      open (unit=33,file=magf,status='old')
       f = 0
   331 f = f + 1
       i = nflt + f
@@ -461,19 +442,48 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE calcdefm(stafile,trgfile,nsta,ntrg,nflt,evlo,evla,evdp,
-     1                    str,dip,rak,dx,dy,slip,flttyp,vp,vs,dens,
-     2                    dspfile,stnfile,stsfile,norfile,shrfile,
-     3                    coufile,xy)
+      SUBROUTINE readhaff(haff,vp,vs,dens)
+C----
+C Read vp, vs, dens from half-space file, or use default values.
+C----
+      IMPLICIT NONE
+      CHARACTER*40 haff
+      REAL*8 vp,vs,dens
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      if (khaf.eq.0) then
+          call autohaf(vp,vs,dens)
+      elseif (khaf.eq.1) then
+          open(unit=11,file=haff,status='old')
+          read(11,*) vp,vs,dens
+      endif
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE autohaf(vp,vs,dens)
+      IMPLICIT NONE
+      REAL*8 vp,vs,dens
+      vp = 6800.0d0
+      vs = 3926.0d0
+      dens = 2800.0d0
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE calcdefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,
+     1                    dip,rak,dx,dy,slip,flttyp,vp,vs,dens,dspf,
+     2                    stnf,stsf,norf,shrf,coulf,xy,prog,long)
 C----
 C Compute displacements, strains, and stresses from shear dislocations.
 C----
       IMPLICIT NONE
-      CHARACTER*40 stafile,trgfile,dspfile,stnfile,stsfile,norfile,
-     4             shrfile,coufile
+      CHARACTER*40 staf,trgf,dspf,stnf,stsf,norf,shrf,coulf
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
-      INTEGER nflt,FMAX,flttyp,xy
+      INTEGER nflt,FMAX,flttyp,xy,prog,long
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
@@ -483,34 +493,40 @@ C----
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C     Open files specified for output
-      if (kdsp.eq.1) open(unit=21,file=dspfile,status='unknown')
-      if (kstn.eq.1) open(unit=22,file=stnfile,status='unknown')
-      if (ksts.eq.1) open(unit=23,file=stsfile,status='unknown')
-      if (knor.eq.1) open(unit=24,file=norfile,status='unknown')
-      if (kshr.eq.1) open(unit=25,file=shrfile,status='unknown')
-      if (kcou.eq.1) open(unit=26,file=coufile,status='unknown')
+      if (kdsp.eq.1) open(unit=21,file=dspf,status='unknown')
+      if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
+      if (ksts.eq.1) open(unit=23,file=stsf,status='unknown')
+      if (knor.eq.1) open(unit=24,file=norf,status='unknown')
+      if (kshr.eq.1) open(unit=25,file=shrf,status='unknown')
+      if (kcou.eq.1) open(unit=26,file=coulf,status='unknown')
 C     Initialize progress indicator
-      i = 0
-      progout = 0
-      call progbar(i,nsta,progout)
+      if (prog.eq.1) then
+          i = 0
+          progout = 0
+          call progbar(i,nsta,progout)
+      endif
 C     If NTRG=1, read target fault parameters here
-      if (ktrg.eq.2) read(trgfile,*) trgstr,trgdip,trgrak,frict
-      if (ktrg.eq.1) open(unit=13,file=trgfile,status='old')
+      if (ktrg.eq.2) read(trgf,*) trgstr,trgdip,trgrak,frict
+      if (ktrg.eq.1) open(unit=13,file=trgf,status='old')
       if (ntrg.eq.1.and.ktrg.eq.1) read(13,*) trgstr,trgdip,trgrak,frict
 C     Compute deformation for each receiver location
-      open(unit=12,file=stafile,status='old')
+      open(unit=12,file=staf,status='old')
       do 201 i = 1,nsta
           read(12,*) stlo,stla,stdp
           stdp = stdp*1.0d3
+C         If NTRG=1, read target fault parameters here
           if (ntrg.eq.nsta.and.ktrg.eq.1.and.nsta.ne.1) then
               read(13,*) trgstr,trgdip,trgrak,frict
           endif
 C         Compute displacements
           if (kdsp.eq.1) then
-              call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,
-     1                      evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     2                      vp,vs,dens,flttyp,xy)
-              write(21,9990) stlo,stla,uE,uN,uZ
+              call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,evlo,evla,evdp,
+     1                      str,dip,rak,dx,dy,slip,vp,vs,dens,flttyp,xy)
+              if (long.eq.0) then
+                  write(21,9990) stlo,stla,uE,uN,uZ
+              else
+                  write(21,9993) stlo,stla,uE,uN,uZ
+              endif
           endif
 C         Compute (3x3) strain matrix
           if (kstn.ge.1) then
@@ -547,11 +563,14 @@ C         Resolve stresses onto target fault planes
               endif
           endif
 C         Update progress indicator
-          call progbar(i,nsta,progout)
+          if (prog.eq.1) then
+              call progbar(i,nsta,progout)
+          endif
   201 continue
  9990 format(2F12.4,X,3F12.4)
  9991 format(2F12.4,X,6E16.6)
  9992 format(2F12.4,X,1E16.6)
+ 9993 format(2F12.4,X,3F16.8)
       RETURN
       END
 
@@ -606,6 +625,7 @@ C----
           endif
           x = dist*( dcos(az-d2r*str(f)))
           y = dist*(-dsin(az-d2r*str(f)))
+          print *,x,y
           if (flttyp.eq.0) then
               area = dx(f)*dy(f)
               call o92pt(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
@@ -771,8 +791,7 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE coulomb(coul,norml,shear,stress,strin,dipin,rakin,
-     1                   coeffr)
+      SUBROUTINE coulomb(coul,norml,shear,stress,strin,dipin,rakin,frc)
 C----
 C Calculate normal, shear, and Coulomb stresses resolved onto a plane
 C (given strike, dip, and rake of the plane) from the (3x3) stress
@@ -781,7 +800,7 @@ C----
       IMPLICIT NONE
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
-      REAL*8 coul,norml,shear,stress(3,3),coeffr
+      REAL*8 coul,norml,shear,stress(3,3),frc
       REAL*8 strin,dipin,rakin,str,dip,rak,n(3),trac(3),r(3),s(3)
       INTEGER i
       str = strin*d2r
@@ -806,63 +825,63 @@ C----
       s(2) = trac(2) - norml*n(2)
       s(3) = trac(3) - norml*n(3)
       shear = s(1)*r(1) + s(2)*r(2) + s(3)*r(3)
-      coul = shear + coeffr*norml
+      coul = shear + frc*norml
       RETURN
       END
 
-C----------------------------------------------------------------------C
+C >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C
+C EVERYTHING IN THIS SECTION IS FOR AUTOMATICALLY GENERATING AN INPUT
+C STATION FILE GIVEN FAULT INPUTS.
 
-      SUBROUTINE autodispgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                        slip,hylo,hyla,nflt,incr,depth,dspfile,xy)
+      SUBROUTINE autodispgrid(staf,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1                        slip,hylo,hyla,nflt,incr,depth,dspf,xy)
 C----
 C Automatically determine receiver grid for displacement computation,
 C write grid to STAFILE.
 C----
       IMPLICIT NONE
-      CHARACTER*40 stafile,dspfile
+      CHARACTER*40 staf,dspf
       INTEGER nflt,FMAX,xy
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,incr,depth
-      write(*,'(A)') ' Creating receiver grid in file: '//stafile
+      write(*,'(A)') ' Creating receiver grid in file: '//staf
       dmax = 750.0d0 ! km
       call getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
       call getautodisplims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
      1                     evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      2                     nflt,xy,depth)
-      call writestafile(stafile,W,E,S,N,incr,depth)
-      write(*,'(A)') ' Displacements written to file: '//dspfile
+      call writestaf(staf,W,E,S,N,incr,depth)
+      write(*,'(A)') ' Displacements written to file: '//dspf
       RETURN
       END
 
-C----------------------------------------------------------------------C
 c
-      SUBROUTINE autocoulgrid(stafile,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                        slip,hylo,hyla,nflt,incr,depth,coufile,xy)
+      SUBROUTINE autocoulgrid(staf,evlo,evla,evdp,str,dip,rak,dx,dy,
+     1                        slip,hylo,hyla,nflt,incr,depth,coulf,xy)
 C----
 C Automatically determine receiver grid for Coulomb stress computation,
 C write grid to COUFILE.
 C----
       IMPLICIT NONE
-      CHARACTER*40 stafile,coufile
+      CHARACTER*40 staf,coulf
       INTEGER nflt,FMAX,xy
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,incr,depth
-      write(*,'(A)') ' Creating receiver grid in file: '//stafile
+      write(*,'(A)') ' Creating receiver grid in file: '//staf
       dmax = 750.0d0 ! km
       call getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
       call getautostnlims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
      1                    evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      2                    nflt,xy,depth)
-      call writestafile(stafile,W,E,S,N,incr,depth)
-      write(*,'(A)') ' Coulomb stress written to file: '//coufile
+      call writestaf(staf,W,E,S,N,incr,depth)
+      write(*,'(A)') ' Coulomb stress written to file: '//coulf
       RETURN
       END
 
-C----------------------------------------------------------------------C
 
       SUBROUTINE getmaxlims(WMAX,EMAX,SMAX,NMAX,hylo,hyla,dmax,xy)
       IMPLICIT NONE
@@ -891,7 +910,6 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
 
       SUBROUTINE getautodisplims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
      1                           evlo,evla,evdp,str,dip,rak,dx,dy,slip,
@@ -925,7 +943,7 @@ C----
       thr(2) = 0.01d0
       thr(3) = 0.001d0
       flttyp = 1
-      call autohalfspace(vp,vs,dens)
+      call autohaf(vp,vs,dens)
       stdp = depth
       do 903 dir = 1,4
           lo = hylo
@@ -978,7 +996,6 @@ C             Calculate displacement and compare to current threshold
       RETURN
       END
 
-C----------------------------------------------------------------------C
 
       SUBROUTINE getautostnlims(W,E,S,N,WMAX,EMAX,SMAX,NMAX,hylo,hyla,
      1                          evlo,evla,evdp,str,dip,rak,dx,dy,slip,
@@ -1012,7 +1029,7 @@ C----
       thr(2) = 5.0d-8
       thr(3) = 1.0d-8
       flttyp = 1
-      call autohalfspace(vp,vs,dens)
+      call autohaf(vp,vs,dens)
       stdp = depth
       do 913 dir = 1,4
           lo = hylo
@@ -1067,18 +1084,17 @@ C             Calculate strain and compare to current threshold
       RETURN
       END
 
-C----------------------------------------------------------------------C
 
-      SUBROUTINE writestafile(stafile,W,E,S,N,incr,depth)
+      SUBROUTINE writestaf(staf,W,E,S,N,incr,depth)
 C----
 C Write receiver grid to STAFILE.
 C----
       IMPLICIT NONE
-      CHARACTER*40 stafile
+      CHARACTER*40 staf
       REAL*8 W,E,S,N,incr,lat,lon,stdp,depth
       INTEGER i,j
       stdp = depth
-      open(unit=95,file=stafile,status='unknown')
+      open(unit=95,file=staf,status='unknown')
       i = 0
       lon = W
   951 if (lon.gt.E) goto 954
@@ -1117,9 +1133,9 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
+C >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C
 
-      SUBROUTINE writegmt(gmtfile,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
+      SUBROUTINE writegmt(gmtf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
      1                    slip)
 C----
 C Write shear dislocations into format for use with psxy -SJ -C<cptfile>
@@ -1127,14 +1143,14 @@ C----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/180.0d0)
-      CHARACTER*40 gmtfile
+      CHARACTER*40 gmtf
       INTEGER i,nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),wid,len
       rak(1) = rak(1)
       evdp(1) = evdp(1)
-      open(unit=51,file=gmtfile,status='unknown')
+      open(unit=51,file=gmtf,status='unknown')
       do 511 i = 1,nflt
           len = dx(i)*1.0d-3
           wid = dcos(dip(i)*d2r)*dy(i)*1.0d-3
@@ -1146,49 +1162,52 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ffmfile,fltfile,magfile,stafile,haffile,trgfile,
-     1                  dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2                  gmtfile,flttyp,auto,incr,depth,xy)
+      SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,
+     1                  dspf,stnf,stsf,norf,shrf,coulf,
+     2                  gmtf,flttyp,auto,incr,depth,xy,prog,long)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr
-      CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
-     1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2             gmtfile
-      INTEGER flttyp,auto,xy
+      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,
+     1             dspf,stnf,stsf,norf,shrf,coulf,
+     2             gmtf
+      INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,depth
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      ffmfile = 'none'
-      fltfile = 'none'
-      magfile = 'none'
-      stafile = 'none'
-      haffile = 'none'
-      trgfile = 'none'
-      dspfile = 'none'
-      stnfile = 'none'
-      stsfile = 'none'
-      norfile = 'none'
-      shrfile = 'none'
-      coufile = 'none'
-      gmtfile = 'none'
+C Initialize variables
+      ffmf = 'none'
+      fltf = 'none'
+      magf = 'none'
+      staf = 'none'
+      haff = 'none'
+      trgf = 'none'
+      dspf = 'none'
+      stnf = 'none'
+      stsf = 'none'
+      norf = 'none'
+      shrf = 'none'
+      coulf = 'none'
+      gmtf = 'none'
       flttyp = 1
       auto = 0
       xy = 0
+      prog = 0
       incr = 0.1d0
       depth = 0.0d0
-C     Input file status indicators (ICHECK block variables)
-C     0=unspecified; 1=specified; -1=specified, but file not found
+      long = 0
+C Input file status indicators (ICHECK block)
+C 0=unspecified; 1=specified; -1=specified, but file not found
       kffm = 0
       kflt = 0
       kmag = 0
       ksta = 0
       khaf = 0
       ktrg = 0
-C     Output file status indicators (OCHECK block variables)
-C     0=unused; 1=output value; 2=use value, do not output
+C Output file status indicators (OCHECK block variables)
+C 0=unused; 1=output value; 2=use value, do not output
       kdsp = 0
       kstn = 0
       ksts = 0
@@ -1196,6 +1215,7 @@ C     0=unused; 1=output value; 2=use value, do not output
       kshr = 0
       kcou = 0
       kgmt = 0
+C Parse command line
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: No command line arguments '//
      1                                     'specified')
@@ -1206,77 +1226,83 @@ C     0=unused; 1=output value; 2=use value, do not output
           if (tag(1:4).eq.'-ffm') then
               kffm = 1
               i = i + 1
-              call getarg(i,ffmfile)
+              call getarg(i,ffmf)
           elseif (tag(1:4).eq.'-flt') then
               kflt = 1
               i = i + 1
-              call getarg(i,fltfile)
+              call getarg(i,fltf)
           elseif (tag(1:4).eq.'-mag') then
               kmag = 1
               i = i + 1
-              call getarg(i,magfile)
+              call getarg(i,magf)
           elseif (tag(1:3).eq.'-fn') then
               flttyp = 1
           elseif (tag(1:3).eq.'-pt') then
               flttyp = 0
           elseif (tag(1:3).eq.'-xy') then
               xy = 1
+          elseif (tag(1:5).eq.'-prog') then
+              prog = 1
           elseif (tag(1:4).eq.'-sta') then
               ksta = 1
               i = i + 1
-              call getarg(i,stafile)
+              call getarg(i,staf)
           elseif (tag(1:4).eq.'-haf') then
               khaf = 1
               i = i + 1
-              call getarg(i,haffile)
+              call getarg(i,haff)
           elseif (tag(1:4).eq.'-trg') then
               ktrg = 1
               i = i + 1
-              call getarg(i,trgfile)
-              ptr = index(trgfile,'/') ! check format of argument
+              call getarg(i,trgf)
+              ptr = index(trgf,'/') ! check format of argument
               if (ptr.ne.0) then
                   ktrg = 2
               endif
           elseif (tag(1:5).eq.'-disp') then
               kdsp = 1
               i = i + 1
-              call getarg(i,dspfile)
+              call getarg(i,dspf)
           elseif (tag(1:7).eq.'-strain') then
               kstn = 1
               i = i + 1
-              call getarg(i,stnfile)
+              call getarg(i,stnf)
           elseif (tag(1:7).eq.'-stress') then
               if (kstn.eq.0) kstn = 2
               ksts = 1
               i = i + 1
-              call getarg(i,stsfile)
+              call getarg(i,stsf)
           elseif (tag(1:7).eq.'-normal') then
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
               knor = 1
               i = i + 1
-              call getarg(i,norfile)
+              call getarg(i,norf)
           elseif (tag(1:6).eq.'-shear') then
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
               kshr = 1
               i = i + 1
-              call getarg(i,shrfile)
+              call getarg(i,shrf)
           elseif (tag(1:5).eq.'-coul') then
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
               kcou = 1
               i = i + 1
-              call getarg(i,coufile)
+              call getarg(i,coulf)
+          elseif (tag(1:5).eq.'-long') then
+              long = 1
           elseif (tag(1:9).eq.'-autodisp') then
               auto = 1
-              if (ksta.eq.0) stafile = 'autosta.dat'
-              if (kdsp.eq.0) dspfile = 'autodisp.dat'
+              prog = 1
+              if (ksta.eq.0) staf = 'autosta.dat'
+              if (kdsp.eq.0) dspf = 'autodisp.dat'
               ksta = 1
               kdsp = 1
           elseif (tag(1:9).eq.'-autocoul') then
-              if (ksta.eq.0) stafile = 'autosta.dat'
-              if (kcou.eq.0) coufile = 'autocoul.dat'
+              prog = 1
+              if (ksta.eq.0) staf = 'autosta.dat'
+              if (kcou.eq.0) coulf = 'autocoul.dat'
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
               ksta = 1
@@ -1300,7 +1326,7 @@ C     0=unused; 1=output value; 2=use value, do not output
           elseif (tag(1:4).eq.'-gmt') then
               kgmt = 1
               i = i + 1
-              call getarg(i,gmtfile)
+              call getarg(i,gmtf)
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usage(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
@@ -1327,20 +1353,21 @@ C----------------------------------------------------------------------C
       endif
   100 write(*,*)
      1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
-     2                        '[-fn|-pt]'
+     2                        '[-fn|-pt] [-haf HAFFILE]'
       write(*,*)
      1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
-     2                                      '[-haf HAFFILE] [-xy]'
+     2                                      '[-xy]'
       write(*,*)
      1 '               -disp DSPFILE -strain STNFILE -stress ',
      2                             'STSFILE '
       write(*,*)
-     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
+     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE',
+     2                                       ' [-long]'
       write(*,*)
      1 '               -autodisp -autocoul OPT [-incr INCR] ',
      2                              '[-dep DEPTH]'
       write(*,*)
-     2 '               [-gmt GMTFILE] [-h|-help] ',
+     2 '               [-gmt GMTFILE] [-prog] [-h|-help] ',
      2                                     '[-d|-details]'
       write(*,*)
       if (str.eq.'long') then
@@ -1365,10 +1392,12 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    Example of subfault format can be seen at:'
           write(*,*)
-     2 '    http://comcat.cr.usgs.gov/product/finite-fault/usc000nzvd/',
+     1 '    http://comcat.cr.usgs.gov/product/finite-fault/usc000nzvd/',
      2      'us/1397258114263/'
           write(*,*)
-     2 '        web/static2_out'
+     1 '        web/static2_out'
+          write(*,*)
+     1 '     NB: o92util assumes FFM displacements are in centimeters'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -1416,6 +1445,27 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
+     1 '-haf HAFFILE            Elastic half-space velocity and ',
+     2                             'density file'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Format: vp(m/s) vs(m/s) dens(kg/m^3)'
+          write(*,*)
+     1 '    Lame parameters computed from vp, vs, and density:'
+          write(*,*)
+     1 '        mu = vs*vs*dens'
+          write(*,*)
+     1 '        lamda = vp*vp*dens - 2*mu'
+          write(*,*)
+     1 '    If -haf option not specified, o92util defaults to:'
+          write(*,*)
+     1 '        vp = 6800 m/s; vs = 3926 m/s; dens = 2800 kg/m^3'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-sta STAFILE            Receiver location file'
       if (str.eq.'long') then
           write(*,*)
@@ -1450,37 +1500,20 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-haf HAFFILE            Elastic half-space velocity and ',
-     2                             'density file'
-      if (str.eq.'long') then
-          write(*,*)
-          write(*,*)
-     1 '    Format: vp(m/s) vs(m/s) dens(kg/m^3)'
-          write(*,*)
-     1 '    If -haf option not specified, o92util defaults to:'
-          write(*,*)
-     1 '        vp = 6800 m/s; vs = 3926 m/s; dens = 2800 kg/m^3'
-          write(*,*)
-          write(*,9999)
-          write(*,*)
-      endif
-      write(*,*)
-     1 '-xy (IN DEVELOPMENT, MIGHT NOT WORK!) Treat all ',
+     1 '-xy                     Treat geographic ',
      2                               'coordinates as ',
-     2                          'X-Y (km) instead of lon-lat'
+     2                          'Cartesian x-y (km)'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
-     1 '    All input fault file and receiver location formats are the',
-     2      ' same,'
+     1 '    Geographic coordinates evlo, evla, stlo, and stla are ',
+     2      'converted to x-y (in km)'
           write(*,*)
-     1 '    except evlo, evla, stlo, and stla are treated ',
-     2      'as kilometers from origin'
+     1 '    evlo -> evx; evla -> evy; stlo -> stx; stla -> sty'
           write(*,*)
-     1 '    in Cartesian coordinates.'
+     1 '    All other input formats and units are unchanged'
           write(*,*)
-     1 '    Simplifies problems where user is interested in cross-',
-     2      'sections.'
+     1 '    NB: strike angle still defined from N=y-direction'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -1520,7 +1553,7 @@ C----------------------------------------------------------------------C
      1 '    Format: stlo stla s_EE(Pa) s_NN(Pa) s_ZZ(Pa) s_EN(Pa) ',
      2                         's_EZ(Pa) s_NZ(Pa)'
           write(*,*)
-     1 '    The stress matrix is symmetric; the output contains',
+     1 '    The stress matrix is symmetric; the output contains ',
      2       'the six independent'
           write(*,*)
      1 '    components. In an isotropic, elastic material (summation ',
@@ -1534,7 +1567,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-normal NORMFILE        Normal stress (',
-     2                                    'resolved on -trg kinematics)'
+     2                              'requires target fault kinematics)'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
@@ -1544,7 +1577,7 @@ C----------------------------------------------------------------------C
      2                                    'compression.'
           write(*,*)
      1 '    This differs from many geological applications, where ',
-     2          'greater normal'
+     2          'positive normal'
           write(*,*)
      1 '    stress is compressive.'
           write(*,*)
@@ -1553,7 +1586,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-shear SHEARFILE        Shear stress (',
-     2                                  'resolved on -trg kinematics)'
+     2                               'requires target fault kinematics)'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
@@ -1569,13 +1602,56 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-coul COULFILE          Coulomb stress (',
-     2                                   'resolved on -trg kinematics)'
+     2                            'requires target fault kinematics)' 
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
      1 '    Format: stlo stla coulomb(Pa)'
           write(*,*)
      1 '    coulomb = shear + frict*normal'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-long                   Increase displacement output precision'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Default format: (F12.4)    Long format: (F16.8)'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-auto abc VALUE         Automatically compute displacements ',
+     2                             'or stresses'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    a=1: Displacement'
+          write(*,*)
+     1 '    a=2: Coulomb stress'
+          write(*,*)
+     1 '    b=1: Horizontal slice (will ignore c)'
+          write(*,*)
+     1 '    b=2: Vertical slice'
+          write(*,*)
+     1 '    c=1 (requires b=2): slice perpendicular to strike'
+          write(*,*)
+     1 '    c=2 (requires b=2): slice parallel to strike'
+          write(*,*)
+     1 '    If b=1, VALUE is depth (km) of the slice'
+          write(*,*)
+     1 '    If b=2, VALUE is the horizontal offset (km)'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-incr INCR              Change grid spacing for -auto options ',
+     2                               '(default: 0.1)'
+      if (str.eq.'long') then
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -1628,14 +1704,6 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-incr INCR              Change grid spacing for -auto options ',
-     2                               '(default: 0.1)'
-      if (str.eq.'long') then
-          write(*,*)
-          write(*,9999)
-          write(*,*)
-      endif
-      write(*,*)
      1 '-dep DEPTH              Change receiver depth for -auto ',
      2                          'options (default: 0.0 km)'
       if (str.eq.'long') then
@@ -1661,6 +1729,13 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
+     1 '-prog                   Display a progress indicator'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-h|-help                Short online help'
       write(*,*)
      1 '-d|-details             Long online help, show file formats ',
@@ -1677,36 +1752,40 @@ c     2 '12345678901234567890'
       END
 
 
-      SUBROUTINE dbggcmdln(ffmfile,fltfile,magfile,stafile,haffile,
-     1                     trgfile,dspfile,stnfile,stsfile,norfile,
-     2                     shrfile,coufile,gmtfile,flttyp,auto,incr)
+      SUBROUTINE dbggcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
+     1                     norf,shrf,coulf,gmtf,flttyp,auto,incr,depth,
+     2                     xy,prog,long)
       IMPLICIT none
-      CHARACTER*40 ffmfile,fltfile,magfile,stafile,haffile,trgfile,
-     1             dspfile,stnfile,stsfile,norfile,shrfile,coufile,
-     2             gmtfile
-      INTEGER flttyp,auto
-      REAL*8 incr
+      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,
+     1             dspf,stnf,stsf,norf,shrf,coulf,
+     2             gmtf
+      INTEGER flttyp,auto,xy,prog,long
+      REAL*8 incr,depth
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       print *,'DEBUGGING SUBROUTINE GCMDLN'
       print *,'---------------------------'
-      print *,'KFFM',kffm,ffmfile
-      print *,'KFLT',kflt,fltfile
-      print *,'KMAG',kmag,magfile
-      print *,'KSTA',ksta,stafile
-      print *,'KHAF',khaf,haffile
-      print *,'KTRG',ktrg,trgfile
-      print *,'KDSP',kdsp,dspfile
-      print *,'KSTN',kstn,stnfile
-      print *,'KSTS',ksts,stsfile
-      print *,'KNOR',knor,norfile
-      print *,'KSHR',kshr,shrfile
-      print *,'KCOU',kcou,coufile
-      print *,'KGMT',kgmt,gmtfile
+      print *,'KFFM',kffm,ffmf
+      print *,'KFLT',kflt,fltf
+      print *,'KMAG',kmag,magf
+      print *,'KSTA',ksta,staf
+      print *,'KHAF',khaf,haff
+      print *,'KTRG',ktrg,trgf
+      print *,'KDSP',kdsp,dspf
+      print *,'KSTN',kstn,stnf
+      print *,'KSTS',ksts,stsf
+      print *,'KNOR',knor,norf
+      print *,'KSHR',kshr,shrf
+      print *,'KCOU',kcou,coulf
+      print *,'KGMT',kgmt,gmtf
       print *,'FLTTYP',flttyp
       print *,'AUTO',auto
       print *,'INCR',incr
+      print *,'DEP',depth
+      print *,'XY?',xy
+      print *,'PROG',prog
+      print *,'LONG',long
       RETURN
       END
