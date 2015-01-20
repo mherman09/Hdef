@@ -369,6 +369,7 @@ C----
 C----
 C Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2) 
 C----
+      fac = one
       do 308 ii = 1,2
       do 307 jj = 1,2
           if (ii.eq.1.and.jj.eq.1) fac =  one
@@ -531,6 +532,7 @@ C----
 C----
 C Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2) 
 C----
+      fac = one
       do 408 ii = 1,2
       do 407 jj = 1,2
           if (ii.eq.1.and.jj.eq.1) fac =  one
@@ -1581,6 +1583,7 @@ C----
       fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
       fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
       endif
+      z=z
       RETURN
       END
 
@@ -1645,6 +1648,7 @@ C----
       fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
       fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
       endif
+      z=z
 
       RETURN
       END
@@ -1694,9 +1698,10 @@ C----
       ee(1) = 0
       ee(2) = 0
       
-      if (q.eq.0.0d0 .and.
-     1   ((ksi(1)*ksi(2).le.0.0d0.and.eta(1)*eta(2).eq.0.0d0).or.
-     2    (eta(1)*eta(2).le.0.0d0.and.ksi(1)*ksi(2).eq.0.0d0))) eq = 1
+      if (dabs(q).le.1.0d-3 .and.
+     1   ((ksi(1)*ksi(2).le.0.0d0.and.dabs(eta(1)*eta(2)).le.1.0d-3).or.
+     2    (eta(1)*eta(2).le.0.0d0.and.dabs(ksi(1)*ksi(2)).le.1.0d-3)))
+     3                      eq = 1
 
       R12 = dsqrt(ksi(1)*ksi(1) + eta(2)*eta(2) + q*q)
       R22 = dsqrt(ksi(2)*ksi(2) + eta(2)*eta(2) + q*q)
