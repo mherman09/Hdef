@@ -28,9 +28,9 @@ C Parse command line
 C----
       call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1            shrf,coulf,gmtf,flttyp,auto,incr,val,xy,prog,long)
-      call dbggcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     2               shrf,coulf,gmtf,flttyp,auto,incr,val,xy,prog,
-     3               long)
+C      call dbggcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
+C     2               shrf,coulf,gmtf,flttyp,auto,incr,val,xy,prog,
+C     3               long)
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -440,15 +440,24 @@ C----
 C Read vp, vs, dens from half-space file, or use default values.
 C----
       IMPLICIT NONE
-      CHARACTER*40 haff
-      REAL*8 vp,vs,dens
+      CHARACTER*40 haff,ch
+      REAL*8 vp,vs,dens,lamda,mu
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
       if (khaf.eq.0) then
           call autohaf(vp,vs,dens)
       elseif (khaf.eq.1) then
           open(unit=11,file=haff,status='old')
-          read(11,*) vp,vs,dens
+          read(11,*) ch
+          rewind 11
+          if (ch(1:1).eq.'L'.or.ch(1:1).eq.'l') then
+              read(11,*) ch,lamda,mu
+              dens = 3.0d3
+              vp = dsqrt((lamda+2.0d0*mu)/dens)
+              vs = dsqrt(mu/dens)
+          else
+              read(11,*) vp,vs,dens
+          endif
       endif
       RETURN
       END
@@ -1341,18 +1350,21 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-haf HAFFILE            Elastic half-space velocity and ',
-     2                             'density file'
+     1 '-haf HAFFILE            Elastic half-space file'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
      1 '    Format: vp(m/s) vs(m/s) dens(kg/m^3)'
           write(*,*)
-     1 '    Lame parameters computed from vp, vs, and density:'
+     1 '            Lame  lamda(Pa)  mu(Pa)'
+          write(*,*)
+     1 '    If velocity is given, Lame parameters computed:'
           write(*,*)
      1 '        mu = vs*vs*dens'
           write(*,*)
      1 '        lamda = vp*vp*dens - 2*mu'
+          write(*,*)
+     1 '    If "Lame" is first entry, Lame parameters are input'
           write(*,*)
      1 '    If -haf option not specified, o92util defaults to:'
           write(*,*)
