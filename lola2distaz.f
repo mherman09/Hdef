@@ -34,7 +34,7 @@
           write (*,8889) dist,az
       else
           open (unit=11,file=ifile,status='old')
-          open (unit=12,file=ofile,status='unknown')
+          if (p.eq.0) open (unit=12,file=ofile,status='unknown')
   101     read (11,*,end=102) lon1,lat1,lon2,lat2
               call ddistaz(dist,az,lon1,lat1,lon2,lat2)
               dist = dist*radius

@@ -31,7 +31,7 @@
           write (6,8889) lon2*r2d,lat2*r2d
       else
           open (unit=11,file=ifile,status='old')
-          open (unit=12,file=ofile,status='unknown')
+          if (p.eq.0) open (unit=12,file=ofile,status='unknown')
   101     read (11,*,end=102) lon1,lat1,dist,az
               call dlola(lon2,lat2,lon1,lat1,dist,az)
               if (p.eq.0) then
