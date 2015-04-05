@@ -162,15 +162,19 @@ C      if (az.lt.0.0) az = az+2.0d0*pi
 c----------------------------------------------------------------------c
 
       SUBROUTINE dlola(lon2,lat2,lon1,lat1,dist,az)
+C----
+C Subroutine for computing final (lon,lat) from (lon,lat), (dist,az)
+C Units: dist (km), az (deg)
+C----
       IMPLICIT none
       REAL*8 pi,d2r,r2d
       PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az
 
-      dist = dist/6371.0d0 ! input distance in km
-      az = az*d2r
-      lat1 = lat1*d2r
-      lon1 = lon1*d2r
+      dist = dist/6371.0d0 ! km -> rad
+      az = az*d2r          ! deg -> rad
+      lat1 = lat1*d2r      ! deg -> rad
+      lon1 = lon1*d2r      ! deg -> rad
 
       lat2 = dasin(dsin(lat1)*dcos(dist)+dcos(lat1)*dsin(dist)*dcos(az))
 
@@ -182,7 +186,6 @@ C     Return input values in initial units
       az = az*r2d
       lat1 = lat1*r2d
       lon1 = lon1*r2d
-      
 
       RETURN
       END
