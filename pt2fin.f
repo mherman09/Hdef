@@ -43,7 +43,7 @@ C----
       if (p.eq.0) then
           open(unit=12,file=ofile,status='unknown')
       else
-          write(sterr,9998) 'length(km)','width(km)','slip(m)'
+          !write(sterr,9998) 'length(km)','width(km)','slip(m)'
       endif
   102 read(11,*,end=103) mag,typc
           if (typc.eq.'ss') then
