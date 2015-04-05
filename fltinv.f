@@ -55,14 +55,6 @@ C Generate Green's functions and load A matrix and b vector (2D)
 C----
       call green2d(A,b,obs,flt,nobs,nflt)
 C      call green3d(A,obs,flt,nobs,nflt)
-C      print *,'A='
-C      do 901 i = 1,nobs
-C          print *,(A(i,j),j=1,nflt)
-C  901 continue
-C      print *,'b='
-C      do 902 i = 1,2*nobs
-C          print *,b(i,1)
-C  902 continue
 
 C----
 C Add damping
@@ -73,17 +65,14 @@ C----
 C Add smoothing
 C----
       call smoothing(A,b,nobs,nflt,smooth,smoof)
-C      print *,'A='
-C      do 903 i = 1,nobs
-C          print *,(A(i,j),j=1,nflt)
-C  903 continue
       
 C----
 C Solve generalized least squares problem
 C----
       call lsq(A,b,x,OBSMAX,PARMAX,nobs,nflt)
+      open(unit=23,file='fltinv.out',status='unknown')
       do 103 i = 1,nflt
-          print *,x(i,1)
+          write(23,*) x(i,1)
   103 continue
       END
 
@@ -139,10 +128,6 @@ C Read smoothing element linking file and load into A
   104     continue
   101 continue
       close(31)
-C      print *,'SMOOTHING'
-C      do 903 i = 1,nflt
-C          print *,(A(nobs+i,j),j=1,nflt)
-C  903 continue
       nobs = nobs + nflt
       RETURN
       END
