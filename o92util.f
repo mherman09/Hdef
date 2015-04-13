@@ -505,6 +505,8 @@ C----
 C Compute displacements, strains, and stresses from shear dislocations.
 C----
       IMPLICIT NONE
+      REAL*8 pi,r2d
+      PARAMETER (pi=4.0d0*atan(1.0d0),r2d=1.8d2/pi)
       CHARACTER*40 staf,trgf,dspf,stnf,stsf,norf,shrf,coulf
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
@@ -513,12 +515,13 @@ C----
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul
+      REAL*8 az,hdsp
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C     Open files specified for output
-      if (kdsp.eq.1) open(unit=21,file=dspf,status='unknown')
+      if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
       if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
       if (ksts.eq.1) open(unit=23,file=stsf,status='unknown')
       if (knor.eq.1) open(unit=24,file=norf,status='unknown')
@@ -544,13 +547,17 @@ C         If NTRG=NSTA, read target fault parameters here
               read(13,*) trgstr,trgdip,trgrak,frict
           endif
 C         Compute displacements
-          if (kdsp.eq.1) then
+          if (kdsp.ne.0) then
               call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,evlo,evla,evdp,
      1                      str,dip,rak,dx,dy,slip,vp,vs,dens,flttyp,xy)
-              if (long.eq.0) then
+              if (long.eq.0.and.kdsp.eq.1) then
                   write(21,9990) stlo,stla,stdp*1d-3,uE,uN,uZ
-              else
+              elseif (long.eq.1.and.kdsp.eq.1) then
                   write(21,9993) stlo,stla,stdp*1d-3,uE,uN,uZ
+              elseif (kdsp.eq.2) then
+                  az = atan2(uE,uN)*r2d
+                  hdsp = dsqrt(uE*uE+uN*uN)
+                  write(21,9990) stlo,stla,stdp*1d-3,az,hdsp,uz
               endif
           endif
 C         Compute (3x3) strain matrix
@@ -1522,9 +1529,11 @@ C Parse command line
                   ktrg = 2
               endif
           elseif (tag(1:5).eq.'-disp') then
-              kdsp = 1
+              if (kdsp.eq.0) kdsp = 1
               i = i + 1
               call getarg(i,dspf)
+          elseif (tag(1:3).eq.'-az') then
+              kdsp = 2
           elseif (tag(1:7).eq.'-strain') then
               kstn = 1
               i = i + 1
@@ -1628,7 +1637,7 @@ C----------------------------------------------------------------------C
      1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
      2                               '[-haf HAFFILE] [-xy]'
       write(*,*)
-     1 '               -disp DSPFILE -strain STNFILE -stress ',
+     1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
      2                             'STSFILE'
       write(*,*)
      1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
@@ -1805,6 +1814,20 @@ C----------------------------------------------------------------------C
      1 '    Format: stlo stla stdp u_E(m) u_N(m) u_Z(m)'
           write(*,*)
      1 '    Vertical displacement is positive up.'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-az                     Displacement output -> (az hdsp Z)'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Format: stlo stla stdp AZIM U_HOR(m) u_Z(m)'
+          write(*,*)
+     1 '    Vertical displacement is positive up.'
+          write(*,*)
+     1 '    Azimuth is clockwise from north.'
           write(*,*)
           write(*,9999)
           write(*,*)
