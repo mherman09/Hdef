@@ -922,41 +922,64 @@ C Create horizontal or vertical grid
           call autohlims(W,E,S,N,xmin,xmax,ymin,ymax,x0,y0,
      2                   evlo,evla,evdp,str,dip,rak,dx,dy,slip,nflt,
      3                   xy,adist)
+C Round to nearest hundredth
           W = dnint(W*1.0d2)*1.0d-2
           E = dnint(E*1.0d2)*1.0d-2
           S = dnint(S*1.0d2)*1.0d-2
           N = dnint(N*1.0d2)*1.0d-2
-          write(*,*) 'GRID PARAMETERS'
-          write(*,*) 'CENTROID: ',x0,y0,z0
-          write(*,*) 'STRIKE:    ',str0
-          write(*,*) 'W: ',W,'E: ',E
-          write(*,*) 'S: ',S,'N: ',N
-          write(*,*) 'DEPTH: ',adist
-          write(*,*) 'GRID_INCR: ',incr
-          write(*,*) 'NX: ',int((E-W)/incr)+1,'NY: ',int((N-S)/incr)+1
+          write(*,2000)
+          write(*,2001) x0,y0,z0*1d-3
+          write(*,2002) str0
+          write(*,2003)
+          write(*,2004) 'HORIZONTAL'
+          write(*,2005) adist
+          write(*,2008) 'WEST: ',W,'EAST: ',E
+          write(*,2008) 'SOUT: ',S,'NORT: ',N
+          write(*,2009) incr
+          write(*,2010) 'NX: ',int((E-W)/incr)+1,
+     1                    'NY: ',int((N-S)/incr)+1
           call hgrid(staf,W,E,S,N,incr,adist)
       elseif (auto.eq.2.or.auto.eq.3) then
           call autovlims(lmin,lmax,zmin,zmax,x0,y0,z0,str0,
      1                   evlo,evla,evdp,str,dip,rak,dx,dy,slip,nflt,
      2                   xy,auto)
-          write(*,*) 'GRID PARAMETERS'
-          write(*,*) 'CENTROID: ',x0,y0,z0*1d-3
+C Round to nearest hundredth
+          lmin = dnint(lmin*1.0d2)*1.0d-2
+          lmax = dnint(lmax*1.0d2)*1.0d-2
+          zmin = dnint(zmin*1.0d2)*1.0d-2
+          zmax = dnint(zmax*1.0d2)*1.0d-2
+          write(*,2000)
+          write(*,2001) x0,y0,z0*1d-3
+          write(*,2002) str0
+          write(*,2003)
+          write(*,2004) 'VERTICAL'
           if (auto.eq.2) then
-              write(*,*) 'GRID_AZ:    ',str0-90.0d0
+              write(*,2006) str0-90.0d0
           else
-              write(*,*) 'GRID_AZ:    ',str0
+              write(*,2006) str0
           endif
-          write(*,*) 'LMIN: ',lmin,'LMAX: ',lmax
-          write(*,*) 'ZMIN: ',zmin,'ZMAX: ',zmax
-          write(*,*) 'HOR_SHIFT: ',adist
-          write(*,*) 'GRID_INCR: ',incr
-          write(*,*) 'NL: ',int((lmax-lmin)/incr)+1,
+          write(*,2007) adist
+          write(*,2008) 'LMIN: ',lmin,'LMAX: ',lmax
+          write(*,2008) 'ZMIN: ',zmin,'ZMAX: ',zmax
+          write(*,2009) incr
+          write(*,2010) 'NL: ',int((lmax-lmin)/incr)+1,
      1               'NZ: ',int((zmax-zmin)/incr)+1
           call vgrid(staf,lmin,lmax,zmin,zmax,incr,x0,y0,str0,xy,auto,
      1               adist)
       else
           call usage('!! Error: this option doesnt exist yet...sorry!')
       endif
+ 2000 format('FAULT PARAMETERS')
+ 2001 format('  CENTROID: ',3F10.4)
+ 2002 format('  STRIKE:   ',F10.2)
+ 2003 format('GRID PARAMETERS')
+ 2004 format('  ORIENTATION: ',A)
+ 2005 format('  DEPTH:    ',F10.2)
+ 2006 format('  GRID_AZ:  ',F10.2)
+ 2007 format('  HOR_SHFT: ',F10.2)
+ 2008 format(2X,A5,F10.2,4X,A5,F10.2)
+ 2009 format('  GRID_INCR:',F10.2)
+ 2010 format(2X,A3,I8,2X,A3,I8)
       RETURN
       END
 
@@ -1241,8 +1264,11 @@ C----
       elseif (auto.eq.3) then
           az = str0
       endif
+C Shift center of grid by specified amount
       shftaz = az + 90.0d0
       call dlola(x1,y1,x0,y0,shift,shftaz)
+      x0 = x1*r2d
+      y0 = y1*r2d
       open(unit=96,file=staf,status='unknown')
       dx = lmin
   931 if (dx.le.lmax) then
