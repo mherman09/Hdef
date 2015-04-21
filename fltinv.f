@@ -1,7 +1,7 @@
       PROGRAM MAIN
       IMPLICIT none
-      CHARACTER*80 fltf,obsf,smoof
-      INTEGER dimen,ios
+      CHARACTER*80 fltf,obsf,smoof,ofile
+      INTEGER dimen,ios,geo
       LOGICAL ex
       REAL*8 smooth,damp
       INTEGER OBSMAX,PARMAX
@@ -9,11 +9,12 @@
       REAL*8 flt(PARMAX,7),obs(OBSMAX,6)
       REAL*8 A(OBSMAX,PARMAX),b(OBSMAX,1),x(OBSMAX,1)
       INTEGER i,j,nobs,nflt
+      REAL*8 dist,az,lon,lat,lon0,lat0
 
 C----
 C Parse command line and check required inputs present
 C----
-      call gcmdln(fltf,obsf,smooth,smoof,damp,dimen)
+      call gcmdln(fltf,obsf,smooth,smoof,damp,dimen,ofile,geo)
 C Fault geometry file
       if (fltf.eq.'none') then
           write(*,*) '!! Error: Input fault geometry file unspecified'
@@ -34,6 +35,11 @@ C Problem dimension
       if (dimen.eq.0) then
           write(*,*) '!! Error: Problem dimension unspecified'
           call usage('!! Use -2 for 2D, -3 for 3D')
+      endif
+C Output file
+      if (ofile.eq.'none') then
+          write(*,*) '!! Error: Output file not specified'
+          call usage('!! Use -o OFILE to define output file')
       endif
 
 C----
@@ -68,6 +74,27 @@ C----
   102 continue
       close(22)
 
+      if (geo.eq.1.and.dimen.eq.3) then
+          lon0 = flt(1,1)
+          lat0 = flt(1,2)
+          do 121 i = 1,nflt
+              lon = flt(i,1)
+              lat = flt(i,2)
+              call ddistaz(dist,az,lon0,lat0,lon,lat)
+              dist = dist*6.371d6
+              flt(i,1) = dist*dsin(az)
+              flt(i,2) = dist*dcos(az)
+  121     continue
+          do 122 i = 1,nobs
+              lon = obs(i,1)
+              lat = obs(i,2)
+              call ddistaz(dist,az,lon0,lat0,lon,lat)
+              dist = dist*6.371d6
+              obs(i,1) = dist*dsin(az)
+              obs(i,2) = dist*dcos(az)
+  122     continue
+      endif
+
 C----
 C Generate Green's functions and load A matrix and b vector
 C----
@@ -85,13 +112,13 @@ C----
 C----
 C Add smoothing
 C----
-      call smoothing(A,b,nobs,nflt,smooth,smoof)
+      call smoothing(A,b,nobs,nflt,smooth,smoof,dimen)
       
 C----
 C Solve generalized least squares problem
 C----
       call lsq(A,b,x,OBSMAX,PARMAX,nobs,nflt)
-      open(unit=23,file='fltinv.out',status='unknown')
+      open(unit=23,file=ofile,status='unknown')
       do 103 i = 1,nflt
           write(23,*) x(i,1)
   103 continue
@@ -136,7 +163,7 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE smoothing(A,b,nobs,nflt,smooth,smoof)
+      SUBROUTINE smoothing(A,b,nobs,nflt,smooth,smoof,dimen)
 C----
 C Minimize roughness of solution to Ax = b with weighting factor smooth.
 C m=nobs n=nflt d=damp
@@ -158,7 +185,7 @@ C----
       PARAMETER (OBSMAX=10000,PARMAX=100)
       REAL*8 A(OBSMAX,PARMAX),b(OBSMAX,1)
       INTEGER nsmoo,el,nnei,nei(PARMAX)
-      INTEGER i,j,nobs,nflt
+      INTEGER i,j,nobs,nflt,dimen
       if (smooth.le.0.0d0) return 
 C Check for input smoothing file
       if (smoof.eq.'none') then
@@ -181,8 +208,14 @@ C Read smoothing element linking file and load into A
       do 101 i = 1,nsmoo
           read(31,*) el,nnei,(nei(j),j=1,nnei)
           A(nobs+el,el) = dble(nnei)*smooth*smooth
+          if (dimen.eq.3) then
+              A(nobs+el+nflt/2,el+nflt/2) = A(nobs+el,el)
+          endif
           do 104 j = 1,nnei
               A(nobs+el,nei(j)) = -1.0d0*smooth*smooth
+              if (dimen.eq.3) then
+                  A(nobs+el+nflt/2,nei(j)+nflt/2) = A(nobs+el,nei(j))
+              endif
   104     continue
   101 continue
       close(31)
@@ -315,6 +348,7 @@ C In 3-D, each observation corresponds to three rows in A, b
       nflt = 2*nflt
       RETURN
       END
+
 C----------------------------------------------------------------------C
 
       SUBROUTINE lsq(Ain,bin,xout,OBSMAX,PARMAX,nobs,npar)
@@ -407,18 +441,20 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(fltf,obsf,smooth,smoof,damp,dimen)
+      SUBROUTINE gcmdln(fltf,obsf,smooth,smoof,damp,dimen,ofile,geo)
       IMPLICIT NONE
-      CHARACTER*80 fltf,obsf,tag,smoof
+      CHARACTER*80 fltf,obsf,tag,smoof,ofile
       INTEGER i,narg
       REAL*8 smooth,damp
-      INTEGER dimen
+      INTEGER dimen,geo
       fltf = 'none'
       obsf = 'none'
       smoof = 'none'
+      ofile = 'none'
       dimen = 0
       smooth = -1.0d0
       damp = -1.0d0
+      geo = 0
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: no command line arguments')
       i = 0
@@ -445,8 +481,17 @@ C----------------------------------------------------------------------C
               dimen = 2
           elseif (tag(1:2).eq.'-3') then
               dimen = 3
+          elseif (tag(1:2).eq.'-o') then
+              i = i + 1
+              call getarg(i,ofile)
+          elseif (tag(1:4).eq.'-geo') then
+              geo = 1
           elseif (tag(1:2).eq.'-h') then
               call usage(' ')
+          elseif (tag(1:2).eq.'-d') then
+              call usage('D')
+          else
+              call usage('!! Error: No option '//tag)
           endif
           goto 901
   902 continue
@@ -457,86 +502,93 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE usage(str)
       IMPLICIT none
-      INTEGER lstr
+      INTEGER lstr,d
       CHARACTER str*(*)
+      if (str.eq.'D') then
+          d = 1
+      else
+          d = 0
+      endif
       if (str.ne.' ') then
           lstr = len(str)
           write(*,*) str(1:lstr)
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: fltinv -obs OBSFILE -flt FLTFILE -2|-3 ',
-     2         '[-LQR|SVD] [-smooth SMOOTH] [-smoof SMOOTHFILE] ',
-     3         '[-damp DAMP] [-h]'
+     1 'Usage: fltinv -obs OBSFILE -flt FLTFILE -o OFILE -2|-3 '
+      write(*,*)
+     1 '              [-geo] [-smooth SMOOTH FILE] ',
+     2         '[-damp DAMP] [-h] [-d]'
       write(*,*)
       write(*,*)
-     1 '-obs OBSFILE       Input observations'
-      write(*,*)
+     1 '-obs OBSFILE*       Observations (displacements)'
+      if (d.eq.1) then
+          write(*,*)
      1 '                       X=E, Y=N, Z pos down, uz pos up'
-      write(*,*)
+          write(*,*)
      1 '                       2-D: y(m) z(m) uy(m) uz(m)'
-      write(*,*)
+          write(*,*)
      1 '                       3-D: x(m) y(m) z(m) ux(m) uy(m) uz(m)'
+      endif
       write(*,*)
-     1 '-flt FLTFILE       Input fault geometries'
-      write(*,*)
-     1 '                       2-D: y(m) z(m) dip(deg) wid(m) len(m)'
-      write(*,*)
+     1 '-flt FLTFILE*       Input fault geometries'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                       2-D: y(m) z(m) dip(deg) wid(m) xlen(m)'
+          write(*,*)
      1 '                       3-D: x(m) y(m) z(m) str(deg) dip(deg) ',
      2                         'wid(m) len(m)'
+      endif
       write(*,*)
-     1 '-2|-3              Choose 2-D or 3-D problem (3-D in ',
+     1 '-o OFILE*           Output file'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                       2-D: dip_slip(m)'
+          write(*,*)
+     1 '                       3-D: rev_slip_1(m)'
+          write(*,*)
+     1 '                                 :'
+          write(*,*)
+     1 '                            rev_slip_NFLT(m)'
+          write(*,*)
+     1 '                            ll_slip_1(m)'
+          write(*,*)
+     1 '                                 :'
+          write(*,*)
+     1 '                            ll_slip_NFLT(m)'
+      endif
+      write(*,*)
+     1 '-2|-3               Choose 2-D or 3-D problem (3-D in ',
      2                                'development)'
       write(*,*)
-     1 '-smooth CONST FILE Smooth model, with weight CONST, linking ',
-     2                         'file FILE (format below)'
-      write(*,*)
-     1 '                       EL NNEI NEI(1,NNEI)'
-      write(*,*)
-     1 '                        1    2   2  4     '
-      write(*,*)
-     1 '                        2    3   1  3  5  '
-      write(*,*)
-     1 '                        3    2   2  6     '
-      write(*,*)
-     1 '                        4    3   1  5  7  '
-      write(*,*)
-     1 '                        5    4   2  4  6  8'
-      write(*,*)
-     1 '                        6    3   3  5  9  '
-      write(*,*)
-     1 '                        7    2   4  8     '
-      write(*,*)
-     1 '                        8    3   5  7  9  '
-      write(*,*)
-     1 '                        9    2   6  8     '
-      write(*,*)
-     1 '                        *-----*-----*-----* '
-      write(*,*)
-     1 '                        |  1  |  2  |  3  | '
-      write(*,*)
-     1 '                        |     |     |     | '
-      write(*,*)
-     1 '                        *-----*-----*-----* '
-      write(*,*)
-     1 '                        |  4  |  5  |  6  | '
-      write(*,*)
-     1 '                        |     |     |     | '
-      write(*,*)
-     1 '                        *-----*-----*-----* '
-      write(*,*)
-     1 '                        |  7  |  8  |  9  | '
-      write(*,*)
-     1 '                        |     |     |     | '
-      write(*,*)
-     1 '                        *-----*-----*-----* '
+     1 '-geo                Use geographic coordinates'
       write(*,*)
      1 '-damp CONST         Minimize length of model, with weight CONST'
       write(*,*)
-     1 '-LQR|-SVD          Solve LS problem with QR/LQ factorization ',
-     2                     'or SVD (NO SVD OPTION)'
+     1 '-smooth CONST FILE  Smooth model, with weight CONST, linking ',
+     2                         'file FILE'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                      ELM NNEI   NEI(1,NNEI)'
+          write(*,*)
+     1 '                        1    2     2  4     '
+          write(*,*)
+     1 '                        2    3     1  3  5  '
+          write(*,*)
+     1 '                        3    2     2  6     '
+          write(*,*)
+     1 '                        :    :      :       '
+      endif
+C      write(*,*)
+C     1 '-LQR|-SVD          Solve LS problem with QR/LQ factorization ',
+C     2                     'or SVD (NO SVD OPTION YET!)'
       write(*,*)
-     1 '-h                 Online help (this screen)'
+     1 '-h                  Online help'
+      write(*,*)
+     1 '-d                  Detailed online help'
+      write(*,*)
+      write(*,*)
+     1 '  *File format depends on 2-D or 3-D'
       write(*,*)
       STOP
       END
