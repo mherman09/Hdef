@@ -380,7 +380,17 @@ C----
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),mag
       REAL*8 wid,len,mu
       INTEGER typ
+      LOGICAL ex
       mu = 4.3d10 ! shear mod hard-coded, corresponds to autohaf params
+      inquire(file='mu.dat',EXIST=ex)
+      if (ex) then
+          open(unit=61,file='mu.dat',status='old')
+          read(61,*) mu
+          close(61)
+      else
+          mu = 4.3d10
+      endif
+C      print *,'SHEAR MOD:',mu
       open (unit=33,file=magf,status='old')
       f = 0
   331 f = f + 1
@@ -515,7 +525,7 @@ C----
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
-      REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul
+      REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
       REAL*8 az,hdsp
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
@@ -524,7 +534,8 @@ C----
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
       if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
-      if (ksts.eq.1) open(unit=23,file=stsf,status='unknown')
+      if (ksts.eq.1.or.ksts.eq.3) 
+     1    open(unit=23,file=stsf,status='unknown')
       if (knor.eq.1) open(unit=24,file=norf,status='unknown')
       if (kshr.eq.1) open(unit=25,file=shrf,status='unknown')
       if (kcou.eq.1) open(unit=26,file=coulf,status='unknown')
@@ -564,7 +575,7 @@ C         Compute displacements
               elseif (noz.eq.1.and.kdsp.eq.2) then
                   az = atan2(uE,uN)*r2d
                   hdsp = dsqrt(uE*uE+uN*uN)
-                  write(21,*) stlo,stla,az,hdsp,uz
+                  write(21,9994) stlo,stla,az,hdsp,uz
               endif
           endif
 C         Compute (3x3) strain matrix
@@ -593,6 +604,10 @@ C         Compute (3x3) stress matrix
                   write(23,*) stlo,stla,
      1                           stress(1,1),stress(2,2),stress(3,3),
      2                           stress(1,2),stress(1,3),stress(2,3)
+              elseif (ksts.eq.3.and.noz.eq.0) then
+                  write(23,9991) stlo,stla,stdp*1d-3,estrs(stress)
+              elseif (ksts.eq.3.and.noz.eq.1) then
+                  write(23,*) stlo,stla,estrs(stress)
               endif
           endif
 C         Resolve stresses onto target fault planes
@@ -624,6 +639,7 @@ C         Update progress indicator
  9991 format(3F12.4,X,6E16.6)
  9992 format(3F12.4,X,1E16.6)
  9993 format(3F12.4,X,3F16.8)
+ 9994 format(2F12.4,X,3F12.4)
       RETURN
       END
 
@@ -856,6 +872,19 @@ C----
       stress(2,1) = stress(1,2)
       stress(3,1) = stress(1,3)
       stress(3,2) = stress(2,3)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      FUNCTION estrs(sts)
+      IMPLICIT none
+      REAL*8 estrs,sts(3,3),s12,s13,s23
+      s12 = sts(1,1)-sts(2,2)
+      s13 = sts(1,1)-sts(3,3)
+      s23 = sts(2,2)-sts(3,3)
+      estrs = (1.0d0/6.0d0)*(s12*s12+s13*s13+s23*s23)
+     1          + sts(1,2)*sts(1,2)+sts(1,3)*sts(1,3)+sts(2,3)*sts(2,3)
       RETURN
       END
 
@@ -1560,6 +1589,11 @@ C Parse command line
               kstn = 1
               i = i + 1
               call getarg(i,stnf)
+          elseif (tag(1:8).eq.'-estress') then
+              if (kstn.eq.0) kstn = 2
+              ksts = 3
+              i = i + 1
+              call getarg(i,stsf)
           elseif (tag(1:7).eq.'-stress') then
               if (kstn.eq.0) kstn = 2
               ksts = 1
@@ -1887,6 +1921,32 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '        stress(i,j) = shear_mod*strain(i,j) + lambda*',
      2             'strain(i,i)*delta(i,j)'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-estress STRSFILE       Effective stress (2nd invariant of ',
+     2                                'dev. strs tensor)'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Format: stlo stla stdp estre(Pa)'
+          write(*,*)
+     1 '    The effective stress is a measure of the amplitude ',
+     2       'of the stress tensor'
+          write(*,*)
+     1 '    (deviatoric part).'
+          write(*,*)
+     1 '        estre = 1/3*(s11*s11 + s22*s22 + s33*s33 -',
+     2                      ' s11*s22 - s11*s33 - s22*s33)'
+          write(*,*)
+     1 '                          + (s12*s12 + s13*s13 + s23*s23)'
+          write(*,*)
+     1 '        estre = 1/6*((s11-s22)^2 + (s11-s33)^2',
+     2                      ' + (s22-s33)^2)'
+          write(*,*)
+     1 '                          + (s12*s12 + s13*s13 + s23*s23)'
           write(*,*)
           write(*,9999)
           write(*,*)
