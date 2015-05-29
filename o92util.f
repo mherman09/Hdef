@@ -262,6 +262,10 @@ C----
           call readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 nflt)
       endif
+      if (nflt.lt.1) then
+          write(*,*) '!! Error: no input faults read'
+          call usage('!! Check input files for correct format')
+      endif
 C     If FFM not used, use unweighted mean coordinates as hylo and hyla
       if (kffm.ne.1) then
           call calcmean(hylo,evlo,nflt)
@@ -338,11 +342,12 @@ C All units are converted to SI, angles are in degrees.
 C----
       IMPLICIT NONE
       CHARACTER*40 fltf
-      INTEGER i,f,nflt,FMAX
+      INTEGER i,f,nflt,FMAX,ln
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       open (unit=32,file=fltf,status='old')
+      call linecount(fltf,ln)
       f = 0
   321 f = f + 1
       i = nflt + f
@@ -358,6 +363,9 @@ C Check that faults do not overflow arrays before reading
           dy(i) = 1.0d3*dy(i)
           goto 321
   322 continue
+      if (f-1.ne.ln) then
+          call usage('!! Error: NFLT in -flt file not equal to NLINE')
+      endif
       nflt = i - 1
       close(32)
       RETURN
@@ -374,7 +382,7 @@ C All units are converted to SI, angles are in degrees.
 C----
       IMPLICIT NONE
       CHARACTER*40 magf
-      INTEGER i,f,nflt,FMAX
+      INTEGER i,f,nflt,FMAX,ln
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),mag
@@ -390,7 +398,7 @@ C----
       else
           mu = 4.3d10
       endif
-C      print *,'SHEAR MOD:',mu
+      call linecount(magf,ln)
       open (unit=33,file=magf,status='old')
       f = 0
   331 f = f + 1
@@ -407,7 +415,7 @@ C Check that faults do not overflow arrays
           elseif (-135.0d0.lt.rak(i).and.rak(i).lt.-45.0d0) then
               typ = 3 ! Normal fault (-135<rake<-45)
           else
-              typ = 1 ! Strike-slip faul (otherwise)
+              typ = 1 ! Strike-slip fault (otherwise)
           endif
           call wellscoppersmith(wid,len,mag,typ)
           slip(i) = ((1.0d1**(1.5d0*(mag+10.7d0)))*1.0d-7)/
@@ -417,6 +425,9 @@ C Check that faults do not overflow arrays
           evdp(i) = 1.0d3*evdp(i)
           goto 331
   332 continue
+      if (f-1.ne.ln) then
+          call usage('!! Error: NFLT in -mag file not equal to NLINE')
+      endif
       nflt = i - 1
       close(33)
       RETURN
