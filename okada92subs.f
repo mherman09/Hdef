@@ -53,6 +53,15 @@ C----
       COMMON /ZVARS0/ U3,V3,W3
       COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
+C----
+C IF STATION IS ABOVE SURFACE, SET DISPLACEMENT TO ZERO AND RETURN
+C----
+      if (stdp.lt.0.0d0) then
+          ux = 0.0d0
+          uy = 0.0d0
+          uz = 0.0d0
+          return
+      endif
 
 C----
 C INITIALIZE COMPONENTS OF DISPLACEMENT
@@ -168,6 +177,15 @@ C----
       COMMON /ZVARS0/ U3,V3,W3
       COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/ thru
+
+      if (stdp.lt.0.0d0) then
+          do 315 i = 1,3
+              do 316 j = 1,3
+                  strain(i,j) = 0.0d0
+ 316          continue
+ 315      continue
+          return
+      endif
 C----
       thru = 0
       do 306 i = 1,6
@@ -320,6 +338,12 @@ C----
       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
       COMMON /TAG/ thru
+      if (stdp.lt.0.0d0) then
+          ux = 0.0d0
+          uy = 0.0d0
+          uz = 0.0d0
+          return
+      endif
 C----
 C Initialize displacement components
 C----
@@ -480,6 +504,14 @@ C----
       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
       COMMON /TAG/ thru
+      if (stdp.lt.0.0d0) then
+          do 415 i = 1,3
+              do 416 j = 1,3
+                  strain(i,j) = 0.0d0
+ 416          continue
+ 415      continue
+          return
+      endif
 C----
 C Initialize partial derivative components
 C----
