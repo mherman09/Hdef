@@ -133,7 +133,7 @@ C----
       IMPLICIT NONE
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      if (kdsp.eq.0.and.kstn.eq.0) then
+      if (kdsp.le.0.and.kstn.eq.0) then
           write(*,*) '!! Error: No output file specified'
           call usage('!! Use -disp, -strain, -stress, '//
      1                   '-normal, -shear, -coul, or an -auto option')
@@ -185,7 +185,7 @@ C Look for half-space file, warn (not quit) if not found
       endif
 C Check for target parameter file if resolving stress on faults
       ntrg = 0
-      if (knor.eq.1.or.kshr.eq.1.or.kcou.eq.1) then
+      if (knor.eq.1.or.kshr.ge.1.or.kcou.eq.1) then
           if (ktrg.eq.0) then
               write(*,*) '!! Error: -normal, -shear, and -coul '//
      1                             'require target faults'
@@ -537,7 +537,7 @@ C     Open files specified for output
       if (ksts.eq.1.or.ksts.eq.3) 
      1    open(unit=23,file=stsf,status='unknown')
       if (knor.eq.1) open(unit=24,file=norf,status='unknown')
-      if (kshr.eq.1) open(unit=25,file=shrf,status='unknown')
+      if (kshr.ge.1) open(unit=25,file=shrf,status='unknown')
       if (kcou.eq.1) open(unit=26,file=coulf,status='unknown')
 C     Initialize progress indicator
       if (prog.eq.1) then
@@ -611,12 +611,12 @@ C         Compute (3x3) stress matrix
               endif
           endif
 C         Resolve stresses onto target fault planes
-          if (kshr.eq.1.or.knor.eq.1.or.kcou.eq.1) then
+          if (kshr.ge.1.or.knor.eq.1.or.kcou.eq.1) then
               call coulomb(coul,norml,shear,stress,trgstr,trgdip,trgrak,
      1                     frict)
-              if (kshr.eq.1.and.noz.eq.0) then
+              if (kshr.ge.1.and.noz.eq.0) then
                   write(25,9992) stlo,stla,stdp*1d-3,shear
-              elseif (kshr.eq.1.and.noz.eq.1) then
+              elseif (kshr.ge.1.and.noz.eq.1) then
                   write(25,*) stlo,stla,shear
               endif
               if (knor.eq.1.and.noz.eq.0) then
@@ -902,6 +902,8 @@ C----
       REAL*8 coul,norml,shear,stress(3,3),frc
       REAL*8 strin,dipin,rakin,str,dip,rak,n(3),trac(3),r(3),s(3)
       INTEGER i
+      INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+      COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       str = strin*d2r
       dip = dipin*d2r
       rak = rakin*d2r
@@ -929,7 +931,11 @@ C Compute unit slip vector
      1                          + dcos(str-pi/2.0d0)*dsin(rak)*dcos(dip)
       r(3) =                                         dsin(rak)*dsin(dip)
 C Project shear component on slip vector
-      shear = s(1)*r(1) + s(2)*r(2) + s(3)*r(3)
+      if (kshr.eq.2) then
+          shear = dsqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
+      else
+          shear = s(1)*r(1) + s(2)*r(2) + s(3)*r(3)
+      endif
 C Coulomb stress (recall sign convention: pos = dilation)
       coul = shear + frc*norml
       RETURN
@@ -1580,11 +1586,19 @@ C Parse command line
                   ktrg = 2
               endif
           elseif (tag(1:5).eq.'-disp') then
-              if (kdsp.eq.0) kdsp = 1
+              if (kdsp.eq.0) then
+                  kdsp = 1
+              elseif (kdsp.eq.-1) then
+                  kdsp = 2
+              endif
               i = i + 1
               call getarg(i,dspf)
           elseif (tag(1:3).eq.'-az') then
-              kdsp = 2
+              if (kdsp.eq.1) then
+                  kdsp = 2
+              else
+                  kdsp = -1
+              endif
           elseif (tag(1:7).eq.'-strain') then
               kstn = 1
               i = i + 1
@@ -1605,6 +1619,12 @@ C Parse command line
               knor = 1
               i = i + 1
               call getarg(i,norf)
+          elseif (tag(1:7).eq.'-shearu') then
+              if (kstn.eq.0) kstn = 2
+              if (ksts.eq.0) ksts = 2
+              kshr = 2
+              i = i + 1
+              call getarg(i,shrf)
           elseif (tag(1:6).eq.'-shear') then
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
@@ -1982,6 +2002,9 @@ C----------------------------------------------------------------------C
      2                      'traction'
           write(*,*)
      1 '    onto the rake vector of the target fault.'
+          write(*,*)
+     1 '    To have output be absolute value of shear traction, ',
+     1       'use -shearu.'
           write(*,*)
           write(*,9999)
           write(*,*)
