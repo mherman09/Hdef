@@ -1696,9 +1696,9 @@ C Parse command line
           elseif (tag(1:4).eq.'-noz') then
               noz = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
-              call usage(' ')
+              call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
-              call usage('long')
+              call usagelong('long')
           else
               call usage('!! Error: no option '//tag)
           endif
@@ -1710,6 +1710,38 @@ C Parse command line
 C----------------------------------------------------------------------C
 
       SUBROUTINE usage(str)
+      IMPLICIT NONE
+      INTEGER lstr
+      CHARACTER str*(*)
+      if (str.ne.' ') then
+          lstr = len(str)
+          write(*,*) str(1:lstr)
+          write(*,*) '!! Use -h or -d to see option details'
+          write(*,*)
+      endif
+      write(*,*)
+     1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
+     2                        '[-fn|-pt]'
+      write(*,*)
+     1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
+     2                               '[-haf HAFFILE] [-xy]'
+      write(*,*)
+     1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
+     2                             'STSFILE'
+      write(*,*)
+     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
+      write(*,*)
+     1 '               [-auto AB VALUE INCR] [-long] [-prog] ',
+     2                   '[-gmt GMTFILE]'
+      write(*,*)
+     1 '               [-h|-help] [-d|-details]'
+      write(*,*)
+      STOP
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE usagelong(str)
       IMPLICIT NONE
       INTEGER lstr
       CHARACTER str*(*)
