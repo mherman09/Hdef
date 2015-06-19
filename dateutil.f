@@ -84,6 +84,7 @@ C----------------------------------------------------------------------C
       REAL*8 dy1,dy2,ndy
       REAL*8 hr1,mn1,sc1,hr2,mn2,sc2
       COMMON /DVARS/ yr1,mo1,yr2,mo2,dy1,dy2,ndy
+      !print *,'IFMT',ifmt
       if (ifmt.eq.1) then
           read(arg,*) arg1,arg2
           read(arg1(1:4),*) yr1
@@ -143,6 +144,9 @@ C----------------------------------------------------------------------C
       if (opt.eq.1.and.long.eq.1) then
           dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
           dy2 = dy2 + hr2/2.4d1 + mn2/1.44d3 + sc2/8.64d4
+      endif
+      if (opt.eq.2.and.long.eq.1) then
+          dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
       endif
       RETURN
  2001 write(*,*) '!! Error: read long format inputs incorrectly'
