@@ -20,7 +20,6 @@ C     check for shear modulus
           write(*,*) '!! Error: No shear modulus specified'
           call usage('!! Use -mod SHR_MOD to enter shear modulus')
       endif
-      shrmod = shrmod*1e9
       if (u.eq.1) goto 101
 C     check for input file
       if (ifile.eq.'none') then
@@ -63,6 +62,7 @@ C----
           if (p.eq.0) then
               write(12,9999) len,wid,slip
           else
+              write(sterr,*) 'Moment: ',mom,'N-m'
               write(stout,9999) len,wid,slip
           endif
           goto 102
@@ -96,6 +96,7 @@ C----
           mom = (10.0d0**(1.5d0*(mag+10.7d0)))/1.0d7 ! N*m
           area = wid*len*1.0d6 ! m^3
           slip = mom/(area*shrmod)
+          print *,'Moment: ',mom*1d7,'N-m'
           ans(i,1) = len
           ans(i,2) = wid
           ans(i,3) = slip
