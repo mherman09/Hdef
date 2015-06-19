@@ -7,7 +7,7 @@ C----
       IMPLICIT NONE
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/180.0d0)
-      REAL*8 uLOS,stlo,stla,uN,uE,uZ
+      REAL*8 uLOS,stlo,stla,stdp,uN,uE,uZ
       REAL*8 az,incl,cosaz,cosinc,sinaz,sininc
       CHARACTER*40 ifile,ofile
       LOGICAL ex
@@ -50,13 +50,15 @@ C----
 C----
 C Convert NEZ to LOS
 C----
-   11 read (11,*,end=12) stlo,stla,uE,uN,uZ
+   11 read (11,*,end=12) stlo,stla,stdp,uE,uN,uZ
           uLOS = uN*cosaz*cosinc
      1             + uE*sinaz*cosinc
      2                 - uZ*sininc
-          write (12,*) stlo,stla,uLOS
+          write (12,9991) stlo,stla,stdp,uLOS
           goto 11
    12 continue
+
+ 9991 format(3F12.4,X,3E12.4)
 
       END
 
@@ -120,9 +122,10 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-i INC    Look inclination (from horizontal)'
       write(*,*)
-     1 '-f IFILE  Input vector displacement file (lo la uE uN uZ)'
+     1 '-f IFILE  Input vector displacement file (stlo stla stdp uE ',
+     2                                                'uN uZ)'
       write(*,*)
-     1 '-o OFILE  Output LOS displacement file (lo la uLOS)'
+     1 '-o OFILE  Output LOS displacement file (stlo stla stdp uLOS)'
       write (*,*)
      1 '-h        Online help (this message)'
       write (*,*)
