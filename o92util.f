@@ -10,7 +10,7 @@ C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1             shrf,coulf,gmtf
-      INTEGER flttyp,auto,xy,prog,long,noz
+      INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
@@ -27,8 +27,7 @@ C----
 C Parse command line
 C----
       call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long,
-     2            noz)
+     1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long)
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -62,7 +61,7 @@ C Compute displacements, strains, and stresses
 C----
       call calcdefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,dip,rak,
      1              dx,dy,slip,flttyp,vp,vs,dens,dspf,stnf,stsf,norf,
-     2              shrf,coulf,xy,prog,long,noz)
+     2              shrf,coulf,xy,prog,long)
 
 C----
 C Write fault input to GMT-compatible file
@@ -346,8 +345,8 @@ C----
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
-      open (unit=32,file=fltf,status='old')
       call linecount(fltf,ln)
+      open (unit=32,file=fltf,status='old')
       f = 0
   321 f = f + 1
       i = nflt + f
@@ -418,6 +417,8 @@ C Check that faults do not overflow arrays
               typ = 1 ! Strike-slip fault (otherwise)
           endif
           call wellscoppersmith(wid,len,mag,typ)
+          !wid = wid*fltfac
+          !len = len*fltfac
           slip(i) = ((1.0d1**(1.5d0*(mag+10.7d0)))*1.0d-7)/
      1                                            (mu*wid*len*1.0d6)
           dx(i) = len*1.0d3
@@ -522,7 +523,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE calcdefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,
      1                    dip,rak,dx,dy,slip,flttyp,vp,vs,dens,dspf,
-     2                    stnf,stsf,norf,shrf,coulf,xy,prog,long,noz)
+     2                    stnf,stsf,norf,shrf,coulf,xy,prog,long)
 C----
 C Compute displacements, strains, and stresses from shear dislocations.
 C----
@@ -532,7 +533,7 @@ C----
       CHARACTER*40 staf,trgf,dspf,stnf,stsf,norf,shrf,coulf
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
-      INTEGER nflt,FMAX,flttyp,xy,prog,long,noz
+      INTEGER nflt,FMAX,flttyp,xy,prog,long
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
@@ -573,20 +574,14 @@ C         Compute displacements
           if (kdsp.ne.0) then
               call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,evlo,evla,evdp,
      1                      str,dip,rak,dx,dy,slip,vp,vs,dens,flttyp,xy)
-              if (long.eq.0.and.kdsp.eq.1.and.noz.eq.0) then
+              if (long.eq.0.and.kdsp.eq.1) then
                   write(21,9990) stlo,stla,stdp*1d-3,uE,uN,uZ
-              elseif (long.eq.1.and.kdsp.eq.1.and.noz.eq.0) then
+              elseif (long.eq.1.and.kdsp.eq.1) then
                   write(21,9993) stlo,stla,stdp*1d-3,uE,uN,uZ
-              elseif (kdsp.eq.2.and.noz.eq.0) then
+              elseif (kdsp.eq.2) then
                   az = atan2(uE,uN)*r2d
                   hdsp = dsqrt(uE*uE+uN*uN)
                   write(21,9990) stlo,stla,stdp*1d-3,az,hdsp,uz
-              elseif (noz.eq.1.and.kdsp.eq.1) then
-                  write(21,*) stlo,stla,uE,uN,uZ
-              elseif (noz.eq.1.and.kdsp.eq.2) then
-                  az = atan2(uE,uN)*r2d
-                  hdsp = dsqrt(uE*uE+uN*uN)
-                  write(21,9994) stlo,stla,az,hdsp,uz
               endif
           endif
 C         Compute (3x3) strain matrix
@@ -594,12 +589,8 @@ C         Compute (3x3) strain matrix
               call calcstn(strain,stlo,stla,stdp,nflt,
      1                     evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      2                     vp,vs,dens,flttyp,xy)
-              if (kstn.eq.1.and.noz.eq.0) then
+              if (kstn.eq.1) then
                   write(22,9991) stlo,stla,stdp*1d-3,
-     1                           strain(1,1),strain(2,2),strain(3,3),
-     2                           strain(1,2),strain(1,3),strain(2,3)
-              elseif(kstn.eq.1.and.noz.eq.1) then
-                  write(22,*) stlo,stla,
      1                           strain(1,1),strain(2,2),strain(3,3),
      2                           strain(1,2),strain(1,3),strain(2,3)
               endif
@@ -607,38 +598,26 @@ C         Compute (3x3) strain matrix
 C         Compute (3x3) stress matrix
           if (ksts.ge.1) then
               call stn2sts(stress,strain,vp,vs,dens)
-              if (ksts.eq.1.and.noz.eq.0) then
+              if (ksts.eq.1) then
                   write(23,9991) stlo,stla,stdp*1d-3,
      1                           stress(1,1),stress(2,2),stress(3,3),
      2                           stress(1,2),stress(1,3),stress(2,3)
-              elseif (ksts.eq.1.and.noz.eq.1) then
-                  write(23,*) stlo,stla,
-     1                           stress(1,1),stress(2,2),stress(3,3),
-     2                           stress(1,2),stress(1,3),stress(2,3)
-              elseif (ksts.eq.3.and.noz.eq.0) then
+              elseif (ksts.eq.3) then
                   write(23,9991) stlo,stla,stdp*1d-3,estrs(stress)
-              elseif (ksts.eq.3.and.noz.eq.1) then
-                  write(23,*) stlo,stla,estrs(stress)
               endif
           endif
 C         Resolve stresses onto target fault planes
           if (kshr.ge.1.or.knor.eq.1.or.kcou.eq.1) then
               call coulomb(coul,norml,shear,stress,trgstr,trgdip,trgrak,
      1                     frict)
-              if (kshr.ge.1.and.noz.eq.0) then
+              if (kshr.ge.1) then
                   write(25,9992) stlo,stla,stdp*1d-3,shear
-              elseif (kshr.ge.1.and.noz.eq.1) then
-                  write(25,*) stlo,stla,shear
               endif
-              if (knor.eq.1.and.noz.eq.0) then
+              if (knor.eq.1) then
                   write(24,9992) stlo,stla,stdp*1d-3,norml
-              elseif (knor.eq.1.and.noz.eq.1) then
-                  write(24,*) stlo,stla,norml
               endif
-              if (kcou.eq.1.and.noz.eq.0) then
+              if (kcou.eq.1) then
                   write(26,9992) stlo,stla,stdp*1d-3,coul
-              elseif (kcou.eq.1.and.noz.eq.1) then
-                  write(26,*) stlo,stla,coul
               endif
           endif
 C         Update progress indicator
@@ -650,7 +629,6 @@ C         Update progress indicator
  9991 format(3F12.4,X,6E16.6)
  9992 format(3F12.4,X,1E16.6)
  9993 format(3F12.4,X,3F16.8)
- 9994 format(2F12.4,X,3F12.4)
       RETURN
       END
 
@@ -1500,14 +1478,14 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
      1                  norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,
-     2                  prog,long,noz)
+     2                  prog,long)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,
      1             dspf,stnf,stsf,norf,shrf,coulf,
      2             gmtf
-      INTEGER flttyp,auto,xy,prog,long,noz
+      INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
@@ -1534,7 +1512,6 @@ C Initialize variables
       incr = 1.0d99
       adist = 1.0d99
       long = 0
-      noz = 0
 C Input file status indicators (ICHECK block)
 C 0=unspecified; 1=specified; -1=specified, but file not found
       kffm = 0
@@ -1693,8 +1670,6 @@ C Parse command line
               kgmt = 1
               i = i + 1
               call getarg(i,gmtf)
-          elseif (tag(1:4).eq.'-noz') then
-              noz = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
@@ -1727,11 +1702,11 @@ C----------------------------------------------------------------------C
      2                               '[-haf HAFFILE] [-xy]'
       write(*,*)
      1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
-     2                             'STSFILE'
+     2                             'STSFILE -estress ESTSFILE'
       write(*,*)
      1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
       write(*,*)
-     1 '               [-auto AB VALUE INCR] [-long] [-prog] ',
+     1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
      1 '               [-h|-help] [-d|-details]'
@@ -1751,7 +1726,7 @@ C----------------------------------------------------------------------C
           write(*,*) str(1:lstr)
           write(*,*)
       endif
-  100 write(*,*)
+ 100  write(*,*)
      1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
      2                        '[-fn|-pt]'
       write(*,*)
@@ -1759,11 +1734,11 @@ C----------------------------------------------------------------------C
      2                               '[-haf HAFFILE] [-xy]'
       write(*,*)
      1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
-     2                             'STSFILE'
+     2                             'STSFILE -estress ESTSFILE'
       write(*,*)
      1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
       write(*,*)
-     1 '               [-auto AB VALUE INCR] [-long] [-prog] ',
+     1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
      1 '               [-h|-help] [-d|-details]'
@@ -2101,14 +2076,6 @@ C----------------------------------------------------------------------C
      1 '      Append k: km (default for d, s)'
           write(*,*)
      1 '        e.g. 100, 0.1d, or 15k'
-          write(*,*)
-          write(*,9999)
-          write(*,*)
-      endif
-      write(*,*)
-     1 '-noz                    Output format: X Y VAL (instead of X ',
-     2                               'Y Z VAL)'
-      if (str.eq.'long') then
           write(*,*)
           write(*,9999)
           write(*,*)
