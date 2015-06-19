@@ -6,7 +6,7 @@ c----
       IMPLICIT NONE
       REAL*8 pi,d2r,tpi
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0,tpi=2.0d0*pi)
-      REAL*8 stlo,stla,ulos,wvl,phase
+      REAL*8 stlo,stla,stdp,ulos,wvl,phase
       INTEGER narg,i
       CHARACTER*40 ifile,ofile
       LOGICAL ex
@@ -34,15 +34,17 @@ c----
 c----
 c Convert line of sight displacement to phase difference from satellite
 c----
-   13 read (10,*,end=14) stlo,stla,ulos
+   13 read (10,*,end=14) stlo,stla,stdp,ulos
           ulos = 100.0d0*ulos
           phase = 2.0d0*tpi*ulos/wvl
           phase = dmod(phase,tpi)
           if (phase.lt.-pi) phase = phase + tpi
           if (phase.gt.pi) phase = phase - tpi
-          write (20,*) stlo,stla, phase
+          write (20,9991) stlo,stla,stdp,phase
           goto 13
    14 continue
+
+ 9991 format(3F12.4,X,3E12.4)
 
       END
 
@@ -97,9 +99,9 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-w WVLNTH  Wavelength of radar signal (cm)'
       write(*,*)
-     1 '-f IFILE   Input LOS displacement file (lo la uLOS)'
+     1 '-f IFILE   Input LOS displacement file (stlo stla stdp uLOS)'
       write(*,*)
-     1 '-o OFILE   Output phase file (lo la phase(rad))'
+     1 '-o OFILE   Output phase file (stlo stla stdp phase(rad))'
       write (*,*)
      1 '-h         Online help (this message)'
       write (*,*)
