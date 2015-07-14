@@ -132,7 +132,7 @@ C----
       IMPLICIT NONE
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      if (kdsp.le.0.and.kstn.eq.0) then
+      if (kdsp.le.0.and.kstn.le.0) then
           write(*,*) '!! Error: No output file specified'
           call usage('!! Use -disp, -strain, -stress, '//
      1                   '-normal, -shear, -coul, or an -auto option')
@@ -985,11 +985,13 @@ C Round to nearest hundredth
           write(*,2003)
           write(*,2004) 'HORIZONTAL'
           write(*,2005) adist
-          write(*,2008) 'WEST: ',W,'EAST: ',E
-          write(*,2008) 'SOUT: ',S,'NORT: ',N
+          write(*,2008) 'W: ',W
+          write(*,2008) 'E: ',E
+          write(*,2008) 'S: ',S
+          write(*,2008) 'N: ',N
           write(*,2009) incr
-          write(*,2010) 'NX: ',int((E-W)/incr)+1,
-     1                    'NY: ',int((N-S)/incr)+1
+          write(*,2010) 'NX: ',int((E-W)/incr)+1
+          write(*,2010) 'NY: ',int((N-S)/incr)+1
           call hgrid(staf,W,E,S,N,incr,adist)
       elseif (auto.eq.2.or.auto.eq.3) then
           call autovlims(lmin,lmax,zmin,zmax,x0,y0,z0,str0,
@@ -1011,11 +1013,13 @@ C Round to nearest hundredth
               write(*,2006) str0
           endif
           write(*,2007) adist
-          write(*,2008) 'LMIN: ',lmin,'LMAX: ',lmax
-          write(*,2008) 'ZMIN: ',zmin,'ZMAX: ',zmax
+          write(*,2008) 'LMIN: ',lmin
+          write(*,2008) 'LMAX: ',lmax
+          write(*,2008) 'ZMIN: ',zmin
+          write(*,2008) 'ZMAX: ',zmax
           write(*,2009) incr
-          write(*,2010) 'NL: ',int((lmax-lmin)/incr)+1,
-     1               'NZ: ',int((zmax-zmin)/incr)+1
+          write(*,2010) 'NL: ',int((lmax-lmin)/incr)+1
+          write(*,2010) 'NZ: ',int((zmax-zmin)/incr)+1
           call vgrid(staf,lmin,lmax,zmin,zmax,incr,x0,y0,str0,xy,auto,
      1               adist)
       else
@@ -1029,9 +1033,9 @@ C Round to nearest hundredth
  2005 format('  DEPTH:    ',F10.2)
  2006 format('  GRID_AZ:  ',F10.2)
  2007 format('  HOR_SHFT: ',F10.2)
- 2008 format(2X,A5,F10.2,4X,A5,F10.2)
+ 2008 format(A5,F10.2)
  2009 format('  GRID_INCR:',F10.2)
- 2010 format(2X,A3,I8,2X,A3,I8)
+ 2010 format(A6,I8)
       RETURN
       END
 
@@ -1607,7 +1611,7 @@ C Parse command line
               knor = 1
               i = i + 1
               call getarg(i,norf)
-          elseif (tag(1:7).eq.'-shearu') then
+          elseif (tag(1:9).eq.'-shearmax') then
               if (kstn.eq.0) kstn = 2
               if (ksts.eq.0) ksts = 2
               kshr = 2
@@ -1704,7 +1708,8 @@ C----------------------------------------------------------------------C
      1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
      2                             'STSFILE -estress ESTSFILE'
       write(*,*)
-     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
+     1 '               -normal NORFILE -shear[max] SHRFILE ',
+     2                      '-coul COULFILE'
       write(*,*)
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
@@ -1736,7 +1741,8 @@ C----------------------------------------------------------------------C
      1 '               -disp DSPFILE [-az] -strain STNFILE -stress ',
      2                             'STSFILE -estress ESTSFILE'
       write(*,*)
-     1 '               -normal NORFILE -shear SHRFILE -coul COULFILE'
+     1 '               -normal NORFILE -shear[max] SHRFILE -coul ',
+     2                        'COULFILE'
       write(*,*)
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
@@ -2009,7 +2015,7 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-shear SHEARFILE        Shear stress (',
+     1 '-shear[max] SHEARFILE   Shear stress (',
      2                               'requires target fault kinematics)'
       if (str.eq.'long') then
           write(*,*)
@@ -2021,8 +2027,8 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    onto the rake vector of the target fault.'
           write(*,*)
-     1 '    To have output be absolute value of shear traction, ',
-     1       'use -shearu.'
+     1 '    To have output be maximum value of shear traction, ',
+     1       'use -shearmax.'
           write(*,*)
           write(*,9999)
           write(*,*)
