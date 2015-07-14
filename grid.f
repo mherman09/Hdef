@@ -1,6 +1,6 @@
       PROGRAM grid
 C----
-C Create a horizontal 2-dimensional grid
+C Create grids primarily for use with o92util
 C----
       IMPLICIT NONE
       REAL*8 pi,d2r
@@ -14,14 +14,9 @@ C----
 C Get parameters from the command line
 C----
       call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz)
-      !print *,'X1',x1,'X2',x2
-      !print *,'Y1',Y1,'Y2',Y2
-      !print *,'DX',dx,'NX',nx
-      !print *,'DY',dy,'NY',ny
-      !print *,(ref(i),i=1,5)
 C Check that limits and increments are properly defined
-      if (x2.le.x1) call usage('!! Error: X2 is smaller than X1')
-      if (y2.le.y1) call usage('!! Error: Y2 is smaller than Y1')
+      if (x2.le.x1) call usage('!! Error: X2 must be greater than X1')
+      if (y2.lt.y1) call usage('!! Error: Y2 must be greater than Y1')
       if (dx.le.0.0d0.and.nx.le.0.0d0) then
           call usage('!! Error: DX/NX unspecified')
       endif
@@ -46,17 +41,18 @@ C----
           dx = (x2-x1)/dble(nx-1)
       endif
 
-      if (dy.gt.0.0d0) then
+      if (dabs(y2-y1).lt.1.0d-6) then
+          ny = 1
+      elseif (dy.gt.0.0d0) then
           ny = int((y2-y1)/dy)+1
       elseif (ny.lt.1) then
           call usage('!! Error: NY must be 1 or greater')
       elseif (ny.eq.1) then
+          write(0,*) '!! Warning: Using NY=1 with Y1 not equal to Y2'
           dy = 0.0d0
       else
           dy = (y2-y1)/dble(ny-1)
       endif
-      !print *,'DX',dx,'NX',nx
-      !print *,'DY',dy,'NY',ny
 
 C----
 C Generate grid
@@ -191,12 +187,13 @@ C----------------------------------------------------------------------C
       CHARACTER*40 tag,ofile
       REAL*8 x1,x2,y1,y2,z,dx,dy,ref(5)
       INTEGER narg,i,j,nx,ny,p,xsec,xz
+C Initialize variable values
       x1 = 0.0d0
       x2 = 0.0d0
       nx = -1
       dx = -1.0d0
       y1 = 0.0d0
-      y2 = 0.1d0
+      y2 = 0.0d0
       ny = -1
       dy = -1.0d0
       z = 0.0d0
