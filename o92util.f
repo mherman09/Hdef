@@ -1633,7 +1633,6 @@ C Parse command line
               long = 1
           elseif (tag(1:5).eq.'-auto') then
               auto = -1
-              prog = 1
               if (ksta.eq.0) staf = 'autosta.dat'
               ksta = 1
               ! Read auto mode
@@ -2072,7 +2071,7 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '      d: horizontal, along-strike  offset (km)'
           write(*,*)
-     1 '      a: horizontal, down-dip  offset (km)'
+     1 '      s: horizontal, down-dip  offset (km)'
           write(*,*)
           write(*,*)
      1 '    INCR'
