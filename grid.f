@@ -292,8 +292,9 @@ C----------------------------------------------------------------------C
      2            '-y Y1 Y2 [-ny NY|-dy DY]'
       write(*,*)
      1 '            [-z Z|-dip X0 Y0 Z0 STR ',
-     3              'DIP] [-xsec X0 Y0 AZ] [-xz]',
-     4             '[-o OFILE] [-p] [-h]'
+     2              'DIP] [-xsec X0 Y0 AZ] [-xz]'
+      write(*,*)
+     1 '            [-o OFILE] [-p] [-h]'
       write(*,*)
       write(*,*)
      1 '-x X1 X2    First column (x) limits'
