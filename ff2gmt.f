@@ -78,10 +78,6 @@ C----
           call getclip(cfile,evlo,evla,str,dx,dy,dip,seg,nseg,nflt,cf)
       endif
 
-C      do 11 i=1,nflt
-C          print *,seg(i)
-C   11 continue
-
       close(21)
       close(22)
       close(23)
@@ -275,6 +271,14 @@ C Print quadrilateral outline of FFM
           endif
   402 continue
       if (cf.eq.1) then
+          if (nseg.eq.1) then
+              write(24,*) evlo(iL(1)),evla(iL(1))
+              write(24,*) evlo(iT(1)),evla(iT(1))
+              write(24,*) evlo(iR(1)),evla(iR(1))
+              write(24,*) evlo(iB(1)),evla(iB(1))
+              write(24,*) evlo(iL(1)),evla(iL(1))
+              goto 410
+          endif
           lo = evlo(iL(1))
           j = 1
           do 403 i = 2,nseg
@@ -321,6 +325,7 @@ C Print quadrilateral outline of FFM
   407     continue
           write(24,*) evlo(j),evla(j)
       endif
+  410 continue
       close(24)
       RETURN
       END
