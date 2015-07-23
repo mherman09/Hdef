@@ -7,17 +7,17 @@ C----
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
       CHARACTER*40 ifile,sfile,tfile,zfile,cfile,nfile
       LOGICAL ex
-      INTEGER i,nflt,FMAX
+      INTEGER i,nflt,FMAX,cf
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),trup(FMAX),hylo,hyla
-      REAL*8 time
-      REAL*8 cosd
+      REAL*8 time,cosd
+      INTEGER seg(FMAX),nseg
 
 C----
 C Parse command line, check for files
 C----
-      call gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time)
+      call gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time,cf)
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input finite fault file unspecified'
           call usage('!! Use -f FFMFILE to specify input file')
@@ -42,7 +42,7 @@ C----
 C Read finite fault model
 C----
       call readffm(ifile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,trup,
-     1             hylo,hyla,nflt)
+     1             hylo,hyla,seg,nseg,nflt)
 
 C----
 C Write GMT-ready files
@@ -75,8 +75,12 @@ C----
   101     continue
   102 continue
       if (cfile.ne.'none') then
-          call getclip(cfile,evlo,evla,str,dx,dy,dip,nflt)
+          call getclip(cfile,evlo,evla,str,dx,dy,dip,seg,nseg,nflt,cf)
       endif
+
+C      do 11 i=1,nflt
+C          print *,seg(i)
+C   11 continue
 
       close(21)
       close(22)
@@ -87,176 +91,236 @@ C----
 
 C======================================================================c
 
-      SUBROUTINE getclip(cfile,evlo,evla,str,dx,dy,dip,nflt)
+      SUBROUTINE getclip(cfile,evlo,evla,str,dx,dy,dip,seg,nseg,nflt,cf)
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
       CHARACTER*40 cfile
-      INTEGER i,nflt,FMAX
+      INTEGER i,nflt,FMAX,cf,nseg
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),str(FMAX),dip(FMAX),
      1       dx(FMAX),dy(FMAX)
-      INTEGER iL,iR,iB,iT
-      REAL*8 Lmx,Rmx,Bmx,Tmx,lo1,la1,az1,az2,d1,d2
+      INTEGER iL(nseg),iR(nseg),iB(nseg),iT(nseg),seg(FMAX),ichk,j
+      REAL*8 Lmx,Rmx,Bmx,Tmx,lo,la,az1,az2,d1,d2
       open(unit=24,file=cfile,status='unknown')
 C Print quadrilateral outline of FFM
-      iL = 0
-      iR = 0
-      iB = 0
-      iT = 0
+      do 401 i = 1,nseg
+          iL(i) = 0
+          iR(i) = 0
+          iB(i) = 0
+          iT(i) = 0
+  401 continue
+      Lmx = 0
+      Rmx = 0
+      Bmx = 0
+      Tmx = 0
+      ichk = 1
       do 16 i = 1,nflt
-          if (i.eq.1) then
-              iL = i
-              iR = i
-              iB = i
-              iT = i
+          if (i.eq.1.or.seg(i).eq.ichk) then
+              iL(ichk) = i
+              iR(ichk) = i
+              iB(ichk) = i
+              iT(ichk) = i
               Lmx = evlo(i)
               Rmx = evlo(i)
               Bmx = evla(i)
               Tmx = evla(i)
+              ichk = ichk + 1
           else
               if (evlo(i).lt.Lmx) then
                   Lmx = evlo(i)
-                  iL = i
+                  iL(ichk-1) = i
               endif
               if (evlo(i).gt.Rmx) then
                   Rmx = evlo(i)
-                  iR = i
+                  iR(ichk-1) = i
               endif
               if (evla(i).lt.Bmx) then
                   Bmx = evla(i)
-                  iB = i
+                  iB(ichk-1) = i
               endif
               if (evla(i).gt.Tmx) then
                   Tmx = evla(i)
-                  iT = i
+                  iT(ichk-1) = i
               endif
           endif
    16 continue
-      if (0.0d0.le.str(1).and.str(1).lt.90.0d0) then
-          ! TOP +S,+D
-          az1 = str(iT)
-          az2 = str(iT)-90.0d0
-          d1 = 0.5d0*dx(iT)*1d-3
-          d2 = 0.5d0*dy(iT)*1d-3*dcos(dip(iT)*d2r)
-          call dlola(lo1,la1,evlo(iT),evla(iT),d1,az1)
-          call dlola(evlo(iT),evla(iT),lo1,la1,d2,az2)
-          ! RGT +S,-D
-          az1 = str(iR)
-          az2 = str(iR)+90.0d0
-          d1 = 0.5d0*dx(iR)*1d-3
-          d2 = 0.5d0*dy(iR)*1d-3*dcos(dip(iR)*d2r)
-          call dlola(lo1,la1,evlo(iR),evla(iR),d1,az1)
-          call dlola(evlo(iR),evla(iR),lo1,la1,d2,az2)
-          ! LFT -S,+D
-          az1 = 180.0d0+str(iL)
-          az2 = str(iL)-90.0d0
-          d1 = 0.5d0*dx(iL)*1d-3
-          d2 = 0.5d0*dy(iL)*1d-3*dcos(dip(iL)*d2r)
-          call dlola(lo1,la1,evlo(iL),evla(iL),d1,az1)
-          call dlola(evlo(iL),evla(iL),lo1,la1,d2,az2)
-          ! BOT -S,-D
-          az1 = 180.0d0+str(iB)
-          az2 = str(iB)+90.0d0
-          d1 = 0.5d0*dx(iB)*1d-3
-          d2 = 0.5d0*dy(iB)*1d-3*dcos(dip(iB)*d2r)
-          call dlola(lo1,la1,evlo(iB),evla(iB),d1,az1)
-          call dlola(evlo(iB),evla(iB),lo1,la1,d2,az2)
-      elseif (90.0d0.le.str(1).and.str(1).lt.180.0d0) then
-          ! TOP -S,+D
-          az1 = 180.0d0+str(iT)
-          az2 = str(iT)-90.0d0
-          d1 = 0.5d0*dx(iT)*1d-3
-          d2 = 0.5d0*dy(iT)*1d-3*dcos(dip(iT)*d2r)
-          call dlola(lo1,la1,evlo(iT),evla(iT),d1,az1)
-          call dlola(evlo(iT),evla(iT),lo1,la1,d2,az2)
-          ! RGT +S,+D
-          az1 = str(iR)
-          az2 = str(iR)-90.0d0
-          d1 = 0.5d0*dx(iR)*1d-3
-          d2 = 0.5d0*dy(iR)*1d-3*dcos(dip(iR)*d2r)
-          call dlola(lo1,la1,evlo(iR),evla(iR),d1,az1)
-          call dlola(evlo(iR),evla(iR),lo1,la1,d2,az2)
-          ! LFT -S,-D
-          az1 = 180.0d0+str(iL)
-          az2 = str(iL)+90.0d0
-          d1 = 0.5d0*dx(iL)*1d-3
-          d2 = 0.5d0*dy(iL)*1d-3*dcos(dip(iL)*d2r)
-          call dlola(lo1,la1,evlo(iL),evla(iL),d1,az1)
-          call dlola(evlo(iL),evla(iL),lo1,la1,d2,az2)
-          ! BOT +S,-D
-          az1 = str(iB)
-          az2 = str(iB)+90.0d0
-          d1 = 0.5d0*dx(iB)*1d-3
-          d2 = 0.5d0*dy(iB)*1d-3*dcos(dip(iB)*d2r)
-          call dlola(lo1,la1,evlo(iB),evla(iB),d1,az1)
-          call dlola(evlo(iB),evla(iB),lo1,la1,d2,az2)
-      elseif (180.0d0.le.str(1).and.str(1).lt.270.0d0
-     1             .or.-180.0d0.le.str(1).and.str(1).lt.-90.0d0) then
-          ! TOP -S,-D
-          az1 = 180.0d0+str(iT)
-          az2 = str(iT)+90.0d0
-          d1 = 0.5d0*dx(iT)*1d-3
-          d2 = 0.5d0*dy(iT)*1d-3*dcos(dip(iT)*d2r)
-          call dlola(lo1,la1,evlo(iT),evla(iT),d1,az1)
-          call dlola(evlo(iT),evla(iT),lo1,la1,d2,az2)
-          ! RGT -S,+D
-          az1 = 180.0d0+str(iR)
-          az2 = str(iR)-90.0d0
-          d1 = 0.5d0*dx(iR)*1d-3
-          d2 = 0.5d0*dy(iR)*1d-3*dcos(dip(iR)*d2r)
-          call dlola(lo1,la1,evlo(iR),evla(iR),d1,az1)
-          call dlola(evlo(iR),evla(iR),lo1,la1,d2,az2)
-          ! LFT +S,-D
-          az1 = str(iL)
-          az2 = str(iL)+90.0d0
-          d1 = 0.5d0*dx(iL)*1d-3
-          d2 = 0.5d0*dy(iL)*1d-3*dcos(dip(iL)*d2r)
-          call dlola(lo1,la1,evlo(iL),evla(iL),d1,az1)
-          call dlola(evlo(iL),evla(iL),lo1,la1,d2,az2)
-          ! BOT +S,+D
-          az1 = str(iB)
-          az2 = str(iB)-90.0d0
-          d1 = 0.5d0*dx(iB)*1d-3
-          d2 = 0.5d0*dy(iB)*1d-3*dcos(dip(iB)*d2r)
-          call dlola(lo1,la1,evlo(iB),evla(iB),d1,az1)
-          call dlola(evlo(iB),evla(iB),lo1,la1,d2,az2)
-      elseif (270.0d0.le.str(1).and.str(1).lt.360.0d0
-     1               .or.str(1).lt.0.0d0.and.str(1).ge.-90.0d0) then
-          ! TOP +S,-D
-          az1 = str(iT)
-          az2 = str(iT)+90.0d0
-          d1 = 0.5d0*dx(iT)*1d-3
-          d2 = 0.5d0*dy(iT)*1d-3*dcos(dip(iT)*d2r)
-          call dlola(lo1,la1,evlo(iT),evla(iT),d1,az1)
-          call dlola(evlo(iT),evla(iT),lo1,la1,d2,az2)
-          ! RGT -S,-D
-          az1 = 180.0d0+str(iR)
-          az2 = str(iR)+90.0d0
-          d1 = 0.5d0*dx(iR)*1d-3
-          d2 = 0.5d0*dy(iR)*1d-3*dcos(dip(iR)*d2r)
-          call dlola(lo1,la1,evlo(iR),evla(iR),d1,az1)
-          call dlola(evlo(iR),evla(iR),lo1,la1,d2,az2)
-          ! LFT +S,+D
-          az1 = str(iL)
-          az2 = str(iL)-90.0d0
-          d1 = 0.5d0*dx(iL)*1d-3
-          d2 = 0.5d0*dy(iL)*1d-3*dcos(dip(iL)*d2r)
-          call dlola(lo1,la1,evlo(iL),evla(iL),d1,az1)
-          call dlola(evlo(iL),evla(iL),lo1,la1,d2,az2)
-          ! BOT -S,+D
-          az1 = 180.0d0+str(iB)
-          az2 = str(iB)-90.0d0
-          d1 = 0.5d0*dx(iB)*1d-3
-          d2 = 0.5d0*dy(iB)*1d-3*dcos(dip(iB)*d2r)
-          call dlola(lo1,la1,evlo(iB),evla(iB),d1,az1)
-          call dlola(evlo(iB),evla(iB),lo1,la1,d2,az2)
+      do 402 i = 1,nseg
+          if (cf.eq.2) write(24,'(A)') '>'
+          if (0.0d0.le.str(iT(i)).and.str(iT(i)).lt.90.0d0) then
+              ! TOP +S,+D
+              az1 = str(iT(i))
+              az2 = str(iT(i))-90.0d0
+              d1 = 0.5d0*dx(iT(i))*1d-3
+              d2 = 0.5d0*dy(iT(i))*1d-3*dcos(dip(iT(i))*d2r)
+              call dlola(lo,la,evlo(iT(i)),evla(iT(i)),d1,az1)
+              call dlola(evlo(iT(i)),evla(iT(i)),lo,la,d2,az2)
+              ! RGT +S,-D
+              az1 = str(iR(i))
+              az2 = str(iR(i))+90.0d0
+              d1 = 0.5d0*dx(iR(i))*1d-3
+              d2 = 0.5d0*dy(iR(i))*1d-3*dcos(dip(iR(i))*d2r)
+              call dlola(lo,la,evlo(iR(i)),evla(iR(i)),d1,az1)
+              call dlola(evlo(iR(i)),evla(iR(i)),lo,la,d2,az2)
+              ! LFT -S,+D
+              az1 = 180.0d0+str(iL(i))
+              az2 = str(iL(i))-90.0d0
+              d1 = 0.5d0*dx(iL(i))*1d-3
+              d2 = 0.5d0*dy(iL(i))*1d-3*dcos(dip(iL(i))*d2r)
+              call dlola(lo,la,evlo(iL(i)),evla(iL(i)),d1,az1)
+              call dlola(evlo(iL(i)),evla(iL(i)),lo,la,d2,az2)
+              ! BOT -S,-D
+              az1 = 180.0d0+str(iB(i))
+              az2 = str(iB(i))+90.0d0
+              d1 = 0.5d0*dx(iB(i))*1d-3
+              d2 = 0.5d0*dy(iB(i))*1d-3*dcos(dip(iB(i))*d2r)
+              call dlola(lo,la,evlo(iB(i)),evla(iB(i)),d1,az1)
+              call dlola(evlo(iB(i)),evla(iB(i)),lo,la,d2,az2)
+          elseif (90.0d0.le.str(1).and.str(1).lt.180.0d0) then
+              ! TOP -S,+D
+              az1 = 180.0d0+str(iT(i))
+              az2 = str(iT(i))-90.0d0
+              d1 = 0.5d0*dx(iT(i))*1d-3
+              d2 = 0.5d0*dy(iT(i))*1d-3*dcos(dip(iT(i))*d2r)
+              call dlola(lo,la,evlo(iT(i)),evla(iT(i)),d1,az1)
+              call dlola(evlo(iT(i)),evla(iT(i)),lo,la,d2,az2)
+              ! RGT +S,+D
+              az1 = str(iR(i))
+              az2 = str(iR(i))-90.0d0
+              d1 = 0.5d0*dx(iR(i))*1d-3
+              d2 = 0.5d0*dy(iR(i))*1d-3*dcos(dip(iR(i))*d2r)
+              call dlola(lo,la,evlo(iR(i)),evla(iR(i)),d1,az1)
+              call dlola(evlo(iR(i)),evla(iR(i)),lo,la,d2,az2)
+              ! LFT -S,-D
+              az1 = 180.0d0+str(iL(i))
+              az2 = str(iL(i))+90.0d0
+              d1 = 0.5d0*dx(iL(i))*1d-3
+              d2 = 0.5d0*dy(iL(i))*1d-3*dcos(dip(iL(i))*d2r)
+              call dlola(lo,la,evlo(iL(i)),evla(iL(i)),d1,az1)
+              call dlola(evlo(iL(i)),evla(iL(i)),lo,la,d2,az2)
+              ! BOT +S,-D
+              az1 = str(iB(i))
+              az2 = str(iB(i))+90.0d0
+              d1 = 0.5d0*dx(iB(i))*1d-3
+              d2 = 0.5d0*dy(iB(i))*1d-3*dcos(dip(iB(i))*d2r)
+              call dlola(lo,la,evlo(iB(i)),evla(iB(i)),d1,az1)
+              call dlola(evlo(iB(i)),evla(iB(i)),lo,la,d2,az2)
+          elseif (180.0d0.le.str(1).and.str(1).lt.270.0d0
+     1          .or.-180.0d0.le.str(1).and.str(1).lt.-90.0d0) then
+              ! TOP -S,-D
+              az1 = 180.0d0+str(iT(i))
+              az2 = str(iT(i))+90.0d0
+              d1 = 0.5d0*dx(iT(i))*1d-3
+              d2 = 0.5d0*dy(iT(i))*1d-3*dcos(dip(iT(i))*d2r)
+              call dlola(lo,la,evlo(iT(i)),evla(iT(i)),d1,az1)
+              call dlola(evlo(iT(i)),evla(iT(i)),lo,la,d2,az2)
+              ! RGT -S,+D
+              az1 = 180.0d0+str(iR(i))
+              az2 = str(iR(i))-90.0d0
+              d1 = 0.5d0*dx(iR(i))*1d-3
+              d2 = 0.5d0*dy(iR(i))*1d-3*dcos(dip(iR(i))*d2r)
+              call dlola(lo,la,evlo(iR(i)),evla(iR(i)),d1,az1)
+              call dlola(evlo(iR(i)),evla(iR(i)),lo,la,d2,az2)
+              ! LFT +S,-D
+              az1 = str(iL(i))
+              az2 = str(iL(i))+90.0d0
+              d1 = 0.5d0*dx(iL(i))*1d-3
+              d2 = 0.5d0*dy(iL(i))*1d-3*dcos(dip(iL(i))*d2r)
+              call dlola(lo,la,evlo(iL(i)),evla(iL(i)),d1,az1)
+              call dlola(evlo(iL(i)),evla(iL(i)),lo,la,d2,az2)
+              ! BOT +S,+D
+              az1 = str(iB(i))
+              az2 = str(iB(i))-90.0d0
+              d1 = 0.5d0*dx(iB(i))*1d-3
+              d2 = 0.5d0*dy(iB(i))*1d-3*dcos(dip(iB(i))*d2r)
+              call dlola(lo,la,evlo(iB(i)),evla(iB(i)),d1,az1)
+              call dlola(evlo(iB(i)),evla(iB(i)),lo,la,d2,az2)
+          elseif (270.0d0.le.str(1).and.str(1).lt.360.0d0
+     1                .or.str(1).lt.0.0d0.and.str(1).ge.-90.0d0) then
+              ! TOP +S,-D
+              az1 = str(iT(i))
+              az2 = str(iT(i))+90.0d0
+              d1 = 0.5d0*dx(iT(i))*1d-3
+              d2 = 0.5d0*dy(iT(i))*1d-3*dcos(dip(iT(i))*d2r)
+              call dlola(lo,la,evlo(iT(i)),evla(iT(i)),d1,az1)
+              call dlola(evlo(iT(i)),evla(iT(i)),lo,la,d2,az2)
+              ! RGT -S,-D
+              az1 = 180.0d0+str(iR(i))
+              az2 = str(iR(i))+90.0d0
+              d1 = 0.5d0*dx(iR(i))*1d-3
+              d2 = 0.5d0*dy(iR(i))*1d-3*dcos(dip(iR(i))*d2r)
+              call dlola(lo,la,evlo(iR(i)),evla(iR(i)),d1,az1)
+              call dlola(evlo(iR(i)),evla(iR(i)),lo,la,d2,az2)
+              ! LFT +S,+D
+              az1 = str(iL(i))
+              az2 = str(iL(i))-90.0d0
+              d1 = 0.5d0*dx(iL(i))*1d-3
+              d2 = 0.5d0*dy(iL(i))*1d-3*dcos(dip(iL(i))*d2r)
+              call dlola(lo,la,evlo(iL(i)),evla(iL(i)),d1,az1)
+              call dlola(evlo(iL(i)),evla(iL(i)),lo,la,d2,az2)
+              ! BOT -S,+D
+              az1 = 180.0d0+str(iB(i))
+              az2 = str(iB(i))-90.0d0
+              d1 = 0.5d0*dx(iB(i))*1d-3
+              d2 = 0.5d0*dy(iB(i))*1d-3*dcos(dip(iB(i))*d2r)
+              call dlola(lo,la,evlo(iB(i)),evla(iB(i)),d1,az1)
+              call dlola(evlo(iB(i)),evla(iB(i)),lo,la,d2,az2)
+          endif
+          if (cf.eq.2) then
+              write(24,*) evlo(iL(i)),evla(iL(i))
+              write(24,*) evlo(iT(i)),evla(iT(i))
+              write(24,*) evlo(iR(i)),evla(iR(i))
+              write(24,*) evlo(iB(i)),evla(iB(i))
+              write(24,*) evlo(iL(i)),evla(iL(i))
+          endif
+  402 continue
+      if (cf.eq.1) then
+          lo = evlo(iL(1))
+          j = 1
+          do 403 i = 2,nseg
+              if (evlo(iL(i)).lt.lo) then
+                  lo = evlo(iL(i))
+                  j = iL(i)
+              endif
+  403     continue
+          write(24,*) evlo(j),evla(j)
+          la = evla(iB(1))
+          j = 1
+          do 405 i = 2,nseg
+              if (evla(iB(i)).lt.la) then
+                  la = evla(iB(i))
+                  j = iB(i)
+              endif
+  405     continue
+          write(24,*) evlo(j),evla(j)
+          lo = evlo(iR(1))
+          j = 1
+          do 404 i = 2,nseg
+              if (evlo(iR(i)).gt.lo) then
+                  lo = evlo(iR(i))
+                  j = iR(i)
+              endif
+  404     continue
+          write(24,*) evlo(j),evla(j)
+          la = evla(iT(1))
+          j = 1
+          do 406 i = 2,nseg
+              if (evla(iT(i)).gt.la) then
+                  la = evla(iT(i))
+                  j = iT(i)
+              endif
+  406     continue
+          write(24,*) evlo(j),evla(j)
+          lo = evlo(iL(1))
+          j = 1
+          do 407 i = 2,nseg
+              if (evlo(iL(i)).lt.lo) then
+                  lo = evlo(iL(i))
+                  j = iL(i)
+              endif
+  407     continue
+          write(24,*) evlo(j),evla(j)
       endif
-      write(24,*) evlo(iL),evla(iL)
-      write(24,*) evlo(iT),evla(iT)
-      write(24,*) evlo(iR),evla(iR)
-      write(24,*) evlo(iB),evla(iB)
-      write(24,*) evlo(iL),evla(iL)
       close(24)
       RETURN
       END
@@ -292,7 +356,7 @@ C     Return input values in initial units
 C----------------------------------------------------------------------c
 
       SUBROUTINE readffm(ffmfile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     1                   trup,hylo,hyla,nflt)
+     1                   trup,hylo,hyla,seg,nseg,nflt)
 C----
 C Read shear dislocations from FFM in standard subfault format.
 C----
@@ -302,7 +366,7 @@ C----
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),trup(FMAX),hylo,hyla
-      INTEGER g,nseg,ct,i,nx,ny,ptr
+      INTEGER g,nseg,ct,i,nx,ny,ptr,seg(FMAX)
       REAL*8 dxr,dyr
       ct = nflt
       open (unit=31,file=ffmfile,status='old')
@@ -328,6 +392,7 @@ C----
               dx(ct+i) = dxr
               dy(ct+i) = dyr
               evdp(ct+i) = 1.0d3*evdp(ct+i)
+              seg(ct+i) = g
   312     continue
           ct = ct + nx*ny
   313 continue
@@ -338,10 +403,10 @@ C----
 
 C----------------------------------------------------------------------c
 
-      SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time)
+      SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time,cf)
       IMPLICIT none
       CHARACTER*40 tag,ifile,sfile,tfile,zfile,cfile,nfile
-      INTEGER narg,i
+      INTEGER narg,i,cf
       REAL*8 time
       ifile = 'none'
       sfile = 'none'
@@ -350,6 +415,7 @@ C----------------------------------------------------------------------c
       cfile = 'none'
       nfile = 'none'
       time = -1.0d0
+      cf = 0
       narg = iargc()
       if (narg.eq.0) then
           call usage('!! Error: no command line arguments specified')
@@ -370,7 +436,12 @@ C----------------------------------------------------------------------c
           elseif (tag(1:4).eq.'-dep') then
               i = i + 1
               call getarg(i,zfile)
+          elseif (tag(1:8).eq.'-clipseg') then
+              cf = 2
+              i = i + 1
+              call getarg(i,cfile)
           elseif (tag(1:5).eq.'-clip') then
+              cf = 1
               i = i + 1
               call getarg(i,cfile)
           elseif (tag(1:7).eq.'-noslip') then
@@ -402,8 +473,10 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: ff2gmt -f FFMFILE -slip SLIPFILE|-time TIMEFILE',
-     2                  '|-dep DEPFILE|-clip CLIPFILE'
+     1 'Usage: ff2gmt -f FFMFILE -slip SLIPFILE -time TIMEFILE',
+     2                  ' -dep DEPFILE'
+      write(*,*)
+     1 '              -clip CLIPFILE|-clipseg CLIPFILE'
       write(*,*)
      1 '              [-trup TIME] [-noslip NOSLIPFILE] [-h]'
       write(*,*)
@@ -425,6 +498,9 @@ C     1 '-tf XYTFILE    Write lon lat trup to file'
 C     1 '-z             Replace slip with depth (km) in third column'
       write(*,*)
      1 '-clip CLIPFILE     Write outline of FFM to a file'
+      write(*,*)
+     1 '-clipseg CLIPFILE  Write outline of each segment in FFM to a ',
+     2                    'file'
       write(*,*)
      1 '-trup TIME         Only include subfaults that rupture before ',
      2                    'TIME'
