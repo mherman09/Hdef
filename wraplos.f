@@ -4,10 +4,9 @@ c Convert a line of sight displacement to a phase difference given
 c the wavelength of the InSAR satellite.
 c----
       IMPLICIT NONE
-      REAL*8 pi,d2r,tpi
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0,tpi=2.0d0*pi)
+      REAL*8 pi,tpi
+      PARAMETER (pi=4.0d0*datan(1.0d0),tpi=2.0d0*pi)
       REAL*8 stlo,stla,stdp,ulos,wvl,phase
-      INTEGER narg,i
       CHARACTER*40 ifile,ofile
       LOGICAL ex
 

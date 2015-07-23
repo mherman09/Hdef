@@ -6,12 +6,9 @@ C----
       INTEGER yr1,mo1,yr2,mo2
       REAL*8 dy1,dy2,ndy
       COMMON /DVARS/ yr1,mo1,yr2,mo2,dy1,dy2,ndy
-      REAL*8 rem
-      CHARACTER*40 ifile,ofile,date1,date2
-      CHARACTER*80 dum
+      CHARACTER*40 ifile,ofile
       CHARACTER*240 arg,ans
-      INTEGER opt,p,long,c,ptr,space,length,ntot,i,nline,ifmt
-      LOGICAL ex
+      INTEGER opt,p,long,c,ifmt
 
 C----
 C Parse command line
@@ -78,7 +75,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE rdarg(arg,ifmt,opt,long)
       IMPLICIT none
-      CHARACTER*240 ans,arg,arg1,arg2
+      CHARACTER*240 arg,arg1,arg2
       INTEGER opt,long,ifmt
       INTEGER yr1,mo1,yr2,mo2
       REAL*8 dy1,dy2,ndy
@@ -314,7 +311,7 @@ C
       IMPLICIT NONE
       CHARACTER*40 ifile,ofile,tag
       CHARACTER*240 arg
-      INTEGER i,narg,ii,j,opt,p,c,long,space,cin(2,6),nc
+      INTEGER i,narg,j,opt,p,c,long
       ifile = 'none'
       ofile = 'none'
       opt = 0
