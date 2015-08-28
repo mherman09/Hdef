@@ -9,7 +9,7 @@ C     vol. 82, no. 2, pp. 1018-1040.
 C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1             shrf,coulf,gmtf
+     1             shrf,coulf,gmtf,emprel
       INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER nflt,FMAX
@@ -27,7 +27,8 @@ C----
 C Parse command line
 C----
       call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long)
+     1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long,
+     2            emprel)
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -39,7 +40,7 @@ C----
 C Read input fault files
 C----
       call readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1             slip,hylo,hyla)
+     1             slip,hylo,hyla,emprel)
 
 C----
 C Check for auto flag to define stations
@@ -233,13 +234,13 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
-     1                   dx,dy,slip,hylo,hyla)
+     1                   dx,dy,slip,hylo,hyla,emprel)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmf,fltf,magf
+      CHARACTER*40 ffmf,fltf,magf,emprel
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -259,7 +260,7 @@ C----
       endif
       if (kmag.eq.1) then
           call readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     1                 nflt)
+     1                 nflt,emprel)
       endif
       if (nflt.lt.1) then
           write(*,*) '!! Error: no input faults read'
@@ -373,21 +374,30 @@ C Check that faults do not overflow arrays before reading
 C----------------------------------------------------------------------C
 
       SUBROUTINE readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                   slip,nflt)
+     1                   slip,nflt,emprel)
 C----
 C Read shear dislocations from fault file in format:
 C   evlo evla evdp(km) str dip rak mag
 C All units are converted to SI, angles are in degrees.
 C----
       IMPLICIT NONE
-      CHARACTER*40 magf
-      INTEGER i,f,nflt,FMAX,ln
+      CHARACTER*40 magf,emprel
+      INTEGER i,f,nflt,FMAX,ln,p
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),mag
       REAL*8 wid,len,mu
       INTEGER typ
       LOGICAL ex
+      p = index(emprel,'p')
+      if (p.ne.0) then
+          emprel(p:p) = ''
+      endif
+      if (emprel.ne.'WC'.and.emprel.ne.'MB'.and.emprel.ne.'B'
+     1                                         .and.emprel.ne.'YM') then
+              write(0,*) '!! No option for ',emprel
+              write(0,*) '   Using Wells and Coppersmith (1994)'
+      endif
       mu = 4.3d10 ! shear mod hard-coded, corresponds to autohaf params
       inquire(file='mu.dat',EXIST=ex)
       if (ex) then
@@ -416,7 +426,17 @@ C Check that faults do not overflow arrays
           else
               typ = 1 ! Strike-slip fault (otherwise)
           endif
-          call wellscoppersmith(wid,len,mag,typ)
+          if (emprel.eq.'WC') then
+              call wellscoppersmith(wid,len,mag,typ)
+          elseif (emprel.eq.'MB') then
+              call maiberoza(wid,len,mag,typ)
+          elseif (emprel.eq.'B') then
+              call blaseretal(wid,len,mag,typ)
+          elseif (emprel.eq.'YM') then
+              call yenma(wid,len,mag,typ)
+          else
+              call wellscoppersmith(wid,len,mag,typ)
+          endif
           !wid = wid*fltfac
           !len = len*fltfac
           slip(i) = ((1.0d1**(1.5d0*(mag+10.7d0)))*1.0d-7)/
@@ -431,6 +451,16 @@ C Check that faults do not overflow arrays
       endif
       nflt = i - 1
       close(33)
+      if (p.ne.0) then
+          write(0,*) '     EVLO      EVLA  EVDP(KM)    STR    DIP',
+     2               '    RAK     SLIP(M)     WID(KM)',
+     1               '     LEN(KM)'
+          do 333 i = nflt-f+2,nflt
+              write(0,9999) evlo(i),evla(i),evdp(i)*1d-3,str(i),dip(i),
+     1                      rak(i),slip(i),dy(i)*1d-3,dx(i)*1d-3
+  333     continue
+      endif
+ 9999 format(2(F10.3),F10.1,3(F7.1),3(F12.3))
       RETURN
       END
 
@@ -456,6 +486,101 @@ C----
       else
           len = 10.0d0**(-2.44d0+0.59d0*mag)
           wid = 10.0d0**(-1.01d0+0.32d0*mag)
+      endif
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE maiberoza(wid,len,mag,typ)
+C----
+C Mai, P.M., Beroza, G.C. (2000). Source scaling properties from finite-
+C   fault-rupture models. Bulletin of the Seismological Society of
+C   America, vol. 90, no. 3, pp. 604-615.
+C Note: using effective width and length scaling.
+C----
+      IMPLICIT none
+      INTEGER typ
+      REAL*8 wid,len,mag,mom,logmom
+      mom = 10.0d0**(1.5d0*(mag+10.7d0))
+      mom = mom*1.0d-7
+      logmom = dlog10(mom)
+C Strike-slip
+      if (typ.eq.1) then
+          len = 10.0d0**(-6.31d0+0.40d0*logmom)
+          wid = 10.0d0**(-2.18d0+0.17d0*logmom)
+C Dip-slip
+      elseif (typ.eq.2.or.typ.eq.3) then
+          len = 10.0d0**(-6.39d0+0.40d0*logmom)
+          wid = 10.0d0**(-5.51d0+0.35d0*logmom)
+C All
+      else
+          len = 10.0d0**(-6.13d0+0.39d0*logmom)
+          wid = 10.0d0**(-5.05d0+0.32d0*logmom)
+      endif
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE blaseretal(wid,len,mag,typ)
+C----
+C Blaser, L., Kruger, F., Ohrnberger, M., Scherbaum, F. (2010). Scaling
+C   relations of earthquake source parameter estimates with special
+C   focus on subduction environment. Bulletin of the Seismological
+C   Society of America, vol. 100, no. 6, pp. 2914-2926.
+C Note: using orthogonal scaling
+C----
+      IMPLICIT none
+      INTEGER typ
+      REAL*8 wid,len,mag
+C Strike-slip
+      if (typ.eq.1) then
+          len = 10.0d0**(-2.69d0+0.64d0*mag)
+          wid = 10.0d0**(-1.12d0+0.33d0*mag)
+C Reverse
+      elseif (typ.eq.2) then
+          len = 10.0d0**(-2.37d0+0.57d0*mag)
+          wid = 10.0d0**(-1.86d0+0.46d0*mag)
+C Normal
+      elseif (typ.eq.3) then
+          len = 10.0d0**(-1.91d0+0.52d0*mag)
+          wid = 10.0d0**(-1.20d0+0.36d0*mag)
+C All
+      else
+          len = 10.0d0**(-2.31d0+0.57d0*mag)
+          wid = 10.0d0**(-1.56d0+0.41d0*mag)
+      endif
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE yenma(wid,len,mag,typ)
+C----
+C Yeb, Y.-T., Ma, K.-F. (2011). Source-scaling relationship for
+C   M 4.6-8.9 earthquakes, specifically for earthquakes in the collision
+C   zone of Taiwan. Bulletin of the Seismological Society of America,
+C   vol. 101, no. 2, pp. 464-481.
+C----
+      IMPLICIT none
+      INTEGER typ
+      REAL*8 wid,len,mag,mom,logmom
+      mom = 10.0d0**(1.5d0*(mag+10.7d0))
+      mom = mom*1.0d-7
+      logmom = dlog10(mom)
+C Strike-slip
+      if (typ.eq.1) then
+          len = 10.0d0**(-8.11d0+0.50d0*logmom)
+          wid = 10.0d0**(-6.67d0+0.42d0*logmom)
+C Dip-slip
+      elseif (typ.eq.2.or.typ.eq.3) then
+          len = 10.0d0**(-6.66d0+0.42d0*logmom)
+          wid = 10.0d0**(-5.76d0+0.37d0*logmom)
+C All
+      else
+          len = 10.0d0**(-7.46d0+0.47d0*logmom)
+          wid = 10.0d0**(-6.30d0+0.40d0*logmom)
       endif
       RETURN
       END
@@ -546,7 +671,7 @@ C----
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
       if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
-      if (ksts.eq.1.or.ksts.eq.3) 
+      if (ksts.eq.1.or.ksts.eq.3)
      1    open(unit=23,file=stsf,status='unknown')
       if (knor.eq.1) open(unit=24,file=norf,status='unknown')
       if (kshr.ge.1) open(unit=25,file=shrf,status='unknown')
@@ -1092,6 +1217,13 @@ C----
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uE,uN,uZ,stdp,vp,vs,dens,adist
       INTEGER xy,dir,flttyp
+      if (evdp(1).gt.1.0d5) then
+          xmin = x0 - 3.0d0/dcos(evla(1)*0.01745d0)
+          xmax = x0 + 3.0d0/dcos(evla(1)*0.01745d0)
+          ymin = y0 - 3.0d0
+          ymax = y0 + 3.0d0
+          return
+      endif
       if (xy.eq.0) then
           dl(1) = 1.0d0 ! Amounts to move test location (deg)
           dl(2) = 0.1d0
@@ -1482,13 +1614,13 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
      1                  norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,
-     2                  prog,long)
+     2                  prog,long,emprel)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,
      1             dspf,stnf,stsf,norf,shrf,coulf,
-     2             gmtf
+     2             gmtf,emprel
       INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
@@ -1509,6 +1641,7 @@ C Initialize variables
       shrf = 'none'
       coulf = 'none'
       gmtf = 'none'
+      emprel = 'WC'
       flttyp = 1
       auto = 0
       xy = 0
@@ -1535,8 +1668,8 @@ C 0=unused; 1=output value; 2=use value, do not output
       kgmt = 0
 C Parse command line
       narg = iargc()
-      if (narg.eq.0) call usage('!! Error: No command line arguments '//
-     1                                     'specified')
+      if (narg.eq.0) call usage('!! o92util: tool for computing '//
+     1                    'deformation based on Okada (1992)')
       i = 0
   101 i = i + 1
       if (i.gt.narg) goto 102
@@ -1669,6 +1802,9 @@ C Parse command line
                   read(tag,'(BN,F10.0)') incr
                   if (auto.eq.2.or.auto.eq.3) incr = -incr
               endif
+          elseif (tag(1:10).eq.'-empirical') then
+              i = i + 1
+              call getarg(i,emprel)
           elseif (tag(1:4).eq.'-gmt') then
               kgmt = 1
               i = i + 1
@@ -1713,7 +1849,8 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-h|-help] [-d|-details]'
+     1 '               [-empirical WC|MB|B|YM[p]] [-h|-help] ',
+     2                 '[-d|-details]'
       write(*,*)
       STOP
       END
@@ -1746,7 +1883,8 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-h|-help] [-d|-details]'
+     1 '               [-empirical WC|MB|B|YM[p]] [-h|-help] ',
+     2                 '[-d|-details]'
       write(*,*)
       if (str.eq.'long') then
           write(*,*)
@@ -2034,7 +2172,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-coul COULFILE          Coulomb stress (',
-     2                            'requires target fault kinematics)' 
+     2                            'requires target fault kinematics)'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
@@ -2120,6 +2258,28 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
+     1 '-empirical WC|MB|B|YM   Empirical scaling relation'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Choose the empirical scale relation (default Wells and ',
+     2                'Coppersmith, 1994)'
+          write(*,*)
+     1 '        WC: Wells and Coppersmith (1994)'
+          write(*,*)
+     1 '        MB: Mai and Beroza (2000)'
+          write(*,*)
+     1 '        B:  Blaser et al. (2010)'
+          write(*,*)
+     1 '        YM: Yen and Ma (2011)'
+          write(*,*)
+     1 '    If p is appended, then the fault parameters will be ouput ',
+     2                'to standard error'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
      1 '-h|-help                Short online help'
       write(*,*)
      1 '-d|-details             Long online help, show file formats ',
@@ -2131,6 +2291,3 @@ C----------------------------------------------------------------------C
      1       '-------------------------')
       STOP
       END
-
-
-
