@@ -280,7 +280,7 @@ C Print quadrilateral outline of FFM
               goto 410
           endif
           lo = evlo(iL(1))
-          j = 1
+          j = iL(1)
           do 403 i = 2,nseg
               if (evlo(iL(i)).lt.lo) then
                   lo = evlo(iL(i))
@@ -289,7 +289,7 @@ C Print quadrilateral outline of FFM
   403     continue
           write(24,*) evlo(j),evla(j)
           la = evla(iB(1))
-          j = 1
+          j = iB(1)
           do 405 i = 2,nseg
               if (evla(iB(i)).lt.la) then
                   la = evla(iB(i))
@@ -298,7 +298,7 @@ C Print quadrilateral outline of FFM
   405     continue
           write(24,*) evlo(j),evla(j)
           lo = evlo(iR(1))
-          j = 1
+          j = iR(1)
           do 404 i = 2,nseg
               if (evlo(iR(i)).gt.lo) then
                   lo = evlo(iR(i))
@@ -307,7 +307,7 @@ C Print quadrilateral outline of FFM
   404     continue
           write(24,*) evlo(j),evla(j)
           la = evla(iT(1))
-          j = 1
+          j = iT(1)
           do 406 i = 2,nseg
               if (evla(iT(i)).gt.la) then
                   la = evla(iT(i))
@@ -316,7 +316,7 @@ C Print quadrilateral outline of FFM
   406     continue
           write(24,*) evlo(j),evla(j)
           lo = evlo(iL(1))
-          j = 1
+          j = iL(1)
           do 407 i = 2,nseg
               if (evlo(iL(i)).lt.lo) then
                   lo = evlo(iL(i))
