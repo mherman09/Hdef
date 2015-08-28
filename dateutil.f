@@ -146,7 +146,7 @@ C----------------------------------------------------------------------C
           dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
       endif
       RETURN
- 2001 write(*,*) '!! Error: read long format inputs incorrectly'
+ 2001 write(0,*) '!! Error: read long format inputs incorrectly'
       call usage('!! Check input formatting')
       END
 
@@ -288,18 +288,18 @@ C----------------------------------------------------------------------C
       INTEGER opt,p,c
       LOGICAL ex
       if (opt.eq.0) then
-          write(*,*) '!! Error: Type of date computation unspecified'
+          write(0,*) '!! Error: Type of date computation unspecified'
           call usage('!! Use -nday or -date')
       endif
       if (ifile.eq.'none'.and.c.eq.0) then
-          write(*,*) '!! Error: Input data is unspecified'
+          write(0,*) '!! Error: Input data is unspecified'
           call usage('!! Use -f IFILE or -c ARGS')
       elseif (c.eq.0) then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no input file: '//ifile)
       endif
       if (ofile.eq.'none'.and.p.eq.0) then
-          write(*,*) '!! Error: no output specified'
+          write(0,*) '!! Error: no output specified'
           call usage('!! Use -o OFILE or -p')
       endif
       RETURN
