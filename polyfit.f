@@ -40,7 +40,7 @@ C----
           write(*,*) '!! Error: polynomial order not specified'
           call usage('!! Use -ord ORDER to specify order')
       endif
-      if (ofile.eq.'none') then
+      if (ofile.eq.'none'.and.p.eq.0) then
           write(*,*) '!! Error: No output file specified'
           call usage('!! Use -o COEFF to specify coefficient file')
       endif
