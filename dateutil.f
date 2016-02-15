@@ -351,7 +351,7 @@ C
                       if (j.eq.1) then
                           arg = tag
                       else
-                          arg = arg(1:20*(j-1))//tag
+                          arg = arg(1:20*(j-1))//' '//tag
                       endif
                       goto 231
                   endif
