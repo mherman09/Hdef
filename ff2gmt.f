@@ -5,7 +5,7 @@ C----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
-      CHARACTER*40 ifile,sfile,tfile,zfile,cfile,nfile
+      CHARACTER*40 ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
       LOGICAL ex
       INTEGER i,nflt,FMAX,cf
       PARAMETER (FMAX=1500)
@@ -17,7 +17,8 @@ C----
 C----
 C Parse command line, check for files
 C----
-      call gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time,cf)
+      call gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile,
+     1            time,cf)
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input finite fault file unspecified'
           call usage('!! Use -f FFMFILE to specify input file')
@@ -37,6 +38,8 @@ C----
       if (tfile.ne.'none') open(unit=22,file=tfile,status='unknown')
       if (zfile.ne.'none') open(unit=23,file=zfile,status='unknown')
       if (nfile.ne.'none') open(unit=25,file=nfile,status='unknown')
+      if (efile.ne.'none') open(unit=26,file=efile,status='unknown')
+      if (dfile.ne.'none') open(unit=27,file=dfile,status='unknown')
 
 C----
 C Read finite fault model
@@ -45,22 +48,23 @@ C----
      1             hylo,hyla,seg,nseg,nflt)
 
 C----
-C Write GMT-ready files
+C Write output files
 C----
       do 102 i = 1,nflt
           cosd = dcos(d2r*dip(i))
           ! If using -trup option check here
           if (time.gt.0.0d0.and.time.lt.trup(i)) then
+              ! No-slip file
               if (nfile.ne.'none') then
                   write(25,*) evlo(i),evla(i),str(i),dx(i)*1d-3,
      1                                                   dy(i)*1d-3*cosd
               endif
-              goto 101
-          endif
-          ! Slip file
-          if (sfile.ne.'none') then
-              write(21,*) evlo(i),evla(i),slip(i),str(i),dx(i)*1d-3,
+          else
+              ! Slip file
+              if (sfile.ne.'none') then
+                  write(21,*) evlo(i),evla(i),slip(i),str(i),dx(i)*1d-3,
      1                                                   dy(i)*1d-3*cosd
+              endif
           endif
           ! Time file
           if (tfile.ne.'none') then
@@ -72,16 +76,24 @@ C----
               write(23,*) evlo(i),evla(i),evdp(i)*1d-3,str(i),
      1                                        dx(i)*1d-3,dy(i)*1d-3*cosd
           endif
-  101     continue
+          ! Double couple file
+          if (dfile.ne.'none') then
+              write(27,*) evlo(i),evla(i),evdp(i),str(i),dip(i),rak(i),
+     1                    slip(i)
+          endif
   102 continue
       if (cfile.ne.'none') then
           call getclip(cfile,evlo,evla,str,dx,dy,dip,seg,nseg,nflt,cf)
+      endif
+      if (efile.ne.'none') then
+          write(26,*) hylo,hyla
       endif
 
       close(21)
       close(22)
       close(23)
       close(25)
+      close(26)
 
       END
 
@@ -408,9 +420,10 @@ C----
 
 C----------------------------------------------------------------------c
 
-      SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,time,cf)
+      SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile,
+     1                  time,cf)
       IMPLICIT none
-      CHARACTER*40 tag,ifile,sfile,tfile,zfile,cfile,nfile
+      CHARACTER*40 tag,ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
       INTEGER narg,i,cf
       REAL*8 time
       ifile = 'none'
@@ -419,6 +432,8 @@ C----------------------------------------------------------------------c
       zfile = 'none'
       cfile = 'none'
       nfile = 'none'
+      efile = 'none'
+      dfile = 'none'
       time = -1.0d0
       cf = 0
       narg = iargc()
@@ -449,6 +464,12 @@ C----------------------------------------------------------------------c
               cf = 1
               i = i + 1
               call getarg(i,cfile)
+          elseif (tag(1:4).eq.'-epi') then
+              i = i + 1
+              call getarg(i,efile)
+          elseif (tag(1:3).eq.'-dc') then
+              i = i + 1
+              call getarg(i,dfile)
           elseif (tag(1:7).eq.'-noslip') then
               i = i + 1
               call getarg(i,nfile)
@@ -481,7 +502,8 @@ C----------------------------------------------------------------------C
      1 'Usage: ff2gmt -f FFMFILE -slip SLIPFILE -time TIMEFILE',
      2                  ' -dep DEPFILE'
       write(*,*)
-     1 '              -clip CLIPFILE|-clipseg CLIPFILE'
+     1 '              -clip CLIPFILE|-clipseg CLIPFILE -epi EPIFILE ',
+     2                 '-dc DCFILE'
       write(*,*)
      1 '              [-trup TIME] [-noslip NOSLIPFILE] [-h]'
       write(*,*)
@@ -506,6 +528,10 @@ C     1 '-z             Replace slip with depth (km) in third column'
       write(*,*)
      1 '-clipseg CLIPFILE  Write outline of each segment in FFM to a ',
      2                    'file'
+      write(*,*)
+     1 '-epi EPIFILE       Extract earthquake epicenter to file'
+      write(*,*)
+     1 '-dc  DCFILE        Extract strike, dip, rake, slip'
       write(*,*)
      1 '-trup TIME         Only include subfaults that rupture before ',
      2                    'TIME'
