@@ -9,7 +9,7 @@ C     vol. 82, no. 2, pp. 1018-1040.
 C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1             shrf,coulf,gmtf,emprel
+     1             shrf,coulf,gmtf,emprel,volf
       INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER nflt,FMAX
@@ -17,10 +17,10 @@ C----
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
       REAL*8 vp,vs,dens
-      INTEGER nsta,ntrg
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg        ! kvar definitions
+      INTEGER nsta,ntrg,typ(FMAX)
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol        ! kvar definitions
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt   ! in gcmdln comments
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 
 C----
@@ -28,19 +28,19 @@ C Parse command line
 C----
       call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long,
-     2            emprel)
+     2            emprel,volf)
 
 C----
 C Check for input fault source files, and whether output is specified
 C----
-      call chksrc(ffmf,fltf,magf)
+      call chksrc(ffmf,fltf,magf,volf)
       call chkout()
-
+      if (kvol.eq.1) goto 101
 C----
 C Read input fault files
 C----
       call readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1             slip,hylo,hyla,emprel)
+     1             slip,hylo,hyla,emprel,haff)
 
 C----
 C Check for auto flag to define stations
@@ -65,6 +65,18 @@ C----
      2              shrf,coulf,xy,prog,long)
 
 C----
+C Compute deformation for volume sources
+C----
+  101 if (kvol.eq.1) then
+          call readvol(volf,nflt,evlo,evla,evdp,str,dip,dx,dy,slip,typ)
+          call chkhafstatrg(haff,staf,trgf,nsta,ntrg)
+          call readhaff(haff,vp,vs,dens)
+          call voldefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,dip,
+     1                 dx,dy,slip,typ,vp,vs,dens,dspf,stnf,stsf,
+     2                 norf,shrf,coulf,xy,prog,long)
+      endif
+ 
+C----
 C Write fault input to GMT-compatible file
 C----
       if (kgmt.eq.1) then
@@ -76,22 +88,26 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE chksrc(ffmf,fltf,magf)
+      SUBROUTINE chksrc(ffmf,fltf,magf,volf)
 C----
 C Check (a) that fault source files were defined in gcmdln and (b) that
 C these fault files exist.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmf,fltf,magf
+      CHARACTER*40 ffmf,fltf,magf,volf
       LOGICAL ex
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
 
 C Verify input fault files were defined on command line
-      if (kffm.eq.0.and.kflt.eq.0.and.kmag.eq.0) then
-          write(*,*) '!! Error: No fault file specified'
-          call usage('!! Use -ffm FFMFILE, -flt FLTFILE, or -mag '//
-     1                  'MAGFILE')
+      if ((kffm.ne.0.or.kflt.ne.0.or.kmag.ne.0).and.kvol.eq.1) then
+          write(*,*) '!! Error: cannot combine fault and volume sources'
+          call usage('!! Run -ffm, -flt, or -mag separately from -vol')
+      endif
+      if (kffm.eq.0.and.kflt.eq.0.and.kmag.eq.0.and.kvol.eq.0) then
+          write(*,*) '!! Error: No source file specified'
+          call usage('!! Use -ffm FFMFILE, -flt FLTFILE, -mag '//
+     1                  'MAGFILE, or -vol VOLFILE')
       endif
 
 C Look for defined files in working directory
@@ -107,19 +123,25 @@ C Look for defined files in working directory
           inquire(file=magf,EXIST=ex)
           if (.not.ex) kmag = -1
       endif
+      if (kvol.eq.1) then
+          inquire(file=volf,EXIST=ex)
+          if (.not.ex) kflt = -1
+      endif
 
 C Quit to usage if none of input is found. Warn (but do not quit) if
 C at least one input is found but another is not.
-      if (kffm.ne.1.and.kflt.ne.1.and.kmag.ne.1) then
+      if (kffm.ne.1.and.kflt.ne.1.and.kmag.ne.1.and.kvol.ne.1) then
           write(*,*) '!! Error: No fault files found'
           if (kffm.eq.-1) write(*,*) '!! Looked for FFMFILE: '//ffmf
           if (kflt.eq.-1) write(*,*) '!! Looked for FLTFILE: '//fltf
           if (kmag.eq.-1) write(*,*) '!! Looked for MAGFILE: '//magf
-          call usage('!! Check -ffm, -flt, and -mag arguments')
+          if (kvol.eq.-1) write(*,*) '!! Looked for VOLFILE: '//volf
+          call usage('!! Check -ffm, -flt, -mag, and -vol arguments')
       else
           if (kffm.eq.-1) write(*,*) '!! Warning: No FFMFILE: '//ffmf
           if (kflt.eq.-1) write(*,*) '!! Warning: No FLTFILE: '//fltf
           if (kmag.eq.-1) write(*,*) '!! Warning: No MAGFILE: '//magf
+          if (kvol.eq.-1) write(*,*) '!! Warning: No VOLFILE: '//volf
       endif
       RETURN
       END
@@ -155,9 +177,9 @@ C----
       CHARACTER*40 haff,staf,trgf
       LOGICAL ex
       INTEGER nsta,ntrg,ptr,i
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C Look for station file, count number of receivers
       if (ksta.eq.0) then
@@ -234,20 +256,20 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
-     1                   dx,dy,slip,hylo,hyla,emprel)
+     1                   dx,dy,slip,hylo,hyla,emprel,haff)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmf,fltf,magf,emprel
+      CHARACTER*40 ffmf,fltf,magf,haff,emprel
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       nflt = 0
       if (kffm.eq.1) then
@@ -260,7 +282,7 @@ C----
       endif
       if (kmag.eq.1) then
           call readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
-     1                 nflt,emprel)
+     1                 nflt,emprel,haff)
       endif
       if (nflt.lt.1) then
           write(*,*) '!! Error: no input faults read'
@@ -374,7 +396,7 @@ C Check that faults do not overflow arrays before reading
 C----------------------------------------------------------------------C
 
       SUBROUTINE readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1                   slip,nflt,emprel)
+     1                   slip,nflt,emprel,haff)
 C----
 C Read shear dislocations from fault file in format:
 C   evlo evla evdp(km) str dip rak mag
@@ -389,6 +411,12 @@ C----
       REAL*8 wid,len,mu
       INTEGER typ
       LOGICAL ex
+      CHARACTER*40 haff
+      REAL*8 vp,vs,dens
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+
+      ! Determine empirical relation used
       p = index(emprel,'p')
       if (p.ne.0) then
           emprel(p:p) = ''
@@ -398,15 +426,18 @@ C----
               write(0,*) '!! No option for ',emprel
               write(0,*) '   Using Wells and Coppersmith (1994)'
       endif
-      mu = 4.3d10 ! shear mod hard-coded, corresponds to autohaf params
-      inquire(file='mu.dat',EXIST=ex)
+
+      ! Shear modulus for converting magnitude-moment to slip
+      inquire(file='mu.dat',EXIST=ex) ! Not a cmdln option, but if file exists, read mu
       if (ex) then
           open(unit=61,file='mu.dat',status='old')
           read(61,*) mu
           close(61)
       else
-          mu = 4.3d10
+          call readhaff(haff,vp,vs,dens)
+          mu = vs*vs*dens
       endif
+
       call linecount(magf,ln)
       open (unit=33,file=magf,status='old')
       f = 0
@@ -605,6 +636,59 @@ C----
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE readvol(volf,nflt,evlo,evla,evdp,str,dip,dx,dy,
+     1                   slip,typ)
+      IMPLICIT none
+      CHARACTER*40 volf,jnk
+      CHARACTER*200 inline
+      INTEGER nflt,FMAX
+      PARAMETER (FMAX=1500)
+      INTEGER typ(FMAX),i,f,ln
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       dx(FMAX),dy(FMAX),slip(FMAX)
+      nflt = 0
+      call linecount(volf,ln)
+      open (unit=34,file=volf,status='old')
+      f = 0
+  341 f = f + 1
+      i = nflt + f
+C Check that faults do not overflow arrays before reading
+      if (i.gt.FMAX) then
+          write(*,*) '!! Error too many input faults (max:',FMAX,')'
+          call usage('!! Reduce number of input faults or change FMAX')
+      endif
+      read (34,'(A200)',END=342) inline
+          if(index(inline,'p').ne.0) then
+              typ(i) = 0
+              read(inline,*) jnk,evlo(i),evla(i),evdp(i),slip(i)
+              str(i) = 0.0d0
+              dip(i) = 0.0d0
+              dx(i) = 0.0d0
+              dy(i) = 0.0d0
+          else
+              typ(i) = 1
+              read(inline,*) evlo(i),evla(i),evdp(i),str(i),dip(i),
+     1                       slip(i),dy(i),dx(i)
+              dx(i) = 1.0d3*dx(i)
+              dy(i) = 1.0d3*dy(i)
+          endif
+          evdp(i) = 1.0d3*evdp(i)
+          goto 341
+  342 continue
+      if (f-1.ne.ln) then
+          call usage('!! Error: NFLT in -vol file not equal to NLINE')
+      endif
+      nflt = i - 1
+!      print *,'nflt',nflt
+!      do 101 i=1,nflt
+!          print *,evlo(i),evla(i),evdp(i),slip(i)
+!  101 continue
+      close(34) 
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE readhaff(haff,vp,vs,dens)
 C----
 C Read vp, vs, dens from half-space file, or use default values.
@@ -613,8 +697,8 @@ C----
       IMPLICIT NONE
       CHARACTER*40 haff,ch
       REAL*8 vp,vs,dens,lamda,mu
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       if (khaf.eq.0) then
           call autohaf(vp,vs,dens)
       elseif (khaf.eq.1) then
@@ -630,6 +714,7 @@ C----
               read(11,*) vp,vs,dens
           endif
       endif
+      rewind(11)
       RETURN
       END
 
@@ -664,9 +749,9 @@ C----
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
       REAL*8 az,hdsp
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
@@ -750,6 +835,7 @@ C         Update progress indicator
               call progbar(i,nsta,progout)
           endif
   201 continue
+      close(12)
  9990 format(3F12.4,X,3F12.4)
  9991 format(3F12.4,X,6E16.6)
  9992 format(3F12.4,X,1E16.6)
@@ -1585,6 +1671,228 @@ C----
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE voldefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,
+     1                   dip,dx,dy,slip,typ,vp,vs,dens,dspf,stnf,
+     2                   stsf,norf,shrf,coulf,xy,prog,long)
+      IMPLICIT none
+      REAL*8 pi,r2d
+      PARAMETER (pi=4.0d0*atan(1.0d0),r2d=1.8d2/pi)
+      CHARACTER*40 staf,trgf,dspf,stnf,stsf,norf,shrf,coulf
+      INTEGER i,nsta,ntrg,progout
+      REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
+      INTEGER nflt,FMAX,xy,prog,long
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       dx(FMAX),dy(FMAX),slip(FMAX)
+      REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
+      REAL*8 az,hdsp
+      INTEGER typ(FMAX)
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+C     Open files specified for output
+      if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
+      if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
+      if (ksts.eq.1.or.ksts.eq.3)
+     1    open(unit=23,file=stsf,status='unknown')
+      if (knor.eq.1) open(unit=24,file=norf,status='unknown')
+      if (kshr.ge.1) open(unit=25,file=shrf,status='unknown')
+      if (kcou.eq.1) open(unit=26,file=coulf,status='unknown')
+C     Initialize progress indicator
+      if (prog.eq.1) then
+          i = 0
+          progout = 0
+          call progbar(i,nsta,progout)
+      endif
+C     If NTRG=1, read target fault parameters here
+      if (ktrg.eq.2) read(trgf,*) trgstr,trgdip,trgrak,frict
+      if (ktrg.eq.1) open(unit=13,file=trgf,status='old')
+      if (ntrg.eq.1.and.ktrg.eq.1) read(13,*) trgstr,trgdip,trgrak,frict
+C     Compute deformation for each receiver location
+      open(unit=12,file=staf,status='old')
+      do 201 i = 1,nsta
+          read(12,*) stlo,stla,stdp
+          stdp = stdp*1.0d3
+C         If NTRG=NSTA, read target fault parameters here
+          if (ntrg.eq.nsta.and.ktrg.eq.1.and.nsta.ne.1) then
+              read(13,*) trgstr,trgdip,trgrak,frict
+          endif
+C         Compute displacements
+          if (kdsp.ne.0) then
+              call voldisp(uN,uE,uZ,stlo,stla,stdp,nflt,evlo,evla,evdp,
+     1                      str,dip,dx,dy,slip,vp,vs,dens,typ,xy)
+              if (long.eq.0.and.kdsp.eq.1) then
+                  write(21,9990) stlo,stla,stdp*1d-3,uE,uN,uZ
+              elseif (long.eq.1.and.kdsp.eq.1) then
+                  write(21,9993) stlo,stla,stdp*1d-3,uE,uN,uZ
+              elseif (kdsp.eq.2) then
+                  az = atan2(uE,uN)*r2d
+                  hdsp = dsqrt(uE*uE+uN*uN)
+                  write(21,9990) stlo,stla,stdp*1d-3,az,hdsp,uz
+              endif
+          endif
+C         Compute (3x3) strain matrix
+          if (kstn.ge.1) then
+              call volstn(strain,stlo,stla,stdp,nflt,
+     1                     evlo,evla,evdp,str,dip,dx,dy,slip,
+     2                     vp,vs,dens,typ,xy)
+              if (kstn.eq.1) then
+                  write(22,9991) stlo,stla,stdp*1d-3,
+     1                           strain(1,1),strain(2,2),strain(3,3),
+     2                           strain(1,2),strain(1,3),strain(2,3)
+              endif
+          endif
+C         Compute (3x3) stress matrix
+          if (ksts.ge.1) then
+              call stn2sts(stress,strain,vp,vs,dens)
+              if (ksts.eq.1) then
+                  write(23,9991) stlo,stla,stdp*1d-3,
+     1                           stress(1,1),stress(2,2),stress(3,3),
+     2                           stress(1,2),stress(1,3),stress(2,3)
+              elseif (ksts.eq.3) then
+                  write(23,9991) stlo,stla,stdp*1d-3,estrs(stress)
+              endif
+          endif
+C         Resolve stresses onto target fault planes
+          if (kshr.ge.1.or.knor.eq.1.or.kcou.eq.1) then
+              call coulomb(coul,norml,shear,stress,trgstr,trgdip,trgrak,
+     1                     frict)
+              if (kshr.ge.1) then
+                  write(25,9992) stlo,stla,stdp*1d-3,shear
+              endif
+              if (knor.eq.1) then
+                  write(24,9992) stlo,stla,stdp*1d-3,norml
+              endif
+              if (kcou.eq.1) then
+                  write(26,9992) stlo,stla,stdp*1d-3,coul
+              endif
+          endif
+C         Update progress indicator
+          if (prog.eq.1) then
+              call progbar(i,nsta,progout)
+          endif
+  201 continue
+      close(12)
+ 9990 format(3F12.4,X,3F12.4)
+ 9991 format(3F12.4,X,6E16.6)
+ 9992 format(3F12.4,X,1E16.6)
+ 9993 format(3F12.4,X,3F16.8)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE voldisp(uNnet,uEnet,uZnet,stlo,stla,stdp,nflt,evlo,
+     1                   evla,evdp,str,dip,dx,dy,slip,vp,vs,dens,typ,xy)
+C----
+C Compute north, east, and vertical (positive up) displacements at
+C (stlo,stla,stdp) from volume sources.
+C----
+      IMPLICIT NONE
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
+      REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
+      INTEGER f,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX)
+      INTEGER typ(FMAX),xy
+      REAL*8 vp,vs,dens
+C Initialize net displacements
+      uNnet = 0.0d0
+      uEnet = 0.0d0
+      uZnet = 0.0d0
+C For each fault, compute contribution to net displacement
+      do 211 f = 1,nflt
+          if (xy.eq.0) then
+              call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+              dist = dist*6.371d6
+          else
+              delx = (stlo-evlo(f))*1.0d3
+              dely = (stla-evla(f))*1.0d3
+              dist = dsqrt(delx*delx + dely*dely)
+              az = datan2(delx,dely)
+          endif
+C x points along strike, y points horizontal, up-dip
+          x = dist*( dcos(az-d2r*str(f)))
+          y = dist*(-dsin(az-d2r*str(f)))
+          if (typ(f).eq.0) then
+              call o92ptvol(ux,uy,uz,x,y,stdp,evdp(f),slip(f),vp,vs,
+     1                      dens)
+          else
+              call o92rectvol(ux,uy,uz,x,y,stdp,evdp(f),dip(f),rak(f),
+     1                        dy(f),dx(f),slip(f),vp,vs,dens)
+          endif
+          call xy2NE(uN,uE,ux,uy,str(f))
+          uNnet = uNnet + uN
+          uEnet = uEnet + uE
+          uZnet = uZnet + uz
+  211 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE volstn(strain,stlo,stla,stdp,nflt,
+     1                  evlo,evla,evdp,str,dip,dx,dy,slip,
+     2                  vp,vs,dens,typ,xy)
+C----
+C Compute (3x3) strain matrix (x=E, y=N, positive up) at (stlo,stla,
+C stdp) from shear dislocations.
+C----
+      IMPLICIT NONE
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 strain(3,3),stntmp(3,3)
+      REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
+      INTEGER f,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       slip(FMAX),dx(FMAX),dy(FMAX)
+      INTEGER typ(FMAX),xy
+      REAL*8 vp,vs,dens
+      INTEGER i,j
+C Initialize net strains
+      do 222 i = 1,3
+          do 221 j = 1,3
+              strain(i,j) = 0.0d0
+  221     continue
+  222 continue
+C For each fault, compute contribution to net strain
+      do 225 f = 1,nflt
+          if (xy.eq.0) then
+              call ddistaz(dist,az,evlo(f),evla(f),stlo,stla)
+              dist = dist*6.371d6
+          else
+              delx = (stlo-evlo(f))*1.0d3
+              dely = (stla-evla(f))*1.0d3
+              dist = dsqrt(delx*delx + dely*dely)
+              az = datan2(delx,dely)
+          endif
+C x points along strike, y points horizontal, up-dip
+          x = dist*( dcos(az-d2r*str(f)))
+          y = dist*(-dsin(az-d2r*str(f)))
+          if (typ(f).eq.0) then
+              call o92ptstnvol(stntmp,x,y,stdp,evdp(f),slip(f),vp,vs,
+     1                         dens)
+          else
+              call o92rectstnvol(stntmp,x,y,stdp,evdp(f),dip(f),dy(f),
+     1                           dx(f),slip(f),vp,vs,dens)
+          endif
+          call rotstrain(stntmp,str(f))
+          do 224 i = 1,3
+              do 223 j = 1,3
+                  strain(i,j) = strain(i,j) + stntmp(i,j)
+  223         continue
+  224     continue
+  225 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE writegmt(gmtf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
      1                    slip)
 C----
@@ -1614,18 +1922,17 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
      1                  norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,
-     2                  prog,long,emprel)
+     2                  prog,long,emprel,volf)
       IMPLICIT NONE
       CHARACTER*40 tag
-      INTEGER narg,i,ptr
-      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,
-     1             dspf,stnf,stsf,norf,shrf,coulf,
-     2             gmtf,emprel
+      INTEGER narg,i,ptr,iargc
+      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
+     1             shrf,coulf,gmtf,emprel,volf
       INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg
+      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg
+      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C Initialize variables
       ffmf = 'none'
@@ -1634,6 +1941,7 @@ C Initialize variables
       staf = 'none'
       haff = 'none'
       trgf = 'none'
+      volf = 'none'
       dspf = 'none'
       stnf = 'none'
       stsf = 'none'
@@ -1657,6 +1965,7 @@ C 0=unspecified; 1=specified; -1=specified, but file not found
       ksta = 0
       khaf = 0
       ktrg = 0
+      kvol = 0
 C Output file status indicators (OCHECK block variables)
 C 0=unused; 1=output value; 2=use value, do not output
       kdsp = 0
@@ -1809,6 +2118,10 @@ C Parse command line
               kgmt = 1
               i = i + 1
               call getarg(i,gmtf)
+          elseif (tag(1:4).eq.'-vol') then
+              kvol = 1
+              i = i + 1
+              call getarg(i,volf)
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
@@ -1849,8 +2162,11 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-empirical WC|MB|B|YM[p]] [-h|-help] ',
-     2                 '[-d|-details]'
+     1 '               [-empirical WC|MB|B|YM[p]]'
+      write(*,*)
+     1 '               [-vol VOLFILE (!!TESTING!!)]'
+      write(*,*)
+     1 '               [-h|-help] [-d|-details]'
       write(*,*)
       STOP
       END
@@ -1883,8 +2199,11 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-empirical WC|MB|B|YM[p]] [-h|-help] ',
-     2                 '[-d|-details]'
+     1 '               [-empirical WC|MB|B|YM[p]]'
+      write(*,*)
+     1 '               [-vol VOLFILE (!!TESTING!!)]'
+      write(*,*)
+     1 '               [-h|-help] [-d|-details]'
       write(*,*)
       if (str.eq.'long') then
           write(*,*)
@@ -2275,6 +2594,28 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    If p is appended, then the fault parameters will be ouput ',
      2                'to standard error'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-vol VOLFILE            Volume source file (TESTING!!)'
+      write(*,*)
+     1 '    NOTE: cannot use -vol with -ffm, -flt, or -mag'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Format: p evlo evla evdp(km) dvol(m^3)'
+          write(*,*)
+     1 '                 OR'
+          write(*,*)
+     1 '    Format: evlo evla evdp(km) str dip disp(m)  wid(km)   ',
+     2                                                       'len(km)'
+          write(*,*)
+     1 '                              (degrees)          along-dip ',
+     2                                                    'along-str'
+          write(*,*)
+     1 '    To define point expansion source, line must start with "p"'
           write(*,*)
           write(*,9999)
           write(*,*)
