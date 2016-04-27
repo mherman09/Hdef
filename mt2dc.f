@@ -4,7 +4,7 @@
       PARAMETER (n=3,lda=n,lwmax=250)
       INTEGER   info,lwork
       REAL*8    a(lda,n),w(n),work(lwmax),m(6)
-      REAL*8 p(3),t(3),slip(3),normal(3),str,dip,rak
+      REAL*8 p(3),t(3),slip(3),normal(3),str,dip,rak,dcpct
       INTEGER i
 C     Moment tensor components (r=z, t=e, p=n):
 C                        mrr  mtt  mpp  mrt  mrp  mtp
@@ -29,12 +29,18 @@ C         Compute best-fitting focal mechanism
               t(i) = a(i,1)
               p(i) = a(i,3)
   103     continue
+          if (dabs(w(1)).gt.dabs(w(3))) then
+              dcpct = 1.0d0 - 2.0d0*dabs(w(2)/w(1))
+          else
+              dcpct = 1.0d0 - 2.0d0*dabs(w(2)/w(3))
+          endif
           call pt2un(p,t,slip,normal)
           call un2sdr(slip,normal,str,dip,rak)
-          write(*,1001),str,dip,rak
+          write(*,1001) str,dip,rak
+          write(0,*) w(1),w(2),w(3),0.5d0*(dabs(w(1))+dabs(w(3))),dcpct
           goto 101
   102 continue
- 1001 format(3F8.1)
+ 1001 format(3F8.1,F10.5)
       END
 
 C----------------------------------------------------------------------C
