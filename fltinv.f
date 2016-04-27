@@ -11,7 +11,7 @@ C----
 C Command line inputs
       CHARACTER*80 fltf,obsf,smoof,haff,ofile,annf
       REAL*8 smooth,damp
-      INTEGER geo,p,invert,vrb
+      INTEGER geo,p,invert,vrb,ostyle
 C Inversion array variables
       INTEGER nobs,OBSMAX,nflt,FLTMAX
       PARAMETER (OBSMAX=500,FLTMAX=500)
@@ -26,7 +26,7 @@ C----
 C Parse command line and test inputs
 C----
       call gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,invert,
-     1            annf)
+     1            annf,ostyle)
       if (vrb.eq.1) then
           write(0,*)
           write(0,'("****************************************")')
@@ -46,6 +46,7 @@ C----
           write(0,'("geo:    ",I5)'),geo
           write(0,'("p:      ",I5)'),p
           write(0,'("invert: ",I5)'),invert
+          write(0,'("ostyle: ",I5)'),ostyle
           write(0,*)
       endif
       call chkin(fltf,obsf)
@@ -126,7 +127,7 @@ C----
               write(0,'("Solution (ss ds)")')
           endif
       endif
-      call output(soln,nflt,FLTMAX,ofile,p)
+      call output(soln,nflt,FLTMAX,ofile,p,ostyle)
 
       END
 
@@ -613,7 +614,7 @@ C Inversion variables
       REAL*8 misfit,length,rough
       REAL*8 best0(FLTMAX,2,50),obj0(50)
       INTEGER nsoln
-      CHARACTER*2 nsolnc
+C      CHARACTER*2 nsolnc
 C Annealing-specific variables
       REAL*8 energy(500),obj,temp,objmin
       REAL*8 denom,test
@@ -622,7 +623,7 @@ C Random number variables
       INTEGER time(3),timeseed,idum
       CHARACTER*8 timec
       EXTERNAL ran2
-      REAL ran2
+      REAL ran2,random
 C Control file parameters
       CHARACTER*80 annf             ! Name of annealing control file 
       INTEGER      inityp           ! Initial solution type: 0=zero; 1=auto; 2=user
@@ -632,9 +633,22 @@ C Control file parameters
       REAL*8       temp0            ! Initial temperature
       REAL*8       cool             ! Cooling rate
       INTEGER      nitmax           ! Maximum iterations to run algorithm
+      CHARACTER*10 algrthm          ! Type of algorithm to use
+      INTEGER      reset            ! Step to reset temperature to 1
+      INTEGER      tconst           ! Number of steps to keep temp at 1
 C Other variables
       REAL*8 dslip(FLTMAX),drake(FLTMAX)
 
+C Initialize random number generator
+      call itime(time)
+      write(timec,'(I0.2I0.2I0.2)') time(1),time(2),time(3)
+      read(timec,*) timeseed
+      if (timeseed.gt.0) timeseed = -timeseed
+      idum = timeseed
+
+C----
+C Initialize output files
+C----
       open(unit=51,file='anneal.log',status='unknown')
       open(unit=52,file='solutions.log',status='unknown')
       write(51,'(A)') 'Starting simulated annealing search'
@@ -643,9 +657,12 @@ C Other variables
 C----
 C Read control file
 C----
+      algrthm = 'metropolis'
+      reset = 10000000
+      tconst = -1
       write(51,'(A)') 'Setting up control parameters'
       call readannf(inityp,slip0,rake0,slip,rake,temp0,cool,nitmax,
-     1              annf,nflt,FLTMAX,nsoln)
+     1              annf,nflt,FLTMAX,nsoln,algrthm,reset,tconst)
       write(51,'("  Initial model (0=zero,1=auto,2=user)")')
       write(51,'("      inityp:   ",I10)') inityp
       write(51,'("      slip0:    ",F10.2)') slip0
@@ -667,6 +684,9 @@ C----
       write(51,'("      nitmax:   ",I10)') nitmax
       write(51,'("  Number of solutions stored:")')
       write(51,'("      nsoln:    ",I10)') nsoln
+      write(51,'("  Using algorithm ",A10)') algrthm
+      write(51,'("  Reset period:   ",I10)') reset
+      write(51,'("  Const temp steps",I10)') tconst
       write(51,*)
 
 C----
@@ -684,9 +704,27 @@ C----
 C Initial solution
 C----
       write(51,'(A)') 'Loading initial solution'
+      write(51,*)
       call model0(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,inityp,slip0,
      1            rake0)
-      write(51,*)
+C Check that initial solution lies in range [slipmn,slipmx], [rakemn,rakemx]
+      do 558 i = 1,nflt
+          if (soln(i,1).lt.slip(i,1).or.soln(i,1).gt.slip(i,2)) then
+              write(*,*) '!! Warning: initial slip:',soln(i,1)
+              write(*,*) '!! outside of range [slipmn,slipmx]'
+              write(*,*) '!! Choosing random slip in [',
+     1                                         slip(i,1),slip(i,2),']'
+              soln(i,1) = slip(i,1) + ran2(idum)*(slip(i,2)-slip(i,1))
+          endif
+          if (soln(i,2).lt.rake(i,1).or.soln(i,2).gt.rake(i,2)) then
+              write(*,*) '!! Warning: initial rake:',rake(i,1)
+              write(*,*) '!! outside of range [rakemn,rakemx]'
+              write(*,*) '!! Choosing random rake in [',
+     1                                         rake(i,1),rake(i,2),']'
+              soln(i,2) = rake(i,1) + ran2(idum)*(rake(i,2)-rake(i,1))
+          endif
+  558 continue
+C Initialize objective function
       do 505 j = 1,nsoln
           obj0(j) = 1d10
   505 continue
@@ -697,11 +735,11 @@ C----
       write(51,'(A)') 'Computing initial objective function'
       call calcobj(obj,misfit,length,rough,soln,gf,obs,nobs,OBSMAX,nflt,
      1             FLTMAX,damp,smooth,smarry,nsmoo)
+      objmin = obj
+      obj0(1) = obj
       do 506 i = 1,nflt
-          objmin = obj
           best(i,1) = soln(i,1)
           best(i,2) = soln(i,2)
-          obj0(1) = obj
           best0(i,1,1) = soln(i,1)
           best0(i,2,1) = soln(i,2)
   506 continue
@@ -729,12 +767,6 @@ C----
 C Run annealing search
 C----
       write(51,'(A)') 'Starting annealing'
-C Initialize random number generator
-      call itime(time)
-      write(timec,'(I0.2I0.2I0.2)') time(1),time(2),time(3)
-      read(timec,*) timeseed
-      if (timeseed.gt.0) timeseed = -timeseed
-      idum = timeseed
 C Store some derived arrays
       do 507 i = 1,nflt
           dslip(i) = (slip(i,2)-slip(i,1))/slip(i,3)
@@ -744,51 +776,64 @@ C Iterate and search
       temp = temp0
       do 520 i = 1,nitmax
           do 514 j = 1,nflt
-C             Gibbs sampler: create variable PDFs; directly sample
-              denom = 0.0d0
-              do 508 jj = 1,int(slip(j,3)+0.1)
-                  soln(j,1) = slip(j,1) + (dble(jj)-0.5d0)*dslip(j)
-                  call calcobj(obj,misfit,length,rough,soln,gf,obs,nobs,
-     1                         OBSMAX,nflt,FLTMAX,damp,smooth,smarry,
-     2                         nsmoo)
-                  if (obj/temp.gt.50.0d0) then
-                      energy(jj) = 0.0d0
-                  else
-                      energy(jj) = exp(-obj/temp)
-                  endif
-                  denom = denom + energy(jj)
-  508         continue
-              test = 0.0d0
-              do 509 jj = 1,int(slip(j,3)+0.1)
-                  test = test + energy(jj)/denom
-                  if (ran2(idum).lt.test) then ! Sample PDF
-                      goto 510
-                  endif
-  509         continue
-  510         soln(j,1) = slip(j,1) + (dble(jj)-0.5d0)*dslip(j)
-              denom = 0.0d0
-              do 511 jj = 1,int(rake(j,3)+0.1)
-                  soln(j,2) = rake(j,1) + (dble(jj)-0.5d0)*drake(j)
-                  call calcobj(obj,misfit,length,rough,soln,gf,obs,nobs,
-     1                         OBSMAX,nflt,FLTMAX,damp,smooth,smarry,
-     2                         nsmoo)
-                  if (obj/temp.gt.50.0d0) then
-                      energy(jj) = 0.0d0
-                  else
-                      energy(jj) = exp(-obj/temp)
-                  endif
-                  denom = denom + energy(jj)
-  511         continue
-              test = 0.0d0
-              do 512 jj = 1,int(rake(j,3)+0.1)
-                  test = test + energy(jj)/denom
-                  if (ran2(idum).lt.test) then ! Sample PDF
-                      goto 513
-                  endif
-  512         continue
-  513         soln(j,2) = rake(j,1) + (dble(jj)-0.5d0)*drake(j)
+C------------ Metropolis-Hastings: perturb all variables by up to one increment
+              if (algrthm.eq.'metropolis') then
+  525             soln(j,1) = best(j,1) +
+     1                                 4.0d0*dslip(j)*(ran2(idum)-0.5d0)
+                  if (soln(j,1).lt.slip(j,1)
+     1                              .or.soln(j,1).gt.slip(j,2)) goto 525
+  526             soln(j,2) = best(j,2) +
+     1                                 4.0d0*drake(j)*(ran2(idum)-0.5d0)
+                  if (soln(j,2).lt.rake(j,1)
+     1                              .or.soln(j,2).gt.rake(j,2)) goto 526
+C------------ Gibbs sampler: create variable PDFs; directly sample
+              elseif (algrthm.eq.'gibbs') then
+                  denom = 0.0d0
+                  do 508 jj = 1,int(slip(j,3)+0.1)
+                      soln(j,1) = slip(j,1) + (dble(jj)-0.5d0)*dslip(j)
+                      call calcobj(obj,misfit,length,rough,soln,gf,obs,
+     1                             nobs,OBSMAX,nflt,FLTMAX,damp,smooth,
+     2                             smarry,nsmoo)
+                      if (obj/temp.gt.100.0d0) then
+                          energy(jj) = 0.0d0
+                      else
+                          energy(jj) = dexp(-obj/temp)
+                      endif
+                      denom = denom + energy(jj)
+  508             continue
+                  test = 0.0d0
+                  do 509 jj = 1,int(slip(j,3)+0.1)
+                      test = test + energy(jj)/denom
+                      if (ran2(idum).lt.test) then ! Sample PDF
+                          goto 510
+                      endif
+  509             continue
+  510             soln(j,1) = slip(j,1) + (dble(jj)-0.5d0)*dslip(j)
+                  denom = 0.0d0
+                  do 511 jj = 1,int(rake(j,3)+0.1)
+                      soln(j,2) = rake(j,1) + (dble(jj)-0.5d0)*drake(j)
+                      call calcobj(obj,misfit,length,rough,soln,gf,obs,
+     1                             nobs,OBSMAX,nflt,FLTMAX,damp,smooth,
+     2                             smarry,nsmoo)
+                      if (obj/temp.gt.100.0d0) then
+                          energy(jj) = 0.0d0
+                      else
+                          energy(jj) = dexp(-obj/temp)
+                      endif
+                      denom = denom + energy(jj)
+  511             continue
+                  test = 0.0d0
+                  do 512 jj = 1,int(rake(j,3)+0.1)
+                      test = test + energy(jj)/denom
+                      if (ran2(idum).lt.test) then ! Sample PDF
+                          goto 513
+                      endif
+  512             continue
+  513             soln(j,2) = rake(j,1) + (dble(jj)-0.5d0)*drake(j)
+              endif
   514     continue
-C         Compute objective function for new model
+
+C         Compute objective function for model in iteration i
           call calcobj(obj,misfit,length,rough,soln,gf,obs,nobs,OBSMAX,
      1                 nflt,FLTMAX,damp,smooth,smarry,nsmoo)
 C         Record results in log files
@@ -799,31 +844,53 @@ C         Record results in log files
               write(52,1005) j,soln(j,1),soln(j,2)
   515     continue
           write(52,*)
-C         Save solution in best models if in top NSOLN obj values
+
+C         Find the worst saved solution
+          test = 0.0d0
           do 517 j = 1,nsoln
-              if (obj.lt.obj0(j)) then
-                  do 516 jj = 1,nflt
-                      best0(jj,1,j) = soln(jj,1)
-                      best0(jj,2,j) = soln(jj,2)
-  516             continue
-                  obj0(j) = obj
-                  goto 518
+              if (obj0(j).gt.test) then
+                  test = obj0(j) 
+                  jj = j
               endif
   517     continue
-  518     continue
-C         If solution is best, save it
+          j = jj
+C         Save solution in best models array if in top NSOLN objective values
+          if (obj.lt.obj0(j)) then
+              do 516 jj = 1,nflt
+                  best0(jj,1,j) = soln(jj,1)
+                  best0(jj,2,j) = soln(jj,2)
+  516         continue
+              obj0(j) = obj
+          endif
+C         If solution is better than previous, save it
           if (obj.lt.objmin) then
               do 519 j = 1,nflt
                   best(j,1) = soln(j,1)
                   best(j,2) = soln(j,2)
                   objmin = obj
   519         continue
+C         When using Metropolis-Hastings, allow solution chance to get worse
+          elseif (algrthm.eq.'metropolis') then
+              test = dexp((objmin-obj)/temp)
+              random = ran2(idum)
+              if (random.lt.test) then
+                  do 527 j = 1,nflt
+                      best(j,1) = soln(j,1)
+                      best(j,2) = soln(j,2)
+                      objmin = obj
+  527             continue
+              endif
           endif
 C         Cool off
-          if (temp.gt.1e-4) then
+          if (mod(i,reset).lt.tconst) then
+              temp = temp
+          elseif (temp.gt.1e-4) then
               temp = temp*cool
           else
               temp = temp*0.995d0
+          endif
+          if (mod(i,reset).eq.0) then
+              temp = 1
           endif
   520 continue
       write(51,*)
@@ -834,8 +901,10 @@ C         Cool off
 C----
 C Write nsoln best solutions to file best_nsoln.dat
 C----
-      write(nsolnc,'(I0.2)') nsoln
-      open(unit=53,file='best_'//nsolnc//'.dat',status='unknown')
+C      write(nsolnc,'(I0.2)') nsoln
+C      open(unit=53,file='best_'//nsolnc//'.dat',status='unknown')
+      open(unit=53,file='best0.dat',status='unknown')
+      write(53,'(50F12.6)') (obj0(j),j=1,nsoln)
       do 521 i = 1,nflt
           write(53,'(50F12.6)') (best0(i,1,j),j=1,nsoln)
   521 continue
@@ -845,7 +914,7 @@ C----
       close(53)
 
 C----
-C Return best overall solution
+C Return final solution (NOT NECESSARILY LOWEST OBJECTIVE VALUE!)
 C----
       do 523 i = 1,nflt
           soln(i,1) = best(i,1)*dcos(best(i,2)*d2r)
@@ -857,20 +926,22 @@ C----
 C----------------------------------------------------------------------C
 
       SUBROUTINE readannf(inityp,slip0,rake0,slip,rake,temp0,cool,
-     1                    nitmax,annf,nflt,FLTMAX,nsoln)
+     1                    nitmax,annf,nflt,FLTMAX,nsoln,algrthm,reset,
+     2                    tconst)
 C----
 C Read annealing control file if it exists
 C----
       IMPLICIT none
       INTEGER nflt,FLTMAX
       CHARACTER*80 annf
-      INTEGER inityp,nitmax
+      INTEGER inityp,nitmax,reset,tconst
       INTEGER nsoln
       REAL*8 slip0,rake0,slip(FLTMAX,3),rake(FLTMAX,3),temp0,cool
       LOGICAL ex
       CHARACTER*120 line
       CHARACTER*1 dum
       INTEGER i,j,ns,nr
+      CHARACTER*10 algrthm
 C If annealing file not specified, use some default values
   551 if (annf.eq.'none') then
           inityp = 0
@@ -958,8 +1029,11 @@ C If only one fault parameter limits is defined, use it for all
       endif
       read(line,*) temp0,cool,nitmax
       nsoln = 1
-      read(59,*,end=557) nsoln
-  557 continue
+      read(59,*) nsoln
+      read(59,*) algrthm
+      read(59,*) reset
+      read(59,*) tconst
+C  557 continue
       close(59)
       RETURN
       END
@@ -1155,24 +1229,34 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE output(soln,nflt,FLTMAX,ofile,p)
+      SUBROUTINE output(soln,nflt,FLTMAX,ofile,p,ostyle)
       IMPLICIT none
       INTEGER FLTMAX
       REAL*8 soln(FLTMAX,2)
-      INTEGER nflt,p,i
-      CHARACTER*80 ofile
+      INTEGER nflt,p,i,ostyle
+      CHARACTER*80 ofile,frmt
+      if (ostyle.eq.0) then
+          frmt = '(2F14.6)'
+      elseif (ostyle.eq.1) then
+          frmt = '(2F20.10)'
+      elseif (ostyle.eq.10) then
+          frmt = '(2E16.6)'
+      elseif (ostyle.eq.11) then
+          frmt = '(2E20.10)'
+      else
+          frmt = '(2F14.6)'
+      endif
       if (p.eq.0) then
           open(unit=23,file=ofile,status='unknown')
           do 601 i = 1,nflt
-              write(23,1003) soln(i,1),soln(i,2)
+              write(23,frmt) soln(i,1),soln(i,2)
   601     continue
           close(23)
       else
           do 602 i = 1,nflt
-              write(*,1003) soln(i,1),soln(i,2)
+              write(*,frmt) soln(i,1),soln(i,2)
   602     continue
       endif
- 1003 format(2F14.6)
       RETURN
       END
 
@@ -1195,12 +1279,12 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,
-     1                  invert,annf)
+     1                  invert,annf,ostyle)
       IMPLICIT NONE
       CHARACTER*80 fltf,obsf,tag,smoof,ofile,haff,annf
       INTEGER i,narg,indx
       REAL*8 smooth,damp
-      INTEGER geo,p,invert,vrb
+      INTEGER geo,p,invert,vrb,ostyle
       COMMON /VERBOSE/ vrb
       fltf = 'none'
       obsf = 'none'
@@ -1214,6 +1298,7 @@ C----------------------------------------------------------------------C
       p = 0
       invert = 0
       vrb = 0
+      ostyle = 0
       indx = 0
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: no command line arguments')
@@ -1230,6 +1315,10 @@ C----------------------------------------------------------------------C
           elseif (tag(1:7).eq.'-smooth') then
               i = i + 1
               call getarg(i,tag)
+              indx = index(tag,'-')
+              if (indx.ne.0.or.i.gt.narg) then
+                  call usage('!! Error: must define smoothing file')
+              endif
               read(tag,'(BN,F10.0)') smooth
               i = i + 1
               call getarg(i,smoof)
@@ -1261,6 +1350,14 @@ C----------------------------------------------------------------------C
           elseif (tag(1:4).eq.'-haf') then
               i = i + 1
               call getarg(i,haff)
+          elseif (tag(1:8).eq.'-declong') then
+              ostyle = 1
+          elseif (tag(1:4).eq.'-dec') then
+              ostyle = 0
+          elseif (tag(1:8).eq.'-scilong') then
+              ostyle = 11
+          elseif (tag(1:4).eq.'-sci') then
+              ostyle = 10
           elseif (tag(1:2).eq.'-h') then
               call usage(' ')
           elseif (tag(1:2).eq.'-d') then
