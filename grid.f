@@ -34,7 +34,7 @@ C----
 C Calculate number of points and grid increments
 C----
       if (dx.gt.0.0d0) then
-          nx = int((x2-x1)/dx)+1
+          nx = int((x2-x1)/dx+1.0d-6)+1
       elseif (nx.le.1) then
           call usage('!! Error: NX must be 2 or greater')
       else
@@ -44,7 +44,7 @@ C----
       if (dabs(y2-y1).lt.1.0d-6) then
           ny = 1
       elseif (dy.gt.0.0d0) then
-          ny = int((y2-y1)/dy)+1
+          ny = int((y2-y1)/dy+1.0d-6)+1
       elseif (ny.lt.1) then
           call usage('!! Error: NY must be 1 or greater')
       elseif (ny.eq.1) then
