@@ -10,13 +10,14 @@ C----
       IMPLICIT none
 C Command line inputs
       CHARACTER*80 fltf,obsf,smoof,haff,ofile,annf
-      REAL*8 smooth,damp
-      INTEGER geo,p,invert,vrb,ostyle
+      REAL*8 smooth,damp,damp0
+      INTEGER geo,p,invert,vrb,ostyle,misfit
 C Inversion array variables
       INTEGER nobs,OBSMAX,nflt,FLTMAX
       PARAMETER (OBSMAX=500,FLTMAX=500)
       REAL*8 obs(OBSMAX,6),flt(FLTMAX,7),gf(OBSMAX,FLTMAX,6)
       REAL*8 soln(FLTMAX,2)
+      REAL*8 pre(OBSMAX,3),tot
 C Other variables
       REAL*8 haf(3)
       INTEGER i,j,k
@@ -26,7 +27,7 @@ C----
 C Parse command line and test inputs
 C----
       call gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,invert,
-     1            annf,ostyle)
+     1            annf,ostyle,misfit)
       if (vrb.eq.1) then
           write(0,*)
           write(0,'("****************************************")')
@@ -47,6 +48,7 @@ C----
           write(0,'("p:      ",I5)'),p
           write(0,'("invert: ",I5)'),invert
           write(0,'("ostyle: ",I5)'),ostyle
+          write(0,'("misfit: ",I5)'),misfit
           write(0,*)
       endif
       call chkin(fltf,obsf)
@@ -105,6 +107,12 @@ C----
       endif
 
 C----
+C Get best damping parameter
+C----
+C      call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
+C     1             smoof)
+
+C----
 C Run inversion
 C----
       if (invert.eq.0) then
@@ -117,6 +125,36 @@ C----
           call usage('!! Error: inversion option does not exist')
       endif
 
+C----
+C Misfit
+C----
+      if (misfit.eq.1) then
+          tot = 0.0d0
+          do 905 i = 1,nobs
+              pre(i,1) = 0.0d0
+              pre(i,2) = 0.0d0
+              pre(i,3) = 0.0d0
+              do 906 j = 1,nflt
+                  pre(i,1) = pre(i,1) + gf(i,j,1)*soln(j,1) 
+     1                                             + gf(i,j,4)*soln(j,2)
+                  pre(i,2) = pre(i,2) + gf(i,j,2)*soln(j,1)
+     1                                             + gf(i,j,5)*soln(j,2)
+                  pre(i,3) = pre(i,3) + gf(i,j,3)*soln(j,1)
+     1                                             + gf(i,j,6)*soln(j,2)
+  906         continue
+  905     continue
+          do 907 i = 1,nobs
+              tot = tot + (pre(i,1)-obs(i,4))*(pre(i,1)-obs(i,4))
+     1                   + (pre(i,2)-obs(i,5))*(pre(i,2)-obs(i,5))
+     2                   + (pre(i,3)-obs(i,6))*(pre(i,3)-obs(i,6))
+  907     continue
+          pre(1,1) = 0.0d0
+          do 908 i = 1,nflt
+              pre(1,1) = pre(1,1) + soln(i,1)*soln(i,1)
+     1                   + soln(i,2)*soln(i,2)
+  908     continue
+          print *,dsqrt(tot),dsqrt(pre(1,1))
+      endif
 C----
 C Write output nicely
 C----
@@ -589,6 +627,88 @@ C Compute parameter array
       do 442 i = 1,npar
           x(i,1) = btmp(i,1)
   442 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
+     1                   smooth,smoof)
+      IMPLICIT none
+      CHARACTER*80 smoof
+      REAL*8 damp,smooth
+      INTEGER OBSMAX,FLTMAX
+      REAL*8 obs(OBSMAX,6)
+      REAL*8 gf(OBSMAX,FLTMAX,6)
+      REAL*8 soln(FLTMAX,2),misfit,length
+      REAL*8 pre(3)
+      INTEGER i,j,nobs,nflt,k
+      REAL*8 x1,x2,x3,y1,y2,y3,a,r,dampsv,rmin
+      rmin = -1.0d0
+      damp = 0.0d0
+      k = 0
+  101 k = k + 1
+          call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
+     1                smooth,smoof)
+          misfit = 0.0d0
+          do 102 i = 1,nobs
+              pre(1) = 0.0d0
+              pre(2) = 0.0d0
+              pre(3) = 0.0d0
+              do 103 j = 1,nflt
+                  pre(1) = pre(1) + gf(i,j,1)*soln(j,1)
+     1                                             + gf(i,j,4)*soln(j,2)
+                  pre(2) = pre(2) + gf(i,j,2)*soln(j,1)
+     1                                             + gf(i,j,5)*soln(j,2)
+                  pre(3) = pre(3) + gf(i,j,3)*soln(j,1)
+     1                                             + gf(i,j,6)*soln(j,2)
+  103         continue
+              misfit = misfit + (pre(1)-obs(i,4))*(pre(1)-obs(i,4))
+     1                   + (pre(2)-obs(i,5))*(pre(2)-obs(i,5))
+     2                   + (pre(3)-obs(i,6))*(pre(3)-obs(i,6))
+  102     continue
+          length = 0.0d0
+          do 104 i = 1,nflt
+              length = length + soln(i,1)*soln(i,1)
+     1                   + soln(i,2)*soln(i,2)
+  104     continue
+          misfit = dlog10(dsqrt(misfit))
+          length = dlog10(dsqrt(length))
+          if (k.eq.1) then
+              x1 = misfit
+              y1 = length
+          elseif (k.eq.2) then
+              x2 = misfit
+              y2 = length
+          elseif (k.eq.3) then
+              x3 = misfit
+              y3 = length
+          else
+              x1 = x2
+              y1 = y2
+              x2 = x3
+              y2 = y3
+              x3 = misfit
+              y3 = length
+          endif
+          if (k.ge.3) then
+              a = 2.0d0*(x2*y3-x3*y2+x3*y1-x1*y3+x1*y2-x2*y1)
+              r = dsqrt(((x2-x3)*(x2-x3)+(y2-y3)*(y2-y3))*
+     1              ((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3))*
+     2              ((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)))/a
+              if (r.gt.0.0d0.and.rmin.lt.0.0d0) then
+                  dampsv = damp - 0.01d0
+                  rmin = r
+              elseif (r.gt.0.0d0.and.r.lt.rmin) then
+                  dampsv = damp - 0.01d0
+                  rmin = r
+              endif
+          endif
+          damp = damp + 0.01d0
+      if (k.le.100) goto 101
+      write (0,1001) 'Choosing damping parameter: ',dampsv
+ 1001 format('L-curve damping parameter: ',F10.6)
+      damp = dampsv
       RETURN
       END
 
@@ -1279,12 +1399,12 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,
-     1                  invert,annf,ostyle)
+     1                  invert,annf,ostyle,misfit)
       IMPLICIT NONE
       CHARACTER*80 fltf,obsf,tag,smoof,ofile,haff,annf
       INTEGER i,narg,indx
       REAL*8 smooth,damp
-      INTEGER geo,p,invert,vrb,ostyle
+      INTEGER geo,p,invert,vrb,ostyle,misfit
       COMMON /VERBOSE/ vrb
       fltf = 'none'
       obsf = 'none'
@@ -1300,6 +1420,7 @@ C----------------------------------------------------------------------C
       vrb = 0
       ostyle = 0
       indx = 0
+      misfit = 0
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: no command line arguments')
       i = 0
@@ -1358,6 +1479,8 @@ C----------------------------------------------------------------------C
               ostyle = 11
           elseif (tag(1:4).eq.'-sci') then
               ostyle = 10
+          elseif (tag(1:7).eq.'-misfit') then
+              misfit = 1
           elseif (tag(1:2).eq.'-h') then
               call usage(' ')
           elseif (tag(1:2).eq.'-d') then
@@ -1486,12 +1609,18 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
+     1 '-dec|-declong       Decimal or long decimal output ',
+     2                                                '(F14.6|F20.10)'
+      write(*,*)
+     1 '-sci|-scilong       Scientific or long scientific output ',
+     2                                               '(E16.6|E20.10)'
+      write(*,*)
+     1 '-misfit             Print least squares misfit to stdout'
+      write(*,*)
      1 '-h                  Short online help'
       write(*,*)
      1 '-d                  Detailed online help'
       write(*,*)
       STOP
       END
-
-
 
