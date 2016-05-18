@@ -111,6 +111,7 @@ C Get best damping parameter
 C----
 C      call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
 C     1             smoof)
+C      damp = damp0
 
 C----
 C Run inversion
@@ -706,7 +707,7 @@ C----------------------------------------------------------------------C
           endif
           damp = damp + 0.01d0
       if (k.le.100) goto 101
-      write (0,1001) 'Choosing damping parameter: ',dampsv
+      write (0,1001) dampsv
  1001 format('L-curve damping parameter: ',F10.6)
       damp = dampsv
       RETURN
