@@ -49,6 +49,8 @@ C Read inputs
               call usage('!! Error: cannot compute moment from SDR')
           elseif (mode.eq.16) then
               call sdr2ter(line,soln)
+          elseif (mode.eq.17) then
+              soln = '1.00'
           elseif (mode.eq.21) then
               call mij2sdr(line,soln)
           elseif (mode.eq.22) then
@@ -61,6 +63,8 @@ C Read inputs
               call mij2mom(line,soln)
           elseif (mode.eq.26) then
               call mij2ter(line,soln)
+          elseif (mode.eq.27) then
+              call mij2dcp(line,soln)
           elseif (mode.eq.31) then
               call pnt2sdr(line,soln)
           elseif (mode.eq.32) then
@@ -73,6 +77,8 @@ C Read inputs
               call pnt2mom(line,soln)
           elseif (mode.eq.36) then
               call pnt2ter(line,soln)
+          elseif (mode.eq.37) then
+              call pnt2dcp(line,soln)
           elseif (mode.eq.41) then
               call usage('!! Error: cannot compute SDR from MAG')
           elseif (mode.eq.42) then
@@ -85,6 +91,8 @@ C Read inputs
               call mag2mom(line,soln)
           elseif (mode.eq.46) then
               call usage('!! Error: cannot compute Ternary from MAG')
+          elseif (mode.eq.47) then
+              call usage('!! Error: cannot compute DC % from MAG')
           elseif (mode.eq.51) then
               call usage('!! Error: cannot compute SDR from MOM')
           elseif (mode.eq.52) then
@@ -97,6 +105,8 @@ C Read inputs
               call usage('!! Silly, you have the moment!')
           elseif (mode.eq.56) then
               call usage('!! Error: cannot compute Ternary from MAG')
+          elseif (mode.eq.56) then
+              call usage('!! Error: cannot compute DC % from MAG')
           endif
 C Write outputs
           if (output(1:5).eq.'print') then
@@ -178,8 +188,6 @@ C Get input type
           mode = 40
       elseif (tag(1:4).eq.'-mom') then
           mode = 50
-      elseif (tag(1:4).eq.'-ter') then
-          mode = 60
       else
           call usage('!! Error: no option '//tag)
       endif
@@ -204,6 +212,8 @@ C Get output
           mode = mode + 5
       elseif (tag(1:4).eq.'-ter') then
           mode = mode + 6
+      elseif (tag(1:4).eq.'-dcp') then
+          mode = mode + 7
       else
           call usage('!! Error: no option '//tag)
       endif
@@ -247,6 +257,9 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '    -ternary  fth fss fno'
       write(*,*)
+     1 '    -dcp      double couple percentage'
+      write(*,*)
+      write(*,*)
      1 '    INPUT format:'
       write(*,*)
      1 '        file name: read from file INPUT'
@@ -254,6 +267,13 @@ C----------------------------------------------------------------------C
      1 '        comma delimited list: read from command line'
       write(*,*)
      1 '        "stdin": read from standard input'
+      write(*,*)
+      write(*,*)
+     1 '    OUTPUT format:'
+      write(*,*)
+     1 '        file name: write to file OUTPUT'
+      write(*,*)
+     1 '        undefined: print to standard output'
       write(*,*)
       STOP
       END

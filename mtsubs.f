@@ -359,6 +359,24 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE mij2dcp(line,soln)
+      IMPLICIT none
+      CHARACTER*180 line,soln
+      REAL*8 dum,p,n,t,dcp
+      call mij2pnt(line,soln)
+      read(soln,*) dum,dum,dum,dum,dum,dum,dum,dum,dum,p,n,t
+      if (dabs(p).gt.dabs(t)) then
+          dcp = 1.0d0 - 2.0d0*dabs(n/p)
+      else
+          dcp = 1.0d0 - 2.0d0*dabs(n/t)
+      endif
+      write(soln,1001) dcp
+ 1001 format(F5.2)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE mij2pnt(line,soln)
 C----
 C Compute P, N, and T vectors from a moment tensor input
@@ -459,4 +477,19 @@ C Check rake is pos or neg
       RETURN
       END
 
+C----------------------------------------------------------------------C
 
+      SUBROUTINE pnt2dcp(line,soln)
+      IMPLICIT none
+      CHARACTER*180 line,soln
+      REAL*8 dum,p,n,t,dcp
+      read(line,*) dum,dum,dum,dum,dum,dum,dum,dum,dum,p,n,t
+      if (dabs(p).gt.dabs(t)) then
+          dcp = 1.0d0 - 2.0d0*dabs(n/p)
+      else
+          dcp = 1.0d0 - 2.0d0*dabs(n/t)
+      endif
+      write(soln,1001) dcp
+ 1001 format(F5.2)
+      RETURN
+      END
