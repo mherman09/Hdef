@@ -1,4 +1,5 @@
       PROGRAM main
+
       IMPLICIT none
       REAL*8 mag,mom
   101 read (*,*,end=102) mom
