@@ -24,11 +24,17 @@ of always looking up certain equations and typing them into my
 calculator, so I wrote simple codes to have these results at my
 fingertips. These are included, and you may find them useful as well.
 
+More recently, I have been working on inverting static displacement
+data. This is mostly in fltinv.f. It is pretty crude, but it gets the
+job done for my simple applications. The linear inversion option seems
+to work reasonably well. The simulated annealing option is not working
+to my satisfaction yet (as of May 19, 2016).
+
 
 GUARANTEES
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 There are none. Happy? I think these results are correct, and I have
 used them to make calculations for peer-reviewed publications, but I
 cannot guarantee that there are no bugs. Feel free to change the codes
-as you see fit.
+as you see fit. Check out the LICENSE (it's the MIT license).
 
