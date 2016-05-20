@@ -10,8 +10,8 @@ C----
       IMPLICIT none
 C Command line inputs
       CHARACTER*80 fltf,obsf,smoof,haff,ofile,annf
-      REAL*8 smooth,damp,damp0
-      INTEGER geo,p,invert,vrb,ostyle,misfit
+      REAL*8 smooth,damp,damp0,fact
+      INTEGER geo,p,invert,vrb,ostyle,misfit,getdmp
 C Inversion array variables
       INTEGER nobs,OBSMAX,nflt,FLTMAX
       PARAMETER (OBSMAX=500,FLTMAX=500)
@@ -27,7 +27,7 @@ C----
 C Parse command line and test inputs
 C----
       call gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,invert,
-     1            annf,ostyle,misfit)
+     1            annf,ostyle,misfit,getdmp,fact)
       if (vrb.eq.1) then
           write(0,*)
           write(0,'("****************************************")')
@@ -49,6 +49,8 @@ C----
           write(0,'("invert: ",I5)'),invert
           write(0,'("ostyle: ",I5)'),ostyle
           write(0,'("misfit: ",I5)'),misfit
+          write(0,'("getdmp: ",I5)'),getdmp
+          write(0,'("fact:   ",F12.6)'),fact
           write(0,*)
       endif
       call chkin(fltf,obsf)
@@ -109,9 +111,12 @@ C----
 C----
 C Get best damping parameter
 C----
-C      call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
-C     1             smoof)
-C      damp = damp0
+      if (getdmp.eq.1) then
+          print *,fact
+          call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
+     1                 smoof,fact)
+          damp = damp0
+      endif
 
 C----
 C Run inversion
@@ -634,82 +639,69 @@ C Compute parameter array
 C----------------------------------------------------------------------C
 
       SUBROUTINE getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
-     1                   smooth,smoof)
+     1                   smooth,smoof,fact)
       IMPLICIT none
       CHARACTER*80 smoof
       REAL*8 damp,smooth
       INTEGER OBSMAX,FLTMAX
       REAL*8 obs(OBSMAX,6)
       REAL*8 gf(OBSMAX,FLTMAX,6)
-      REAL*8 soln(FLTMAX,2),misfit,length
-      REAL*8 pre(3)
-      INTEGER i,j,nobs,nflt,k
-      REAL*8 x1,x2,x3,y1,y2,y3,a,r,dampsv,rmin
-      rmin = -1.0d0
+      REAL*8 soln(FLTMAX,2),misfit
+      REAL*8 p(3)
+      INTEGER i,j,nobs,nflt
+      REAL*8 slip,slipmx,ddamp,misfit0,fact
+C Compute misfit with damp = 0
       damp = 0.0d0
-      k = 0
-  101 k = k + 1
+      call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
+     1            smooth,smoof)
+      misfit0 = 0.0d0
+      do 108 i = 1,nobs
+          p(1) = 0.0d0
+          p(2) = 0.0d0
+          p(3) = 0.0d0
+          do 107 j = 1,nflt
+              p(1) = p(1) + gf(i,j,1)*soln(j,1)+gf(i,j,4)*soln(j,2)
+              p(2) = p(2) + gf(i,j,2)*soln(j,1)+gf(i,j,5)*soln(j,2)
+              p(3) = p(3) + gf(i,j,3)*soln(j,1)+gf(i,j,6)*soln(j,2)
+  107     continue
+          misfit0 = misfit0 + (p(1)-obs(i,4))*(p(1)-obs(i,4))
+     1                    + (p(2)-obs(i,5))*(p(2)-obs(i,5))
+     2                    + (p(3)-obs(i,6))*(p(3)-obs(i,6))
+  108 continue
+C Search for damping parameter
+      ddamp = 1.0d0
+  101 damp = damp + ddamp
           call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
      1                smooth,smoof)
+C Compute RMS obs-pre misfit
           misfit = 0.0d0
           do 102 i = 1,nobs
-              pre(1) = 0.0d0
-              pre(2) = 0.0d0
-              pre(3) = 0.0d0
+              p(1) = 0.0d0
+              p(2) = 0.0d0
+              p(3) = 0.0d0
               do 103 j = 1,nflt
-                  pre(1) = pre(1) + gf(i,j,1)*soln(j,1)
-     1                                             + gf(i,j,4)*soln(j,2)
-                  pre(2) = pre(2) + gf(i,j,2)*soln(j,1)
-     1                                             + gf(i,j,5)*soln(j,2)
-                  pre(3) = pre(3) + gf(i,j,3)*soln(j,1)
-     1                                             + gf(i,j,6)*soln(j,2)
+                  p(1) = p(1) + gf(i,j,1)*soln(j,1)+gf(i,j,4)*soln(j,2)
+                  p(2) = p(2) + gf(i,j,2)*soln(j,1)+gf(i,j,5)*soln(j,2)
+                  p(3) = p(3) + gf(i,j,3)*soln(j,1)+gf(i,j,6)*soln(j,2)
   103         continue
-              misfit = misfit + (pre(1)-obs(i,4))*(pre(1)-obs(i,4))
-     1                   + (pre(2)-obs(i,5))*(pre(2)-obs(i,5))
-     2                   + (pre(3)-obs(i,6))*(pre(3)-obs(i,6))
+              misfit = misfit + (p(1)-obs(i,4))*(p(1)-obs(i,4))
+     1                        + (p(2)-obs(i,5))*(p(2)-obs(i,5))
+     2                        + (p(3)-obs(i,6))*(p(3)-obs(i,6))
   102     continue
-          length = 0.0d0
-          do 104 i = 1,nflt
-              length = length + soln(i,1)*soln(i,1)
-     1                   + soln(i,2)*soln(i,2)
-  104     continue
-          misfit = dlog10(dsqrt(misfit))
-          length = dlog10(dsqrt(length))
-          if (k.eq.1) then
-              x1 = misfit
-              y1 = length
-          elseif (k.eq.2) then
-              x2 = misfit
-              y2 = length
-          elseif (k.eq.3) then
-              x3 = misfit
-              y3 = length
-          else
-              x1 = x2
-              y1 = y2
-              x2 = x3
-              y2 = y3
-              x3 = misfit
-              y3 = length
-          endif
-          if (k.ge.3) then
-              a = 2.0d0*(x2*y3-x3*y2+x3*y1-x1*y3+x1*y2-x2*y1)
-              r = dsqrt(((x2-x3)*(x2-x3)+(y2-y3)*(y2-y3))*
-     1              ((x1-x3)*(x1-x3)+(y1-y3)*(y1-y3))*
-     2              ((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1)))/a
-              if (r.gt.0.0d0.and.rmin.lt.0.0d0) then
-                  dampsv = damp - 0.01d0
-                  rmin = r
-              elseif (r.gt.0.0d0.and.r.lt.rmin) then
-                  dampsv = damp - 0.01d0
-                  rmin = r
-              endif
-          endif
-          damp = damp + 0.01d0
-      if (k.le.100) goto 101
-      write (0,1001) dampsv
- 1001 format('L-curve damping parameter: ',F10.6)
-      damp = dampsv
+C Get maximum slip in model
+          slipmx = 0.0d0
+          do 105 i = 1,nflt
+              slip = dsqrt(soln(i,1)*soln(i,1)+soln(i,2)*soln(i,2))
+              if (slip.gt.slipmx) slipmx = slip
+  105     continue
+      if (misfit.le.misfit0*fact) then
+          goto 101
+      elseif(ddamp.gt.1.0d-4) then
+          damp = damp - ddamp
+          ddamp = ddamp*1.0d-1
+          damp = damp - ddamp
+          goto 101
+      endif
       RETURN
       END
 
@@ -1400,12 +1392,12 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,
-     1                  invert,annf,ostyle,misfit)
+     1                  invert,annf,ostyle,misfit,getdmp,fact)
       IMPLICIT NONE
       CHARACTER*80 fltf,obsf,tag,smoof,ofile,haff,annf
       INTEGER i,narg,indx
-      REAL*8 smooth,damp
-      INTEGER geo,p,invert,vrb,ostyle,misfit
+      REAL*8 smooth,damp,fact
+      INTEGER geo,p,invert,vrb,ostyle,misfit,getdmp
       COMMON /VERBOSE/ vrb
       fltf = 'none'
       obsf = 'none'
@@ -1422,6 +1414,8 @@ C----------------------------------------------------------------------C
       ostyle = 0
       indx = 0
       misfit = 0
+      getdmp = 0
+      fact = 1.5d0
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: no command line arguments')
       i = 0
@@ -1482,6 +1476,22 @@ C----------------------------------------------------------------------C
               ostyle = 10
           elseif (tag(1:7).eq.'-misfit') then
               misfit = 1
+          elseif (tag(1:8).eq.'-getdamp') then
+              getdmp = 1
+              i = i + 1
+              if (i.gt.narg) goto 102
+              call getarg(i,tag)
+              indx = index(tag,'-')
+              if (indx.eq.0) then
+                  read(tag,*) fact
+                  if (fact.lt.1.0d0) then
+                      write(0,*) '!! Warning: factor must be >= 1'
+                      write(0,*) '!! Setting factor = 1'
+                      fact = 1.0d0
+                  endif
+              else
+                  i = i - 1
+              endif
           elseif (tag(1:2).eq.'-h') then
               call usage(' ')
           elseif (tag(1:2).eq.'-d') then
@@ -1513,11 +1523,13 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: fltinv -obs OBSFILE -flt FLTFILE -o OFILE [-p]'
+     1 'Usage: fltinv -obs OBSFILE -flt FLTFILE -o OFILE [-p] [-geo]'
       write(*,*)
-     1 '              [-geo] [-smooth CONST FILE] [-damp CONST]'
+     1 '              [-haf HAFSPC] [-damp CONST] [-smooth CONST FILE]'
       write(*,*)
-     1 '              [-haf HAFSPC] [-anneal [ANEALFILE]] [-h|-d]'
+     1 '              [-anneal [ANEALFILE]] [-dec[long]|-sci[long]]'
+      write(*,*)
+     1 '              [-misfit] [-getdamp] [-h|-d]'
       write(*,*)
       write(*,*)
      1 '-obs OBSFILE        Displacement observations'
@@ -1585,7 +1597,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-anneal [ANEALFILE] Implement a simulated annealing approach'
+     1 '-anneal [ANEALFILE] Implement a simulated annealing approach ',
+     2                          '(NOT WORKING YET)'
       if (d.eq.1) then
           write(*,*)
      1 '                        Optional annealing control file:'
@@ -1615,8 +1628,26 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-sci|-scilong       Scientific or long scientific output ',
      2                                               '(E16.6|E20.10)'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                        Format output in OFILE'
+          write(*,*)
+      endif
       write(*,*)
      1 '-misfit             Print least squares misfit to stdout'
+      if (d.eq.1) then
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-getdamp [FACT]     Determine good damping parameter'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                        Compute misfit (E0) for DAMP=0, find ',
+     2                           'largest DAMP s.t. E<=E0*FACT'
+          write(*,*)
+     1 '                        Default: FACT=1.5'
+          write(*,*)
+      endif
       write(*,*)
      1 '-h                  Short online help'
       write(*,*)
