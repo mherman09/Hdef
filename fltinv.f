@@ -111,10 +111,10 @@ C----
 C----
 C Get best damping parameter
 C----
-      if (getdmp.eq.1) then
+      if (getdmp.ge.1) then
           print *,fact
           call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
-     1                 smoof,fact)
+     1                 smoof,fact,getdmp)
           damp = damp0
       endif
 
@@ -639,8 +639,9 @@ C Compute parameter array
 C----------------------------------------------------------------------C
 
       SUBROUTINE getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
-     1                   smooth,smoof,fact)
+     1                   smooth,smoof,fact,getdmp)
       IMPLICIT none
+      INTEGER getdmp
       CHARACTER*80 smoof
       REAL*8 damp,smooth
       INTEGER OBSMAX,FLTMAX
@@ -694,13 +695,18 @@ C Get maximum slip in model
               slip = dsqrt(soln(i,1)*soln(i,1)+soln(i,2)*soln(i,2))
               if (slip.gt.slipmx) slipmx = slip
   105     continue
-      if (misfit.le.misfit0*fact) then
+          print *,getdmp,misfit,misfit0,slipmx,fact
+      if (getdmp.eq.1.and.misfit.le.misfit0*fact) then
           goto 101
-      elseif(ddamp.gt.1.0d-4) then
+      elseif (getdmp.eq.2.and.slipmx.gt.fact) then
+          goto 101
+      elseif (ddamp.gt.1.0d-4) then
           damp = damp - ddamp
           ddamp = ddamp*1.0d-1
           damp = damp - ddamp
           goto 101
+      else
+          continue
       endif
       RETURN
       END
@@ -1476,7 +1482,7 @@ C----------------------------------------------------------------------C
               ostyle = 10
           elseif (tag(1:7).eq.'-misfit') then
               misfit = 1
-          elseif (tag(1:8).eq.'-getdamp') then
+          elseif (tag(1:9).eq.'-getdamp1') then
               getdmp = 1
               i = i + 1
               if (i.gt.narg) goto 102
@@ -1489,6 +1495,18 @@ C----------------------------------------------------------------------C
                       write(0,*) '!! Setting factor = 1'
                       fact = 1.0d0
                   endif
+              else
+                  i = i - 1
+              endif
+          elseif (tag(1:9).eq.'-getdamp2') then
+              getdmp = 2
+              fact = 10.0d0
+              i = i + 1
+              if (i.gt.narg) goto 102
+              call getarg(i,tag)
+              indx = index(tag,'-')
+              if (indx.eq.0) then
+                  read(tag,*) fact
               else
                   i = i - 1
               endif
@@ -1529,7 +1547,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '              [-anneal [ANEALFILE]] [-dec[long]|-sci[long]]'
       write(*,*)
-     1 '              [-misfit] [-getdamp] [-h|-d]'
+     1 '              [-misfit] [-getdamp[1|2] VAL] [-h|-d]'
       write(*,*)
       write(*,*)
      1 '-obs OBSFILE        Displacement observations'
@@ -1646,6 +1664,16 @@ C----------------------------------------------------------------------C
      2                           'largest DAMP s.t. E<=E0*FACT'
           write(*,*)
      1 '                        Default: FACT=1.5'
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-getdamp2 SLIP      Determine good damping parameter, mode 2'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                        Increase damping until max slip is ',
+     2                                'less than SLIP'
+          write(*,*)
+     1 '                        Default: SLIP=10'
           write(*,*)
       endif
       write(*,*)
