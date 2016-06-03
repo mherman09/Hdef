@@ -15,10 +15,13 @@ C Get parameters from the command line
 C----
       call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz)
 C Check that limits and increments are properly defined
-      if (x2.le.x1) call usage('!! Error: X2 must be greater than X1')
+      if (x2.lt.x1) call usage('!! Error: X2 must be greater than X1')
       if (y2.lt.y1) call usage('!! Error: Y2 must be greater than Y1')
       if (dx.le.0.0d0.and.nx.le.0.0d0) then
           call usage('!! Error: DX/NX unspecified')
+      endif
+      if (dx.le.0.0d0.and.nx.le.0.0d0) then
+          nx = 1
       endif
       if (dy.le.0.0d0.and.ny.le.0.0d0) then
           !call usage('!! Error: DY/NY unspecified')
