@@ -5,13 +5,13 @@ C to the values.
 C----
       IMPLICIT none
       CHARACTER*80 ifile,ofile
-      INTEGER i,nvar,input,output,idum
+      INTEGER i,nvar,input,output,idum,seed
       REAL*8 val(10),dval(10)
       EXTERNAL ran2
       REAL ran2,random
 
 C Parse command line
-      call gcmdln(ifile,ofile,nvar)
+      call gcmdln(ifile,ofile,nvar,seed)
       if (ifile.eq.'stdin') then
           input = 5
       else
@@ -27,6 +27,7 @@ C Parse command line
 
 C Initialize random number generator
       call raninit(idum)
+      if (seed.gt.0) idum = -seed
 
 C Perturb input data
   101 read(input,*,end=102) (val(i),i=1,nvar),(dval(i),i=1,nvar)
@@ -36,6 +37,8 @@ C Perturb input data
           write(output,*) (val(i),i=1,nvar)
           goto 101
   102 continue
+
+      write(0,*) idum
       END
 
 C----------------------------------------------------------------------C
@@ -54,12 +57,13 @@ C----------------------------------------------------------------------C
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(ifile,ofile,nvar)
+      SUBROUTINE gcmdln(ifile,ofile,nvar,seed)
       IMPLICIT NONE
       CHARACTER*80 ifile,ofile,tag
-      INTEGER i,narg,nvar
+      INTEGER i,narg,nvar,seed
       ifile = 'none'
       ofile = 'none'
+      seed = -1
       nvar = 1
       narg = iargc()
       if (narg.eq.0) call usage('')
@@ -67,7 +71,11 @@ C======================================================================C
   101 i = i + 1
       if (i.gt.narg) goto 102
           call getarg(i,tag)
-          if (tag(1:2).eq.'-n') then
+          if (tag(1:5).eq.'-seed') then
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,*) seed
+          elseif (tag(1:2).eq.'-n') then
               i = i + 1
               call getarg(i,tag)
               read(tag,*) nvar
@@ -97,7 +105,7 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: perturb -f IFILE -o OFILE -n NVAR'
+     1 'Usage: perturb -f IFILE -o OFILE -n NVAR [-seed SEED]'
       write(*,*)
       write(*,*)
      1 '-f IFILE    Input data file with uncertainties (v1..vn d1..dn)'
@@ -105,6 +113,9 @@ C----------------------------------------------------------------------C
      1 '-o OFILE    Output perturbed data'
       write(*,*)
      1 '-n NVAR     Number of data variables'
+      write(*,*)
+     1 '-seed SEED  Start random numbers with integer SEED ',
+     2                  '(useful for continuing chain of rands)'
       write(*,*)
      1 '-h          Online help'
       write(*,*)
