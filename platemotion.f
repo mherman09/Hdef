@@ -292,11 +292,15 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '  -pole LON/LAT/VEL Define Euler pole (velocity in deg/Ma)'
       write(*,*)
-     1 '  -f IFILE      Input file (default: run with stdin)'
+     1 '  -f IFILE          Input file (default: run with stdin)'
       write(*,*)
-     1 '  -o OFILE      Output file (default: print to stdout)'
+     1 '                        lon lat'
       write(*,*)
-     1 '  -h            Short online help'
+     1 '  -o OFILE          Output file (default: print to stdout)'
+      write(*,*)
+     1 '                        v_east v_north (mm/yr)'
+      write(*,*)
+     1 '  -h                Short online help'
       write(*,*)
       STOP
       END
