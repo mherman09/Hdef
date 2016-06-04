@@ -710,6 +710,12 @@ C----
               dens = 3.0d3
               vp = dsqrt((lamda+2.0d0*mu)/dens)
               vs = dsqrt(mu/dens)
+          elseif (ch(1:1).eq.'P'.or.ch(1:1).eq.'p') then
+              read(11,*) ch,mu,lamda ! lamda=poisson's ratio here!!!
+              dens = 3.0d3
+              vs = dsqrt(mu/dens)
+              lamda = 2.0d0*mu*lamda/(1.0d0-2.0d0*lamda) ! This is actually lamda
+              vp = dsqrt((lamda+2.0d0*mu)/dens)
           else
               read(11,*) vp,vs,dens
           endif
@@ -2334,6 +2340,10 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    If "Lame" is first entry, Lame parameters are next two ',
      2         'file inputs'
+          write(*,*)
+          write(*,*)
+     1 '    If "Poisson" is first entry, shear modulus and Poisson ',
+     2                      'ratio are next two inputs'
           write(*,*)
           write(*,*)
      1 '    If -haf option not specified, o92util defaults to:'
