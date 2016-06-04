@@ -32,7 +32,7 @@ C----
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input x-y data is not specified'
           call usage('!! Use -f XYFILE to specify input file')
-      else
+      elseif (ifile.ne.'stdin') then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no x-y file: '//ifile)
       endif
@@ -58,15 +58,23 @@ C Check for optional input files and values
 C----
 C Extract observed data from input time series
 C----
-      open(unit=11,file=ifile,status='old')
-      i = 1
-  101 read(11,*,end=102) xobs(i),yobs(i)
-          i = i + 1
-          goto 101
-  102 continue
-      close(11)
-      nobs = i - 1
-
+      if (ifile.ne.'stdin') then
+          open(unit=11,file=ifile,status='old')
+          i = 1
+  101     read(11,*,end=102) xobs(i),yobs(i)
+              i = i + 1
+              goto 101
+  102     continue
+          close(11)
+          nobs = i - 1
+      else
+          i = 1
+  111     read(*,*,end=112) xobs(i),yobs(i)
+              i = i + 1
+              goto 111
+  112     continue
+          nobs = i - 1
+      endif
 C----
 C Check if a constraint file was defined, and compute coefficients
 C----
@@ -133,7 +141,7 @@ C----
       endif
 
  9001 format('POLY_ORDER      COEFFICIENT')
- 9002 format(I10,X,E16.6)
+ 9002 format(I10,X,1PE16.6)
  9003 format(2E14.6)
 
       END
