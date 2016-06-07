@@ -32,7 +32,9 @@ all: \
      $(BIN)/readkik \
      $(BIN)/numint \
      $(BIN)/fltinv \
-     $(BIN)/platemotion 
+     $(BIN)/platemotion  \
+     $(BIN)/perturb \
+     $(BIN)/multifit
 #     $(BIN)/trigger $(BIN)/twocol2asc \
 #     $(BIN)/smooth
 
@@ -87,6 +89,12 @@ $(BIN)/fltinv: fltinv.f okada92subs.f geomsubs.f
 $(BIN)/platemotion: platemotion.f
 	$(FC) $(FFLAG) -o $(BIN)/platemotion platemotion.f
 
+$(BIN)/perturb: perturb.f
+	$(FC) $(FFLAG) -o $(BIN)/perturb perturb.f randsubs.f
+
+$(BIN)/multifit: multifit.f
+	$(FC) $(FFLAG) -o $(BIN)/multifit multifit.f $(LAPACK)
+
 clean:
 	rm $(BIN)/o92util
 	rm $(BIN)/dateutil
@@ -105,4 +113,7 @@ clean:
 	rm $(BIN)/numint
 	rm $(BIN)/fltinv
 	rm $(BIN)/platemotion 
+	rm $(BIN)/perturb
+	rm $(BIN)/multifit
+
 
