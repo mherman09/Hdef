@@ -22,6 +22,7 @@ all: \
      $(BIN)/lola2distaz \
      $(BIN)/distaz2lola \
      $(BIN)/polyfit \
+     $(BIN)/polyfit_special \
      $(BIN)/eventfrequency \
      $(BIN)/vec2los \
      $(BIN)/wraplos \
@@ -55,6 +56,9 @@ $(BIN)/distaz2lola: distaz2lola.f geomsubs.f
 
 $(BIN)/polyfit: polyfit.f lsqsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/polyfit $(LAPACK) polyfit.f lsqsubs.f
+
+$(BIN)/polyfit_special: polyfit_special.f
+	$(FC) $(FFLAG) -o $(BIN)/polyfit_special $(LAPACK) polyfit_special.f
 
 $(BIN)/eventfrequency: eventfrequency.f
 	$(FC) $(FFLAG) -o $(BIN)/eventfrequency eventfrequency.f
