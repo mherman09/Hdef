@@ -2117,7 +2117,7 @@ C Parse command line
                   read(tag,'(BN,F10.0)') incr
                   if (auto.eq.2.or.auto.eq.3) incr = -incr
               endif
-          elseif (tag(1:10).eq.'-empirical') then
+          elseif (tag(1:10).eq.'-empirical'.or.tag(1:4).eq.'-emp') then
               i = i + 1
               call getarg(i,emprel)
           elseif (tag(1:4).eq.'-gmt') then
@@ -2174,7 +2174,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '               [-h|-help] [-d|-details]'
       write(*,*)
-      STOP
+      STOP 1
       END
 
 C----------------------------------------------------------------------C
