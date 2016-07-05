@@ -6,7 +6,7 @@ C----
       IMPLICIT none
       CHARACTER*30 ifile,ofile
       INTEGER NMAX
-      PARAMETER (NMAX=1000)
+      PARAMETER (NMAX=10000)
       INTEGER ct(NMAX)
       INTEGER mnval,mxval,dumval,mnsrch,mxsrch,val,diff
       INTEGER i,istart,iend,itmin,itmax,j,niter,user,p,z
