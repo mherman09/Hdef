@@ -5,15 +5,16 @@
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az,cmdin(4)
       CHARACTER*30 ifile,ofile
-      INTEGER c,p
+      INTEGER c,p,funit
       LOGICAL ex
       
       call gcmdln(ifile,ofile,c,cmdin,p)
+      if (ifile.eq.'stdin') p = 1
       if (c.eq.1) goto 103
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input lon lat dist az file unspecified'
           call usage('!! Use -f IFILE to specify input file')
-      else
+      elseif (ifile.ne.'stdin') then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no input file: '//ifile)
       endif
@@ -30,9 +31,14 @@
           call dlola(lon2,lat2,lon1,lat1,dist,az)
           write (6,8889) lon2*r2d,lat2*r2d
       else
-          open (unit=11,file=ifile,status='old')
+          if (ifile.eq.'stdin') then
+              funit = 5
+          else
+              funit = 11
+              open (unit=funit,file=ifile,status='old')
+          endif
           if (p.eq.0) open (unit=12,file=ofile,status='unknown')
-  101     read (11,*,end=102) lon1,lat1,dist,az
+  101     read (funit,*,end=102) lon1,lat1,dist,az
               call dlola(lon2,lat2,lon1,lat1,dist,az)
               if (p.eq.0) then
                   write(12,9999) lon2*r2d,lat2*r2d
