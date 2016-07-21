@@ -46,7 +46,7 @@ $(BIN)/dateutil: dateutil.f
 	$(FC) $(FFLAG) -o $(BIN)/dateutil dateutil.f
 
 $(BIN)/mtutil: mtutil.f mtsubs.f
-	$(FC) $(FFLAG) -o $(BIN)/mtutil $(LAPACK) mtutil.f mtsubs.f
+	$(FC) $(FFLAG) -o $(BIN)/mtutil mtutil.f mtsubs.f $(LAPACK)
 
 $(BIN)/lola2distaz: lola2distaz.f geomsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/lola2distaz lola2distaz.f geomsubs.f
@@ -55,10 +55,10 @@ $(BIN)/distaz2lola: distaz2lola.f geomsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/distaz2lola distaz2lola.f geomsubs.f
 
 $(BIN)/polyfit: polyfit.f lsqsubs.f
-	$(FC) $(FFLAG) -o $(BIN)/polyfit $(LAPACK) polyfit.f lsqsubs.f
+	$(FC) $(FFLAG) -o $(BIN)/polyfit polyfit.f lsqsubs.f $(LAPACK)
 
 $(BIN)/polyfit_special: polyfit_special.f
-	$(FC) $(FFLAG) -o $(BIN)/polyfit_special $(LAPACK) polyfit_special.f
+	$(FC) $(FFLAG) -o $(BIN)/polyfit_special polyfit_special.f $(LAPACK)
 
 $(BIN)/eventfrequency: eventfrequency.f
 	$(FC) $(FFLAG) -o $(BIN)/eventfrequency eventfrequency.f
