@@ -35,6 +35,7 @@ all: \
      $(BIN)/fltinv \
      $(BIN)/platemotion  \
      $(BIN)/perturb \
+     $(BIN)/pole2vel \
      $(BIN)/multifit
 #     $(BIN)/trigger $(BIN)/twocol2asc \
 #     $(BIN)/smooth
@@ -95,6 +96,9 @@ $(BIN)/platemotion: platemotion.f
 
 $(BIN)/perturb: perturb.f
 	$(FC) $(FFLAG) -o $(BIN)/perturb perturb.f randsubs.f
+
+$(BIN)/pole2vel: pole2vel.f
+	$(FC) $(FFLAG) -o $(BIN)/pole2vel pole2vel.f
 
 $(BIN)/multifit: multifit.f
 	$(FC) $(FFLAG) -o $(BIN)/multifit multifit.f $(LAPACK)
