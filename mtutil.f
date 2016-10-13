@@ -51,6 +51,8 @@ C Read inputs
               call sdr2ter(line,soln)
           elseif (mode.eq.17) then
               soln = '1.00'
+          elseif (mode.eq.18) then
+              call sdr2sv(line,soln)
           elseif (mode.eq.21) then
               call mij2sdr(line,soln)
           elseif (mode.eq.22) then
@@ -65,6 +67,8 @@ C Read inputs
               call mij2ter(line,soln)
           elseif (mode.eq.27) then
               call mij2dcp(line,soln)
+          elseif (mode.eq.28) then
+              call mij2sv(line,soln)
           elseif (mode.eq.31) then
               call pnt2sdr(line,soln)
           elseif (mode.eq.32) then
@@ -79,6 +83,8 @@ C Read inputs
               call pnt2ter(line,soln)
           elseif (mode.eq.37) then
               call pnt2dcp(line,soln)
+          elseif (mode.eq.38) then
+              call pnt2sv(line,soln)
           elseif (mode.eq.41) then
               call usage('!! Error: cannot compute SDR from MAG')
           elseif (mode.eq.42) then
@@ -214,6 +220,8 @@ C Get output
           mode = mode + 6
       elseif (tag(1:4).eq.'-dcp') then
           mode = mode + 7
+      elseif (tag(1:3).eq.'-sv') then
+          mode = mode + 8
       else
           call usage('!! Error: no option '//tag)
       endif
@@ -258,6 +266,8 @@ C----------------------------------------------------------------------C
      1 '    -ternary  fth fss fno'
       write(*,*)
      1 '    -dcp      double couple percentage'
+      write(*,*)
+     1 '    -sv       slip vector'
       write(*,*)
       write(*,*)
      1 '    INPUT format:'

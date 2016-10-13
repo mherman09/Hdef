@@ -117,6 +117,31 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE sdr2sv(line,soln)
+      IMPLICIT none
+      REAL*8 pi,r2d,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
+      CHARACTER*180 line,soln
+      REAL*8 s1,d1,r1,x1,y1,z1,n1,e1
+      read(line,*) s1,d1,r1
+      s1 = s1*d2r
+      d1 = d1*d2r
+      r1 = r1*d2r
+C x in strike direction, y in hor updip direction
+      x1 = dcos(r1)
+      y1 = dsin(r1)*dcos(d1)
+      z1 = dsin(r1)*dsin(d1)
+C rotate to east-north
+      e1 = x1*dsin(s1) - y1*dcos(s1)
+      n1 = x1*dcos(s1) + y1*dsin(s1)
+      write(soln,1001) datan2(e1,n1)*r2d,
+     1                 datan2(z1,dsqrt(e1*e1+n1*n1))*r2d
+ 1001 format(2F10.3)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE pnt2ter(line,soln)
       IMPLICIT none
       CHARACTER*180 line,soln
@@ -342,6 +367,25 @@ C Compute best-fitting focal mechanism
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE mij2sv(line,soln)
+      IMPLICIT none
+      CHARACTER*180 line,soln
+      REAL*8 s1,d1,r1,s2,d2,r2,az1,pl1,az2,pl2
+      call mij2sdr(line,soln)
+      read(soln,*) s1,d1,r1,s2,d2,r2
+      write(line,*) s1,d1,r1
+      call sdr2sv(line,soln)
+      read(soln,*) az1,pl1
+      write(line,*) s2,d2,r2
+      call sdr2sv(line,soln)
+      read(soln,*) az2,pl2
+      write(soln,1001) az1,pl1,az2,pl2
+ 1001 format(2F10.3,X,2F10.3)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE pnt2sdr(line,soln)
       IMPLICIT none
       CHARACTER*180 line,soln
@@ -354,6 +398,25 @@ C----------------------------------------------------------------------C
       read(soln,*) s2,d2,r2
       write(soln,1001) s1,d1,r1,s2,d2,r2
  1001 format(6F6.0)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE pnt2sv(line,soln)
+      IMPLICIT none
+      CHARACTER*180 line,soln
+      REAL*8 s1,d1,r1,s2,d2,r2,az1,pl1,az2,pl2
+      call pnt2sdr(line,soln)
+      read(soln,*) s1,d1,r1,s2,d2,r2
+      write(line,*) s1,d1,r1
+      call sdr2sv(line,soln)
+      read(soln,*) az1,pl1
+      write(line,*) s2,d2,r2
+      call sdr2sv(line,soln)
+      read(soln,*) az2,pl2
+      write(soln,1001) az1,pl1,az2,pl2
+ 1001 format(2F10.3,X,2F10.3)
       RETURN
       END
 
