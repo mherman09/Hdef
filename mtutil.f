@@ -3,40 +3,40 @@ C----
 C Utility for manipulating seismic source data
 C----
       IMPLICIT none
-      INTEGER mode
+      INTEGER mode,iunit
       CHARACTER*180 input,output
 C Get command line arguments
       call gcmdln(mode,input,output)
 C Take stdin, command line, or file and convert to file
-      call parsein(input)
+      call parsein(input,iunit)
 C Compute output
-      call work(input,output,mode)
+      call work(input,output,mode,iunit)
 C Clean up if necessary
-      if (input(1:5).eq.'86.tmp') then
-          open(unit=86,file='86.tmp',status='old')
+      if (input.eq.'mtutil_86.tmp86') then
+          open(unit=86,file='mtutil_86.tmp86',status='old')
           close(86,status='DELETE')
       endif
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE work(input,output,mode)
+      SUBROUTINE work(input,output,mode,iunit)
 C----
 C Read the input and operate on the values using the defined mode.
 C----
       IMPLICIT none
-      INTEGER mode
+      INTEGER mode,iunit
       CHARACTER*180 input,output
       CHARACTER*180 line,soln
       line = ''
       soln = ''
 C Open input file and output file if defined
-      open(unit=11,file=input,status='old')
+      if (iunit.eq.11) open(unit=iunit,file=input,status='old')
       if (output(1:5).ne.'print') then
           open(unit=12,file=output,status='unknown')
       endif
 C Read inputs
-  101 read(11,'(A)',end=102) line
+  101 read(iunit,'(A)',end=102) line
           if (mode.eq.11) then
               call sdr2sdr(line,soln)
           elseif (mode.eq.12) then
@@ -129,26 +129,21 @@ C Write outputs
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE parsein(input)
+      SUBROUTINE parsein(input,iunit)
 C----
 C Determine whether input is standard input, on command line, or is a
 C file name.
 C----
       IMPLICIT none
       CHARACTER*180 input
-      INTEGER i
+      INTEGER i,iunit
       LOGICAL ex
 C Standard input
       if (input(1:5).eq.'stdin') then
-          open(unit=11,file='86.tmp',status='unknown')
-  102     read(*,'(A)',end=103) input
-              write(11,*) input
-              goto 102
-  103     continue
-          close(11,status='KEEP')
-          input = '86.tmp'
+          iunit = 5
 C File
       else
+          iunit = 11
           i = index(input,',')
           if (i.eq.0) then
               inquire(FILE=input,EXIST=ex)
@@ -156,13 +151,15 @@ C File
      1                                        trim(input))
 C Command line
           else
+              ! remove commas
   101         input(i:i) = ' '
               i = index(input,',')
               if (i.gt.0) goto 101
-              open(unit=11,file='86.tmp',status='unknown')
+              ! write command line to a file for reading
+              open(unit=11,file='mtutil_86.tmp86',status='unknown')
               write(11,*) input
               close(11,status='KEEP')
-              input = '86.tmp'
+              input = 'mtutil_86.tmp86'
           endif
       endif
       RETURN
