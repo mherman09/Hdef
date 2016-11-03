@@ -13,7 +13,7 @@ C----
       INTEGER flttyp,auto,xy,prog,long
       REAL*8 incr,adist
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
       REAL*8 vp,vs,dens
@@ -264,7 +264,7 @@ C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,fltf,magf,haff,emprel
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
@@ -307,7 +307,7 @@ C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,du,dxc,dyc
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
       INTEGER g,nseg,ct,i,nx,ny,ptr
@@ -365,7 +365,7 @@ C----
       IMPLICIT NONE
       CHARACTER*40 fltf
       INTEGER i,f,nflt,FMAX,ln
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       call linecount(fltf,ln)
@@ -405,7 +405,7 @@ C----
       IMPLICIT NONE
       CHARACTER*40 magf,emprel
       INTEGER i,f,nflt,FMAX,ln,p
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),mag
       REAL*8 wid,len,mu
@@ -624,7 +624,7 @@ C Compute the arithmetic mean of array
 C----
       IMPLICIT NONE
       INTEGER i,nval,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 mean,array(FMAX)
       mean = 0.0d0
       do 161 i = 1,nval
@@ -642,7 +642,7 @@ C----------------------------------------------------------------------C
       CHARACTER*40 volf,jnk
       CHARACTER*200 inline
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       INTEGER typ(FMAX),i,f,ln
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       dx(FMAX),dy(FMAX),slip(FMAX)
@@ -750,7 +750,7 @@ C----
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
       INTEGER nflt,FMAX,flttyp,xy,prog,long
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
@@ -883,7 +883,7 @@ C----
       REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
       REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area
       INTEGER flttyp,xy
@@ -937,7 +937,7 @@ C----
       REAL*8 strain(3,3),stntmp(3,3)
       REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX),area
       INTEGER flttyp,xy
@@ -1160,7 +1160,7 @@ C----
       PARAMETER (pi=4.0d0*datan(1.0d0),d2k=6.371d3*2.0d0*pi/3.6d2)
       CHARACTER*40 staf
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       INTEGER auto,xy
@@ -1304,7 +1304,7 @@ C----
       REAL*8 xmin,xmax,ymin,ymax,xmin0,xmax0,ymin0,ymax0,x,y
       REAL*8 x0,y0
       INTEGER nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uE,uN,uZ,stdp,vp,vs,dens,adist
@@ -1419,7 +1419,7 @@ C----
       REAL*8 lmin,lmax,zmin,zmax,dmax,x0,y0,z0,str0,x,y,z
       REAL*8 uE,uN,uZ,vp,vs,dens,az,shftaz,l
       INTEGER nflt,FMAX,xy,dir,flttyp,auto
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       DMAX = 750.0d0 ! max dist (km)
@@ -1630,7 +1630,7 @@ C Compute mean strike weighted by moment
 C----
       IMPLICIT none
       INTEGER nflt,FMAX,i
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 str(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 str0,tmp,mom,mu
       mu = 4.3d10
@@ -1653,7 +1653,7 @@ C Compute event centroid and total moment
 C----
       IMPLICIT none
       INTEGER nflt,FMAX,i
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),dx(FMAX),dy(FMAX),
      1       slip(FMAX)
       REAL*8 x0,y0,d0,mom,mu,tmp
@@ -1687,7 +1687,7 @@ C----------------------------------------------------------------------C
       INTEGER i,nsta,ntrg,progout
       REAL*8 stlo,stla,stdp,trgstr,trgdip,trgrak,frict,vp,vs,dens
       INTEGER nflt,FMAX,xy,prog,long
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
@@ -1801,7 +1801,7 @@ C----
       REAL*8 uNnet,uEnet,uZnet,ux,uy,uN,uE,uz
       REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),slip(FMAX),dx(FMAX),dy(FMAX)
       INTEGER typ(FMAX),xy
@@ -1854,7 +1854,7 @@ C----
       REAL*8 strain(3,3),stntmp(3,3)
       REAL*8 stlo,stla,stdp,dist,az,x,y,delx,dely
       INTEGER f,nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       slip(FMAX),dx(FMAX),dy(FMAX)
       INTEGER typ(FMAX),xy
@@ -1909,7 +1909,7 @@ C----
       PARAMETER (pi=4.0d0*atan(1.0d0),d2r=pi/180.0d0)
       CHARACTER*40 gmtf
       INTEGER i,nflt,FMAX
-      PARAMETER (FMAX=1500)
+      PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),wid,len
       rak(1) = rak(1)
