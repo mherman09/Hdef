@@ -706,17 +706,26 @@ C----
           read(11,*) ch
           rewind 11
           if (ch(1:1).eq.'L'.or.ch(1:1).eq.'l') then
+              ! "Lame" lambda(Pa) shr_mod(Pa)
               read(11,*) ch,lamda,mu
               dens = 3.0d3
               vp = dsqrt((lamda+2.0d0*mu)/dens)
               vs = dsqrt(mu/dens)
           elseif (ch(1:1).eq.'P'.or.ch(1:1).eq.'p') then
+              ! "Poisson" shr_mod(Pa) poisson
               read(11,*) ch,mu,lamda ! lamda=poisson's ratio here!!!
               dens = 3.0d3
               vs = dsqrt(mu/dens)
               lamda = 2.0d0*mu*lamda/(1.0d0-2.0d0*lamda) ! This is actually lamda
               vp = dsqrt((lamda+2.0d0*mu)/dens)
+          elseif (ch(1:1).eq.'Y'.or.ch(1:1).eq.'y') then
+              ! "Young" young_mod(Pa) poisson
+              read(11,*) ch,mu,lamda
+              lamda = mu*lamda/((1.0d0+lamda)*(1.0d0-2.0d0*lamda))
+              mu = 0.25d0*(mu-3.0d0*lamda+
+     1                    dsqrt(mu*mu+9.0d0*lamda*lamda+2.0d0*mu*lamda))
           else
+              ! (Default) vp(m/s) vs(m/s) dens(kg/m^3)
               read(11,*) vp,vs,dens
           endif
       endif
@@ -2327,7 +2336,15 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '                   OR'
           write(*,*)
-     1 '            Lame  lamda(Pa)  mu(Pa)'
+     1 '            "Lame"  lamda(Pa)  shr_mod(Pa)'
+          write(*,*)
+     1 '                   OR'
+          write(*,*)
+     1 '            "Poisson"  shr_mod(Pa)  poisson'
+          write(*,*)
+     1 '                   OR'
+          write(*,*)
+     1 '            "Young" young(Pa)  poisson'
           write(*,*)
           write(*,*)
      1 '    If seismic velocities are given, elastic parameters are ',
@@ -2336,14 +2353,6 @@ C----------------------------------------------------------------------C
      1 '        mu = vs*vs*dens'
           write(*,*)
      1 '        lamda = vp*vp*dens - 2*mu'
-          write(*,*)
-          write(*,*)
-     1 '    If "Lame" is first entry, Lame parameters are next two ',
-     2         'file inputs'
-          write(*,*)
-          write(*,*)
-     1 '    If "Poisson" is first entry, shear modulus and Poisson ',
-     2                      'ratio are next two inputs'
           write(*,*)
           write(*,*)
      1 '    If -haf option not specified, o92util defaults to:'
