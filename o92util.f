@@ -8,6 +8,7 @@ C     in a half-space. BULLETIN OF THE SEISMOLOGICAL SOCIETY OF AMERICA
 C     vol. 82, no. 2, pp. 1018-1040.
 C----
       IMPLICIT NONE
+<<<<<<< Updated upstream
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1             shrf,coulf,gmtf,emprel,volf
       INTEGER flttyp,auto,xy,prog,long
@@ -16,10 +17,74 @@ C----
       PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
+=======
+
+C---- Input files
+      CHARACTER*40 ffmf      ! faults, finite fault model format
+      CHARACTER*40 fltf      ! faults, lon-lat-dep-str-dip-rak-slip-wid-len format
+      CHARACTER*40 magf      ! faults, lon-lat-dep-str-dip-rak-mag format
+      CHARACTER*40 haff      ! half-space parameters
+      CHARACTER*40 staf      ! station locations
+      CHARACTER*40 trgf      ! target/receiver fault geometry
+      CHARACTER*40 volf      ! volume sources: planar or isotropic
+
+C---- Output files
+      CHARACTER*40 dspf      ! displacement
+      CHARACTER*40 stnf      ! strain tensor
+      CHARACTER*40 stsf      ! stress tensor
+      CHARACTER*40 norf      ! normal stress
+      CHARACTER*40 shrf      ! shear stress
+      CHARACTER*40 coulf     ! Coulomb stress
+      CHARACTER*40 gmtf      ! GMT psxy -SJ faults
+      CHARACTER*40 emprel    ! magnitude-fault area empirical relation
+
+C---- Operation switches
+      INTEGER flttyp         ! source type flag: point=0, finite=1
+      INTEGER xy             ! coordinate flag: geographic=0, Cartesian=1
+      INTEGER prog           ! progress indicator flag
+      INTEGER long           ! higher precision output flag
+
+C---- Automatic grid variables
+      INTEGER auto           ! automatic grid flag: hor=1; dip-par=2, str-par=3
+      REAL*8 incr            ! grid increment
+      REAL*8 adist           ! grid position
+
+C---- Input variables
+      INTEGER nflt           ! number of input faults
+      INTEGER FMAX           ! max number of input faults
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX)      ! x-coordinate
+      REAL*8 evla(FMAX)      ! y-coordinate
+      REAL*8 evdp(FMAX)      ! z-coordinate (positive down)
+      REAL*8 str(FMAX)       ! strike
+      REAL*8 dip(FMAX)       ! dip
+      REAL*8 rak(FMAX)       ! rake
+      REAL*8 dx(FMAX)        ! along-strike length
+      REAL*8 dy(FMAX)        ! along-dip width
+      REAL*8 slip(FMAX)      ! slip
+
+      REAL*8 hylo,hyla
+>>>>>>> Stashed changes
       REAL*8 vp,vs,dens
       INTEGER nsta,ntrg,typ(FMAX)
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol        ! kvar definitions
-      INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt   ! in gcmdln comments
+
+C---- Input file markers
+      INTEGER kffm           ! 0:no 1:yes
+      INTEGER kflt           ! 0:no 1:yes
+      INTEGER kmag           ! 0:no 1:yes
+      INTEGER ksta           ! 0:no 1:yes
+      INTEGER khaf           ! 0:no 1:yes
+      INTEGER ktrg           ! 0:no 1:yes 2:cmdln
+      INTEGER kvol           ! 0:no 1:yes
+
+C---- Output file markers
+      INTEGER kdsp           !
+      INTEGER kstn           !
+      INTEGER ksts           !
+      INTEGER knor           !
+      INTEGER kshr           !
+      INTEGER kcou           !
+      INTEGER kgmt           !
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 
@@ -657,6 +722,7 @@ C Check that faults do not overflow arrays before reading
           write(*,*) '!! Error too many input faults (max:',FMAX,')'
           call usage('!! Reduce number of input faults or change FMAX')
       endif
+C Read faults
       read (34,'(A200)',END=342) inline
           if(index(inline,'p').ne.0) then
               typ(i) = 0
@@ -711,7 +777,7 @@ C----
               vp = dsqrt((lamda+2.0d0*mu)/dens)
               vs = dsqrt(mu/dens)
           elseif (ch(1:1).eq.'P'.or.ch(1:1).eq.'p') then
-              read(11,*) ch,mu,lamda ! lamda=poisson's ratio here!!!
+              read(11,*) ch,mu,lamda ! lamda=poisson's ratio here!!! (too lazy to add a var)
               dens = 3.0d3
               vs = dsqrt(mu/dens)
               lamda = 2.0d0*mu*lamda/(1.0d0-2.0d0*lamda) ! This is actually lamda
@@ -2174,7 +2240,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '               [-h|-help] [-d|-details]'
       write(*,*)
-      STOP 1
+      STOP
       END
 
 C----------------------------------------------------------------------C
@@ -2328,6 +2394,10 @@ C----------------------------------------------------------------------C
      1 '                   OR'
           write(*,*)
      1 '            Lame  lamda(Pa)  mu(Pa)'
+          write(*,*)
+     1 '                   OR'
+          write(*,*)
+     1 '            Poisson mu(Pa)  Poisson_Ratio'
           write(*,*)
           write(*,*)
      1 '    If seismic velocities are given, elastic parameters are ',
