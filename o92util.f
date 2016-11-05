@@ -776,6 +776,7 @@ C----
           elseif (ch(1:1).eq.'Y'.or.ch(1:1).eq.'y') then
               ! "Young" young_mod(Pa) poisson
               read(11,*) ch,mu,lamda
+              dens = 3.0d3
               lamda = mu*lamda/((1.0d0+lamda)*(1.0d0-2.0d0*lamda))
               mu = 0.25d0*(mu-3.0d0*lamda+
      1                    dsqrt(mu*mu+9.0d0*lamda*lamda+2.0d0*mu*lamda))
