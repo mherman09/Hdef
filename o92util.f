@@ -780,6 +780,8 @@ C----
               lamda = mu*lamda/((1.0d0+lamda)*(1.0d0-2.0d0*lamda))
               mu = 0.25d0*(mu-3.0d0*lamda+
      1                    dsqrt(mu*mu+9.0d0*lamda*lamda+2.0d0*mu*lamda))
+              vp = dsqrt((lamda+2.0d0*mu)/dens)
+              vs = dsqrt(mu/dens)
           else
               ! (Default) vp(m/s) vs(m/s) dens(kg/m^3)
               read(11,*) vp,vs,dens
