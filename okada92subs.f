@@ -1855,7 +1855,7 @@ C      SUBROUTINE SINGSN(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
       IMPLICIT none
       REAL*8 uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz
 
-      print *,'Observation point is singular.'
+      write(0,*) 'Observation point is singular.'
       uxx = 0.0d0
       uxy = 0.0d0
       uxz = 0.0d0
@@ -1874,7 +1874,7 @@ C      SUBROUTINE SINGDS(ux,uy,uz)
       IMPLICIT none
       REAL*8 ux,uy,uz
 
-      print *,'Observation point is singular.'
+      write(0,*) 'Observation point is singular.'
       ux = 0.0d0
       uy = 0.0d0
       uz = 0.0d0
