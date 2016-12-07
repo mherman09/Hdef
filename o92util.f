@@ -53,6 +53,8 @@ C---- Input variables
       REAL*8 dy(FMAX)        ! along-dip width
       REAL*8 slip(FMAX)      ! slip
 
+      REAL*8 sta(3)          ! station coordinates
+
       REAL*8 hylo,hyla
       REAL*8 vp,vs,dens
       INTEGER nsta,ntrg,typ(FMAX)
@@ -110,6 +112,11 @@ C If resolving stresses, verify NTRG=1 or NTRG=NSTA
 C----
       call chkhafstatrg(haff,staf,trgf,nsta,ntrg)
       call readhaff(haff,vp,vs,dens)
+
+C----
+C Read in station coordinates
+C----
+      call chksta(sta,staf,nsta,xy)
 
 C----
 C Compute displacements, strains, and stresses
@@ -304,6 +311,31 @@ C----
           goto 151
   152 continue
       close(41)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE chksta(sta,staf,nsta,xy)
+      IMPLICIT none
+      REAL*8 sta(3)
+      CHARACTER*40 staf 
+      INTEGER i,nsta,chk,xy
+      chk = 0
+      open(unit=18,file=staf,status='old')
+      do 181 i = 1,nsta
+          read(18,*) sta(1),sta(2),sta(3)
+          if ((dabs(sta(1)).gt.360.or.dabs(sta(2)).gt.90).and.
+     1                                                xy.ne.1) then
+              if (chk.eq.0) then
+                  write(0,*)'!! Warning: longitude or latitude ',
+     1                      'is very large'
+                  write(0,*)'!! Did you mean to use -xy option?'
+                  chk = 1
+              endif
+          endif
+  181 continue
+      close(18)
       RETURN
       END
 
