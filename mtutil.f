@@ -177,7 +177,7 @@ C----------------------------------------------------------------------C
       input = ''
       output = ''
       narg = iargc()
-      if (narg.lt.3) call usage('!! Error: three arguments required')
+      if (narg.lt.2) call usage('!! Error: not enough arguments')
 C Get input type
       i = 1
       call getarg(i,tag)
@@ -194,8 +194,13 @@ C Get input type
       else
           call usage('!! Error: no option '//tag)
       endif
+C Get input file name, command line input, "stdin", or " "
       i = i + 1
       call getarg(i,input)
+      if (input(1:1).eq.'-') then
+          input = "stdin"
+          i = i - 1
+      endif
       if (mode/10.eq.4.or.mode/10.eq.5) then
           inquire(file=input,exist=ex)
           if(.not.ex) input = trim(input)//','
