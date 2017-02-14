@@ -536,7 +536,7 @@ C Check that faults do not overflow arrays
       endif
       read (33,*,END=332) evlo(i),evla(i),evdp(i),str(i),dip(i),rak(i),
      1                    mag
-          if (45.0d0.lt.rak(i).and.rak(i).lt.135.0d0) then
+          if (45.0d0.le.rak(i).and.rak(i).le.135.0d0) then
               typ = 2 ! Reverse fault (45<rake<135)
           elseif (-135.0d0.lt.rak(i).and.rak(i).lt.-45.0d0) then
               typ = 3 ! Normal fault (-135<rake<-45)
