@@ -176,37 +176,42 @@ C----------------------------------------------------------------------C
               x(i,1) = 0.05326
               x(i,2) = -0.39837
               x(i,3) = 0.88007
+          elseif (plate(i).eq.'ITRF') then
+              x(i,1) = 0.11257
+              x(i,2) = -0.28145
+              x(i,3) = 0.60534
           elseif (plate(i).eq.'PA') then
               x(i,1) = 0.0
               x(i,2) = 0.0
               x(i,3) = 0.0
           else
-              write(*,*) '!! Error: no plate named '//trim(plate(i))
-              write(*,*) 'AM: Amur'
-              write(*,*) 'AN: Antarctica'
-              write(*,*) 'AR: Arabia'
-              write(*,*) 'AU: Australia'
-              write(*,*) 'CA: Caribbean'
-              write(*,*) 'CO: Cocos'
-              write(*,*) 'CP: Capricorn'
-              write(*,*) 'EU: Eurasia'
-              write(*,*) 'IN: India'
-              write(*,*) 'JF: Juan de Fuca'
-              write(*,*) 'LW: Lwandle'
-              write(*,*) 'MQ: Macquarie'
-              write(*,*) 'NA: North America'
-              write(*,*) 'NB: Nubia'
-              write(*,*) 'NZ: Nazca'
-              write(*,*) 'PA: Pacific'
-              write(*,*) 'PS: Philippine Sea'
-              write(*,*) 'RI: Rivera'
-              write(*,*) 'SA: South America'
-              write(*,*) 'SC: Scotia'
-              write(*,*) 'SM: Somalia'
-              write(*,*) 'SR: Sur'
-              write(*,*) 'SU: Sunda'
-              write(*,*) 'SW: Sandwich'
-              write(*,*) 'YZ: Yangtze'
+              write(0,*) '!! Error: no plate named '//trim(plate(i))
+              write(0,*) 'AM: Amur'
+              write(0,*) 'AN: Antarctica'
+              write(0,*) 'AR: Arabia'
+              write(0,*) 'AU: Australia'
+              write(0,*) 'CA: Caribbean'
+              write(0,*) 'CO: Cocos'
+              write(0,*) 'CP: Capricorn'
+              write(0,*) 'EU: Eurasia'
+              write(0,*) 'IN: India'
+              write(0,*) 'ITRF: International reference frame'
+              write(0,*) 'JF: Juan de Fuca'
+              write(0,*) 'LW: Lwandle'
+              write(0,*) 'MQ: Macquarie'
+              write(0,*) 'NA: North America'
+              write(0,*) 'NB: Nubia'
+              write(0,*) 'NZ: Nazca'
+              write(0,*) 'PA: Pacific'
+              write(0,*) 'PS: Philippine Sea'
+              write(0,*) 'RI: Rivera'
+              write(0,*) 'SA: South America'
+              write(0,*) 'SC: Scotia'
+              write(0,*) 'SM: Somalia'
+              write(0,*) 'SR: Sur'
+              write(0,*) 'SU: Sunda'
+              write(0,*) 'SW: Sandwich'
+              write(0,*) 'YZ: Yangtze'
               call usage('')
           endif
   101 continue
@@ -262,6 +267,8 @@ C----------------------------------------------------------------------C
           if (tag(1:5).eq.'-pole'.or.tag(1:6).eq.'-plate') then
               i = i + 1
               call getarg(i,pole)
+          elseif (tag(1:5).eq.'-list') then
+              pole = 'JUNK/JUNK'
           elseif (tag(1:2).eq.'-h') then
               call usage('')
           elseif (tag(1:2).eq.'-f') then
