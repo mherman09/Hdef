@@ -15,30 +15,20 @@ LAPACK_LIB     = -llapack -ltmglib -lrefblas
 LAPACK         = $(LAPACK_LIB_DIR) $(LAPACK_LIB)
 
 ##### Rules #####
-all: \
-     $(BIN)/o92util \
-     $(BIN)/dateutil \
-     $(BIN)/mtutil \
-     $(BIN)/lola2distaz \
-     $(BIN)/distaz2lola \
-     $(BIN)/polyfit \
-     $(BIN)/polyfit_special \
-     $(BIN)/eventfrequency \
-     $(BIN)/vec2los \
-     $(BIN)/wraplos \
-     $(BIN)/sphfinrot \
-     $(BIN)/ff2gmt \
-     $(BIN)/grid \
-     $(BIN)/pt2fin  \
-     $(BIN)/readkik \
-     $(BIN)/numint \
-     $(BIN)/fltinv \
-     $(BIN)/platemotion  \
-     $(BIN)/perturb \
-     $(BIN)/pole2vel \
-     $(BIN)/multifit
+all: defm geom misc fits seis
+#     $(BIN)/numint \
+#     $(BIN)/pole2vel \
+#     $(BIN)/polyfit_special \
 #     $(BIN)/trigger $(BIN)/twocol2asc \
 #     $(BIN)/smooth
+
+defm: $(BIN)/o92util $(BIN)/vec2los $(BIN)/wraplos \
+      $(BIN)/coul_hor.sh $(BIN)/coul_dip.sh $(BIN)/coul_xsec.sh $(BIN)/surf_disp.sh
+geom: $(BIN)/lola2distaz $(BIN)/distaz2lola $(BIN)/sphfinrot $(BIN)/platemotion
+misc: $(BIN)/dateutil $(BIN)/eventfrequency $(BIN)/ff2gmt $(BIN)/grid \
+      $(BIN)/pt2fin $(BIN)/perturb
+fits: $(BIN)/polyfit $(BIN)/multifit $(BIN)/fltinv
+seis: $(BIN)/mtutil $(BIN)/readkik
 
 $(BIN)/o92util: o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
 	$(FC) $(FFLAG) -o $(BIN)/o92util o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
@@ -103,6 +93,14 @@ $(BIN)/pole2vel: pole2vel.f
 $(BIN)/multifit: multifit.f
 	$(FC) $(FFLAG) -o $(BIN)/multifit multifit.f $(LAPACK)
 
+$(BIN)/coul_hor.sh: coul_hor.sh
+	cp coul_hor.sh $(BIN)/coul_hor.sh
+$(BIN)/coul_dip.sh: coul_dip.sh
+	cp coul_dip.sh $(BIN)/coul_dip.sh
+$(BIN)/coul_xsec.sh: coul_xsec.sh
+	cp coul_xsec.sh $(BIN)/coul_xsec.sh
+$(BIN)/surf_disp.sh: surf_disp.sh
+	cp surf_disp.sh $(BIN)/surf_disp.sh
 clean:
 	rm $(BIN)/o92util
 	rm $(BIN)/dateutil
