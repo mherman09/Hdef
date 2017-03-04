@@ -26,7 +26,8 @@ defm: $(BIN)/o92util $(BIN)/vec2los $(BIN)/wraplos \
       $(BIN)/coul_hor.sh $(BIN)/coul_dip.sh $(BIN)/coul_xsec.sh $(BIN)/surf_disp.sh
 geom: $(BIN)/lola2distaz $(BIN)/distaz2lola $(BIN)/sphfinrot $(BIN)/platemotion
 misc: $(BIN)/dateutil $(BIN)/eventfrequency $(BIN)/ff2gmt $(BIN)/grid \
-      $(BIN)/pt2fin $(BIN)/perturb
+      $(BIN)/pt2fin $(BIN)/perturb $(BIN)/simplify_ffm.sh $(BIN)/ternary.sh \
+      $(BIN)/trg_schem.sh
 fits: $(BIN)/polyfit $(BIN)/multifit $(BIN)/fltinv
 seis: $(BIN)/mtutil $(BIN)/readkik
 
@@ -101,6 +102,12 @@ $(BIN)/coul_xsec.sh: coul_xsec.sh
 	cp coul_xsec.sh $(BIN)/coul_xsec.sh
 $(BIN)/surf_disp.sh: surf_disp.sh
 	cp surf_disp.sh $(BIN)/surf_disp.sh
+$(BIN)/simplify_ffm.sh: simplify_ffm.sh
+	cp simplify_ffm.sh $(BIN)/simplify_ffm.sh
+$(BIN)/ternary.sh: ternary.sh
+	cp ternary.sh $(BIN)/ternary.sh
+$(BIN)/trg_schem.sh: trg_schem.sh
+	cp trg_schem.sh $(BIN)/trg_schem.sh
 clean:
 	rm $(BIN)/o92util
 	rm $(BIN)/dateutil
