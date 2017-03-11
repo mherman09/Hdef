@@ -34,6 +34,7 @@ NN="100"
 
 # Horizontal vectors sampled every SAMP points from (NN x NN) grid
 SAMP="5"
+NN_SAMP=`echo $NN $SAMP | awk '{print int($1/$2)}'`
 
 # Horizontal displacements below DISP_THR will be faded
 DISP_THR="0.05" # meters
@@ -240,6 +241,7 @@ fi
 
 # Create (NN x NN) point horizontal grid
 grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.dat
+grid -x $W $E -nx $NN_SAMP -y $S $N -ny $NN_SAMP -z $Z -o sta_samp.dat
 
 #####
 #	COMPUTE SURFACE DISPLACEMENTS
@@ -247,8 +249,10 @@ grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.dat
 if [ $SRC_TYPE == "FFM" ]
 then
     o92util -ffm ffm.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
+    o92util -ffm ffm.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
 else
     o92util -mag mt.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
+    o92util -mag mt.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
 fi
 
 # Extract maximum vertical displacements and determine scale parameters for gridding
@@ -317,16 +321,13 @@ then
         gmt psxy $PROJ $LIMS -Sa0.15i -W1p,55/55/55 -K -O -t50 >> $PSFILE
 fi
 
-# Sample grid of displacements every SAMP location for horizontal vectors
-awk '{if(int(NR/'$NN')%'$SAMP'==0&&NR%'$SAMP'==0){print $0}}' disp.out > t
-mv t disp.out
 # If max displacement is much larger than other displacements, don't use it
-MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp.out |\
+MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.out |\
        awk 'BEGIN{m1=0;m2=0}
             {if($1>m1){m2=m1;m1=$1;ln=NR}}
             END{if(m1>2*m2){print ln}else{print 0}}'`
 # Scale vectors differently depending on maximum horizontal displacement
-MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp.out |\
+MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
      awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
 DISP_LBL=`echo $MAX | awk -f vect_label.awk`
 VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
@@ -350,14 +351,14 @@ awk '{
     if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
       print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
     }
-}' disp.out |\
+}' disp_samp.out |\
     gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE
 # Plot larger displacements in black
 awk '{
     if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
       print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
     }
-}' disp.out |\
+}' disp_samp.out |\
     gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
 
 
