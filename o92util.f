@@ -35,6 +35,7 @@ C---- Operation switches
       INTEGER xy             ! coordinate flag: geographic=0, Cartesian=1
       INTEGER prog           ! progress indicator flag
       INTEGER long           ! higher precision output flag
+      INTEGER verbos         ! verbose mode
 
 C---- Automatic grid variables
       INTEGER auto           ! automatic grid flag: hor=1; dip-par=2, str-par=3
@@ -58,6 +59,8 @@ C---- Input variables
       REAL*8 hylo,hyla
       REAL*8 vp,vs,dens
       INTEGER nsta,ntrg,typ(FMAX)
+
+      REAL*8 sthr            ! threshold of slip for FFM
 
 C---- Input file markers
       INTEGER kffm           ! 0:no 1:yes
@@ -84,7 +87,33 @@ C Parse command line
 C----
       call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long,
-     2            emprel,volf)
+     2            emprel,volf,sthr,verbos)
+      if (verbos.eq.1) then
+          write(0,*) 'FFMF:   ',trim(ffmf)
+          write(0,*) 'FLTF:   ',trim(fltf)
+          write(0,*) 'MAGF:   ',trim(magf)
+          write(0,*) 'HAFF:   ',trim(haff)
+          write(0,*) 'STAF:   ',trim(staf)
+          write(0,*) 'TRGF:   ',trim(trgf)
+          write(0,*) 'DSPF:   ',trim(dspf)
+          write(0,*) 'STNF:   ',trim(stnf)
+          write(0,*) 'STSF:   ',trim(stsf)
+          write(0,*) 'NORF:   ',trim(norf)
+          write(0,*) 'SHRF:   ',trim(shrf)
+          write(0,*) 'COULF:  ',trim(coulf)
+          write(0,*) 'GMTF:   ',trim(gmtf)
+          write(0,*) 'FLTTYP: ',flttyp
+          write(0,*) 'AUTO:   ',auto
+          write(0,*) 'INCR:   ',incr
+          write(0,*) 'ADIST:  ',adist
+          write(0,*) 'XY:     ',xy
+          write(0,*) 'PROG:   ',prog
+          write(0,*) 'LONG:   ',long
+          write(0,*) 'EMPREL: ',emprel
+          write(0,*) 'VOLF:   ',volf
+          write(0,*) 'STHR:   ',sthr
+          write(0,*) 'VERBOS: ',verbos
+      endif
 
 C----
 C Check for input fault source files, and whether output is specified
@@ -96,7 +125,7 @@ C----
 C Read input fault files
 C----
       call readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1             slip,hylo,hyla,emprel,haff)
+     1             slip,hylo,hyla,emprel,haff,sthr)
 
 C----
 C Check for auto flag to define stations
@@ -342,14 +371,15 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
-     1                   dx,dy,slip,hylo,hyla,emprel,haff)
+     1                   dx,dy,slip,hylo,hyla,emprel,haff,sthr)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
 C----
       IMPLICIT NONE
       CHARACTER*40 ffmf,fltf,magf,haff,emprel
-      INTEGER nflt,FMAX
+      REAL*8 smax
+      INTEGER i,j,nflt,FMAX
       PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
@@ -357,6 +387,7 @@ C----
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+      REAL*8 sthr
       nflt = 0
       if (kffm.eq.1) then
           call readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
@@ -374,6 +405,33 @@ C----
           write(*,*) '!! Error: no input faults read'
           call usage('!! Check input files for correct format')
       endif
+ 
+C Remove all fault sources with slip less than sthr
+      smax = 0.0d0
+      if (sthr.lt.-1.0d-6) then
+          do 300 i = 1,nflt
+              if (slip(i).gt.smax) smax = slip(i)
+  300     continue
+          sthr = dabs(sthr)*smax
+      endif
+
+      j = 0
+      do 301 i = 1,nflt
+          if (slip(i).ge.sthr) then
+              j = j + 1
+              evlo(j) = evlo(i)
+              evla(j) = evla(i)
+              evdp(j) = evdp(i)
+              str(j) = str(i)
+              dip(j) = dip(i)
+              rak(j) = rak(i)
+              dx(j) = dx(i)
+              dy(j) = dy(i)
+              slip(j) = slip(i)
+          endif
+  301 continue
+      nflt = j
+
 C     If FFM not used, use unweighted mean coordinates as hylo and hyla
       if (kffm.ne.1) then
           call calcmean(hylo,evlo,nflt)
@@ -2027,14 +2085,14 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
      1                  norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,
-     2                  prog,long,emprel,volf)
+     2                  prog,long,emprel,volf,sthr,verbos)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr,iargc
       CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
      1             shrf,coulf,gmtf,emprel,volf
-      INTEGER flttyp,auto,xy,prog,long
-      REAL*8 incr,adist
+      INTEGER flttyp,auto,xy,prog,long,verbos
+      REAL*8 incr,adist,sthr
       INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
@@ -2062,6 +2120,8 @@ C Initialize variables
       incr = 1.0d99
       adist = 1.0d99
       long = 0
+      sthr = 0.0d0
+      verbos = 0
 C Input file status indicators (ICHECK block)
 C 0=unspecified; 1=specified; -1=specified, but file not found
       kffm = 0
@@ -2132,6 +2192,10 @@ C Parse command line
               endif
               i = i + 1
               call getarg(i,dspf)
+          elseif (tag(1:4).eq.'-thr') then
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F10.0)') sthr
           elseif (tag(1:3).eq.'-az') then
               if (kdsp.eq.1) then
                   kdsp = 2
@@ -2227,6 +2291,8 @@ C Parse command line
               kvol = 1
               i = i + 1
               call getarg(i,volf)
+          elseif (tag(1:8).eq.'-verbose') then
+              verbos = 1
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
@@ -2267,7 +2333,7 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-empirical WC|MB|B|YM[p]]'
+     1 '               [-empirical WC|MB|B|YM[p]] [-thr THR]'
       write(*,*)
      1 '               [-vol VOLFILE (!!TESTING!!)]'
       write(*,*)
@@ -2304,7 +2370,7 @@ C----------------------------------------------------------------------C
      1 '               [-auto h|d|s DIST INCR] [-long] [-prog] ',
      2                   '[-gmt GMTFILE]'
       write(*,*)
-     1 '               [-empirical WC|MB|B|YM[p]]'
+     1 '               [-empirical WC|MB|B|YM[p]] [-thr THR]'
       write(*,*)
      1 '               [-vol VOLFILE (!!TESTING!!)]'
       write(*,*)
@@ -2703,6 +2769,20 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    If p is appended, then the fault parameters will be ouput ',
      2                'to standard error'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-thr THR                Minimum slip threshold'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    Set slip less than THR to zero'
+          write(*,*)
+     1 '        THR>0: THR is a slip value'
+          write(*,*)
+     1 '        -1<THR<0: |THR| is a fraction of maximum slip value'
           write(*,*)
           write(*,9999)
           write(*,*)
