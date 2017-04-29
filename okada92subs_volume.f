@@ -24,7 +24,7 @@ C----
 
       IMPLICIT none
       REAL*8 x,y,stdp,evdp,z,c,d             ! Coordinates
-      REAL*8 dipin,rakin,area,dvol,Mvol      ! Fault parameters
+      REAL*8 dipin,dvol,Mvol      ! Fault parameters
       REAL*8 vp,vs,dens                      ! Half-space parameters
       INTEGER i,j
       REAL*8 u(6,3),f(6,3),ux,uy,uz
@@ -160,7 +160,7 @@ C OUTPUT: strain matrix at receiver (in x-y coordinates)
 C----
       IMPLICIT NONE
       REAL*8 x,y,stdp,evdp,z,c,d
-      REAL*8 dipin,rakin,area,dvol,Mvol
+      REAL*8 dipin,dvol,Mvol
       REAL*8 vp,vs,dens
       INTEGER i,j
       REAL*8 fx(6,3),fy(6,3),fz(6,3),f(6),ux(6,3),uy(6,3),uz(6,3),u(6)
@@ -359,6 +359,7 @@ C----
 C----
 C Source and halfspace constants
 C----
+      rakin = 0.0d0
       call dipvar(dipin)
       call hafspc(vp,vs,dens)
       call moment1vol(Mvol,slip)
@@ -471,7 +472,7 @@ C----
       REAL*8 eps
       PARAMETER (eps=1.0d-4)
       REAL*8 x,y,stdp,evdp,z,c,d,p,q,ksi(2),eta(2)
-      REAL*8 dipin,rakin,wid,len,slip,Mvol
+      REAL*8 dipin,wid,len,slip,Mvol
       REAL*8 vp,vs,dens
       INTEGER i,j,ii,jj,ee(2),ek(2),eq
       REAL*8 fj(6,3),fk(6,3),fl(6,3),u(6),fx(6,3),fy(6,3),fz(6,3),f(6)
@@ -662,8 +663,6 @@ C----
 C Compute point source isotropic volume change moment
 C----
       IMPLICIT none
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
       REAL*8 Mvol,dvol,vp,vs,dens
       REAL*8 mu,lamda
       mu = dens*vs*vs
