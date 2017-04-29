@@ -175,6 +175,11 @@ C----
               write(ans,9998) yr2,mo2,dy2
           elseif (long.eq.1) then
               call dyhrmnsc(dy2,hr,mn,sc)
+              if (sc.gt.59.9d0) then
+                  jd2 = jd1 + ndy + 1.157d-6
+                  call jd2date(yr2,mo2,dy2,jd2)
+                  call dyhrmnsc(dy2,hr,mn,sc)
+              endif
               write(ans,9999) yr2,mo2,dy2,hr,mn,sc
           endif
       endif
@@ -192,15 +197,15 @@ C Convert decimal day to day, hour, minute, second
 C----
       IMPLICIT none
       REAL*8 rem,dy,hr,mn,sc
-      rem = mod(dy,1.0d0)
+      rem = dmod(dy,1.0d0)
       dy = dy - rem
       hr = rem*2.4d1
-      rem = mod(hr,1.0d0)
+      rem = dmod(hr,1.0d0)
       hr = hr - rem
       mn = rem*6.0d1
-      rem = mod(mn,1.0d0)
+      rem = dmod(mn,1.0d0)
       mn = mn - rem
-      sc = rem*6.0d1 - mod(sc,1.0d0)
+      sc = rem*6.0d1 - dmod(sc,1.0d0)
       RETURN
       END
 
