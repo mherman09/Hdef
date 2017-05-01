@@ -29,7 +29,7 @@ misc: $(BIN)/dateutil $(BIN)/eventfrequency $(BIN)/ff2gmt $(BIN)/grid \
       $(BIN)/pt2fin $(BIN)/perturb $(BIN)/simplify_ffm.sh $(BIN)/ternary.sh \
       $(BIN)/trg_schem.sh
 fits: $(BIN)/polyfit $(BIN)/multifit $(BIN)/fltinv
-seis: $(BIN)/mtutil $(BIN)/readkik $(BIN)/stsutil
+seis: $(BIN)/mtutil $(BIN)/readkik
 
 $(BIN)/o92util: o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
 	$(FC) $(FFLAG) -o $(BIN)/o92util o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
@@ -39,9 +39,6 @@ $(BIN)/dateutil: dateutil.f
 
 $(BIN)/mtutil: mtutil.f mtsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/mtutil mtutil.f mtsubs.f $(LAPACK)
-
-$(BIN)/stsutil: stsutil.f
-	$(FC) $(FFLAG) -o $(BIN)/stsutil stsutil.f $(LAPACK)
 
 $(BIN)/lola2distaz: lola2distaz.f geomsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/lola2distaz lola2distaz.f geomsubs.f
