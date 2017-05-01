@@ -1,5 +1,5 @@
 ##### Compiler variables #####
-FC = gfortran
+FC = -gfortran
 #FC = ifort
 #FC = pgfortran
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
@@ -29,7 +29,7 @@ misc: $(BIN)/dateutil $(BIN)/eventfrequency $(BIN)/ff2gmt $(BIN)/grid \
       $(BIN)/pt2fin $(BIN)/perturb $(BIN)/simplify_ffm.sh $(BIN)/ternary.sh \
       $(BIN)/trg_schem.sh
 fits: $(BIN)/polyfit $(BIN)/multifit $(BIN)/fltinv
-seis: $(BIN)/mtutil $(BIN)/readkik
+seis: $(BIN)/mtutil $(BIN)/readkik $(BIN)/stsutil
 
 $(BIN)/o92util: o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
 	$(FC) $(FFLAG) -o $(BIN)/o92util o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
@@ -39,6 +39,9 @@ $(BIN)/dateutil: dateutil.f
 
 $(BIN)/mtutil: mtutil.f mtsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/mtutil mtutil.f mtsubs.f $(LAPACK)
+
+$(BIN)/stsutil: stsutil.f
+	$(FC) $(FFLAG) -o $(BIN)/stsutil stsutil.f $(LAPACK)
 
 $(BIN)/lola2distaz: lola2distaz.f geomsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/lola2distaz lola2distaz.f geomsubs.f
@@ -109,24 +112,30 @@ $(BIN)/ternary.sh: ternary.sh
 $(BIN)/trg_schem.sh: trg_schem.sh
 	cp trg_schem.sh $(BIN)/trg_schem.sh
 clean:
-	rm $(BIN)/o92util
-	rm $(BIN)/dateutil
-	rm $(BIN)/mtutil
-	rm $(BIN)/lola2distaz
-	rm $(BIN)/distaz2lola
-	rm $(BIN)/polyfit
-	rm $(BIN)/eventfrequency
-	rm $(BIN)/vec2los
-	rm $(BIN)/wraplos
-	rm $(BIN)/sphfinrot
-	rm $(BIN)/ff2gmt
-	rm $(BIN)/grid
-	rm $(BIN)/pt2fin
-	rm $(BIN)/readkik
-	rm $(BIN)/numint
-	rm $(BIN)/fltinv
-	rm $(BIN)/platemotion 
-	rm $(BIN)/perturb
-	rm $(BIN)/multifit
+	-rm $(BIN)/o92util
+	-rm $(BIN)/dateutil
+	-rm $(BIN)/mtutil
+	-rm $(BIN)/lola2distaz
+	-rm $(BIN)/distaz2lola
+	-rm $(BIN)/polyfit
+	-rm $(BIN)/eventfrequency
+	-rm $(BIN)/vec2los
+	-rm $(BIN)/wraplos
+	-rm $(BIN)/sphfinrot
+	-rm $(BIN)/ff2gmt
+	-rm $(BIN)/grid
+	-rm $(BIN)/pt2fin
+	-rm $(BIN)/readkik
+	-rm $(BIN)/numint
+	-rm $(BIN)/fltinv
+	-rm $(BIN)/platemotion 
+	-rm $(BIN)/perturb
+	-rm $(BIN)/coul_hor.sh
+	-rm $(BIN)/coul_dip.sh
+	-rm $(BIN)/coul_xsec.sh
+	-rm $(BIN)/surf_disp.sh
+	-rm $(BIN)/simplify_ffm.sh
+	-rm $(BIN)/ternary.sh
+	-rm $(BIN)/trg_schem.sh
 
 
