@@ -5,20 +5,21 @@ C to the values.
 C----
       IMPLICIT none
       CHARACTER*80 ifile,ofile
-      INTEGER i,nvar,input,output,idum,seed
+      INTEGER i,nvar,input,output,idum,seed,p
       REAL*8 val(10),dval(10)
       EXTERNAL ran2
-      REAL ran2,random
+      REAL ran2
 
 C Parse command line
-      call gcmdln(ifile,ofile,nvar,seed)
+      call gcmdln(ifile,ofile,nvar,seed,p)
       if (ifile.eq.'stdin') then
           input = 5
       else
           input = 11
           open(unit=input,file=ifile,status='old')
       endif
-      if (ofile.eq.'print'.or.ofile.eq.'stdout') then
+      if (ofile.eq.'print'.or.ofile.eq.'stdout'.or.ofile.eq.'none'
+     1    .or.p.eq.1) then
           output = 6
       else
           output = 12
@@ -57,14 +58,15 @@ C----------------------------------------------------------------------C
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(ifile,ofile,nvar,seed)
+      SUBROUTINE gcmdln(ifile,ofile,nvar,seed,p)
       IMPLICIT NONE
       CHARACTER*80 ifile,ofile,tag
-      INTEGER i,narg,nvar,seed
+      INTEGER i,narg,nvar,seed,p
       ifile = 'none'
       ofile = 'none'
       seed = -1
       nvar = 1
+      p    = 0
       narg = iargc()
       if (narg.eq.0) call usage('')
       i = 0
@@ -85,6 +87,8 @@ C======================================================================C
           elseif (tag(1:2).eq.'-f') then
               i = i + 1
               call getarg(i,ifile)
+          elseif (tag(1:2).eq.'-p') then
+              p = 1
           elseif (tag(1:2).eq.'-h') then
               call usage('')
           else
@@ -105,7 +109,7 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: perturb -f IFILE -o OFILE -n NVAR [-seed SEED]'
+     1 'Usage: perturb -f IFILE -o OFILE -n NVAR [-seed SEED] [-p]'
       write(*,*)
       write(*,*)
      1 '-f IFILE    Input data file with uncertainties (v1..vn d1..dn)'
@@ -116,6 +120,8 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-seed SEED  Start random numbers with integer SEED ',
      2                  '(useful for continuing chain of rands)'
+      write(*,*)
+     1 '-p          Print results to standard output'
       write(*,*)
      1 '-h          Online help'
       write(*,*)
