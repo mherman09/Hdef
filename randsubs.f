@@ -120,3 +120,18 @@ C     REAL mj,mk,ma(55)
       return
       END
 
+C----------------------------------------------------------------------C
+
+      SUBROUTINE nrand(y1,y2,idum)
+      IMPLICIT none
+      REAL x1,x2,y1,y2,w,ran2
+      INTEGER idum
+  101 x1 = 2.0e0*ran2(idum) - 1.0e0 
+      x2 = 2.0e0*ran2(idum) - 1.0e0
+      w  = x1*x1 + x2*x2
+      if (w.ge.1.0e0) goto 101
+      w  = sqrt(-2.0e0*log(w)/w)
+      y1 = x1*w
+      y2 = x2*w
+      RETURN
+      END
