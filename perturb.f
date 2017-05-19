@@ -5,15 +5,15 @@ C to the values.
 C----
       IMPLICIT none
       CHARACTER*80 ifile,ofile
-      INTEGER i,nvar,input,output,idum,seed,p,distro
+      INTEGER i,nvar,input,output,idum,seed,p,distro(10)
       INTEGER irand
-      REAL*8 val(10),dval(10),r1,r2
+      REAL*8 val(10),dval(10)
+      REAL r1,r2
       EXTERNAL ran2
       REAL ran2
 
 C Parse command line
       call gcmdln(ifile,ofile,nvar,seed,p,distro)
-      if (distro.eq.2) irand = 0
       if (ifile.eq.'stdin') then
           input = 5
       else
@@ -29,15 +29,16 @@ C Parse command line
       endif
 
 C Initialize random number generator
+      irand = 0
       call raninit(idum)
       if (seed.gt.0) idum = -seed
 
 C Perturb input data
   101 read(input,*,end=102) (val(i),i=1,nvar),(dval(i),i=1,nvar)
           do 104 i = 1,nvar
-              if (distro.eq.1) then
+              if (distro(i).eq.1) then
                   val(i) = val(i) + dval(i)*(2.0d0*ran2(idum)-1.0d0)
-              elseif (distro.eq.2) then
+              elseif (distro(i).eq.2) then
                   if (irand.eq.0) then
                       call nrand(r1,r2,idum)
                       irand = 1
@@ -74,13 +75,15 @@ C======================================================================C
       SUBROUTINE gcmdln(ifile,ofile,nvar,seed,p,distro)
       IMPLICIT NONE
       CHARACTER*80 ifile,ofile,tag
-      INTEGER i,narg,nvar,seed,p,distro
+      INTEGER i,ii,narg,nvar,seed,p,distro(10)
       ifile  = 'none'
       ofile  = 'none'
       seed   = -1
       nvar   = 1
       p      = 0
-      distro = 1
+      do 103 i = 1,10
+          distro(i) = 1
+  103 continue
       narg = iargc()
       if (narg.eq.0) call usage('')
       i = 0
@@ -92,7 +95,10 @@ C======================================================================C
               call getarg(i,tag)
               read(tag,*) seed
           elseif (tag(1:7).eq.'-normal') then
-              distro = 2
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,*) ii
+              distro(ii) = 2
           elseif (tag(1:2).eq.'-n') then
               i = i + 1
               call getarg(i,tag)
@@ -138,8 +144,8 @@ C----------------------------------------------------------------------C
      1 '-seed SEED  Start random numbers with integer SEED ',
      2                  '(useful for continuing chain of rands)'
       write(*,*)
-     1 '-normal     Use normal distribution with 95% confidence at',
-     2              'd values (default: uniform distribution)'
+     1 '-normal VAR Use normal distribution with 95% confidence at',
+     2              'd for VAR (default: uniform distribution)'
       write(*,*)
      1 '-p          Print results to standard output'
       write(*,*)
