@@ -567,7 +567,8 @@ C----
       endif
       if (emprel.ne.'WC'.and.emprel.ne.'MB'.and.emprel.ne.'B'
      1                                         .and.emprel.ne.'YM') then
-              write(0,*) '!! No empirical relation named "',emprel,'"'
+              write(0,*) '!! No empirical relation named "',
+     1                                     trim(emprel),'"'
               write(0,*) '   Using Wells and Coppersmith (1994)'
       endif
 
