@@ -445,7 +445,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                   hylo,hyla,nflt)
 C----
-C Read shear dislocations from FFM in standard subfault format.
+C Read shear dislocations from FFM in USGS subfault format.
 C All units are converted to SI, angles are in degrees.
 C----
       IMPLICIT NONE
@@ -2393,16 +2393,17 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-ffm FFMFILE            Finite fault ',
-     2                          'file in standard subfault format'
+     2                          'file in USGS subfault format'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
-     1 '    Example of subfault format can be seen at:'
+     1 '    See Hayes (2017), The finite, kinematic rupture properties',
+     2      ' of great-sized'
           write(*,*)
-     1 '    http://comcat.cr.usgs.gov/product/finite-fault/usc000nzvd/',
-     2      'us/1397258114263/'
+     1 '        earthquakes since 1990, EPSL.'
           write(*,*)
-     1 '        web/static2_out'
+     1 '    Examples can be found at event pages on earthquake.usgs.gov'
+          write(*,*)
           write(*,*)
      1 '    NB: o92util assumes FFM displacements are in centimeters'
           write(*,*)
@@ -2421,6 +2422,9 @@ C----------------------------------------------------------------------C
      1 '                                (degrees)          along-dip ',
      2                                                    'along-str'
           write(*,*)
+          write(*,*)
+     1 '        (or, if -xy is used: evx(km) evy(km) evdp(km)...)'
+          write(*,*)
           write(*,9999)
           write(*,*)
       endif
@@ -2433,13 +2437,13 @@ C----------------------------------------------------------------------C
      1 '    Format: evlo evla evdp(km) str dip rak mag'
           write(*,*)
           write(*,*)
+     1 '        (or, if -xy is used: evx(km) evy(km) evdp(km)...)'
+          write(*,*)
+          write(*,*)
      1 '    The magnitude is converted to slip, width, and length ',
-     2      'using Wells and'
+     2      'using '
           write (*,*)
-     1 '    Coppersmith (1994) empirical relations, and a hard-coded ',
-     2      'shear modulus'
-          write (*,*)
-     1 '    of 43 GPa.'
+     1 '    empirical relations, and the half-space shear modulus'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -2458,6 +2462,9 @@ C----------------------------------------------------------------------C
           write(*,*)
           write(*,*)
      1 '    Format: stlo stla stdp(km)'
+          write(*,*)
+          write(*,*)
+     1 '        (or, if -xy is used: stx(km) sty(km) stdp(km))'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -2547,6 +2554,8 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    Format: stlo stla stdp u_E(m) u_N(m) u_Z(m)'
           write(*,*)
+     1 '        (or, if -xy is used: stx(km) sty(km) stdp(km)...)'
+          write(*,*)
      1 '    Vertical displacement is positive up.'
           write(*,*)
           write(*,9999)
@@ -2602,14 +2611,14 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-estress STRSFILE       Effective stress (2nd invariant of ',
+     1 '-estress STRSFILE       Effective shear stress (2nd invar. of ',
      2                                'dev. strs tensor)'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
      1 '    Format: stlo stla stdp estre(Pa)'
           write(*,*)
-     1 '    The effective stress is a measure of the amplitude ',
+     1 '    The effective shear stress is a measure of the amplitude ',
      2       'of the stress tensor'
           write(*,*)
      1 '    (deviatoric part).'
@@ -2659,8 +2668,11 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    onto the rake vector of the target fault.'
           write(*,*)
-     1 '    To have output be maximum value of shear traction, ',
-     1       'use -shearmax.'
+          write(*,*)
+     1 '    To have output be maximum value of shear traction ',
+     2       'on target geometry,'
+          write(*,*)
+     1 '        use -shearmax.'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -2768,8 +2780,10 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '        YM: Yen and Ma (2011)'
           write(*,*)
-     1 '    If p is appended, then the fault parameters will be ouput ',
-     2                'to standard error'
+     1 '    If p is appended, then the fault parameters will also be ',
+     2                 'printed'
+          write(*,*)
+     2 '        to standard error'
           write(*,*)
           write(*,9999)
           write(*,*)
@@ -2781,7 +2795,7 @@ C----------------------------------------------------------------------C
           write(*,*)
      1 '    Set slip less than THR to zero'
           write(*,*)
-     1 '        THR>0: THR is a slip value'
+     1 '        THR>0: THR is a slip value in meters'
           write(*,*)
      1 '        -1<THR<0: |THR| is a fraction of maximum slip value'
           write(*,*)
