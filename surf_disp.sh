@@ -45,7 +45,7 @@ DISP_THR="0.05" # meters
 
 function USAGE() {
 echo
-echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg]"
+echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv]"
 echo "    SRC_TYPE    Either MT (moment tensor) or FFM (finite fault model)"
 echo "    SRC_FILE    Name of input file"
 echo "                  MT:  EVLO EVLA EVDP STR DIP RAK MAG"
@@ -77,16 +77,15 @@ fi
 # Parse optional arguments
 LIMS=""
 SEG="0"
+VERT_CPT_RANGE=""
 shift;shift
 while [ "$1" != "" ]
 do
     case $1 in
-        -R*) LIMS="$1"
-             ;;
+        -R*) LIMS="$1";;
+        -T*) VERT_CPT_RANGE="$1";;
         -seg) SEG="1" ;;
-          *) echo "!! Error: no option \"$1\""
-             USAGE
-             ;;
+        *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
 done
@@ -270,7 +269,12 @@ PROJ="-JM5i $PORTRAIT"
 LIMS="-R$W/$E/$S/$N"
 
 # Colored grid of vertical displacements plotted under horizontal displacement vectors
-gmt makecpt -T-$T/$T/0.01 -C./polar_mwh.cpt -D > vert.cpt
+if [ -z $VERT_CPT_RANGE ]
+then
+    gmt makecpt -T-$T/$T/0.01 -C./polar_mwh.cpt -D > vert.cpt
+else
+    gmt makecpt $VERT_CPT_RANGE -C./polar_mwh.cpt -D > vert.cpt
+fi
 awk '{print $1,$2,$6}' disp.out | gmt xyz2grd -Gvert.grd $LIMS -I$NN+/$NN+
 gmt grdimage vert.grd $PROJ $LIMS -Cvert.cpt -Y1.5i -K > $PSFILE
 gmt psscale -D2.5i/-0.8i/5.0i/0.2ih -Cvert.cpt -Ba$DT -Bg$DT \
