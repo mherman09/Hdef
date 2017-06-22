@@ -24,7 +24,8 @@ all: defm geom misc fits seis
 
 defm: $(BIN)/o92util $(BIN)/vec2los $(BIN)/wraplos \
       $(BIN)/coul_hor.sh $(BIN)/coul_dip.sh $(BIN)/coul_xsec.sh $(BIN)/surf_disp.sh
-geom: $(BIN)/lola2distaz $(BIN)/distaz2lola $(BIN)/sphfinrot $(BIN)/platemotion
+geom: $(BIN)/lola2distaz $(BIN)/distaz2lola $(BIN)/sphfinrot $(BIN)/platemotion \
+      $(BIN)/utm2geo
 misc: $(BIN)/dateutil $(BIN)/eventfrequency $(BIN)/ff2gmt $(BIN)/grid \
       $(BIN)/pt2fin $(BIN)/perturb $(BIN)/simplify_ffm.sh $(BIN)/ternary.sh \
       $(BIN)/trg_schem.sh
@@ -45,6 +46,9 @@ $(BIN)/lola2distaz: lola2distaz.f geomsubs.f
 
 $(BIN)/distaz2lola: distaz2lola.f geomsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/distaz2lola distaz2lola.f geomsubs.f
+
+$(BIN)/utm2geo: utm2geo.f geomsubs.f
+	$(FC) $(FFLAG) -o $(BIN)/utm2geo utm2geo.f geomsubs.f
 
 $(BIN)/polyfit: polyfit.f lsqsubs.f
 	$(FC) $(FFLAG) -o $(BIN)/polyfit polyfit.f lsqsubs.f $(LAPACK)
