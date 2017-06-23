@@ -2384,8 +2384,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
-     2                        '[-fn|-pt]'
+     1 'Usage: o92util -ffm FFMFILE -fsp FSPFILE -flt FLTFILE ',
+     2                        '-mag MAGFILE [-fn|-pt]'
       write(*,*)
      1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
      2                               '[-haf HAFFILE] [-xy]'
@@ -2421,8 +2421,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
  100  write(*,*)
-     1 'Usage: o92util -ffm FFMFILE -flt FLTFILE -mag MAGFILE ',
-     2                        '[-fn|-pt]'
+     1 'Usage: o92util -ffm FFMFILE -fsp FSPFILE -flt FLTFILE ',
+     2                        '-mag MAGFILE [-fn|-pt]'
       write(*,*)
      1 '               -sta STAFILE -trg TRGFILE|S/D/R/F ',
      2                               '[-haf HAFFILE] [-xy]'
@@ -2458,7 +2458,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 '-ffm FFMFILE            Finite fault ',
-     2                          'file in USGS subfault format'
+     2                          'file in static out format'
       if (str.eq.'long') then
           write(*,*)
           write(*,*)
@@ -2470,7 +2470,25 @@ C----------------------------------------------------------------------C
      1 '    Examples can be found at event pages on earthquake.usgs.gov'
           write(*,*)
           write(*,*)
-     1 '    NB: o92util assumes FFM displacements are in centimeters'
+     1 '    NB: o92util assumes static FFM displacements are in cm'
+          write(*,*)
+          write(*,9999)
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-fsp FSPFILE            Finite fault ',
+     2                          'file in SRCMOD FSP format'
+      if (str.eq.'long') then
+          write(*,*)
+          write(*,*)
+     1 '    See Hayes (2017), The finite, kinematic rupture properties',
+     2      ' of great-sized'
+          write(*,*)
+     1 '        earthquakes since 1990, EPSL.'
+          write(*,*)
+     1 '    File format is described at http://equake-rc.info/SRCMOD'
+          write(*,*)
+     1 '    Examples can be found at event pages on earthquake.usgs.gov'
           write(*,*)
           write(*,9999)
           write(*,*)
