@@ -12,7 +12,8 @@ C----
       PARAMETER (FMAX=150000)
 
 C---- Input files
-      CHARACTER*40 ffmf      ! faults, finite fault model format
+      CHARACTER*40 ffmf      ! faults, static out finite fault format
+      CHARACTER*40 fspf      ! faults, SRCMOD finite fault format
       CHARACTER*40 fltf      ! faults, lon-lat-dep-str-dip-rak-slip-wid-len format
       CHARACTER*40 magf      ! faults, lon-lat-dep-str-dip-rak-mag format
       CHARACTER*40 haff      ! half-space parameters
@@ -64,6 +65,7 @@ C---- Input variables
 
 C---- Input file markers
       INTEGER kffm           ! 0:no 1:yes
+      INTEGER kfsp           ! 0:no 1:yes
       INTEGER kflt           ! 0:no 1:yes
       INTEGER kmag           ! 0:no 1:yes
       INTEGER ksta           ! 0:no 1:yes
@@ -79,17 +81,18 @@ C---- Output file markers
       INTEGER kshr           !
       INTEGER kcou           !
       INTEGER kgmt           !
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 
 C----
 C Parse command line
 C----
-      call gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1            shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,long,
-     2            emprel,volf,sthr,verbos)
+      call gcmdln(ffmf,fspf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
+     1            norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,
+     2            long,emprel,volf,sthr,verbos)
       if (verbos.eq.1) then
           write(0,*) 'FFMF:   ',trim(ffmf)
+          write(0,*) 'FSPF:   ',trim(fspf)
           write(0,*) 'FLTF:   ',trim(fltf)
           write(0,*) 'MAGF:   ',trim(magf)
           write(0,*) 'HAFF:   ',trim(haff)
@@ -118,14 +121,14 @@ C----
 C----
 C Check for input fault source files, and whether output is specified
 C----
-      call chksrc(ffmf,fltf,magf,volf)
+      call chksrc(ffmf,fspf,fltf,magf,volf)
       call chkout()
       if (kvol.eq.1) goto 101
 C----
 C Read input fault files
 C----
-      call readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,dx,dy,
-     1             slip,hylo,hyla,emprel,haff,sthr)
+      call readsrc(ffmf,fspf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
+     1             dx,dy,slip,hylo,hyla,emprel,haff,sthr)
 
 C----
 C Check for auto flag to define stations
@@ -178,32 +181,39 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE chksrc(ffmf,fltf,magf,volf)
+      SUBROUTINE chksrc(ffmf,fspf,fltf,magf,volf)
 C----
 C Check (a) that fault source files were defined in gcmdln and (b) that
 C these fault files exist.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmf,fltf,magf,volf
+      CHARACTER*40 ffmf,fspf,fltf,magf,volf
       LOGICAL ex
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
 
 C Verify input fault files were defined on command line
-      if ((kffm.ne.0.or.kflt.ne.0.or.kmag.ne.0).and.kvol.eq.1) then
+      if ((kffm.ne.0.or.kflt.ne.0.or.kmag.ne.0.or.kfsp.ne.0)
+     1                                              .and.kvol.eq.1) then
           write(*,*) '!! Error: cannot combine fault and volume sources'
-          call usage('!! Run -ffm, -flt, or -mag separately from -vol')
+          call usage('!! Run -ffm, -fsp, -flt, or -mag separately '//
+     1                                                      'from -vol')
       endif
-      if (kffm.eq.0.and.kflt.eq.0.and.kmag.eq.0.and.kvol.eq.0) then
+      if (kffm.eq.0.and.kflt.eq.0.and.kmag.eq.0.and.kvol.eq.0
+     1                                              .and.kfsp.eq.0) then
           write(*,*) '!! Error: No source file specified'
-          call usage('!! Use -ffm FFMFILE, -flt FLTFILE, -mag '//
-     1                  'MAGFILE, or -vol VOLFILE')
+          call usage('!! Use -ffm FFMFILE, -fsp FSPFILE, -flt '//
+     1                         'FLTFILE, -mag MAGFILE, or -vol VOLFILE')
       endif
 
 C Look for defined files in working directory
       if (kffm.eq.1) then
           inquire(file=ffmf,EXIST=ex)
           if (.not.ex) kffm = -1
+      endif
+      if (kfsp.eq.1) then
+          inquire(file=fspf,EXIST=ex)
+          if (.not.ex) kfsp = -1
       endif
       if (kflt.eq.1) then
           inquire(file=fltf,EXIST=ex)
@@ -220,15 +230,19 @@ C Look for defined files in working directory
 
 C Quit to usage if none of input is found. Warn (but do not quit) if
 C at least one input is found but another is not.
-      if (kffm.ne.1.and.kflt.ne.1.and.kmag.ne.1.and.kvol.ne.1) then
+      if (kffm.ne.1.and.kfsp.ne.1.and.kflt.ne.1.and.kmag.ne.1
+     1                                              .and.kvol.ne.1) then
           write(*,*) '!! Error: No fault files found'
           if (kffm.eq.-1) write(*,*) '!! Looked for FFMFILE: '//ffmf
+          if (kfsp.eq.-1) write(*,*) '!! Looked for FSPFILE: '//fspf
           if (kflt.eq.-1) write(*,*) '!! Looked for FLTFILE: '//fltf
           if (kmag.eq.-1) write(*,*) '!! Looked for MAGFILE: '//magf
           if (kvol.eq.-1) write(*,*) '!! Looked for VOLFILE: '//volf
-          call usage('!! Check -ffm, -flt, -mag, and -vol arguments')
+          call usage('!! Check -ffm, -fsp, -flt, -mag, and -vol '//
+     1                                                      'arguments')
       else
           if (kffm.eq.-1) write(*,*) '!! Warning: No FFMFILE: '//ffmf
+          if (kfsp.eq.-1) write(*,*) '!! Warning: No FSPFILE: '//fspf
           if (kflt.eq.-1) write(*,*) '!! Warning: No FLTFILE: '//fltf
           if (kmag.eq.-1) write(*,*) '!! Warning: No MAGFILE: '//magf
           if (kvol.eq.-1) write(*,*) '!! Warning: No VOLFILE: '//volf
@@ -267,9 +281,9 @@ C----
       CHARACTER*40 haff,staf,trgf
       LOGICAL ex
       INTEGER nsta,ntrg,ptr,i
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C Look for station file, count number of receivers
       if (ksta.eq.0) then
@@ -370,27 +384,31 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readsrc(ffmf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
-     1                   dx,dy,slip,hylo,hyla,emprel,haff,sthr)
+      SUBROUTINE readsrc(ffmf,fspf,fltf,magf,nflt,evlo,evla,evdp,str,
+     1                   dip,rak,dx,dy,slip,hylo,hyla,emprel,haff,sthr)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmf,fltf,magf,haff,emprel
+      CHARACTER*40 ffmf,fspf,fltf,magf,haff,emprel
       REAL*8 smax
       INTEGER i,j,nflt,FMAX
       PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       REAL*8 sthr
       nflt = 0
       if (kffm.eq.1) then
           call readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     1                 hylo,hyla,nflt)
+      endif
+      if (kfsp.eq.1) then
+          call readfsp(fspf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 hylo,hyla,nflt)
       endif
       if (kflt.eq.1) then
@@ -445,7 +463,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                   hylo,hyla,nflt)
 C----
-C Read shear dislocations from FFM in USGS subfault format.
+C Read shear dislocations from FFM in static out subfault format.
 C All units are converted to SI, angles are in degrees.
 C----
       IMPLICIT NONE
@@ -494,6 +512,47 @@ C Read subfault data
   313 continue
       nflt = nflt + ct
       close(31)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE readfsp(fspf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     1                   hylo,hyla,nflt)
+      IMPLICIT none
+      CHARACTER*40 fspf
+      CHARACTER*200 line
+      INTEGER i,nflt,FMAX
+      PARAMETER (FMAX=150000)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
+      CHARACTER*1 dm
+      REAL*8 dxr,dyr,strr,dipr
+      i = nflt
+      open(unit=35,file=fspf,status='old')
+  351 read(35,'(A)',end=352) line
+          if (index(line,'% Loc').gt.0) then
+              read(line,*) dm,dm,dm,dm,dm,hyla,dm,dm,hylo
+          elseif (index(line,'% Mech :').gt.0) then
+              read(line,*) dm,dm,dm,dm,dm,strr,dm,dm,dipr
+          elseif (index(line,'% Invs : Dx').gt.0) then
+              read(line,*) dm,dm,dm,dm,dm,dxr,dm,dm,dm,dyr
+          elseif (index(line,'% SEGMENT').gt.0) then
+              read(line,*) dm,dm,dm,dm,dm,dm,strr,dm,dm,dm,dipr
+          elseif (index(line,'%').eq.0) then
+              i = i + 1
+              read(line,*) evla(i),evlo(i),dm,dm,evdp(i),slip(i),
+     1                     rak(i)
+              evdp(i) = evdp(i)*1.0d3
+              dx(i) = dxr*1.0d3
+              dy(i) = dyr*1.0d3
+              str(i) = strr
+              dip(i) = dipr
+          endif
+          goto 351
+  352 continue
+      close(35)
+      nflt = nflt + i
       RETURN
       END
 
@@ -557,8 +616,8 @@ C----
       LOGICAL ex
       CHARACTER*40 haff
       REAL*8 vp,vs,dens
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
 
       ! Determine empirical relation used
       p = index(emprel,'p')
@@ -843,8 +902,8 @@ C----
       IMPLICIT NONE
       CHARACTER*40 haff,ch
       REAL*8 vp,vs,dens,lamda,mu
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       if (khaf.eq.0) then
           call autohaf(vp,vs,dens)
       elseif (khaf.eq.1) then
@@ -913,9 +972,9 @@ C----
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX)
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
       REAL*8 az,hdsp
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
@@ -1851,9 +1910,9 @@ C----------------------------------------------------------------------C
       REAL*8 uN,uE,uZ,strain(3,3),stress(3,3),norml,shear,coul,estrs
       REAL*8 az,hdsp
       INTEGER typ(FMAX)
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
@@ -2084,22 +2143,23 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
-     1                  norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,
-     2                  prog,long,emprel,volf,sthr,verbos)
+      SUBROUTINE gcmdln(ffmf,fspf,fltf,magf,haff,staf,trgf,dspf,stnf,
+     1                  stsf,norf,shrf,coulf,gmtf,flttyp,auto,incr,
+     2                  adist,xy,prog,long,emprel,volf,sthr,verbos)
       IMPLICIT NONE
       CHARACTER*40 tag
       INTEGER narg,i,ptr,iargc
-      CHARACTER*40 ffmf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,norf,
-     1             shrf,coulf,gmtf,emprel,volf
+      CHARACTER*40 ffmf,fspf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
+     1             norf,shrf,coulf,gmtf,emprel,volf
       INTEGER flttyp,auto,xy,prog,long,verbos
       REAL*8 incr,adist,sthr
-      INTEGER kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
-      COMMON /ICHECK/ kffm,kflt,kmag,ksta,khaf,ktrg,kvol
+      COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 C Initialize variables
       ffmf = 'none'
+      fspf = 'none'
       fltf = 'none'
       magf = 'none'
       staf = 'none'
@@ -2126,6 +2186,7 @@ C Initialize variables
 C Input file status indicators (ICHECK block)
 C 0=unspecified; 1=specified; -1=specified, but file not found
       kffm = 0
+      kfsp = 0
       kflt = 0
       kmag = 0
       ksta = 0
@@ -2153,6 +2214,10 @@ C Parse command line
               kffm = 1
               i = i + 1
               call getarg(i,ffmf)
+          elseif (tag(1:4).eq.'-fsp') then
+              kfsp = 1
+              i = i + 1
+              call getarg(i,fspf)
           elseif (tag(1:4).eq.'-flt') then
               kflt = 1
               i = i + 1
