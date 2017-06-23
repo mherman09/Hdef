@@ -83,15 +83,9 @@ echo "##########                          WORKING ON LAPACK STUFF               
 echo "####################################################################################################"
 if [ $INTERACTIVE == "Y" ]
 then
-    echo "Do you want to install the software that depends on the LAPACK libraries? (Y/N)"
-    echo "(These are not necessary for using the basic Okada codes)"
-    read ANSWER
-    ANSWER=`echo $ANSWER | awk '{if(substr($1,1,1)=="y"||substr($1,1,1)=="Y"){print "Y"}else{print "N"}}'`
-    if [ $ANSWER == "Y" ]
-    then
-        echo "Enter path to LAPACK libraries:"
-        read LAPACK_LIB_DIR
-    fi
+    echo "If you want to install the software that depends on the LAPACK libraries, enter the directory"
+    echo "that contains the LAPACK libraries: (Otherwise, leave blank and just hit \"return\")"
+    read LAPACK_LIB_DIR
 fi
 
 if [ -z "$LAPACK_LIB_DIR" ]
@@ -140,9 +134,9 @@ then
     then
         ANSWER="../bin"
     fi
-    echo Putting exectuables in $ANSWER
     BIN_DIR=$ANSWER
 fi
+echo Putting exectuables in $BIN_DIR
 if [ ! -d $BIN_DIR ]
 then
     echo Directory $BIN_DIR does not exist....creating it
@@ -150,6 +144,13 @@ then
 else
     echo Directory $BIN_DIR already exists
 fi
+echo
+echo
+
+echo "####################################################################################################"
+echo "##########                           INSTALL THE CODES!                                   ##########"
+echo "####################################################################################################"
+echo "Type \"make\""
 
 #####
 #	Generating makefile
@@ -164,6 +165,12 @@ FFLAG = \$(FWARN) \$(FOPT)
 ##### Executable directory #####
 BIN   = $BIN_DIR
 
+EOF
+
+if [ -n "$LAPACK_LIB_DIR" ]
+then
+
+cat >> Makefile << EOF
 ##### External libraries #####
 LAPACK_LIB_DIR = -L$LAPACK_LIB_DIR
 LAPACK_LIB     = -llapack -ltmglib -lrefblas
@@ -171,6 +178,18 @@ LAPACK         = \$(LAPACK_LIB_DIR) \$(LAPACK_LIB)
 
 ##### Rules #####
 all: defm geom misc fits seis
+EOF
+
+else
+
+cat >> Makefile << EOF
+##### Rules #####
+all: defm geom misc
+EOF
+
+fi
+
+cat >> Makefile << EOF
 #     \$(BIN)/numint \\
 #     \$(BIN)/pole2vel \\
 #     \$(BIN)/polyfit_special \\
@@ -183,9 +202,9 @@ geom: \$(BIN)/lola2distaz \$(BIN)/distaz2lola \$(BIN)/sphfinrot \$(BIN)/platemot
       \$(BIN)/utm2geo
 misc: \$(BIN)/dateutil \$(BIN)/eventfrequency \$(BIN)/ff2gmt \$(BIN)/grid \\
       \$(BIN)/pt2fin \$(BIN)/perturb \$(BIN)/simplify_ffm.sh \$(BIN)/ternary.sh \\
-      \$(BIN)/trg_schem.sh
+      \$(BIN)/trg_schem.sh \$(BIN)/readkik
 fits: \$(BIN)/polyfit \$(BIN)/multifit \$(BIN)/fltinv
-seis: \$(BIN)/mtutil \$(BIN)/readkik
+seis: \$(BIN)/mtutil
 
 \$(BIN)/o92util: o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/o92util o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
