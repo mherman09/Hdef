@@ -105,15 +105,24 @@ else
         echo !! Error: Directory $LAPACK_LIB_DIR is empty
         exit 1
     else
+        LAPACK_LIB_LIST=""
         for LIB in lapack refblas tmglib
         do
             EXIST=`ls $LAPACK_LIB_DIR/lib$LIB.a 2>&1 | awk '{if(/No such file or directory/){print "N";exit}else{print "Y";exit}}'`
+            LIB2=$LIB
+            if [ "$EXIST" == "N" -a "$LIB" == "lapack" ]
+            then
+                echo "LAPACK library \"lapack\" does not exist; looking for library \"reflapack\""
+                EXIST=`ls $LAPACK_LIB_DIR/libreflapack.a 2>&1 | awk '{if(/No such file or directory/){print "N";exit}else{print "Y";exit}}'`
+                LIB2=reflapack
+            fi
             if [ "$EXIST" == "N" ]
             then
-                echo !! Error: LAPACK library \"$LIB\" is not in $LAPACK_LIB_DIR
+                echo !! Error: LAPACK library \"$LIB2\" is not in $LAPACK_LIB_DIR
                 exit 1
             fi
-            echo Found LAPACK library: $LIB!
+            echo Found LAPACK library: $LIB2!
+            LAPACK_LIB_LIST="$LAPACK_LIB_LIST -l$LIB2"
         done
     fi
     echo Test complete! Using LAPACK libraries in directory: $LAPACK_LIB_DIR
@@ -173,7 +182,7 @@ then
 cat >> Makefile << EOF
 ##### External libraries #####
 LAPACK_LIB_DIR = -L$LAPACK_LIB_DIR
-LAPACK_LIB     = -llapack -ltmglib -lrefblas
+LAPACK_LIB     = $LAPACK_LIB_LIST
 LAPACK         = \$(LAPACK_LIB_DIR) \$(LAPACK_LIB)
 
 ##### Rules #####
