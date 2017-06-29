@@ -1,8 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
 # Configure script command line options
 function usage() {
-    echo "$0 [--fortran_compiler=FC] [--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [--bin_dir=/PATH/TO/EXECUTABLES] [--interactive]"
+    echo "$0 [--fortran_compiler=FC] [--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [--bin_dir=/PATH/TO/EXECUTABLES] [--interactive] [--makefile|--default]"
+    echo
+    echo "--fortran_compiler=FC                      Define Fortran compiler (default: gfortran)"
+    echo "--lapack_dir=/PATH/TO/LAPACK/LIBRARIES     Define location of LAPACK libraries (default: do not install LAPACK-dependent codes)"
+    echo "--bin_dir=/PATH/TO/EXECUTABLES             Define path for installing executables (default: ../bin)"
+    echo "--interactive                              Script prompts for inputs"
+    echo "--makefile|--default                       Quickly create a basic Makefile with default options"
+    echo
+    echo "Note: if working in a root directory or trying to install programs in a root directory, may have to use \"sudo $0\""
     exit 1
 }
 if [ $# -eq 0 ]
@@ -15,6 +23,7 @@ FC=""
 LAPACK_LIB_DIR=""
 BIN_DIR=""
 INTERACTIVE="N"
+DEFAULT="N"
 while [ "$1" != "" ]
 do
     case $1 in
@@ -22,10 +31,14 @@ do
         --lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/--lapack_dir=//"`;;
         --bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/--bin_dir=//"`;;
         --interactive)INTERACTIVE="Y";;
+        --makefile|--default)FC="gfortran";LAPACK_LIB_DIR="";BIN_DIR="../bin";DEFAULT="Y";;
         *)echo "!! Error: No option $1"; usage;;
     esac
     shift
 done
+
+if [ $DEFAULT == "N" ]
+then
 
 #####
 #	Set up and test Fortran compiler
@@ -62,7 +75,7 @@ cat > $FC_TEST.f << EOF
 EOF
 $FC $FC_TEST.f -o $FC_TEST
 chmod +x $FC_TEST
-FC_OUTPUT=`$FC_TEST`
+FC_OUTPUT=`./$FC_TEST`
 if [ "$FC_OUTPUT" != "1234567890" ]
 then
     echo !! Error: Fortran compiler does not compile test example!
@@ -160,6 +173,12 @@ echo "##########################################################################
 echo "##########                           INSTALL THE CODES!                                   ##########"
 echo "####################################################################################################"
 echo "Type \"make\""
+
+else
+
+echo "Using default values, creating makefile"
+
+fi
 
 #####
 #	Generating makefile
