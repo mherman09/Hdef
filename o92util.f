@@ -531,15 +531,18 @@ C----------------------------------------------------------------------C
       i = nflt
       open(unit=35,file=fspf,status='old')
   351 read(35,'(A)',end=352) line
-          if (index(line,'% Loc').gt.0) then
-              read(line,*) dm,dm,dm,dm,dm,hyla,dm,dm,hylo
-          elseif (index(line,'% Mech :').gt.0) then
-              read(line,*) dm,dm,dm,dm,dm,strr,dm,dm,dipr
-          elseif (index(line,'% Invs :').gt.0
+          if (index(line,'%').eq.1) then
+              if (index(line,'Loc').gt.0) then
+                  read(line,*) dm,dm,dm,dm,dm,hyla,dm,dm,hylo
+              elseif (index(line,'Mech').gt.0) then
+                  read(line,*) dm,dm,dm,dm,dm,strr,dm,dm,dipr
+              elseif (index(line,'Invs').gt.0
      1                                  .and.index(line,'Dx').gt.0) then
-              read(line,*) dm,dm,dm,dm,dm,dxr,dm,dm,dm,dyr
-          elseif (index(line,'% SEGMENT').gt.0) then
-              read(line,*) dm,dm,dm,dm,dm,dm,strr,dm,dm,dm,dipr
+                  read(line,*) dm,dm,dm,dm,dm,dxr,dm,dm,dm,dyr
+              elseif (index(line,'SEGMENT').gt.0
+     1                        .and.index(line,'MULTISEGMENT').eq.0) then
+                  read(line,*) dm,dm,dm,dm,dm,dm,strr,dm,dm,dm,dipr
+              endif
           elseif (index(line,'%').eq.0) then
               i = i + 1
               read(line,*) evla(i),evlo(i),dm,dm,evdp(i),slip(i),
