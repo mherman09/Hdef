@@ -129,7 +129,7 @@ C Read input fault files
 C----
       call readsrc(ffmf,fspf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
      1             dx,dy,slip,hylo,hyla,emprel,haff,sthr)
-
+      
 C----
 C Check for auto flag to define stations
 C----
@@ -535,7 +535,8 @@ C----------------------------------------------------------------------C
               read(line,*) dm,dm,dm,dm,dm,hyla,dm,dm,hylo
           elseif (index(line,'% Mech :').gt.0) then
               read(line,*) dm,dm,dm,dm,dm,strr,dm,dm,dipr
-          elseif (index(line,'% Invs : Dx').gt.0) then
+          elseif (index(line,'% Invs :').gt.0
+     1                                  .and.index(line,'Dx').gt.0) then
               read(line,*) dm,dm,dm,dm,dm,dxr,dm,dm,dm,dyr
           elseif (index(line,'% SEGMENT').gt.0) then
               read(line,*) dm,dm,dm,dm,dm,dm,strr,dm,dm,dm,dipr
