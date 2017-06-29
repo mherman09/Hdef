@@ -46,10 +46,11 @@ DISP_THR="0.05" # meters
 function USAGE() {
 echo
 echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv]"
-echo "    SRC_TYPE    Either MT (moment tensor) or FFM (finite fault model)"
+echo "    SRC_TYPE    Either MT (moment tensor), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
 echo "    SRC_FILE    Name of input file"
 echo "                  MT:  EVLO EVLA EVDP STR DIP RAK MAG"
 echo "                  FFM: finite fault model in subfault format"
+echo "                  FSP: finite fault model in subfault format"
 echo "    -Rw/e/s/n   Define map limits (optional)"
 echo
 exit
@@ -63,9 +64,9 @@ fi
 SRC_TYPE="$1"
 SRC_FILE="$2"
 # Check that source type is correct
-if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" ]
+if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" -a $SRC_TYPE != "FSP" ]
 then
-    echo "!! Error: source type must be FFM or MT"
+    echo "!! Error: source type must be FFM, FSP, or MT"
     USAGE
 fi
 # Check that input file exists
@@ -163,6 +164,10 @@ if [ $SRC_TYPE == "FFM" ]
 then
     # Copy FFM to new file name
     cp $SRC_FILE ./ffm.dat
+elif [ $SRC_TYPE == "FSP" ]
+then
+    # Copy FSP to new file name
+    cp $SRC_FILE ./fsp.dat
 else
     # Copy MT to new file name
     cp $SRC_FILE ./mt.dat
@@ -184,6 +189,9 @@ then
     if [ $SRC_TYPE == "FFM" ]
     then
         o92util -ffm ffm.dat -auto h $Z $D -haf haf.dat -disp disp.out > auto.dat
+    elif [ $SRC_TYPE == "FSP" ]
+    then
+        o92util -fsp fsp.dat -auto h $Z $D -haf haf.dat -disp disp.out > auto.dat
     else
         o92util -mag mt.dat -auto h $Z $D -haf haf.dat -disp disp.out -gmt rect.out > auto.dat
     fi
@@ -249,6 +257,10 @@ if [ $SRC_TYPE == "FFM" ]
 then
     o92util -ffm ffm.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
     o92util -ffm ffm.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
+elif [ $SRC_TYPE == "FSP" ]
+then
+    o92util -fsp fsp.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
+    o92util -fsp fsp.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
 else
     o92util -mag mt.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
     o92util -mag mt.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
