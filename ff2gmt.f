@@ -7,7 +7,7 @@ C----
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
       CHARACTER*40 ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
       LOGICAL ex
-      INTEGER i,nflt,FMAX,cf
+      INTEGER i,nflt,FMAX,cf,itype
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),trup(FMAX),hylo,hyla
@@ -18,7 +18,7 @@ C----
 C Parse command line, check for files
 C----
       call gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile,
-     1            time,cf)
+     1            time,cf,itype)
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input finite fault file unspecified'
           call usage('!! Use -f FFMFILE to specify input file')
@@ -31,7 +31,9 @@ C----
 C Open active output files
 C----
       if (sfile.eq.'none'.and.tfile.eq.'none'.and.zfile.eq.'none'
-     1         .and.cfile.eq.'none'.and.nfile.eq.'none') then
+     1         .and.cfile.eq.'none'.and.nfile.eq.'none'
+     2         .and.nfile.eq.'none'.and.efile.eq.'none'
+     3         .and.dfile.eq.'none') then
           call usage('!! Error: no output file specified')
       endif
       if (sfile.ne.'none') open(unit=21,file=sfile,status='unknown')
@@ -44,8 +46,13 @@ C----
 C----
 C Read finite fault model
 C----
-      call readffm(ifile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,trup,
-     1             hylo,hyla,seg,nseg,nflt)
+      if (itype.eq.1) then
+          call readffm(ifile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,trup,
+     1                 hylo,hyla,seg,nseg,nflt)
+      elseif (itype.eq.2) then
+          call readfsp(ifile,evlo,evla,evdp,str,dip,rak,dx,dy,slip,trup,
+     1                 hylo,hyla,seg,nseg,nflt)
+      endif
 
 C----
 C Write output files
@@ -418,13 +425,65 @@ C----
       RETURN
       END
 
+C----------------------------------------------------------------------C
+
+      SUBROUTINE readfsp(fspf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
+     1                   trup,hylo,hyla,seg,nseg,nflt)
+      IMPLICIT none
+      CHARACTER*40 fspf
+      CHARACTER*10 segc
+      CHARACTER*200 line
+      INTEGER i,nflt,FMAX
+      PARAMETER (FMAX=1500)
+      REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
+     1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),trup(FMAX),hylo,hyla
+      CHARACTER*1 dm
+      INTEGER seg(FMAX),nseg,ptr
+      REAL*8 dxr,dyr,strr,dipr
+      segc = '0'
+      i = nflt
+      open(unit=35,file=fspf,status='old')
+  351 read(35,'(A)',end=352) line
+          if (index(line,'%').eq.1) then
+              if (index(line,'Loc').gt.0) then
+                  read(line,*) dm,dm,dm,dm,dm,hyla,dm,dm,hylo
+              elseif (index(line,'Mech').gt.0) then
+                  read(line,*) dm,dm,dm,dm,dm,strr,dm,dm,dipr
+              elseif (index(line,'Invs').gt.0
+     1                                  .and.index(line,'Dx').gt.0) then
+                  read(line,*) dm,dm,dm,dm,dm,dxr,dm,dm,dm,dyr
+              elseif (index(line,'SEGMENT').gt.0
+     1                        .and.index(line,'MULTISEGMENT').eq.0) then
+                  read(line,*) dm,dm,dm,segc,dm,dm,strr,dm,dm,dm,dipr
+                  ptr = index(segc,':')
+                  segc(ptr:ptr) = ''
+              endif
+          elseif (index(line,'%').eq.0) then
+              i = i + 1
+              read(line,*) evla(i),evlo(i),dm,dm,evdp(i),slip(i),
+     1                     rak(i),trup(i)
+              evdp(i) = evdp(i)*1.0d3
+              dx(i) = dxr*1.0d3
+              dy(i) = dyr*1.0d3
+              str(i) = strr
+              dip(i) = dipr
+              read(segc,*) seg(i)
+          endif
+          goto 351
+  352 continue
+      close(35)
+      nflt = nflt + i
+      nseg = seg(i)
+      RETURN
+      END
+
 C----------------------------------------------------------------------c
 
       SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile,
-     1                  time,cf)
+     1                  time,cf,itype)
       IMPLICIT none
       CHARACTER*40 tag,ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
-      INTEGER narg,i,cf
+      INTEGER narg,i,cf,itype
       REAL*8 time
       ifile = 'none'
       sfile = 'none'
@@ -436,6 +495,7 @@ C----------------------------------------------------------------------c
       dfile = 'none'
       time = -1.0d0
       cf = 0
+      itype = 1 ! 1=static, 2=fsp
       narg = iargc()
       if (narg.eq.0) then
           call usage('!! Error: no command line arguments specified')
@@ -444,7 +504,16 @@ C----------------------------------------------------------------------c
   901 i = i + 1
       if (i.gt.narg) goto 902
           call getarg(i,tag)
-          if (tag(1:2).eq.'-f') then
+          if (tag(1:4).eq.'-ffm') then
+              itype = 1
+              i = i + 1
+              call getarg(i,ifile)
+          elseif (tag(1:4).eq.'-fsp') then
+              itype = 2
+              i = i + 1
+              call getarg(i,ifile)
+          elseif (tag(1:2).eq.'-f') then
+              itype = 1
               i = i + 1
               call getarg(i,ifile)
           elseif (tag(1:5).eq.'-slip') then
@@ -499,8 +568,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: ff2gmt -f FFMFILE -slip SLIPFILE -time TIMEFILE',
-     2                  ' -dep DEPFILE'
+     1 'Usage: ff2gmt -f[fm] FFMFILE -fsp FSPFILE -slip SLIPFILE ',
+     2                  '-time TIMEFILE -dep DEPFILE'
       write(*,*)
      1 '              -clip CLIPFILE|-clipseg CLIPFILE -epi EPIFILE ',
      2                 '-dc DCFILE'
@@ -508,21 +577,20 @@ C----------------------------------------------------------------------C
      1 '              [-trup TIME] [-noslip NOSLIPFILE] [-h]'
       write(*,*)
       write(*,*)
-     1 '-f FFMFILE         Finite fault model in standard subfault ',
+     1 '-f[fm] FFMFILE     Finite fault model in static subfault ',
+     2                    'format'
+      write(*,*)
+     1 '-fsp FSPFILE       Finite fault model in SRCMOD FSP ',
      2                    'format'
       write(*,*)
      1 '-slip SLIPFILE     Slip value in 3rd column for use with ',
      2                    '"psxy -SJ -C<cptfile>"'
-C     1 '-o SLPFILE     File with slip patches for use with "psxy ',
-C     2                '-SJ -C<cptfile>"'
       write(*,*)
      1 '-time TIMEFILE     Rupture time in 3rd column for use with ',
      2                    '"psxy -SJ -C<cptfile>"'
-C     1 '-tf XYTFILE    Write lon lat trup to file'
       write(*,*)
      1 '-dep DEPFILE       Depth in 3rd column for use with ',
      2                    '"psxy -SJ -C<cptfile>"'
-C     1 '-z             Replace slip with depth (km) in third column'
       write(*,*)
      1 '-clip CLIPFILE     Write outline of FFM to a file'
       write(*,*)
@@ -535,14 +603,21 @@ C     1 '-z             Replace slip with depth (km) in third column'
       write(*,*)
      1 '-trup TIME         Only include subfaults that rupture before ',
      2                    'TIME'
-C     1 '-t TIME        Only include patches that rupture before TIME ',
-C     2                 '(default: include all subfaults)'
       write(*,*)
      1 '-noslip NSLPFILE   Write patches that slip after TIME for use ',
      2                    'with "psxy -SJ"'
-C     1 '-n NOSLPFILE   Write patches that slip after TIME for use ',
-C     2                'with "psxy -SJ"'
       write(*,*)
      1 '-h                 Online help (this screen)'
+      write(*,*)
       STOP
       END
+C
+C Old options
+C     1 '-o SLPFILE     File with slip patches for use with "psxy ',
+C     2                '-SJ -C<cptfile>"'
+C     1 '-tf XYTFILE    Write lon lat trup to file'
+C     1 '-z             Replace slip with depth (km) in third column'
+C     1 '-t TIME        Only include patches that rupture before TIME ',
+C     2                 '(default: include all subfaults)'
+C     1 '-n NOSLPFILE   Write patches that slip after TIME for use ',
+C     2                'with "psxy -SJ"'
