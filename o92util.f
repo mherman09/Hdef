@@ -84,13 +84,19 @@ C---- Output file markers
       COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
 
+C---- Program timing variables
+      REAL*8 time1,time2
+
 C----
 C Parse command line
 C----
       call gcmdln(ffmf,fspf,fltf,magf,haff,staf,trgf,dspf,stnf,stsf,
      1            norf,shrf,coulf,gmtf,flttyp,auto,incr,adist,xy,prog,
      2            long,emprel,volf,sthr,verbos)
-      if (verbos.eq.1) then
+      if (verbos.ge.1) then
+          write(0,*) '********** RUNNING IN VERBOSE MODE **********'
+          write(0,*)
+          write(0,*) 'READ THE FOLLOWING FROM THE COMMAND LINE:'
           write(0,*) 'FFMF:   ',trim(ffmf)
           write(0,*) 'FSPF:   ',trim(fspf)
           write(0,*) 'FLTF:   ',trim(fltf)
@@ -116,19 +122,44 @@ C----
           write(0,*) 'VOLF:   ',volf
           write(0,*) 'STHR:   ',sthr
           write(0,*) 'VERBOS: ',verbos
+          write(0,*)
+          call cpu_time(time1)
       endif
 
 C----
 C Check for input fault source files, and whether output is specified
 C----
+      if (verbos.ge.1) then
+          write(0,*) 'CHECKING SOURCE FAULT INPUTS'
+      endif
       call chksrc(ffmf,fspf,fltf,magf,volf)
+      if (verbos.ge.1) then
+          write(0,*) 'SOURCE FAULTS DEFINED, FILE(S) FOUND'
+          write(0,*)
+      endif
+      if (verbos.ge.1) then
+          write(0,*) 'CHECKING DEFORMATION OUTPUTS'
+      endif
       call chkout()
+      if (verbos.ge.1) then
+          write(0,*) 'DEFORMATION OUTPUT DEFINED'
+          write(0,*)
+      endif
       if (kvol.eq.1) goto 101
+
 C----
 C Read input fault files
 C----
+      if (verbos.ge.1) then
+          write(0,*) 'READING SOURCE FAULT INPUTS'
+      endif
       call readsrc(ffmf,fspf,fltf,magf,nflt,evlo,evla,evdp,str,dip,rak,
-     1             dx,dy,slip,hylo,hyla,emprel,haff,sthr)
+     1             dx,dy,slip,hylo,hyla,emprel,haff,sthr,verbos)
+      if (verbos.ge.1) then
+          write(0,*) 'SOURCE FAULT READING COMPLETE:',nflt,
+     1                                         'SUBFAULTS'
+          write(0,*)
+      endif
       
 C----
 C Check for auto flag to define stations
@@ -142,20 +173,42 @@ C----
 C Check for input receiver, half-space, and target parameter files
 C If resolving stresses, verify NTRG=1 or NTRG=NSTA
 C----
+      if (verbos.ge.1) then
+          write(0,*) 'CHECKING STATION, HALFSPACE, AND TARGET INPUTS'
+      endif
       call chkhafstatrg(haff,staf,trgf,nsta,ntrg)
+      if (verbos.ge.1) then
+          write(0,*) 'OTHER INPUTS DEFINED'
+          write(0,*)
+      endif
       call readhaff(haff,vp,vs,dens)
 
 C----
-C Read in station coordinates
+C Read in station coordinates and see if they make sense
 C----
       call chksta(sta,staf,nsta,xy)
 
 C----
 C Compute displacements, strains, and stresses
 C----
+      if (verbos.ge.1) then
+          write(0,*) 'CALCULATING DEFORMATION'
+      endif
+      if (verbos.ge.2) then
+          if (kdsp.ge.1) write(0,*) '    CALCULATING DISPLACEMENTS'
+          if (kstn.ge.1) write(0,*) '    CALCULATING STRAINS'
+          if (ksts.ge.1) write(0,*) '    CALCULATING STRESSES'
+          if (knor.ge.1) write(0,*) '    CALCULATING NORMAL STRESSES'
+          if (kshr.ge.1) write(0,*) '    CALCULATING SHEAR STRESSES'
+          if (kcou.ge.1) write(0,*) '    CALCULATING COULOMB STRESSES'
+      endif
       call calcdefm(staf,trgf,nsta,ntrg,nflt,evlo,evla,evdp,str,dip,rak,
      1              dx,dy,slip,flttyp,vp,vs,dens,dspf,stnf,stsf,norf,
      2              shrf,coulf,xy,prog,long)
+      if (verbos.ge.1) then
+          write(0,*) 'FINISHED WITH DEFORMATION CALCULATION'
+          write(0,*)
+      endif
 
 C----
 C Compute deformation for volume sources
@@ -177,6 +230,12 @@ C----
      1                  slip)
       endif
 
+      if (verbos.ge.1) then
+          call cpu_time(time2)
+          write(0,9999) time2-time1,nsta*nflt
+      endif
+ 9999 format('O92UTIL TOOK ',F10.3,' SECONDS FOR ',I12,
+     1       ' FAULT-STATION PAIRS')
       END
 
 C======================================================================C
@@ -385,7 +444,8 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE readsrc(ffmf,fspf,fltf,magf,nflt,evlo,evla,evdp,str,
-     1                   dip,rak,dx,dy,slip,hylo,hyla,emprel,haff,sthr)
+     1                   dip,rak,dx,dy,slip,hylo,hyla,emprel,haff,sthr,
+     2                   verbos)
 C----
 C Read shear dislocation parameters from fault source files. Parameter
 C FMAX defines maximum number of shear dislocations that can be stored.
@@ -397,6 +457,7 @@ C----
       PARAMETER (FMAX=150000)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
      1       rak(FMAX),dx(FMAX),dy(FMAX),slip(FMAX),hylo,hyla
+      INTEGER verbos
       INTEGER kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
@@ -404,18 +465,30 @@ C----
       REAL*8 sthr
       nflt = 0
       if (kffm.eq.1) then
+          if (verbos.ge.2) then
+              write(0,*) '    READING STATIC FFM FILE'
+          endif
           call readffm(ffmf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 hylo,hyla,nflt)
       endif
       if (kfsp.eq.1) then
+          if (verbos.ge.2) then
+              write(0,*) '    READING SRCMOD FSP FILE'
+          endif
           call readfsp(fspf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 hylo,hyla,nflt)
       endif
       if (kflt.eq.1) then
+          if (verbos.ge.2) then
+              write(0,*) '    READING INPUT FAULTS (SLIP WID LEN)'
+          endif
           call readflt(fltf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 nflt)
       endif
       if (kmag.eq.1) then
+          if (verbos.ge.2) then
+              write(0,*) '    READING INPUT FAULTS (MAG)'
+          endif
           call readmag(magf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                 nflt,emprel,haff)
       endif
@@ -450,8 +523,26 @@ C Remove all fault sources with slip less than sthr
   301 continue
       nflt = j
 
+      if (verbos.ge.3) then
+          write(0,*) '    INPUT FAULTS:'
+          write(0,*) '                 EVLO'//
+     1               '          EVLA'//
+     2               '          EVDP'//
+     3               '       STR'//
+     4               '    DIP'//
+     5               '    RAK'//
+     6               '        SLIP'//
+     7               '         WID'//
+     8               '         LEN'
+          do 302 i = 1,nflt
+              write(0,3021) evlo(i),evla(i),evdp(i),str(i),dip(i),
+     1                      rak(i),slip(i),dy(i),dx(i)
+  302     continue
+      endif
+ 3021 format(8X,2(F14.6),1F14.1,1F10.1,2F7.1,1F12.3,2F12.1)
+
 C     If FFM not used, use unweighted mean coordinates as hylo and hyla
-      if (kffm.ne.1) then
+      if (kffm.ne.1.and.kfsp.ne.1) then
           call calcmean(hylo,evlo,nflt)
           call calcmean(hyla,evla,nflt)
       endif
@@ -2363,6 +2454,17 @@ C Parse command line
               call getarg(i,volf)
           elseif (tag(1:8).eq.'-verbose') then
               verbos = 1
+              i = i + 1
+              if (i.le.narg) then
+                  call getarg(i,tag)
+                  if (index(tag,'-').eq.0) then
+                      read(tag,'(BN,I10)') verbos
+                  else
+                      i = i - 1
+                  endif
+              else
+                  i = i - 1
+              endif
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
