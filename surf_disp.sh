@@ -141,10 +141,10 @@ EOF
 # IF (MAXIMUM HORIZONTAL DISPLACEMENT >= THRESHOLD) {USE THIS VECTOR SCALING}
 cat > vect_scale.awk << EOF
 {
-  if (\$1>10) {print 0.4}
-  else if (\$1>5) {print 1}
-  else if (\$1>1) {print 2}
-  else {print 5}
+  if (\$1>10) {print 0.3}
+  else if (\$1>5) {print 0.8}
+  else if (\$1>1) {print 1.6}
+  else {print 4}
 }
 EOF
 
@@ -298,13 +298,17 @@ gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya1 -BWeSn -K -O --MAP_FRAME_TYPE=plain
 gmt pscoast $PROJ $LIMS -W1p,105/105/105 -G205/205/205 -N1/0.5p -Dh -K -O -t85 >> $PSFILE
 
 # Plot FFM slip contours
-if [ $SRC_TYPE == "FFM" ]
+if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
+    case $SRC_TYPE in
+        FFM)OPT="-ffm ffm.dat";;
+        FSP)OPT="-fsp fsp.dat";;
+    esac
     if [ $SEG -eq 0 ]
     then
-        ff2gmt -f ffm.dat -slip slip.out -clip clip.out
+        ff2gmt $OPT -slip slip.out -clip clip.out -epi epi.out
     else
-        ff2gmt -f ffm.dat -slip slip.out -clipseg clip.out
+        ff2gmt $OPT -slip slip.out -clipseg clip.out -epi epi.out
     fi
     MAXSLIP=`awk '{print $3}' slip.out | awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
     CONT=`echo $MAXSLIP |\
@@ -329,10 +333,12 @@ else
 fi
 
 # Plot epicenter
-if [ $SRC_TYPE == "FFM" ]
+if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
-    LONX=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $2}'`
-    LATX=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $4}'`
+    LONX=`awk '{print $1}' epi.out`
+    LATX=`awk '{print $2}' epi.out`
+    #LONX=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $2}'`
+    #LATX=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $4}'`
     echo $LONX $LATX |\
         gmt psxy $PROJ $LIMS -Sa0.15i -W1p,55/55/55 -K -O -t50 >> $PSFILE
 fi
@@ -347,6 +353,7 @@ MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
      awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
 DISP_LBL=`echo $MAX | awk -f vect_label.awk`
 VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
+MAX=0.5
 ## Plot displacements smaller than DISP_THR faded
 #awk '{
 #    if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
@@ -397,7 +404,7 @@ gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE << EOF
 `echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.7}'` 0.2 10,2 LB \
     Displacements less than $DISP_THR m are in light grey
 EOF
-if [ $SRC_TYPE == "FFM" ]
+if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
     echo $VEC_SCALE $DISP_LBL $CONT |\
         awk '{
