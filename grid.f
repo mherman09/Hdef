@@ -8,11 +8,26 @@ C----
       CHARACTER*40 ofile
       CHARACTER*200 clip
       REAL*8 x1,x2,y1,y2,dx,dy,dz,dd,ref(5),dist,az,lo,la
-      REAL*8 x,y,z,xx(1000),yy(1000),zsave
+      REAL*8 x,y,z,xx(1000),yy(1000),zsave,tmp
       INTEGER i,j,nx,ny,p,xsec,xz,nn,io
 
 C----
 C Get parameters from the command line
+C     x1:    First defined x value (default: 0)
+C     x2:    Second defined x value (default: 0)
+C     nx:    Number of x increments (default: -1)
+C     dx:    x increment, overrides nx (default: -1.0)
+C     y1:    First defined y value (default: 0)
+C     y2:    Second defined y value (default: 0)
+C     ny:    Number of y increments (default: -1)
+C     dy:    y increment, overrides ny (default: -1.0)
+C     z:     z value
+C     ofile: Name of output file
+C     p:     Standard output flag (default: 0)
+C     ref:   
+C     xsec:  
+C     xz:    
+C     clip:  
 C----
       call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,clip)
 C Check that limits and increments are properly defined
@@ -202,7 +217,7 @@ C     Return input values in initial units
 
 C----------------------------------------------------------------------C
 C                                                                       
-C        SUBROUTINE PNPOLY                                              
+C        SUBROUTINE pnpoly                                              
 C                                                                       
 C        PURPOSE                                                        
 C           TO DETERMINE WHETHER A POINT IS INSIDE A POLYGON            
@@ -245,19 +260,23 @@ C           POINT IS INSIDE OF THE POLYGON.
 C                                                                       
 C     ..................................................................
 C                                                                       
-      SUBROUTINE PNPOLY(PX,PY,XX,YY,N,INOUT)
+      SUBROUTINE pnpoly(PX,PY,XX,YY,N,INOUT)
       IMPLICIT NONE
-      REAL*8 X(1000),Y(1000),XX(N),YY(N),PX,PY
-      INTEGER MAXDIM,N,INOUT,I,J
+      INTEGER MAXDIM
+      PARAMETER (MAXDIM=1000)
+      REAL*8 X(MAXDIM),Y(MAXDIM),XX(N),YY(N),PX,PY,var
+      INTEGER N,INOUT,I,J
       LOGICAL MX,MY,NX,NY
 
-      MAXDIM=1000
+C Check that number of points in clipping path is less than MAXDIM
       IF (N.GT.MAXDIM) THEN
           WRITE(0,7) N
 7         FORMAT('WARNING:',I5,' TOO GREAT FOR THIS VERSION OF PNPOLY')
           RETURN
       ENDIF
 
+C Compute the position of the points on the clipping path (xx,yy)
+C relative to the point of interest (px,py)
       DO 1 I=1,N
           X(I)=XX(I)-PX
           Y(I)=YY(I)-PY
@@ -266,10 +285,10 @@ C
       INOUT=-1
       DO 2 I=1,N
           J=1+MOD(I,N)
-          MX=X(I).GE.0.0
-          NX=X(J).GE.0.0
-          MY=Y(I).GE.0.0
-          NY=Y(J).GE.0.0
+          MX=X(I).GE.0.0 ! Is the point on the clipping path east of the point of interest?
+          NX=X(J).GE.0.0 ! Is the next point on the clipping path east of the point of interest?
+          MY=Y(I).GE.0.0 ! Is the point on the clipping path north of the point of interest?
+          NY=Y(J).GE.0.0 ! Is the next point on the clipping path north of the point of interest?
           IF(.NOT.((MY.OR.NY).AND.(MX.OR.NX)).OR.(MX.AND.NX)) THEN
               GOTO 2
           ENDIF
@@ -278,7 +297,15 @@ C
           ENDIF
           INOUT=-INOUT
           GOTO 2
-3         IF ((Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))) 2,4,5
+3         var = (Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))
+          if (var.lt.0.0d0) then
+              goto 2
+          elseif (var.eq.0.0d0) then
+              goto 4
+          else
+              goto 5
+          endif
+C3         IF ((Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))) 2,4,5
 4         INOUT=0
           RETURN
 5         INOUT=-INOUT
