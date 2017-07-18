@@ -27,6 +27,7 @@ fi
 
 # Name of output PostScript file
 PSFILE="surf_disp.ps"
+PSFILE="$OFILE.ps"
 
 # Background vertical displacement grid is (NN x NN) points
 NN="100"
@@ -45,13 +46,18 @@ DISP_THR="0.05" # meters
 
 function USAGE() {
 echo
-echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv]"
+echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME]"
 echo "    SRC_TYPE    Either MT (moment tensor), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
-echo "    SRC_FILE    Name of input file"
-echo "                  MT:  EVLO EVLA EVDP STR DIP RAK MAG"
-echo "                  FFM: finite fault model in subfault format"
-echo "                  FSP: finite fault model in subfault format"
-echo "    -Rw/e/s/n   Define map limits (optional)"
+echo "    SRC_FILE        Name of input file"
+echo "                      MT:  EVLO EVLA EVDP STR DIP RAK MAG"
+echo "                      FFM: finite fault model in static subfault format"
+echo "                      FSP: finite fault model in SRCMOD FSP format"
+echo "    -Rw/e/s/n       Define map limits"
+echo "    -seg            Plot segmented finite faults"
+echo "    -Tvmin/vmax/dv  Define vertical color bar limits"
+echo "    -getscript      Copy surf_disp.sh to working directory"
+echo "    -novector       Do not plot horizontal vectors"
+echo "    -o FILENAME     Define basename for output file (will produce FILENAME.ps and FILENAME.pdf)"
 echo
 exit
 }
@@ -79,6 +85,9 @@ fi
 LIMS=""
 SEG="0"
 VERT_CPT_RANGE=""
+GETSCRIPT="N"
+PLOT_VECT="Y"
+OFILE="surf_disp"
 shift;shift
 while [ "$1" != "" ]
 do
@@ -86,10 +95,20 @@ do
         -R*) LIMS="$1";;
         -T*) VERT_CPT_RANGE="$1";;
         -seg) SEG="1" ;;
+        -novect*) PLOT_VECT="N" ;;
+        -getscript) GETSCRIPT="Y" ;;
+        -o) shift;OFILE="$1" ;;
         *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
 done
+
+PSFILE="$OFILE.ps"
+
+if [ $GETSCRIPT == "Y" ]
+then
+    cp $0 .
+fi
 
 ###############################################################################
 # The appearance of displacements plotted on the map is controlled by awk
@@ -343,48 +362,53 @@ then
         gmt psxy $PROJ $LIMS -Sa0.15i -W1p,55/55/55 -K -O -t50 >> $PSFILE
 fi
 
-# If max displacement is much larger than other displacements, don't use it
-MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.out |\
-       awk 'BEGIN{m1=0;m2=0}
-            {if($1>m1){m2=m1;m1=$1;ln=NR}}
-            END{if(m1>2*m2){print ln}else{print 0}}'`
-# Scale vectors differently depending on maximum horizontal displacement
-MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
-     awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
-DISP_LBL=`echo $MAX | awk -f vect_label.awk`
-VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
-MAX=0.5
-## Plot displacements smaller than DISP_THR faded
-#awk '{
-#    if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
-#      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-#    }
-#}' disp.out |\
-#    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,175/175/175 -K -O >> $PSFILE
-## Plot larger displacements in black
-#awk '{
-#    if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
-#      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-#    }
-#}' disp.out |\
-#    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,black -K -O >> $PSFILE
-# Scale vector thickness by displacement magnitude
-# Plot displacements smaller than DISP_THR faded
-awk '{
-    if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
-      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-    }
-}' disp_samp.out |\
-    gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE
-# Plot larger displacements in black
-awk '{
-    if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
-      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-    }
-}' disp_samp.out |\
-    gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
+if [ $PLOT_VECT == "Y" ]
+then
+    # If max displacement is much larger than other displacements, don't use it
+    MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.out |\
+           awk 'BEGIN{m1=0;m2=0}
+                {if($1>m1){m2=m1;m1=$1;ln=NR}}
+                END{if(m1>2*m2){print ln}else{print 0}}'`
+    # Scale vectors differently depending on maximum horizontal displacement
+    MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
+         awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
+    DISP_LBL=`echo $MAX | awk -f vect_label.awk`
+    VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
+    MAX=0.5
+    ## Plot displacements smaller than DISP_THR faded
+    #awk '{
+    #    if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
+    #      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+    #    }
+    #}' disp.out |\
+    #    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,175/175/175 -K -O >> $PSFILE
+    ## Plot larger displacements in black
+    #awk '{
+    #    if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
+    #      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+    #    }
+    #}' disp.out |\
+    #    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,black -K -O >> $PSFILE
+    # Scale vector thickness by displacement magnitude
+        # Plot displacements smaller than DISP_THR faded
+    awk '{
+        if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
+          print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+        }
+    }' disp_samp.out |\
+        gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE
+    # Plot larger displacements in black
+    awk '{
+        if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
+          print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+        }
+    }' disp_samp.out |\
+        gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
+fi
 
 
+if [ $PLOT_VECT == "Y" ]
+then
 # Legend (all coordinates are in cm from the bottom left)
 gmt psxy -JX10c -R0/10/0/10 -W1p -Gwhite -K -O >> $PSFILE << EOF
 0.2 0.2
@@ -404,6 +428,11 @@ gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE << EOF
 `echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.7}'` 0.2 10,2 LB \
     Displacements less than $DISP_THR m are in light grey
 EOF
+else
+VEC_SCALE=0
+DISP_LBL=0
+fi
+
 if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
     echo $VEC_SCALE $DISP_LBL $CONT |\
@@ -411,7 +440,7 @@ then
           if($3==1) {print $1*$2+0.7,0.6,"10,2 LB FFM Slip Contours: "$3" meter"}
           else      {print $1*$2+0.7,0.6,"10,2 LB FFM Slip Contours: "$3" meters"}
         }' |\
-        gmt pstext -JX -R -F+f+j -N -K -O >> $PSFILE
+        gmt pstext -JX10c -R0/10/0/10 -F+f+j -N -K -O >> $PSFILE
 fi
 
 echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
