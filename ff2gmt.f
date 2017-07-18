@@ -63,30 +63,30 @@ C----
           if (time.gt.0.0d0.and.time.lt.trup(i)) then
               ! No-slip file
               if (nfile.ne.'none') then
-                  write(25,*) evlo(i),evla(i),str(i),dx(i)*1d-3,
+                  write(25,1001) evlo(i),evla(i),str(i),dx(i)*1d-3,
      1                                                   dy(i)*1d-3*cosd
               endif
           else
               ! Slip file
               if (sfile.ne.'none') then
-                  write(21,*) evlo(i),evla(i),slip(i),str(i),dx(i)*1d-3,
-     1                                                   dy(i)*1d-3*cosd
+                  write(21,1002) evlo(i),evla(i),slip(i),str(i),
+     1                           dx(i)*1d-3,dy(i)*1d-3*cosd
               endif
           endif
           ! Time file
           if (tfile.ne.'none') then
-              write(22,*) evlo(i),evla(i),trup(i),str(i),dx(i)*1d-3,
-     1                                                   dy(i)*1d-3*cosd
+              write(22,1002) evlo(i),evla(i),trup(i),str(i),dx(i)*1d-3,
+     1                       dy(i)*1d-3*cosd
           endif
           ! Depth file
           if (zfile.ne.'none') then
-              write(23,*) evlo(i),evla(i),evdp(i)*1d-3,str(i),
-     1                                        dx(i)*1d-3,dy(i)*1d-3*cosd
+              write(23,1002) evlo(i),evla(i),evdp(i)*1d-3,str(i),
+     1                       dx(i)*1d-3,dy(i)*1d-3*cosd
           endif
           ! Double couple file
           if (dfile.ne.'none') then
-              write(27,*) evlo(i),evla(i),evdp(i),str(i),dip(i),rak(i),
-     1                    slip(i)
+              write(27,1003) evlo(i),evla(i),evdp(i),str(i),dip(i),
+     1                       rak(i),slip(i)
           endif
   102 continue
       if (cfile.ne.'none') then
@@ -95,6 +95,10 @@ C----
       if (efile.ne.'none') then
           write(26,*) hylo,hyla
       endif
+
+ 1001 format(2F12.4,X,            F8.2,X,2F12.4)
+ 1002 format(2F12.4,X,1PE12.4,X,0PF8.2,X,2F12.4)
+ 1003 format(3F12.4,X,3F8.2,X,1PE12.4)
 
       close(21)
       close(22)
@@ -461,7 +465,11 @@ C----------------------------------------------------------------------C
           elseif (index(line,'%').eq.0) then
               i = i + 1
               read(line,*) evla(i),evlo(i),dm,dm,evdp(i),slip(i),
-     1                     rak(i),trup(i)
+     1                     rak(i)
+              ! If there is timing info, read it as well
+              trup(i) = -1.0d0
+              read(line,*,end=353) dm,dm,dm,dm,dm,dm,dm,trup(i)
+  353         if (trup(i).le.0.0d0) trup(i) = -1.0d0
               evdp(i) = evdp(i)*1.0d3
               dx(i) = dxr*1.0d3
               dy(i) = dyr*1.0d3
