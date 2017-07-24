@@ -1086,9 +1086,26 @@ C     Initialize progress indicator
           call progbar(i,nsta,progout)
       endif
 C     If NTRG=1, read target fault parameters here
-      if (ktrg.eq.2) read(trgf,*) trgstr,trgdip,trgrak,frict
-      if (ktrg.eq.1) open(unit=13,file=trgf,status='old')
-      if (ntrg.eq.1.and.ktrg.eq.1) read(13,*) trgstr,trgdip,trgrak,frict
+      trgstr = -12345.0d0
+      trgdip = -12345.0d0
+      trgrak = -12345.0d0
+      frict  = -12345.0d0
+      if (ktrg.eq.2) then
+          read(trgf,*,end=202) trgstr,trgdip,trgrak,frict
+      endif
+      if (ktrg.eq.1) then
+          open(unit=13,file=trgf,status='old')
+      endif
+      if (ntrg.eq.1.and.ktrg.eq.1) then
+           read(13,*,end=202) trgstr,trgdip,trgrak,frict
+      endif
+  202 if (trgrak.lt.-10000.0d0) then
+          call errmes('!! Error: Not enough arguments in target '//
+     1                'fault geometry input')
+      elseif (frict.lt.-10000.0d0) then
+          write(0,*) 'Coefficient of friction not defined; using 0.5'
+          frict = 0.5d0
+      endif
 C     Compute deformation for each receiver location
       open(unit=12,file=staf,status='old')
       do 201 i = 1,nsta
@@ -1096,7 +1113,19 @@ C     Compute deformation for each receiver location
           stdp = stdp*1.0d3
 C         If NTRG=NSTA, read target fault parameters here
           if (ntrg.eq.nsta.and.ktrg.eq.1.and.nsta.ne.1) then
-              read(13,*) trgstr,trgdip,trgrak,frict
+              trgstr = -12345.0d0
+              trgdip = -12345.0d0
+              trgrak = -12345.0d0
+              frict  = -12345.0d0
+              read(13,*,end=203) trgstr,trgdip,trgrak,frict
+          endif
+  203     if (trgrak.lt.-10000.0d0) then
+              call errmes('!! Error: Not enough arguments in target '//
+     1                    'fault geometry input')
+          elseif (frict.lt.-10000.0d0) then
+              write(0,*) 'Coefficient of friction not defined; using '//
+     1                   '0.5'
+              frict = 0.5d0
           endif
 C         Compute displacements
           if (kdsp.ne.0) then
@@ -2475,6 +2504,15 @@ C Parse command line
           goto 101
   102 continue
       RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE errmes(text)
+      IMPLICIT none
+      CHARACTER text*(*)
+      write(0,*) text
+      STOP
       END
 
 C----------------------------------------------------------------------C
