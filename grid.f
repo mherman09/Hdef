@@ -407,6 +407,17 @@ C Initialize variable values
           p = 1
       elseif (tag(1:2).eq.'-h') then
           call usage(' ')
+      elseif (tag(1:2).eq.'-R') then
+          call getarg(i,tag)
+          j = index(tag,'-R')
+          tag(j:j+1) = ''
+          j = index(tag,'/')
+          tag(j:j) = ' '
+          j = index(tag,'/')
+          tag(j:j) = ' '
+          j = index(tag,'/')
+          tag(j:j) = ' '
+          read(tag,*) x1,x2,y1,y2
       else
           call usage('!! Error: no option '//tag)
       endif
@@ -428,7 +439,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 'Usage: grid -x X1 X2 [-nx NX|-dx DX] ',
-     2            '-y Y1 Y2 [-ny NY|-dy DY] '
+     2            '-y Y1 Y2 [-ny NY|-dy DY] -RX1/X2/Y1/Y2'
       write(*,*)
      1 '            [-z Z|-dip X0 Y0 Z0 STR ',
      2              'DIP|-xsec X0 Y0 AZ [-xz]]'
@@ -448,6 +459,8 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-dy DY                 Increment in y direction (overrides -ny)'
       write(*,*)
+     1 '-RX1/X2/Y1/Y2          Define limits with GMT limits format'
+      write(*,*)
      1 '-z Z                   Third column (z) value'
       write(*,*)
      1 '-dip X0 Y0 Z0 STR DIP  Put grid onto plane with STR/DIP ',
@@ -460,7 +473,7 @@ C----------------------------------------------------------------------C
      2                            'lon lat z'
       write(*,*)
      1 '-clip XYFILE           Clip points to lie in interior of ',
-     2                            'XYFILE (outside points are nan)'
+     2                            'XYFILE (outside points are -12345)'
       write(*,*)
      1 '-o OFILE               Output to file (default prints to ',
      2              'standard output)'
