@@ -1099,12 +1099,14 @@ C     If NTRG=1, read target fault parameters here
       if (ntrg.eq.1.and.ktrg.eq.1) then
            read(13,*,end=202) trgstr,trgdip,trgrak,frict
       endif
-  202 if (trgrak.lt.-10000.0d0) then
-          call errmes('!! Error: Not enough arguments in target '//
-     1                'fault geometry input')
-      elseif (frict.lt.-10000.0d0) then
-          write(0,*) 'Coefficient of friction not defined; using 0.5'
-          frict = 0.5d0
+  202 if (ktrg.ge.1) then
+          if (trgrak.lt.-10000.0d0) then
+              call errmes('!! Error: Not enough arguments in target '//
+     1                    'fault geometry input')
+          elseif (frict.lt.-10000.0d0) then
+              write(0,*) 'Coefficient of friction undefined; using 0.5'
+              frict = 0.5d0
+          endif
       endif
 C     Compute deformation for each receiver location
       open(unit=12,file=staf,status='old')
@@ -1119,10 +1121,10 @@ C         If NTRG=NSTA, read target fault parameters here
               frict  = -12345.0d0
               read(13,*,end=203) trgstr,trgdip,trgrak,frict
           endif
-  203     if (trgrak.lt.-10000.0d0) then
+  203     if (trgrak.lt.-10000.0d0.and.ktrg.ge.1) then
               call errmes('!! Error: Not enough arguments in target '//
      1                    'fault geometry input')
-          elseif (frict.lt.-10000.0d0) then
+          elseif (frict.lt.-10000.0d0.and.ktrg.ge.1) then
               write(0,*) 'Coefficient of friction not defined; using '//
      1                   '0.5'
               frict = 0.5d0
