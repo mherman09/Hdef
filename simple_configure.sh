@@ -187,7 +187,7 @@ cat > Makefile << EOF
 ##### Compiler variables #####
 FC = -$FC
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
-#FOPT  = -O1
+FOPT  = -O1
 FFLAG = \$(FWARN) \$(FOPT)
 
 ##### Executable directory #####
