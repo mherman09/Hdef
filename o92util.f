@@ -1127,10 +1127,10 @@ C         If NTRG=NSTA, read target fault parameters here
               ! check target faults read in correctly
               if (trgrak.lt.-10000.0d0) then
                   call errmes('!! Error: Not enough arguments in '//
-         1                    'target fault geometry input')
+     1                        'target fault geometry input')
               elseif (frict.lt.-10000.0d0) then
                   write(0,*) 'Coefficient of friction not defined; '//
-         1                   'using 0.5'
+     1                       'using 0.5'
                   frict = 0.5d0
               endif
           endif
