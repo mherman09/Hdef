@@ -1071,6 +1071,7 @@ C----
       INTEGER kdsp,kstn,ksts,knor,kshr,kcou,kgmt
       COMMON /ICHECK/ kffm,kfsp,kflt,kmag,ksta,khaf,ktrg,kvol
       COMMON /OCHECK/ kdsp,kstn,ksts,knor,kshr,kcou,kgmt
+
 C     Open files specified for output
       if (kdsp.ne.0) open(unit=21,file=dspf,status='unknown')
       if (kstn.eq.1) open(unit=22,file=stnf,status='unknown')
@@ -1079,27 +1080,29 @@ C     Open files specified for output
       if (knor.eq.1) open(unit=24,file=norf,status='unknown')
       if (kshr.ge.1) open(unit=25,file=shrf,status='unknown')
       if (kcou.eq.1) open(unit=26,file=coulf,status='unknown')
+
 C     Initialize progress indicator
       if (prog.eq.1) then
           i = 0
           progout = 0
           call progbar(i,nsta,progout)
       endif
-C     If NTRG=1, read target fault parameters here
+
+C     If NTRG=1, either from file or command line, read target fault parameters here
       trgstr = -12345.0d0
       trgdip = -12345.0d0
       trgrak = -12345.0d0
       frict  = -12345.0d0
-      if (ktrg.eq.2) then
-          read(trgf,*,end=202) trgstr,trgdip,trgrak,frict
-      endif
-      if (ktrg.eq.1) then
+      if (ktrg.eq.1) then ! file
           open(unit=13,file=trgf,status='old')
+          if (ntrg.eq.1) then
+              read(13,*) trgstr,trgdip,trgrak,frict
+          endif
+      elseif (ktrg.eq.2) then ! command line
+          read(trgf,*) trgstr,trgdip,trgrak,frict
       endif
-      if (ntrg.eq.1.and.ktrg.eq.1) then
-           read(13,*,end=202) trgstr,trgdip,trgrak,frict
-      endif
-  202 if (ktrg.ge.1) then
+      ! Check that target faults were read in correctly
+      if (ntrg.eq.1) then
           if (trgrak.lt.-10000.0d0) then
               call errmes('!! Error: Not enough arguments in target '//
      1                    'fault geometry input')
@@ -1108,26 +1111,28 @@ C     If NTRG=1, read target fault parameters here
               frict = 0.5d0
           endif
       endif
+
 C     Compute deformation for each receiver location
       open(unit=12,file=staf,status='old')
       do 201 i = 1,nsta
           read(12,*) stlo,stla,stdp
           stdp = stdp*1.0d3
 C         If NTRG=NSTA, read target fault parameters here
-          if (ntrg.eq.nsta.and.ktrg.eq.1.and.nsta.ne.1) then
+          if (ktrg.eq.1.and.ntrg.gt.1) then ! already checked ntrg=nsta
               trgstr = -12345.0d0
               trgdip = -12345.0d0
               trgrak = -12345.0d0
               frict  = -12345.0d0
-              read(13,*,end=203) trgstr,trgdip,trgrak,frict
-          endif
-  203     if (trgrak.lt.-10000.0d0.and.ktrg.ge.1) then
-              call errmes('!! Error: Not enough arguments in target '//
-     1                    'fault geometry input')
-          elseif (frict.lt.-10000.0d0.and.ktrg.ge.1) then
-              write(0,*) 'Coefficient of friction not defined; using '//
-     1                   '0.5'
-              frict = 0.5d0
+              read(13,*) trgstr,trgdip,trgrak,frict
+              ! check target faults read in correctly
+              if (trgrak.lt.-10000.0d0) then
+                  call errmes('!! Error: Not enough arguments in '//
+         1                    'target fault geometry input')
+              elseif (frict.lt.-10000.0d0) then
+                  write(0,*) 'Coefficient of friction not defined; '//
+         1                   'using 0.5'
+                  frict = 0.5d0
+              endif
           endif
 C         Compute displacements
           if (kdsp.ne.0) then
