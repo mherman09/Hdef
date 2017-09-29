@@ -1,15 +1,27 @@
+PREREQUISITES
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- Fortran compiler (I work with gfortran, and the codes have also been tested with ifort)
+- LAPACK, installed with the same Fortran compiler as the codes will be (NOTE: you can
+  compile a bunch of the codes without LAPACK, but if you want the complete package, you
+  will need the LAPACK libraries)
+
 COMPILING DIRECTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-New installation instructions!!!
-Set up makefile with the script simple_configure.sh. This can be run
-from the command line or interactively (using --interactive). After
-running "simple_configure.sh", enter "make".
+I did not think too hard about other users installing the software, so this process is a
+little haphazard. Sorry. The simplest option that should work for most people is to run the
+shell script called "simple_configure.sh" from the top directory:
 
-Old instructions, deprecated
-To compile the codes, enter "make". This will compile and move the
-executable codes into the directory ../bin/. By default, the Makefile
-uses gfortran as the Fortran compiler. This can be modified by changing
-the variable $(FC). If "make" notifies you that there is nothing to be
-done, use "make clean" and then "make" again.
+./simple_configure.sh --interactive
+
+If no command line inputs are specified, a usage statement is printed. The --interactive
+flag will prompt you to enter your Fortran compiler, path to LAPACK (if present), and the
+directory to place the executables.
+
+This script checks that your compiler exists and LAPACK is present, then generates a
+Makefile for compiling the software. Once this script is completed, you can install
+the software into the designated directory with:
+
+make
+
 
 

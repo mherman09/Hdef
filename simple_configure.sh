@@ -2,13 +2,12 @@
 
 # Configure script command line options
 function usage() {
-    echo "$0 [--fortran_compiler=FC] [--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [--bin_dir=/PATH/TO/EXECUTABLES] [--interactive] [--makefile|--default]"
+    echo "$0 [--fortran_compiler=FC] [--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [--bin_dir=/PATH/TO/EXECUTABLES] [--interactive]"
     echo
-    echo "--fortran_compiler=FC                      Define Fortran compiler (default: gfortran)"
-    echo "--lapack_dir=/PATH/TO/LAPACK/LIBRARIES     Define location of LAPACK libraries (default: do not install LAPACK-dependent codes)"
-    echo "--bin_dir=/PATH/TO/EXECUTABLES             Define path for installing executables (default: ../bin)"
+    echo "--fortran_compiler=FC                      Define Fortran compiler"
+    echo "--lapack_dir=/PATH/TO/LAPACK/LIBRARIES     Define location of LAPACK libraries"
+    echo "--bin_dir=/PATH/TO/EXECUTABLES             Define path for installing executables"
     echo "--interactive                              Script prompts for inputs"
-    echo "--makefile|--default                       Quickly create a basic Makefile with default options"
     echo
     echo "Note: if working in a root directory or trying to install programs in a root directory, may have to use \"sudo $0\""
     exit 1
@@ -31,14 +30,10 @@ do
         --lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/--lapack_dir=//"`;;
         --bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/--bin_dir=//"`;;
         --interactive)INTERACTIVE="Y";;
-        --makefile|--default)FC="gfortran";LAPACK_LIB_DIR="";BIN_DIR="../bin";DEFAULT="Y";;
         *)echo "!! Error: No option $1"; usage;;
     esac
     shift
 done
-
-if [ $DEFAULT == "N" ]
-then
 
 #####
 #	Set up and test Fortran compiler
@@ -150,11 +145,11 @@ echo "##########                    WORKING ON INSTALL DIRECTORY STUFF          
 echo "####################################################################################################"
 if [ -z "$BIN_DIR" -o $INTERACTIVE == "Y" ]
 then
-    echo "Enter the path to place the compiled executables (Default: ../bin):"
+    echo "Enter the path to place the compiled executables (Default: bin):"
     read ANSWER
     if [ -z "$ANSWER" ]
     then
-        ANSWER="../bin"
+        ANSWER="bin"
     fi
     BIN_DIR=$ANSWER
 fi
@@ -174,11 +169,6 @@ echo "##########                           INSTALL THE CODES!                   
 echo "####################################################################################################"
 echo "Type \"make\""
 
-else
-
-echo "Using default values, creating makefile"
-
-fi
 
 #####
 #	Generating makefile
@@ -193,148 +183,144 @@ FFLAG = \$(FWARN) \$(FOPT)
 ##### Executable directory #####
 BIN   = $BIN_DIR
 
-EOF
-
-if [ -n "$LAPACK_LIB_DIR" ]
-then
-
-cat >> Makefile << EOF
 ##### External libraries #####
 LAPACK_LIB_DIR = -L$LAPACK_LIB_DIR
 LAPACK_LIB     = $LAPACK_LIB_LIST
 LAPACK         = \$(LAPACK_LIB_DIR) \$(LAPACK_LIB)
 
-##### Rules #####
-all: defm geom misc fits seis
 EOF
 
+if [ -n "$LAPACK_LIB_DIR" ]
+then
+    echo "all: defm geom misc fits seis scripts other" >> Makefile
 else
-
-cat >> Makefile << EOF
-##### Rules #####
-all: defm geom misc
-EOF
-
+    echo "all: defm geom misc           scripts other" >> Makefile
 fi
 
 cat >> Makefile << EOF
-#     \$(BIN)/numint \\
-#     \$(BIN)/pole2vel \\
-#     \$(BIN)/polyfit_special \\
-#     \$(BIN)/trigger \$(BIN)/twocol2asc \\
-#     \$(BIN)/smooth
 
-defm: \$(BIN)/o92util \$(BIN)/vec2los \$(BIN)/wraplos \\
-      \$(BIN)/coul_hor.sh \$(BIN)/coul_dip.sh \$(BIN)/coul_xsec.sh \$(BIN)/surf_disp.sh
-geom: \$(BIN)/lola2distaz \$(BIN)/distaz2lola \$(BIN)/sphfinrot \$(BIN)/platemotion \\
+defm: \\
+      \$(BIN)/o92util \\
+      \$(BIN)/vec2los \\
+      \$(BIN)/wraplos
+\$(BIN)/o92util: src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/o92util src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
+\$(BIN)/vec2los: src/vec2los.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/vec2los src/vec2los.f
+\$(BIN)/wraplos: src/wraplos.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/wraplos src/wraplos.f
+
+geom: \\
+      \$(BIN)/lola2distaz \\
+      \$(BIN)/distaz2lola \\
+      \$(BIN)/sphfinrot \\
+      \$(BIN)/platemotion \\
       \$(BIN)/utm2geo
-misc: \$(BIN)/dateutil \$(BIN)/eventfrequency \$(BIN)/ff2gmt \$(BIN)/grid \\
-      \$(BIN)/pt2fin \$(BIN)/perturb \$(BIN)/simplify_ffm.sh \$(BIN)/ternary.sh \\
-      \$(BIN)/trg_schem.sh \$(BIN)/readkik
-fits: \$(BIN)/polyfit \$(BIN)/multifit \$(BIN)/fltinv
-seis: \$(BIN)/mtutil
+\$(BIN)/lola2distaz: src/lola2distaz.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/lola2distaz src/lola2distaz.f src/geomsubs.f
+\$(BIN)/distaz2lola: src/distaz2lola.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/distaz2lola src/distaz2lola.f src/geomsubs.f
+\$(BIN)/sphfinrot: src/sphfinrot.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot src/sphfinrot.f
+\$(BIN)/platemotion: src/platemotion.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/platemotion src/platemotion.f
+\$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
 
-\$(BIN)/o92util: o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/o92util o92util.f okada92subs.f geomsubs.f okada92subs_volume.f
+misc: \\
+      \$(BIN)/dateutil \\
+      \$(BIN)/eventfrequency \\
+      \$(BIN)/ff2gmt \\
+      \$(BIN)/grid \\
+      \$(BIN)/pt2fin \\
+      \$(BIN)/perturb \\
+      \$(BIN)/readkik
+\$(BIN)/dateutil: src/dateutil.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil src/dateutil.f
+\$(BIN)/eventfrequency: src/eventfrequency.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency src/eventfrequency.f
+\$(BIN)/ff2gmt: src/ff2gmt.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
+\$(BIN)/grid: src/grid.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
+\$(BIN)/pt2fin: src/pt2fin.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/pt2fin src/pt2fin.f
+\$(BIN)/perturb: src/perturb.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/perturb src/perturb.f src/randsubs.f
+\$(BIN)/readkik: src/readkik.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
 
-\$(BIN)/dateutil: dateutil.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil dateutil.f
+fits: \\
+      \$(BIN)/polyfit \\
+      \$(BIN)/polyfit_special \\
+      \$(BIN)/multifit \\
+      \$(BIN)/fltinv
+\$(BIN)/polyfit: src/polyfit.f src/lsqsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit src/polyfit.f src/lsqsubs.f \$(LAPACK)
+\$(BIN)/polyfit_special: src/polyfit_special.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit_special src/polyfit_special.f \$(LAPACK)
+\$(BIN)/multifit: src/multifit.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/multifit src/multifit.f \$(LAPACK)
+\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
 
-\$(BIN)/mtutil: mtutil.f mtsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/mtutil mtutil.f mtsubs.f \$(LAPACK)
+seis: \\
+      \$(BIN)/mtutil
+\$(BIN)/mtutil: src/mtutil.f src/mtsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/mtutil src/mtutil.f src/mtsubs.f \$(LAPACK)
 
-\$(BIN)/lola2distaz: lola2distaz.f geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/lola2distaz lola2distaz.f geomsubs.f
+scripts: \\
+      \$(BIN)/coul_hor.sh \\
+      \$(BIN)/coul_dip.sh \\
+      \$(BIN)/coul_xsec.sh \\
+      \$(BIN)/surf_disp.sh \\
+      \$(BIN)/simplify_ffm.sh \\
+      \$(BIN)/ternary.sh \\
+      \$(BIN)/trg_schem.sh 
+\$(BIN)/coul_hor.sh: scripts/coul_hor.sh
+	cp scripts/coul_hor.sh \$(BIN)/coul_hor.sh
+\$(BIN)/coul_dip.sh: scripts/coul_dip.sh
+	cp scripts/coul_dip.sh \$(BIN)/coul_dip.sh
+\$(BIN)/coul_xsec.sh: scripts/coul_xsec.sh
+	cp scripts/coul_xsec.sh \$(BIN)/coul_xsec.sh
+\$(BIN)/surf_disp.sh: scripts/surf_disp.sh
+	cp scripts/surf_disp.sh \$(BIN)/surf_disp.sh
+\$(BIN)/simplify_ffm.sh: scripts/simplify_ffm.sh
+	cp scripts/simplify_ffm.sh \$(BIN)/simplify_ffm.sh
+\$(BIN)/ternary.sh: scripts/ternary.sh
+	cp scripts/ternary.sh \$(BIN)/ternary.sh
+\$(BIN)/trg_schem.sh: scripts/trg_schem.sh
+	cp scripts/trg_schem.sh \$(BIN)/trg_schem.sh
 
-\$(BIN)/distaz2lola: distaz2lola.f geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/distaz2lola distaz2lola.f geomsubs.f
+other: \\
+      \$(BIN)/pole2vel \\
+      \$(BIN)/numint
+\$(BIN)/pole2vel: src/pole2vel.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/pole2vel src/pole2vel.f
+\$(BIN)/numint: src/numint.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/numint src/numint.f
 
-\$(BIN)/utm2geo: utm2geo.f geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo utm2geo.f geomsubs.f
-
-\$(BIN)/polyfit: polyfit.f lsqsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit polyfit.f lsqsubs.f \$(LAPACK)
-
-\$(BIN)/polyfit_special: polyfit_special.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit_special polyfit_special.f \$(LAPACK)
-
-\$(BIN)/eventfrequency: eventfrequency.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency eventfrequency.f
-
-\$(BIN)/vec2los: vec2los.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/vec2los vec2los.f
-
-\$(BIN)/wraplos: wraplos.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/wraplos wraplos.f
-
-\$(BIN)/sphfinrot: sphfinrot.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot sphfinrot.f
-
-\$(BIN)/ff2gmt: ff2gmt.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt ff2gmt.f
-
-\$(BIN)/grid: grid.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/grid grid.f
-
-\$(BIN)/pt2fin: pt2fin.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/pt2fin pt2fin.f
-
-\$(BIN)/readkik: readkik.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/readkik readkik.f
-
-\$(BIN)/numint: numint.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/numint numint.f
-
-\$(BIN)/fltinv: fltinv.f okada92subs.f geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv fltinv.f okada92subs.f geomsubs.f \$(LAPACK) randsubs.f 
-
-\$(BIN)/platemotion: platemotion.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/platemotion platemotion.f
-
-\$(BIN)/perturb: perturb.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/perturb perturb.f randsubs.f
-
-\$(BIN)/pole2vel: pole2vel.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/pole2vel pole2vel.f
-
-\$(BIN)/multifit: multifit.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/multifit multifit.f \$(LAPACK)
-
-\$(BIN)/coul_hor.sh: coul_hor.sh
-	cp coul_hor.sh \$(BIN)/coul_hor.sh
-\$(BIN)/coul_dip.sh: coul_dip.sh
-	cp coul_dip.sh \$(BIN)/coul_dip.sh
-\$(BIN)/coul_xsec.sh: coul_xsec.sh
-	cp coul_xsec.sh \$(BIN)/coul_xsec.sh
-\$(BIN)/surf_disp.sh: surf_disp.sh
-	cp surf_disp.sh \$(BIN)/surf_disp.sh
-\$(BIN)/simplify_ffm.sh: simplify_ffm.sh
-	cp simplify_ffm.sh \$(BIN)/simplify_ffm.sh
-\$(BIN)/ternary.sh: ternary.sh
-	cp ternary.sh \$(BIN)/ternary.sh
-\$(BIN)/trg_schem.sh: trg_schem.sh
-	cp trg_schem.sh \$(BIN)/trg_schem.sh
+.PHONY: clean
 clean:
 	-rm \$(BIN)/o92util
-	-rm \$(BIN)/dateutil
-	-rm \$(BIN)/mtutil
-	-rm \$(BIN)/lola2distaz
-	-rm \$(BIN)/distaz2lola
-	-rm \$(BIN)/utm2geo
-	-rm \$(BIN)/polyfit
-	-rm \$(BIN)/multifit
-	-rm \$(BIN)/eventfrequency
 	-rm \$(BIN)/vec2los
 	-rm \$(BIN)/wraplos
+	-rm \$(BIN)/lola2distaz
+	-rm \$(BIN)/distaz2lola
 	-rm \$(BIN)/sphfinrot
+	-rm \$(BIN)/platemotion 
+	-rm \$(BIN)/utm2geo
+	-rm \$(BIN)/dateutil
+	-rm \$(BIN)/eventfrequency
 	-rm \$(BIN)/ff2gmt
 	-rm \$(BIN)/grid
 	-rm \$(BIN)/pt2fin
-	-rm \$(BIN)/readkik
-	-rm \$(BIN)/numint
-	-rm \$(BIN)/fltinv
-	-rm \$(BIN)/platemotion 
 	-rm \$(BIN)/perturb
+	-rm \$(BIN)/polyfit
+	-rm \$(BIN)/multifit
+	-rm \$(BIN)/fltinv
+	-rm \$(BIN)/readkik
+	-rm \$(BIN)/mtutil
 	-rm \$(BIN)/coul_hor.sh
 	-rm \$(BIN)/coul_dip.sh
 	-rm \$(BIN)/coul_xsec.sh
@@ -342,6 +328,9 @@ clean:
 	-rm \$(BIN)/simplify_ffm.sh
 	-rm \$(BIN)/ternary.sh
 	-rm \$(BIN)/trg_schem.sh
+	-rm \$(BIN)/pole2vel
+	-rm \$(BIN)/numint
+	-rm \$(BIN)/polyfit_special
 
 
 EOF
