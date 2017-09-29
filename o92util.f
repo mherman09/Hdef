@@ -1414,8 +1414,8 @@ C isotropic, elastic material.
 C----
       mu  = dens*vs*vs
       lam = dens*vp*vp - 2.0d0*mu
-      if (mu.lt.10.0e9) mu = 10.0e9
-      if (lam.lt.10.0e9) lam = 10.0e9
+      if (mu.lt.10.0e7) mu = 10.0e7
+      if (lam.lt.10.0e7) lam = 10.0e7
       diag = strain(1,1) + strain(2,2) + strain(3,3)
       stress(1,1) = lam*diag + 2.0d0*mu*strain(1,1)
       stress(2,2) = lam*diag + 2.0d0*mu*strain(2,2)
