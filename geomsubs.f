@@ -296,6 +296,11 @@ C UTM grids are actually Mercators which employ the standard UTM scale factor 0.
       REAL*8 rx_save,ry_save,rlon_save,rlat_save
       LOGICAL lsouth
 
+      dlon = 0
+      dlat = 0
+      xx = 0
+      yy = 0
+
       rlon_save = rlon4
       rlat_save = rlat4
       rx_save = rx4
