@@ -1,0 +1,11 @@
+
+[Unnamed software package (USP)]
+Written by Matt Herman
+
+First version: sometime in 2012...losts in the mists of poor backup practices and finite email storage
+First git commit: 2013 Nov 22
+
+[USP] is a software package designed to utilize the equations of Okada (1992) in a variety of scenarios.
+It has lots of peripheral programs for spherical geometry computations, basic inversions, moment tensor
+manipulation, and more. It also includes a few GMT shell scripts for plotting.
+

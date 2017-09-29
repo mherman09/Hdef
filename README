@@ -1,0 +1,20 @@
+The primary purpose for this suite of codes is the forward calculation
+of displacements, strains, and stresses from fault slip models, using
+the solutions derived in Okada (1992). The main engines can be found in
+the file okada92subs.f, and most of the other programs are essentially
+designed to use the subroutines in okada92subs.f in seismological or
+geodetic applications.
+
+There are also a few programs that I wrote as I came across various
+applications as a Geodynamics student in graduate school. I got tired
+of always looking up certain equations and typing them into my
+calculator, so I wrote simple codes to have these results at my
+fingertips. These are included, and you may find them useful as well.
+
+GUARANTEES
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There are none. Happy? I think these results are correct, and I have
+used them to make calculations for peer-reviewed publications, but I
+cannot guarantee that there are no bugs. Feel free to change the codes
+as you see fit. Check out the LICENSE (it's the MIT license).
+

@@ -1,0 +1,15 @@
+COMPILING DIRECTIONS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+New installation instructions!!!
+Set up makefile with the script simple_configure.sh. This can be run
+from the command line or interactively (using --interactive). After
+running "simple_configure.sh", enter "make".
+
+Old instructions, deprecated
+To compile the codes, enter "make". This will compile and move the
+executable codes into the directory ../bin/. By default, the Makefile
+uses gfortran as the Fortran compiler. This can be modified by changing
+the variable $(FC). If "make" notifies you that there is nothing to be
+done, use "make clean" and then "make" again.
+
+
