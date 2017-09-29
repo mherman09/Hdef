@@ -3,23 +3,25 @@ C----
 C Invert displacement observations for fault slip, assuming slip in an
 C elastic half-space. Based on equations of Okada (1992).
 C
-C Inversion options include:
+C Inversion options:
 C     - Least squares with LAPACK tools
-C     - Simulated annealing using Gibbs sampler
+C     - Simulated annealing using Gibbs sampler (THIS DOES NOT WORK YET!)
 C----
       IMPLICIT none
 C Command line inputs
-      CHARACTER*80 fltf,obsf,smoof,haff,ofile,annf
-      REAL*8 smooth,damp,damp0,fact
+      CHARACTER*80 fltf,obsf,smoof,haff,ofile,annf,lkfile
+      REAL*8 smooth,damp,damp0,fact,stscon
       INTEGER geo,p,invert,vrb,ostyle,misfit,getdmp
 C Inversion array variables
       INTEGER nobs,OBSMAX,nflt,FLTMAX
-      PARAMETER (OBSMAX=500,FLTMAX=500)
-      REAL*8 obs(OBSMAX,6),flt(FLTMAX,7),gf(OBSMAX,FLTMAX,6)
+      PARAMETER (OBSMAX=1000,FLTMAX=1000)
+      REAL*8 obs(OBSMAX,6),flt(FLTMAX,7),gf(OBSMAX,FLTMAX,6),
+     1       sgf(FLTMAX,FLTMAX,4)
       REAL*8 soln(FLTMAX,2)
       REAL*8 pre(OBSMAX,3),tot
+      INTEGER isThisFaultLocked(FLTMAX),nsts
 C Other variables
-      REAL*8 haf(3)
+      REAL*8 haf(3),mxdisp,disp
       INTEGER i,j,k
       COMMON /VERBOSE/ vrb
 
@@ -27,15 +29,13 @@ C----
 C Parse command line and test inputs
 C----
       call gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,invert,
-     1            annf,ostyle,misfit,getdmp,fact)
-      if (vrb.eq.1) then
+     1            annf,ostyle,misfit,getdmp,fact,stscon,lkfile)
+      if (vrb.ge.1) then
+          write(0,'("FLTINV VERBOSE OUTPUT ON")')
+      endif
+      if (vrb.ge.2) then
           write(0,*)
-          write(0,'("****************************************")')
-          write(0,'("      FLTINV VERBOSE OUTPUT ON          ")')
-          write(0,'("****************************************")')
-          write(0,*)
-          write(0,'("COMMAND LINE INPUTS")')
-          write(0,'("-------------------")')
+          write(0,'("Parsed command line inputs:")')
           write(0,'("fltf:   ",4X,A)'),fltf
           write(0,'("obsf:   ",4x,A)'),obsf
           write(0,'("ofile:  ",4X,A)'),ofile
@@ -51,18 +51,33 @@ C----
           write(0,'("misfit: ",I5)'),misfit
           write(0,'("getdmp: ",I5)'),getdmp
           write(0,'("fact:   ",F12.6)'),fact
+          write(0,'("stscon: ",F12.6)'),stscon
+          write(0,'("lkfile: ",4X,A)'),lkfile
           write(0,*)
+      endif
+
+      if (vrb.ge.2) then
+          write(0,'("Checking input/output definitions")')
       endif
       call chkin(fltf,obsf)
       call chkout(ofile,p)
+      if (vrb.ge.2) then
+          write(0,'("Finished checking input/output definitions")')
+          write(0,*)
+      endif
 
 C----
 C Read displacement, fault, material data
 C----
-      call readobs(obs,nobs,OBSMAX,obsf)
-      call readflt(flt,nflt,FLTMAX,fltf)
-      call readhaf(haf,haff)
-      if (vrb.eq.1) then
+      if (vrb.ge.1) then
+          write(0,'("READING INPUTS")')
+      endif
+      ! Observations of static displacements
+      if (vrb.ge.2) then
+          write(0,'("Reading observations")')
+      endif
+      call readobs(obs,nobs,OBSMAX,obsf,mxdisp)
+      if (vrb.ge.3) then
           write(0,'("INPUT OBSERVATIONS")')
           write(0,'("------------------")')
           write(0,'("nobs: ",I5)'),nobs
@@ -71,6 +86,14 @@ C----
               write(0,'(3F12.2,3F14.4)') (obs(i,j),j=1,6)
   901     continue
           write(0,*)
+      endif
+
+      ! Fault locations and geometries
+      if (vrb.ge.2) then
+          write(0,'("Reading fault coordinates and geometries")')
+      endif
+      call readflt(flt,nflt,FLTMAX,fltf)
+      if (vrb.ge.3) then
           write(0,'("INPUT FAULTS")')
           write(0,'("------------")')
           write(0,'("nflt: ",I5)'),nflt
@@ -79,10 +102,37 @@ C----
               write(0,'(3F12.2,4F14.4)') (flt(i,j),j=1,7)
   902     continue
           write(0,*)
+      endif
+
+      ! Check that problem is not underdetermined
+      if (2*nflt.gt.3*nobs.and.
+     1           damp.lt.0.0d0.and.
+     2           smooth.lt.0.0d0.and.
+     3           stscon.lt.0.0d0) then
+          write(0,*) '!! Error: number of inversion DOFs is greater ',
+     1               'than number of observation DOFs; problem is ',
+     2               'underdetermined'
+          write(0,*) '!! Either (a) decrease number of inversion ',
+     1               'subfaults, (b) increase number of observations, ',
+     2               'or (c) add constraints'
+          write(0,*) ''
+          stop
+      endif
+
+      if (vrb.ge.2) then
+          write(0,'("Reading half-space parameters")')
+      endif
+      call readhaf(haf,haff)
+      if (vrb.ge.3) then
+          write(0,*)
           write(0,'("HALF-SPACE PARAMETERS")')
           write(0,'("---------------------")')
           write(0,'(3A14)'),'vp','vs','dens'
           write(0,'(3F14.4)') haf(1),haf(2),haf(3)
+          write(0,*)
+      endif
+      if (vrb.ge.2) then
+          write(0,'("Congrats: all the stuff is read in")')
           write(0,*)
       endif
 
@@ -92,10 +142,17 @@ C----
       if (geo.eq.1) call geo2xy(obs,nobs,OBSMAX,flt,nflt,FLTMAX)
 
 C----
-C Compute Green's functions
+C Compute displacement Green's functions
 C----
+      if (vrb.ge.1) then
+          write(0,'("WORKING ON DISPLACEMENT GREENS FUNCTIONS")')
+      endif
       call green(gf,obs,nobs,OBSMAX,flt,nflt,FLTMAX,haf)
-      if (vrb.eq.1) then
+      if (vrb.ge.2) then
+          write(0,'("Finished displacement Greens functions")')
+          write(0,*)
+      endif
+      if (vrb.ge.3) then
           write(0,'("GREENS FUNCTIONS")')
           write(0,'("----------------")')
           write(0,'(2A4,6A14)') 'sta','flt','gfssx','gfssy','gfssz',
@@ -109,12 +166,42 @@ C----
       endif
 
 C----
+C Compute shear stress Green's functions
+C----
+      if (stscon.gt.0.0d0) then
+          if (vrb.ge.1) then
+              write(0,'("WORKING ON SHEAR STRESS GREENS FUNCTIONS")')
+          endif
+          call locked(isThisFaultLocked,nflt,FLTMAX,lkfile)
+          call sgreen(sgf,flt,nflt,FLTMAX,haf,isThisFaultLocked,nsts,
+     1                mxdisp)
+          if (vrb.ge.2) then
+              write(0,'("Finished shear stress Greens functions")')
+              write(0,*)
+          endif
+          if (vrb.ge.3) then
+              write(0,'("GREENS FUNCTIONS")')
+              write(0,'("----------------")')
+              write(0,'(2A4,4A14)') 'sta','flt','sgfssss','sfssds',
+     1                                          'sgfdsss','sgfdsds'
+              do 909 i = 1,nsts
+                  do 910 j = 1,nflt
+                      write(0,'(2I4,6F14.6)') i,j,(sgf(i,j,k),k=1,4)
+  910             continue
+  909         continue
+              write(0,*)
+      endif
+      endif
+
+C----
 C Get best damping parameter
 C----
       if (getdmp.ge.1) then
-          print *,fact
+          if (vrb.ge.1) then
+              write(0,'("SEARCHING FOR BEST DAMPING COEFFICIENT")')
+          endif
           call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
-     1                 smoof,fact,getdmp)
+     1                 smoof,fact,getdmp,sgf,stscon,nsts)
           damp = damp0
       endif
 
@@ -122,24 +209,52 @@ C----
 C Run inversion
 C----
       if (invert.eq.0) then
+          if (vrb.ge.1) then
+              write(0,'("FINDING LEAST-SQUARES SOLUTION")')
+          endif
           call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,smooth,
-     1                smoof)
+     1                smoof,sgf,stscon,nsts)
       elseif (invert.eq.1) then
+          if (vrb.ge.1) then
+              write(0,'("FINDING SOLUTION WITH SIMULATED ANNEALING")')
+          endif
           call anneal(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,smooth,
      1                smoof,annf)
       else
           call usage('!! Error: inversion option does not exist')
       endif
+      if (vrb.ge.2) then
+          write(0,'("Finished inversion")')
+          write(0,*)
+      endif
+
+      ! Check that results are reasonable
+      do 911 i = 1,nflt
+          disp = soln(i,1)*soln(i,1)+soln(i,2)*soln(i,2)
+          if (disp.gt.mxdisp*100.0d0) then
+              write(0,'(A)') '!! Warning: inverted displacements are '//
+     1                       'very large compared to the observed '//
+     2                       'displacements.'
+              write(0,'(A)') '!! You might want to increase the '//
+     1                       'damping or smoothing constants'
+              goto 912
+          endif
+  911 continue
+  912 continue
 
 C----
-C Misfit
+C Print misfit to standard output if requested
 C----
       if (misfit.eq.1) then
+          if (vrb.ge.1) then
+              write(0,'("COMPUTING MISFIT, PER YOUR REQUEST")')
+          endif
           tot = 0.0d0
           do 905 i = 1,nobs
               pre(i,1) = 0.0d0
               pre(i,2) = 0.0d0
               pre(i,3) = 0.0d0
+              ! predicted displacement vector at each observation site
               do 906 j = 1,nflt
                   pre(i,1) = pre(i,1) + gf(i,j,1)*soln(j,1) 
      1                                             + gf(i,j,4)*soln(j,2)
@@ -149,18 +264,22 @@ C----
      1                                             + gf(i,j,6)*soln(j,2)
   906         continue
   905     continue
+          ! total misfit, squared
           do 907 i = 1,nobs
               tot = tot + (pre(i,1)-obs(i,4))*(pre(i,1)-obs(i,4))
      1                   + (pre(i,2)-obs(i,5))*(pre(i,2)-obs(i,5))
      2                   + (pre(i,3)-obs(i,6))*(pre(i,3)-obs(i,6))
   907     continue
+          ! total model length, squared
           pre(1,1) = 0.0d0
           do 908 i = 1,nflt
               pre(1,1) = pre(1,1) + soln(i,1)*soln(i,1)
      1                   + soln(i,2)*soln(i,2)
   908     continue
-          print *,dsqrt(tot),dsqrt(pre(1,1))
+          write(*,1010) dsqrt(tot),dsqrt(pre(1,1))
       endif
+ 1010 format(1PE14.6,1PE14.6)
+
 C----
 C Write output nicely
 C----
@@ -221,21 +340,26 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE readobs(obs,nobs,OBSMAX,obsf)
+      SUBROUTINE readobs(obs,nobs,OBSMAX,obsf,mxdisp)
 C----
 C Read displacement observations from file
 C----
       IMPLICIT none
       CHARACTER*80 obsf
-      INTEGER nobs,OBSMAX,i,j
-      REAL*8 obs(OBSMAX,6)
+      INTEGER nobs,OBSMAX,i,j,first
+      REAL*8 obs(OBSMAX,6),disp,mxdisp
+      mxdisp = 0.0d0
+      first = 1
 C Read in observation locations and displacement vectors
       call linect(nobs,obsf)
       if (nobs.gt.OBSMAX) call usage('!! Error: too many input data')
       open(unit=21,file=obsf,status='old')
       do 201 i = 1,nobs
           read(21,*) (obs(i,j),j=1,6) ! x y z ux uy uz (all meters)
+          disp = obs(i,4)*obs(i,4)+obs(i,5)*obs(i,5)+obs(i,6)*obs(i,6)
+          if (disp.gt.mxdisp) mxdisp = disp
   201 continue
+      mxdisp = dsqrt(mxdisp)
       close(21)
       RETURN
       END
@@ -334,6 +458,31 @@ C----
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE locked(isThisFaultLocked,nflt,FLTMAX,lkfile)
+      IMPLICIT none
+      INTEGER FLTMAX,nflt,i
+      INTEGER isThisFaultLocked(FLTMAX)
+      CHARACTER*80 lkfile
+      if (lkfile.eq.'none') return
+      do 603 i = 1,nflt
+          isThisFaultLocked(i) = 0
+  603 continue
+      open(unit=61,file=lkfile,status='old')
+  601 read(61,*,end=602) i
+          if (i.gt.nflt) then
+              write(0,*) '!! Error: subroutine locked read fault ',
+     1                   i,' but there are only ',nflt,' total'
+              stop
+          endif
+          isThisFaultLocked(i) = 1
+          goto 601
+  602 continue
+      close(61)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE green(gf,obs,nobs,OBSMAX,flt,nflt,FLTMAX,haf)
 C----
 C Compute and store static Green's functions
@@ -382,6 +531,237 @@ C GF for each flt-sta pair
 
 C----------------------------------------------------------------------C
 
+      SUBROUTINE sgreen(sgf,flt,nflt,FLTMAX,haf,isThisFaultLocked,nsts,
+     1                  mxdisp)
+C----
+C Compute and store shear stress Green's functions
+C----
+      IMPLICIT none
+      INTEGER FLTMAX
+      REAL*8 flt(FLTMAX,7)
+      REAL*8 sgf(FLTMAX,FLTMAX,4)
+      INTEGER nflt
+      INTEGER isThisFaultLocked(FLTMAX)
+      REAL*8 haf(3)
+      REAL*8 stlo,stla,stdp,sstr,sdip
+      REAL*8 strain(3,3),stress(3,3),shr(2)
+      REAL*8 evlo,evla,evdp,str,dip,rak,slip,wid,len
+      INTEGER i,j,k,nsts
+      REAL*8 vp,vs,dens
+      REAL*8 mxdisp,mxsts,sts
+C Compute vp, vs, dens from Lame parameters
+      vp   = haf(1)
+      vs   = haf(2)
+      dens = haf(3)
+C Unit slip for GF computation
+      slip = 1.0d0
+C GF for each flt-flt pair
+      mxsts = 0.0d0
+      nsts = 0
+      do 302 i = 1,nflt
+          if (isThisFaultLocked(i).eq.1) goto 302
+          nsts = nsts + 1
+          stlo = flt(i,1)
+          stla = flt(i,2)
+          stdp = flt(i,3)
+          sstr = flt(i,4)
+          sdip = flt(i,5)
+          do 301 j = 1,nflt
+              evlo = flt(j,1)
+              evla = flt(j,2)
+              evdp = flt(j,3)
+              str  = flt(j,4)
+              dip  = flt(j,5)
+              wid  = flt(j,6)
+              len  = flt(j,7)
+              rak  = 0.0d0 ! strike-parallel shear stress GF
+              call calcstn(strain,stlo,stla,stdp,evlo,evla,evdp,str,dip,
+     1                     rak,slip,wid,len,vp,vs,dens)
+              call stn2sts(stress,strain,vp,vs,dens)
+              call shrsts(shr,stress,sstr,sdip)
+              sgf(nsts,j,1) = shr(1)
+              sgf(nsts,j,2) = shr(2)
+              sts = shr(1)*shr(1) + shr(2)*shr(2)
+              if (sts.gt.mxsts) mxsts = sts
+              rak  = 90.0d0 ! dip-parallel shear stress GF
+              call calcstn(strain,stlo,stla,stdp,evlo,evla,evdp,str,dip,
+     1                     rak,slip,wid,len,vp,vs,dens)
+              call stn2sts(stress,strain,vp,vs,dens)
+              call shrsts(shr,stress,sstr,sdip)
+              sgf(nsts,j,3) = shr(1)
+              sgf(nsts,j,4) = shr(2)
+              sts = shr(1)*shr(1) + shr(2)*shr(2)
+              if (sts.gt.mxsts) mxsts = sts
+  301     continue
+  302 continue
+      mxsts = dsqrt(mxsts)
+      do 303 i = 1,nsts
+          do 304 j = 1,nflt
+              do 305 k = 1,4
+                  sgf(i,j,k) = sgf(i,j,k)*mxdisp/mxsts
+  305         continue
+  304     continue
+  303 continue
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE shrsts(shr,stress,strin,dipin)
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
+      REAL*8 norml,stress(3,3)
+      REAL*8 strin,dipin,str,dip,n(3),trac(3),s(3)
+      REAL*8 ns(3),nd(3)
+      INTEGER i
+      REAL*8 shr(2)
+      str = strin*d2r
+      dip = dipin*d2r
+C Unit normal vector to plane
+      n(1) = dsin(dip)*dsin(str+pi/2.0d0)
+      n(2) = dsin(dip)*dcos(str+pi/2.0d0)
+      n(3) = dcos(dip)
+C Traction is stress matrix times normal vector: t = S*n
+      do 241 i = 1,3
+          trac(i) = stress(i,1)*n(1)+stress(i,2)*n(2)+stress(i,3)*n(3)
+  241 continue
+C Normal component of traction is parallel to unit normal vector
+      norml = 0.0d0
+      do 242 i = 1,3
+          norml = norml + trac(i)*n(i)
+  242 continue
+C Shear component of traction is difference between total and normal
+      s(1) = trac(1) - norml*n(1)
+      s(2) = trac(2) - norml*n(2)
+      s(3) = trac(3) - norml*n(3)
+C Compute unit vector in strike and up-dip directions
+      ns(1) = sin(str)
+      ns(2) = cos(str)
+      ns(3) = 0.0d0
+      nd(1) = cos(dip)*sin(str-pi*0.5d0)
+      nd(2) = cos(dip)*cos(str-pi*0.5d0)
+      nd(3) = sin(dip)
+C Project shear traction onto strike and dip directions
+      shr(1) = s(1)*ns(1) + s(2)*ns(2) + s(3)*ns(3)
+      shr(2) = s(1)*nd(1) + s(2)*nd(2) + s(3)*nd(3)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE calcstn(strain,stlo,stla,stdp,evlo,evla,evdp,str,dip,
+     1                   rak,slip,wid,len,vp,vs,dens)
+      IMPLICIT none
+      REAL*8 pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      REAL*8 strain(3,3)
+      REAL*8 stlo,stla,stdp
+      REAL*8 evlo,evla,evdp
+      REAL*8 str,dip,rak
+      REAL*8 slip,wid,len
+      REAL*8 vp,vs,dens
+      REAL*8 delx,dely,dist,az,x,y
+C Distance and azimuth from source to station
+      delx = stlo - evlo
+      dely = stla - evla
+      dist = dsqrt(delx*delx+dely*dely)
+      az   = datan2(delx,dely) ! clockwise from north
+C Rotate to x=along-strike, y=horizontal up-dip
+      x = dist*( dcos(az-d2r*str))
+      y = dist*(-dsin(az-d2r*str))
+C Compute strain in fault-centered coordinates
+      call o92rectstn(strain,x,y,stdp,evdp,dip,rak,wid,len,slip,vp,vs,
+     1                dens)
+C Rotate back to original x-y coordinates
+      call rotstrain(strain,str)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE rotstrain(e,str)
+C----
+C Rotate strain matrix from x=str, y=updip horizontal, z=up to
+C x=E, y=N, z=up.
+C----
+      IMPLICIT NONE
+      REAL*8 e(3,3),str,rot(3,3),rottr(3,3),tmp(3,3),pi,d2r
+      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
+      rot(1,1) = dcos(d2r*str-pi/2.0d0)
+      rot(2,2) = rot(1,1)
+      rot(1,2) = dsin(d2r*str-pi/2.0d0)
+      rot(2,1) = -rot(1,2)
+      rot(1,3) = 0.0d0
+      rot(2,3) = 0.0d0
+      rot(3,1) = 0.0d0
+      rot(3,2) = 0.0d0
+      rot(3,3) = 1.0d0
+      call mattr(rottr,rot)
+      call matmult(tmp,rot,e)
+      call matmult(e,tmp,rottr)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE matmult(matout,mat1,mat2)
+      IMPLICIT NONE
+      REAL*8 mat1(3,3),mat2(3,3),matout(3,3)
+      INTEGER i,j,k
+      DO 223 i = 1,3
+          DO 222 j = 1,3
+              matout(i,j) = 0.0d0
+              DO 221 k = 1,3
+                  matout(i,j) = matout(i,j) + mat1(i,k)*mat2(k,j)
+  221         CONTINUE
+  222     CONTINUE
+  223 CONTINUE
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE mattr(matout,matin)
+      IMPLICIT NONE
+      REAL*8 matout(3,3),matin(3,3)
+      INTEGER i,j
+      DO 222 i = 1,3
+          DO 221 j = 1,3
+              matout(i,j) = matin(j,i)
+  221     CONTINUE
+  222 CONTINUE
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE stn2sts(stress,strain,vp,vs,dens)
+      IMPLICIT NONE
+      REAL*8 stress(3,3),strain(3,3),vp,vs,dens,lam,mu,diag
+C----
+C Calculate (3x3) stress matrix from (3x3) strain matrix, assuming
+C isotropic, elastic material.
+C----
+      mu  = dens*vs*vs
+      lam = dens*vp*vp - 2.0d0*mu
+      if (mu.lt.10.0e7) mu = 10.0e7
+      if (lam.lt.10.0e7) lam = 10.0e7
+      diag = strain(1,1) + strain(2,2) + strain(3,3)
+      stress(1,1) = lam*diag + 2.0d0*mu*strain(1,1)
+      stress(2,2) = lam*diag + 2.0d0*mu*strain(2,2)
+      stress(3,3) = lam*diag + 2.0d0*mu*strain(3,3)
+      stress(1,2) = 2.0d0*mu*strain(1,2)
+      stress(1,3) = 2.0d0*mu*strain(1,3)
+      stress(2,3) = 2.0d0*mu*strain(2,3)
+      stress(2,1) = stress(1,2)
+      stress(3,1) = stress(1,3)
+      stress(3,2) = stress(2,3)
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
       SUBROUTINE calcdisp(ux,uy,uz,stlo,stla,stdp,evlo,evla,evdp,str,
      1                    dip,rak,slip,wid,len,vp,vs,dens)
 C----
@@ -422,19 +802,21 @@ C Rotate back to original x-y coordinates
 C----------------------------------------------------------------------C
 
       SUBROUTINE lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,smooth,
-     1                  smoof)
+     1                  smoof,sgf,stscon,nsts)
 C----
 C Compute a least squares inversion for slip and rake
 C----
       IMPLICIT none
       CHARACTER*80 smoof
+      REAL*8 stscon
+      INTEGER nsts
       REAL*8 damp,smooth
       INTEGER OBSMAX,FLTMAX,dimx,dimy
       REAL*8 obs(OBSMAX,6)
-      REAL*8 gf(OBSMAX,FLTMAX,6)
-      REAL*8 A(3*OBSMAX+2*FLTMAX,2*FLTMAX)
-      REAL*8 b(3*OBSMAX+2*FLTMAX,1)
-      REAL*8 x(3*OBSMAX+2*FLTMAX,1)
+      REAL*8 gf(OBSMAX,FLTMAX,6),sgf(FLTMAX,FLTMAX,4)
+      REAL*8 A(3*OBSMAX+4*FLTMAX,2*FLTMAX)
+      REAL*8 b(3*OBSMAX+4*FLTMAX,1)
+      REAL*8 x(3*OBSMAX+4*FLTMAX,1)
       REAL*8 soln(FLTMAX,2)
       INTEGER i,j,nobs,nflt
       INTEGER n,m ! n=nrows, m=ncol
@@ -459,18 +841,26 @@ C----
 C Change number of rows, columns
       n = 3*nobs
       m = 2*nflt
+
+C----
+C Add stress constraints
+C----
+      call addsts(A,b,n,m,sgf,stscon,nsts,OBSMAX,FLTMAX)
+
 C----
 C Add damping
 C----
-      call damping(A,b,n,m,damp)
+      call damping(A,b,n,m,damp,OBSMAX,FLTMAX)
+
 C----
 C Add smoothing
 C----
-      call smoothing(A,b,n,m,smooth,smoof)
+      call smoothing(A,b,n,m,smooth,smoof,OBSMAX,FLTMAX)
+
 C----
 C Solve generalized least squares problem
 C----
-      dimx = 3*OBSMAX+2*FLTMAX
+      dimx = 3*OBSMAX+4*FLTMAX
       dimy = 2*FLTMAX
       call lsqsolve(A,b,x,dimx,dimy,n,m)
       do 404 i = 1,nflt
@@ -482,35 +872,68 @@ C----
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE damping(A,b,nobs,nflt,damp)
+      SUBROUTINE addsts(A,b,n,m,sgf,stscon,nsts,OBSMAX,FLTMAX)
+      IMPLICIT none
+      REAL*8 stscon,const
+      INTEGER nsts
+      INTEGER OBSMAX,FLTMAX
+      REAL*8 sgf(FLTMAX,FLTMAX,4)
+      REAL*8 A(3*OBSMAX+4*FLTMAX,2*FLTMAX)
+      REAL*8 b(3*OBSMAX+4*FLTMAX,1)
+      INTEGER i,j,n,m
+      if (stscon.lt.0.0d0) return
+      const = stscon*stscon
+      do 501 i = 1,nsts
+          b(n+i,1) = 0.0d0
+          b(n+nsts+i,1) = 0.0d0
+          do 502 j = 1,m
+              ! strike-slip sources
+              if (j.le.m/2) then
+                  A(n+i,j) = sgf(i,j,1)*const           ! str-par shear stress
+                  A(n+nsts+i,j) = sgf(i,j,3)*const      ! dip-par shear stress
+              ! dip-slip sources
+              else
+                  A(n+i,j) = sgf(i,j-m/2,2)*const      ! str-par shear stress
+                  A(n+nsts+i,j) = sgf(i,j-m/2,4)*const ! dip-par shear stress
+              endif
+  502     continue
+  501 continue
+      n = n + 2*nsts
+      RETURN
+      END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE damping(A,b,n,m,damp,OBSMAX,FLTMAX)
 C----
 C Minimize length of solution to Ax = b with weighting factor damp.
 C----
       IMPLICIT none
       REAL*8 damp
       INTEGER OBSMAX,FLTMAX
-      PARAMETER (OBSMAX=500,FLTMAX=500)
-      REAL*8 A(3*OBSMAX+2*FLTMAX,2*FLTMAX)
-      REAL*8 b(3*OBSMAX+2*FLTMAX,1)
-      INTEGER i,j,nobs,nflt
+      REAL*8 A(3*OBSMAX+4*FLTMAX,2*FLTMAX)
+      REAL*8 b(3*OBSMAX+4*FLTMAX,1)
+      INTEGER i,j
+      INTEGER n  ! rows in A, rows in b
+      INTEGER m  ! columns in A, rows in x
       if (damp.le.0.0d0) return
-      do 412 i = 1,nflt
-          b(nobs+i,1) = 0.0d0
-          do 411 j = 1,nflt
+      do 412 i = 1,m
+          b(n+i,1) = 0.0d0
+          do 411 j = 1,m
               if (i.eq.j) then
-                  A(nobs+i,j) = damp*damp*1.0d0
+                  A(n+i,j) = damp*damp*1.0d0
               else
-                  A(nobs+i,j) = 0.0d0
+                  A(n+i,j) = 0.0d0
               endif
   411     continue
   412 continue
-      nobs = nobs + nflt
+      n = n + m
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE smoothing(A,b,nobs,nflt,smooth,smoof)
+      SUBROUTINE smoothing(A,b,n,m,smooth,smoof,OBSMAX,FLTMAX)
 C----
 C Minimize roughness of solution to Ax = b with weighting factor smooth.
 C----
@@ -519,11 +942,12 @@ C----
       LOGICAL ex
       REAL*8 smooth
       INTEGER OBSMAX,FLTMAX
-      PARAMETER (OBSMAX=500,FLTMAX=500)
-      REAL*8 A(3*OBSMAX+2*FLTMAX,2*FLTMAX)
-      REAL*8 b(3*OBSMAX+2*FLTMAX,1)
+      REAL*8 A(3*OBSMAX+4*FLTMAX,2*FLTMAX)
+      REAL*8 b(3*OBSMAX+4*FLTMAX,1)
       INTEGER nsmoo,el,nnei,nei(FLTMAX)
-      INTEGER i,j,nobs,nflt
+      INTEGER i,j
+      INTEGER n  ! rows in A, rows in b
+      INTEGER m  ! columns in A, rows in x
       if (smooth.le.0.0d0) return
 C Check for input smoothing file
       if (smoof.eq.'none') then
@@ -535,15 +959,15 @@ C Check for input smoothing file
      1                                                      trim(smoof))
       endif
       call linect(nsmoo,smoof)
-      if (nsmoo.gt.nflt) then
-          write(*,*) '!! Error: more faults to smooth than nflt'
+      if (nsmoo.gt.m) then
+          write(*,*) '!! Error: more faults to smooth than m'
           call usage('!! Check smoothing linking file')
       endif
 C Initialize smoothing section of A and b arrays as zeros
       do 422 i = 1,nsmoo
-          b(nobs+i,1) = 0.0d0
-          do 421 j = 1,nflt
-              A(nobs+i,j) = 0.0d0
+          b(n+i,1) = 0.0d0
+          do 421 j = 1,m
+              A(n+i,j) = 0.0d0
   421     continue
   422 continue
 C Read smoothing element linking file and load into A
@@ -551,15 +975,15 @@ C Read smoothing element linking file and load into A
       do 424 i = 1,nsmoo
           read(41,*) el,nnei,(nei(j),j=1,nnei)
           ! Fault of interest
-          A(nobs+i,el) = dble(nnei)*smooth*smooth
-          A(nobs+i,nflt/2+el) = dble(nnei)*smooth*smooth ! nflt doubled at end of green3d
+          A(n+i,el) = dble(nnei)*smooth*smooth
+          A(n+i,m/2+el) = dble(nnei)*smooth*smooth ! nflt doubled at end of green3d
           do 423 j = 1,nnei
-              A(nobs+i,nei(j)) = -1.0d0*smooth*smooth
-              A(nobs+i,nflt/2+nei(j)) = -1.0d0*smooth*smooth
+              A(n+i,nei(j)) = -1.0d0*smooth*smooth
+              A(n+i,m/2+nei(j)) = -1.0d0*smooth*smooth
   423     continue
   424 continue
       close(41)
-      nobs = nobs + nsmoo
+      n = n + nsmoo
       RETURN
       END
 
@@ -639,22 +1063,26 @@ C Compute parameter array
 C----------------------------------------------------------------------C
 
       SUBROUTINE getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
-     1                   smooth,smoof,fact,getdmp)
+     1                   smooth,smoof,fact,getdmp,sgf,stscon,nsts)
       IMPLICIT none
       INTEGER getdmp
+      REAL*8 stscon
+      INTEGER nsts
       CHARACTER*80 smoof
       REAL*8 damp,smooth
       INTEGER OBSMAX,FLTMAX
       REAL*8 obs(OBSMAX,6)
-      REAL*8 gf(OBSMAX,FLTMAX,6)
+      REAL*8 gf(OBSMAX,FLTMAX,6),sgf(FLTMAX,FLTMAX,4)
       REAL*8 soln(FLTMAX,2),misfit
       REAL*8 p(3)
       INTEGER i,j,nobs,nflt
       REAL*8 slip,slipmx,ddamp,misfit0,fact
+      INTEGER vrb
+      COMMON /VERBOSE/ vrb
 C Compute misfit with damp = 0
       damp = 0.0d0
       call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
-     1            smooth,smoof)
+     1            smooth,smoof,sgf,stscon,nsts)
       misfit0 = 0.0d0
       do 108 i = 1,nobs
           p(1) = 0.0d0
@@ -669,11 +1097,14 @@ C Compute misfit with damp = 0
      1                    + (p(2)-obs(i,5))*(p(2)-obs(i,5))
      2                    + (p(3)-obs(i,6))*(p(3)-obs(i,6))
   108 continue
+      if (vrb.eq.1) then
+          write(0,1001) misfit0
+      endif
 C Search for damping parameter
       ddamp = 1.0d0
   101 damp = damp + ddamp
           call lstsqr(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
-     1                smooth,smoof)
+     1                smooth,smoof,sgf,stscon,nsts)
 C Compute RMS obs-pre misfit
           misfit = 0.0d0
           do 102 i = 1,nobs
@@ -689,6 +1120,9 @@ C Compute RMS obs-pre misfit
      1                        + (p(2)-obs(i,5))*(p(2)-obs(i,5))
      2                        + (p(3)-obs(i,6))*(p(3)-obs(i,6))
   102     continue
+          if (vrb.eq.1) then
+              write(0,1002) damp,misfit
+          endif
 C Get maximum slip in model
           slipmx = 0.0d0
           do 105 i = 1,nflt
@@ -709,6 +1143,8 @@ C Get maximum slip in model
           continue
       endif
       RETURN
+ 1001 format('    Misfit with no damping is ',1PE14.6)
+ 1002 format('    Misfit with damping = ',1PE10.3,' is ',1PE14.6)
       END
 
 C----------------------------------------------------------------------C
@@ -966,6 +1402,7 @@ C         Record results in log files
 
 C         Find the worst saved solution
           test = 0.0d0
+          jj = 0
           do 517 j = 1,nsoln
               if (obj0(j).gt.test) then
                   test = obj0(j) 
@@ -1242,7 +1679,7 @@ C----------------------------------------------------------------------C
           length = damp*length/nflt ! Average length
       endif
       if (smooth.gt.0.0d0) then
-          call calcrough(rough,soln,nflt,FLTMAX,smarry,nsmoo)
+          call calcrough(rough,soln,FLTMAX,smarry,nsmoo)
           rough = smooth*rough/nflt ! Average roughness
       endif
       obj = misfit + damp*length + smooth*rough
@@ -1302,11 +1739,11 @@ C----------------------------------------------------------------------C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE calcrough(rough,soln,nflt,FLTMAX,smarry,nsmoo)
+      SUBROUTINE calcrough(rough,soln,FLTMAX,smarry,nsmoo)
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-      INTEGER nflt,FLTMAX,nsmoo,smarry(FLTMAX,8),i,j,jj
+      INTEGER FLTMAX,nsmoo,smarry(FLTMAX,8),i,j,jj
       REAL*8 soln(FLTMAX,2),rough,r(2),ss,ds
       r(1) = 0.0d0
       r(2) = 0.0d0
@@ -1398,11 +1835,12 @@ C----------------------------------------------------------------------C
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(fltf,obsf,smoof,smooth,damp,ofile,p,geo,haff,
-     1                  invert,annf,ostyle,misfit,getdmp,fact)
+     1                  invert,annf,ostyle,misfit,getdmp,fact,stscon,
+     2                  lkfile)
       IMPLICIT NONE
-      CHARACTER*80 fltf,obsf,tag,smoof,ofile,haff,annf
+      CHARACTER*80 fltf,obsf,tag,smoof,ofile,haff,annf,lkfile
       INTEGER i,narg,indx
-      REAL*8 smooth,damp,fact
+      REAL*8 smooth,damp,fact,stscon
       INTEGER geo,p,invert,vrb,ostyle,misfit,getdmp
       COMMON /VERBOSE/ vrb
       fltf = 'none'
@@ -1422,6 +1860,8 @@ C----------------------------------------------------------------------C
       misfit = 0
       getdmp = 0
       fact = 1.5d0
+      stscon = -1.0
+      lkfile = 'none'
       narg = iargc()
       if (narg.eq.0) call usage('!! Error: no command line arguments')
       i = 0
@@ -1464,6 +1904,15 @@ C----------------------------------------------------------------------C
           elseif (tag(1:4).eq.'-vrb'.or.tag(1:5).eq.'-verb'.or.
      1                      tag(1:8).eq.'-verbose') then
               vrb = 1
+              i = i + 1
+              if (i.gt.narg) goto 102
+              call getarg(i,tag)
+              indx = index(tag,'-')
+              if (indx.eq.0) then
+                  read(tag,'(BN,I10)') vrb
+              else
+                  i = i - 1
+              endif
           elseif (tag(1:2).eq.'-o') then
               i = i + 1
               call getarg(i,ofile)
@@ -1480,6 +1929,19 @@ C----------------------------------------------------------------------C
               ostyle = 11
           elseif (tag(1:4).eq.'-sci') then
               ostyle = 10
+          elseif (tag(1:4).eq.'-sts') then
+              i = i + 1
+              call getarg(i,tag)
+              read(tag,'(BN,F10.0)') stscon
+              i = i + 1
+              if (i.gt.narg) goto 102
+              call getarg(i,tag)
+              indx = index(tag,'-')
+              if (indx.eq.0) then
+                  read(tag,*) lkfile
+              else
+                  i = i - 1
+              endif
           elseif (tag(1:7).eq.'-misfit') then
               misfit = 1
           elseif (tag(1:9).eq.'-getdamp1') then
@@ -1547,7 +2009,8 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '              [-anneal [ANEALFILE]] [-dec[long]|-sci[long]]'
       write(*,*)
-     1 '              [-misfit] [-getdamp[1|2] VAL] [-h|-d]'
+     1 '              [-misfit] [-getdamp[1|2] VAL] [-sts CONST ',
+     2                           '[LKFILE]] [-h|-d]'
       write(*,*)
       write(*,*)
      1 '-obs OBSFILE        Displacement observations'
@@ -1577,7 +2040,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 '-geo                Use geographic coordinates'
+     1 '-geo                Use geographic coordinates (default is ',
+     2                                'Cartesian coordinates)'
       if (d.eq.1) then
           write(*,*)
      1 '                       X->E, Y->N'
@@ -1674,6 +2138,21 @@ C----------------------------------------------------------------------C
      2                                'less than SLIP'
           write(*,*)
      1 '                        Default: SLIP=10'
+          write(*,*)
+      endif
+      write(*,*)
+     1 '-sts CONST [LKFILE] Minimize shear stress'
+      write(*,*)
+     1 '-verbose [LVL]      Verbosity (default: level 0)'
+      if (d.eq.1) then
+          write(*,*)
+     1 '                        0: only error messages'
+          write(*,*)
+     1 '                        1: major progress steps'
+          write(*,*)
+     1 '                        2: detailed progress report'
+          write(*,*)
+     1 '                        3: everything (for debugging)'
           write(*,*)
       endif
       write(*,*)
