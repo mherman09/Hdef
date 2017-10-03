@@ -1,20 +1,33 @@
-The primary purpose for this suite of codes is the forward calculation
-of displacements, strains, and stresses from fault slip models, using
-the solutions derived in Okada (1992). The main engines can be found in
-the file okada92subs.f, and most of the other programs are essentially
-designed to use the subroutines in okada92subs.f in seismological or
-geodetic applications.
+Hdef version 1.0
 
-There are also a few programs that I wrote as I came across various
-applications as a Geodynamics student in graduate school. I got tired
-of always looking up certain equations and typing them into my
-calculator, so I wrote simple codes to have these results at my
-fingertips. These are included, and you may find them useful as well.
+The primary purpose for this suite of codes is the forward calculation of displacements, strains,
+and stresses in an elastic half-space (hence, H(alfspace)def(ormation)...). The sources are fault
+slip models, using the solutions derived in Okada (1992). The main engines can be found in the file
+okada92subs.f, and most of the other programs are designed to apply the subroutines in okada92subs.f
+in seismological or geodetic utilities.
 
-GUARANTEES
+There are also programs that I wrote as I came across other applications in Geodynamics. I got
+tired of always rewriting and recalculating and looking up certain equations and typing them into
+my calculator or Matlab, so I wrote some simple codes to have these results at my fingertips. These
+are included, and you may find them useful as well.
+
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-There are none. Happy? I think these results are correct, and I have
-used them to make calculations for peer-reviewed publications, but I
-cannot guarantee that there are no bugs. Feel free to change the codes
-as you see fit. Check out the LICENSE (it's the MIT license).
+
+There are no guarantees: happy? I think these results are correct, and I have used these codes to
+make calculations for peer-reviewed publications, but I cannot guarantee that there are no bugs. If
+you think you have found a bug, please report it to me at:
+
+matthew.w.herman@gmail.com
+
+Feel free to change the codes and use them as you see fit. Please check out the LICENSE when you
+use the software (it's the MIT license). There is no authoritative citation for the codes (yet),
+but the first published papers using the software are:
+
+Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
+2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
+
+Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
+constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake sequence,
+South Island, New Zealand. Tectonophysics 633, 1-15.
 
