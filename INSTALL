@@ -1,27 +1,30 @@
 PREREQUISITES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- Fortran compiler (I work with gfortran, and the codes have also been tested with ifort)
-- LAPACK, installed with the same Fortran compiler as the codes will be (NOTE: you can
-  compile a bunch of the codes without LAPACK, but if you want the complete package, you
-  will need the LAPACK libraries)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~---------------------------
+- Fortran compiler
+	- I work with gfortran; the codes also work compiled with ifort
+- LAPACK
+	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions)
+	- The LAPACK 3.7.1 source code is included in the ext/ directory
+	- A lot of Hdef can still be compiled without LAPACK if preferred
+	- Make sure that LAPACK is installed with the same compiler as Hdef
 
 COMPILING DIRECTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-I did not think too hard about other users installing the software, so this process is a
-little haphazard. Sorry. The simplest option that should work for most people is to run the
-shell script called "simple_configure.sh" from the top directory:
+I did not think too hard about other users installing the software, so this process is a little
+haphazard. Sorry. The simplest option that should work for most people is to run the shell script
+called "simple_configure.sh" in interactive mode from the top directory:
 
 ./simple_configure.sh --interactive
 
-If no command line inputs are specified, a usage statement is printed. The --interactive
-flag will prompt you to enter your Fortran compiler, path to LAPACK (if present), and the
-directory to place the executables.
+If no command line inputs are specified for the simple_configure script, a usage statement is
+printed. The --interactive flag will prompt you to enter your Fortran compiler, the path to LAPACK
+(if you have compiled the libraries), and the directory to place the executables.
 
-This script checks that your compiler exists and LAPACK is present, then generates a
-Makefile for compiling the software. Once this script is completed, you can install
-the software into the designated directory with:
+This script checks that your compiler exists and LAPACK is present, then generates a Makefile for
+compiling the software. Once this script is completed, you can install the software into the
+designated directory with:
 
 make
 
-
+Contact matthew.w.herman@gmail.com for questions.
 
