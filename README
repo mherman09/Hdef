@@ -1,4 +1,4 @@
-Hdef version 1.0.0
+Hdef version 1.1.1
 
 The primary purpose for this suite of codes is the forward calculation of displacements, strains,
 and stresses in an elastic half-space (hence, H(alfspace)def(ormation)...). The sources are fault
