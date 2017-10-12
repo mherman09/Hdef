@@ -6,10 +6,10 @@ C----
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
       CHARACTER*40 ofile
-      CHARACTER*200 clip
+      CHARACTER*200 clip,line
       REAL*8 x1,x2,y1,y2,dx,dy,dz,dd,ref(5),dist,az,lo,la
-      REAL*8 x,y,z,xx(1000),yy(1000),zsave,tmp
-      INTEGER i,j,nx,ny,p,xsec,xz,nn,io
+      REAL*8 x,y,z,xx(1000),yy(1000),zsave
+      INTEGER i,j,nx,ny,p,xsec,xz,nn,io,datain
 
 C----
 C Get parameters from the command line
@@ -29,7 +29,9 @@ C     xsec:
 C     xz:    
 C     clip:  
 C----
-      call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,clip)
+      call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,clip,
+     1            datain)
+      if (datain.eq.1) goto 9001
 C Check that limits and increments are properly defined
       if (x2.lt.x1) call usage('!! Error: X2 must be greater than X1')
       if (y2.lt.y1) call usage('!! Error: Y2 must be greater than Y1')
@@ -46,6 +48,10 @@ C Check that limits and increments are properly defined
       if (ref(5).gt.8.5d1) then
           call usage('!! Error: fault dip greater than 85')
       endif
+ 9001 if (datain.eq.1.and.clip.eq.'none') then
+          call usage('!! Error: can only check if input is inside '//
+     1               'polygon along with -clip')
+      endif
 C If output file unspecified, print result to standard output
       if (ofile.eq.'none'.and.p.eq.0) p = 1
 C If clip file is defined, read it
@@ -57,6 +63,23 @@ C If clip file is defined, read it
               goto 1001
  1002     continue
           nn = i - 1
+      endif
+      close(201)
+
+C----
+C Check if standard input is inside polygon
+C----
+      ! standard input = 5
+      if (datain.eq.1) then
+ 1003     read(5,'(A)',end=1004) line
+              read(line,*) x,y
+              call pnpoly(x,y,xx,yy,nn,io)
+              if (io.eq.1) then
+                  write(*,*) trim(line)
+              endif
+              goto 1003
+ 1004     continue
+          stop
       endif
 
 C----
@@ -86,6 +109,7 @@ C----
 C----
 C Generate grid
 C----
+      zsave = z
       if (p.eq.0) open(unit=101,file=ofile,status='unknown')
       do 16 i = 0,nx-1
           x = x1 + dble(i)*dx
@@ -316,12 +340,12 @@ C3         IF ((Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))) 2,4,5
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,
-     1                  clip)
+     1                  clip,datain)
       IMPLICIT none
       CHARACTER*40 tag,ofile
       CHARACTER*200 clip
       REAL*8 x1,x2,y1,y2,z,dx,dy,ref(5)
-      INTEGER narg,i,j,nx,ny,p,xsec,xz
+      INTEGER narg,i,j,nx,ny,p,xsec,xz,datain
 C Initialize variable values
       x1 = 0.0d0
       x2 = 0.0d0
@@ -337,6 +361,7 @@ C Initialize variable values
       xsec = 0
       xz = 0
       clip = 'none'
+      datain = 0
       do 100 i = 1,5
           ref(i) = -1.0d0
   100 continue
@@ -357,6 +382,8 @@ C Initialize variable values
           i = i + 3
       elseif (tag(1:3).eq.'-xz') then
           xz = 1
+      elseif (tag(1:4).eq.'-in?') then
+          datain = 1
       elseif (tag(1:5).eq.'-clip') then
           i = i + 1
           call getarg(i,clip)
@@ -474,6 +501,10 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-clip XYFILE           Clip points to lie in interior of ',
      2                            'XYFILE (outside points are -12345)'
+      write(*,*)
+     1 '-in?                   Check if input points (from standard ',
+     2                          'input) are in polygon (requires -clip',
+     3                          ' to be set)'
       write(*,*)
      1 '-o OFILE               Output to file (default prints to ',
      2              'standard output)'
