@@ -41,7 +41,7 @@ C----
           call getfmt(arg,ifmt)
           call rdarg(arg,ifmt,opt,long)
           call getans(ans,opt,long)
-          write(*,'(A80)') ans
+          write(*,*) trim(ans)
       endif
 C
       END
