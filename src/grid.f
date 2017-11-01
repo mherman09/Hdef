@@ -9,7 +9,7 @@ C----
       CHARACTER*200 clip,line
       REAL*8 x1,x2,y1,y2,dx,dy,dz,dd,ref(5),dist,az,lo,la
       REAL*8 x,y,z,xx(1000),yy(1000),zsave
-      INTEGER i,j,nx,ny,p,xsec,xz,nn,io,datain
+      INTEGER i,j,k,nx,ny,p,xsec,xz,nn,io,datain,expflg
 
 C----
 C Get parameters from the command line
@@ -30,7 +30,7 @@ C     xz:
 C     clip:  
 C----
       call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,clip,
-     1            datain)
+     1            datain,expflg)
       if (datain.eq.1) goto 9001
 C Check that limits and increments are properly defined
       if (x2.lt.x1) call usage('!! Error: X2 must be greater than X1')
@@ -85,25 +85,43 @@ C----
 C----
 C Calculate number of points and grid increments
 C----
+      ! Loop is over nx and incrementing is done with dx, so always calculate both
       if (dx.gt.0.0d0) then
-          nx = int((x2-x1)/dx+1.0d-6)+1
+          if (mod(expflg,10).eq.0) then
+              nx = int((x2-x1)/dx+1.0d-6)+1
+          else
+              nx = int(dlog(x2/x1)/dlog(dx))+1
+          endif
       elseif (nx.le.1) then
           call usage('!! Error: NX must be 2 or greater')
       else
-          dx = (x2-x1)/dble(nx-1)
+          if (mod(expflg,10).eq.0) then
+              dx = (x2-x1)/dble(nx-1)
+          else
+              dx = dexp(dlog(x2/x1)/dble(nx-1))
+          endif
       endif
 
+      ! Loop is over ny and incrementing is done with dy, so always calculate both
       if (dabs(y2-y1).lt.1.0d-6) then
           ny = 1
       elseif (dy.gt.0.0d0) then
-          ny = int((y2-y1)/dy+1.0d-6)+1
+          if (expflg.lt.10) then
+              ny = int((y2-y1)/dy+1.0d-6)+1
+          else
+              ny = int(dlog(y2/y1)/dlog(dy))+1
+          endif
       elseif (ny.lt.1) then
           call usage('!! Error: NY must be 1 or greater')
       elseif (ny.eq.1) then
           write(0,*) '!! Warning: Using NY=1 with Y1 not equal to Y2'
           dy = 0.0d0
       else
-          dy = (y2-y1)/dble(ny-1)
+          if (expflg.lt.10) then
+              dy = (y2-y1)/dble(ny-1)
+          else
+              dy = dexp(dlog(y2/y1)/dble(ny-1))
+          endif
       endif
 
 C----
@@ -112,12 +130,27 @@ C----
       zsave = z
       if (p.eq.0) open(unit=101,file=ofile,status='unknown')
       do 16 i = 0,nx-1
-          x = x1 + dble(i)*dx
+          ! Using equal or fractional spacing?
+          if (mod(expflg,10).eq.0) then
+              x = x1 + dble(i)*dx
+          else
+              x = x1
+              do 201 k = 1,i
+                  x = x*dx
+  201         continue
+          endif
           if (xsec.eq.1) then
               call dlola(lo,la,ref(1),ref(2),x,ref(3))
           endif
           do 15 j = 0,ny-1
-              y = y1 + dble(j)*dy
+              if (expflg.lt.10) then
+                  y = y1 + dble(j)*dy
+              else
+                  y = y1
+                  do 202 k = 1,j
+                      y = y*dy
+  202             continue
+              endif
 C             CALCULATE Z ON DIPPING GRID
               if (ref(5).gt.0.0d0) then
                   call ddistaz(dist,az,ref(1),ref(2),x,y)
@@ -324,7 +357,7 @@ C relative to the point of interest (px,py)
 3         var = (Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))
           if (var.lt.0.0d0) then
               goto 2
-          elseif (var.eq.0.0d0) then
+          elseif (dabs(var).lt.1.0d-8) then
               goto 4
           else
               goto 5
@@ -340,12 +373,12 @@ C3         IF ((Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))) 2,4,5
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,
-     1                  clip,datain)
+     1                  clip,datain,expflg)
       IMPLICIT none
       CHARACTER*40 tag,ofile
       CHARACTER*200 clip
       REAL*8 x1,x2,y1,y2,z,dx,dy,ref(5)
-      INTEGER narg,i,j,nx,ny,p,xsec,xz,datain
+      INTEGER narg,i,j,nx,ny,p,xsec,xz,datain,expflg
 C Initialize variable values
       x1 = 0.0d0
       x2 = 0.0d0
@@ -362,6 +395,7 @@ C Initialize variable values
       xz = 0
       clip = 'none'
       datain = 0
+      expflg = 0
       do 100 i = 1,5
           ref(i) = -1.0d0
   100 continue
@@ -421,6 +455,16 @@ C Initialize variable values
           i = i + 1
           call getarg(i,tag)
           read (tag,'(BN,F12.0)') dy
+      elseif (tag(1:4).eq.'-exp') then
+          i = i + 1
+          call getarg(i,tag)
+          if(tag.eq.'x') then
+              expflg = expflg + 1
+          elseif (tag.eq.'y') then
+              expflg = expflg + 10
+          else
+              call usage('!! Error: no -exp option'//trim(tag))
+          endif
       elseif (tag(1:4).eq.'-dip') then
           do 102 j = 1,5
               call getarg(i+j,tag)
@@ -508,6 +552,12 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-o OFILE               Output to file (default prints to ',
      2              'standard output)'
+      write(*,*)
+     1 '-exp x|y               Make grid increment x|y exponential'
+      write(*,*)
+     1 '                           nx/ny => equal fraction spacing'
+      write(*,*)
+     1 '                           dx/dy => fractional increment'
       write (*,*)
      1 '-p                     Print results to standard output ',
      2                               '(overrides -o)'
