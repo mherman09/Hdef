@@ -165,10 +165,19 @@ C             CALCULATE Z ON DIPPING GRID
                   call pnpoly(x,y,xx,yy,nn,io)
                   if (io.eq.-1) z = -12345d0
               endif
+              !!!!!!!!!!!!!!!!!!if (dabs(x).gt.1e6.or.dabs(y).gt.1e6) then
               if (p.eq.0.and.xsec.eq.0) then
-                  write(101,9999) x,y,z
+                  if (dabs(x).lt.1e5.and.dabs(y).lt.1e5) then
+                      write(101,9999) x,y,z
+                  else
+                      write(101,9998) x,y,z
+                  endif
               elseif (p.eq.1.and.xsec.eq.0) then
-                  write(*,9999) x,y,z
+                  if (dabs(x).lt.1e5.and.dabs(y).lt.1e5) then
+                      write(*,9999) x,y,z
+                  else
+                      write(*,9998) x,y,z
+                  endif
               elseif (p.eq.0.and.xsec.eq.1.and.xz.eq.0) then
                   write(101,9999) lo,la,y
               elseif (p.eq.1.and.xsec.eq.1.and.xz.eq.0) then
@@ -183,6 +192,7 @@ C             CALCULATE Z ON DIPPING GRID
    16 continue
       stop
 
+ 9998 format (3(1PE16.8))
  9999 format (3F16.8)
 
       END 
