@@ -234,7 +234,8 @@ misc: \\
       \$(BIN)/grid \\
       \$(BIN)/pt2fin \\
       \$(BIN)/perturb \\
-      \$(BIN)/readkik
+      \$(BIN)/readkik \\
+      \$(BIN)/eqempirical
 \$(BIN)/dateutil: src/dateutil.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil src/dateutil.f
 \$(BIN)/eventfrequency: src/eventfrequency.f
@@ -249,6 +250,8 @@ misc: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/perturb src/perturb.f src/randsubs.f
 \$(BIN)/readkik: src/readkik.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
+\$(BIN)/eqempirical: src/eqempirical.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/eqempirical src/eqempirical.f
 
 fits: \\
       \$(BIN)/polyfit \\
