@@ -37,6 +37,10 @@
 !----
       if (model.eq.'WELLSCOPP') then
           call wellscopp(mom,mag)
+      elseif (model.eq.'MAIBEROZA') then
+          call maiberoza(mom,mag)
+      elseif (model.eq.'ALLENHAYES') then
+          call allenhayes(mom,mag)
       else
           call usage('!! Error: no relationship named '//trim(model))
       endif
@@ -46,6 +50,10 @@
 !----------------------------------------------------------------------!
 
       SUBROUTINE wellscopp(mom,mag)
+! Wells, D.L., Coppersmith, K.J. (1994). New empirical relationships
+! among magnitude, rupture length, rupture width, rupture area, and
+! surface displacement. Bulletin of the Seismological Society of America
+! 84, 974-1002.
       IMPLICIT none
       REAL*8 mom,mag,a(4),b(4),surlen,totlen,width,area,maxslp,avgslp
       CHARACTER*3 typ(4)
@@ -125,7 +133,7 @@
       write(*,1007)
       do 105 i = 1,4
           maxslp = 10**(a(i)+b(i)*mag)
-          write(*,1002) typ(i),maxslp
+          write(*,1008) typ(i),maxslp
   105 continue
       ! Average slip
       a(1) = -6.32d0  ! 0.61
@@ -136,19 +144,185 @@
       b(2) = 0.08d0   ! 0.21
       b(3) = 0.63d0   ! 0.24
       b(4) = 0.69d0   ! 0.08
-      write(*,1008)
+      write(*,1009)
       do 106 i = 1,4
           avgslp = 10**(a(i)+b(i)*mag)
-          write(*,1002) typ(i),avgslp
+          write(*,1008) typ(i),avgslp
   106 continue
  1001 format('Surface rupture length:')
- 1002 format(4X,A6,':',F12.3,X,'m')
+ 1002 format(4X,A6,':',F12.3,X,'km')
  1003 format('Total subsurface rupture length:')
  1004 format('Downdip rupture width:')
  1005 format('Total rupture area:')
- 1006 format(4X,A6,':',F12.3,X,'m^2')
+ 1006 format(4X,A6,':',F12.3,X,'km^2')
  1007 format('Maximum slip:')
- 1008 format('Average slip:')
+ 1008 format(4X,A6,':',F12.3,X,'m')
+ 1009 format('Average slip:')
+      RETURN
+      END
+
+!----------------------------------------------------------------------!
+
+      SUBROUTINE maiberoza(mom,mag)
+! Mai, P.M., Beroza, G.C. (2000). Source scaling properties from finite-
+! fault-rupture models. Bulletin of the Seismological Society of America
+! 90, 604-615.
+      IMPLICIT none
+      REAL*8 mom,mag,a(3),b(3),efflen,effwid,effarea,effslp
+      CHARACTER*3 typ(3)
+      INTEGER i
+      write(*,1100) mom,mag
+ 1100 format('For moment =',X,1PE10.3,X,'Nm,'4X,'magnitude =',X,0PF6.2)
+
+      typ(1) = 'ss'
+      typ(2) = 'ds'
+      typ(3) = 'all'
+      ! Effective rupture length
+      a(1) = -6.31d0  ! +/-1.15
+      a(2) = -6.39d0  ! 1.04
+      a(3) = -6.13d0  ! 0.74
+      b(1) = 0.40d0   ! 0.06
+      b(2) = 0.40d0   ! 0.05
+      b(3) = 0.39d0   ! 0.04
+      write(*,1101)
+      do 101 i = 1,3
+          efflen = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1102) typ(i),efflen
+  101 continue
+      ! Effective rupture width
+      a(1) = -2.18d0  ! 1.09
+      a(2) = -5.51d0  ! 0.81
+      a(3) = -5.05d0  ! 0.74
+      b(1) = 0.17d0   ! 0.06
+      b(2) = 0.35d0   ! 0.04
+      b(3) = 0.32d0   ! 0.04
+      write(*,1103)
+      do 102 i = 1,3
+          effwid = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1102) typ(i),effwid
+  102 continue
+      ! Effective rupture area
+      a(1) = -8.49d0  ! 1.85
+      a(2) = -11.90d0  ! 1.67
+      a(3) = -11.18d0  ! 1.18
+      b(1) = 0.57d0   ! 0.10
+      b(2) = 0.75d0   ! 0.09
+      b(3) = 0.72d0   ! 0.06
+      write(*,1104)
+      do 103 i = 1,3
+          effarea = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1105) typ(i),effarea
+  103 continue
+      ! Effective slip
+      a(1) = -6.03d0  ! 1.85
+      a(2) = -2.62d0  ! 1.67
+      a(3) = -3.34d0  ! 1.18
+      b(1) = 0.43d0   ! 0.10
+      b(2) = 0.25d0   ! 0.09
+      b(3) = 0.29d0   ! 0.06
+      write(*,1106)
+      do 104 i = 1,3
+          effslp = 10**(a(i)+b(i)*dlog10(mom))
+          effslp = effslp/1.0d2 ! relation is in cm, convert to m
+          write(*,1107) typ(i),effslp
+  104 continue
+ 1101 format('Effective rupture length:')
+ 1102 format(4X,A6,':',F12.3,X,'km')
+ 1103 format('Effective rupture width:')
+ 1104 format('Effective rupture area:')
+ 1105 format(4X,A6,':',F12.3,X,'km^2')
+ 1106 format('Effective slip:')
+ 1107 format(4X,A6,':',F12.3,X,'m')
+      RETURN
+      END
+
+!----------------------------------------------------------------------!
+
+      SUBROUTINE allenhayes(mom,mag)
+      IMPLICIT none
+      REAL*8 mom,mag,a(1),b(1),len,wid1,wid2,area1,area2,maxslp,avgslp
+      CHARACTER*3 typ(1)
+      INTEGER i
+      write(*,1000) mom,mag
+ 1000 format('For moment =',X,1PE10.3,X,'Nm,'4X,'magnitude =',X,0PF6.2)
+
+      typ(1) = 'thr'
+      ! rupture length
+      a(1) = -2.90d0
+      b(1) = 0.63d0
+      write(*,1201)
+      do 101 i = 1,1
+          len = 10**(a(i)+b(i)*mag)
+          write(*,1202) typ(i),len
+  101 continue
+      ! rupture width (linear regression)
+      a(1) = -0.86d0
+      b(1) = 0.35d0
+      write(*,1203)
+      do 102 i = 1,1
+          wid1 = 10**(a(i)+b(i)*mag)
+          write(*,1202) typ(i),wid1
+  102 continue
+      ! rupture width (bilinear regression w saturation)
+      if (mag.le.8.67) then
+          a(1) = -1.91d0
+          b(1) = 0.48d0
+      else
+          a(1) = 2.29d0
+          b(1) = 0.0d0
+      endif
+      write(*,1204)
+      do 103 i = 1,1
+          wid2 = 10**(a(i)+b(i)*mag)
+          write(*,1202) typ(i),wid2
+  103 continue
+      ! rupture area (linear regression)
+      a(1) = -3.63d0
+      b(1) = 0.96d0
+      write(*,1205)
+      do 104 i = 1,1
+          area1 = 10**(a(i)+b(i)*mag)
+          write(*,1206) typ(i),area1
+  104 continue
+      ! rupture area (bilinear regression w saturation)
+      if (mag.le.8.67) then
+          a(1) = -5.62d0
+          b(1) = 1.22d0
+      else
+          a(1) = 2.23d0
+          b(1) = 0.31d0
+      endif
+      write(*,1207)
+      do 105 i = 1,1
+          area2 = 10**(a(i)+b(i)*mag)
+          write(*,1206) typ(i),area2
+  105 continue
+      ! maximum slip
+      a(1) = -4.94d0
+      b(1) = 0.71d0
+      write(*,1208)
+      do 106 i = 1,1
+          maxslp = 10**(a(i)+b(i)*mag)
+          write(*,1209) typ(i),maxslp
+  106 continue
+      ! average slip
+      a(1) = -5.05d0
+      b(1) = 0.66d0
+      write(*,1210)
+      do 107 i = 1,1
+          avgslp = 10**(a(i)+b(i)*mag)
+          write(*,1209) typ(i),avgslp
+  107 continue
+ 1201 format('Rupture length:')
+ 1202 format(4X,A6,':',F12.3,X,'km')
+ 1203 format('Rupture width (linear):')
+ 1204 format('Rupture width (bilinear: saturates at Mw 8.67):')
+ 1205 format('Rupture area (linear):')
+ 1206 format(4X,A6,':',F12.3,X,'km^2')
+ 1207 format('Rupture area (bilinear: saturates at Mw 8.67):')
+ 1208 format('Maximum slip:')
+ 1209 format(4X,A6,':',F12.3,X,'m')
+ 1210 format('Average slip:')
       RETURN
       END
 
@@ -217,20 +391,23 @@
 !      write(0,*)
 !     1 '                       HANKSBAKUN (Hanks and Bakun, 2008)'
       write(0,*)
-     1 '                       BLASERETAL (Blaser et al., 2010): ',
+     1 '                       *BLASERETAL (Blaser et al., 2010): ',
      2                         'global subduction zone events (Mw 4.8-',
      3                         '9.5)'
       write(0,*)
-     1 '                       STRASSERETAL (Strasser et al., 2010): ',
+     1 '                       *STRASSERETAL (Strasser et al., 2010): ',
      2                         'global subduction zone events (Mw 6.0-',
      3                         '9.5)'
       write(0,*)
-     1 '                       YENMA (Yen and Ma, 2011): collision ',
+     1 '                       *YENMA (Yen and Ma, 2011): collision ',
      2                         'zone (Taiwan) events (Mw 4.6-8.9)'
 !      write(0,*)
 !     1 '                       STIRLINGETAL (Stirling et al., 2013)'
       write(0,*)
-     1 '                       HAYES (Hayes, 2017): global finite ',
-     2                         'fault models of Mw 7.5-9.2 events'
+     1 '                       ALLENHAYES (Allen and Hayes, 2017): ',
+     2                         'global finite fault models of Mw 7.1-',
+     3                         '9.2 subduction interface events'
+      write(0,*)
+     1 '                       * not yet implemented'
       STOP
       END
