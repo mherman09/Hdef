@@ -501,14 +501,14 @@ C Remove all fault sources with slip less than sthr
       smax = 0.0d0
       if (sthr.lt.-1.0d-6) then
           do 300 i = 1,nflt
-              if (slip(i).gt.smax) smax = slip(i)
+              if (dabs(slip(i)).gt.smax) smax = dabs(slip(i))
   300     continue
           sthr = dabs(sthr)*smax
       endif
 
       j = 0
       do 301 i = 1,nflt
-          if (slip(i).ge.sthr) then
+          if (dabs(slip(i)).ge.sthr) then
               j = j + 1
               evlo(j) = evlo(i)
               evla(j) = evla(i)
@@ -2554,7 +2554,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '               [-vol VOLFILE (!!TESTING!!)]'
       write(*,*)
-     1 '               [-h|-help] [-d|-details]'
+     1 '               [-h|-help] [-d|-details] [-verbose [LVL]]'
       write(*,*)
       STOP
       END
@@ -2591,7 +2591,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '               [-vol VOLFILE (!!TESTING!!)]'
       write(*,*)
-     1 '               [-h|-help] [-d|-details]'
+     1 '               [-h|-help] [-d|-details] [-verbose [LVL]]'
       write(*,*)
       if (str.eq.'long') then
           write(*,*)
@@ -3058,6 +3058,9 @@ C----------------------------------------------------------------------C
           write(*,9999)
           write(*,*)
       endif
+      write(*,*)
+     1 '-verbose [LVL]          Run in verbose mode (LVL=1: low ',
+     2                          '(default), LVL=2: medium, LVL=3: high)'
       write(*,*)
      1 '-h|-help                Short online help'
       write(*,*)
