@@ -90,6 +90,10 @@ C----
           if (mod(expflg,10).eq.0) then
               nx = int((x2-x1)/dx+1.0d-6)+1
           else
+              if (dx.le.1.0d0) then
+                  call usage('!! Error: in exponential mode, DX must '//
+     1                       'be greater than 1')
+              endif
               nx = int(dlog(x2/x1)/dlog(dx))+1
           endif
       elseif (nx.le.1) then
@@ -109,6 +113,10 @@ C----
           if (expflg.lt.10) then
               ny = int((y2-y1)/dy+1.0d-6)+1
           else
+              if (dy.le.1.0d0) then
+                  call usage('!! Error: in exponential mode, DY must '//
+     1                       'be greater than 1')
+              endif
               ny = int(dlog(y2/y1)/dlog(dy))+1
           endif
       elseif (ny.lt.1) then
@@ -523,7 +531,7 @@ C----------------------------------------------------------------------C
      2            '-y Y1 Y2 [-ny NY|-dy DY] -RX1/X2/Y1/Y2'
       write(*,*)
      1 '            [-z Z|-dip X0 Y0 Z0 STR ',
-     2              'DIP|-xsec X0 Y0 AZ [-xz]]'
+     2              'DIP|-xsec X0 Y0 AZ [-xz]] [-exp x|y]'
       write(*,*)
      1 '            [-clip XYFILE] [-o OFILE] [-p] [-h]'
       write(*,*)
