@@ -41,6 +41,8 @@
           call maiberoza(mom,mag)
       elseif (model.eq.'ALLENHAYES') then
           call allenhayes(mom,mag)
+      elseif (model.eq.'YENMA') then
+          call yenma(mom,mag)
       else
           call usage('!! Error: no relationship named '//trim(model))
       endif
@@ -238,7 +240,86 @@
 
 !----------------------------------------------------------------------!
 
+      SUBROUTINE yenma(mom,mag)
+! Yen, Y.T., Ma, K.F. (2011). Source-scaling relationship for M 4.6-8.9
+! earthquakes, specifically for earthquakes in the collision zone of
+! Taiwan. Bulletin of the Seismological Society of America 101, 464–481.
+      IMPLICIT none
+      REAL*8 mom,mag,a(3),b(3),len,wid,area,slip
+      CHARACTER*3 typ(3)
+      INTEGER i
+      write(*,1000) mom,mag
+ 1000 format('For moment =',X,1PE10.3,X,'Nm,'4X,'magnitude =',X,0PF6.2)
+
+      typ(1) = 'all'
+      typ(2) = 'ds'
+      typ(3) = 'ss'
+      ! rupture length
+      a(1) = -7.46 ! +/- 0.77
+      a(2) = -6.66 ! 1.05
+      a(3) = -8.11 ! 1.20
+      b(1) = 0.47 ! 0.04
+      b(2) = 0.42 ! 0.06
+      b(3) = 0.50 ! 0.07
+      write(*,1301)
+      do 131 i = 1,3
+          len = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1302) typ(i),len
+  131 continue
+      ! rupture width
+      a(1) = -6.30 ! 0.90
+      a(2) = -5.76 ! 1.30
+      a(3) = -6.67 ! 1.38
+      b(1) = 0.40 ! 0.05
+      b(2) = 0.37 ! 0.07
+      b(3) = 0.42 ! 0.08
+      write(*,1303)
+      do 132 i = 1,3
+          wid = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1302) typ(i),wid
+  132 continue
+      ! rupture area
+      a(1) = -13.79 ! 1.63
+      a(2) = -12.45 ! 2.32
+      a(3) = -14.77 ! 2.46
+      b(1) = 0.87 ! 0.09
+      b(2) = 0.80 ! 0.13
+      b(3) = 0.92 ! 0.14
+      write(*,1304)
+      do 133 i = 1,3
+          area = 10**(a(i)+b(i)*dlog10(mom))
+          write(*,1305) typ(i),area
+  133 continue
+      ! average slip
+      a(1) = -0.65 ! 1.64
+      a(2) = -2.01 ! 2.32
+      a(3) = 0.36 ! 2.47
+      b(1) = 0.13 ! 0.09
+      b(2) = 0.20 ! 0.13
+      b(3) = 0.08 ! 0.14
+      write(*,1306)
+      do 134 i = 1,3
+          slip = 10**(a(i)+b(i)*dlog10(mom))
+          slip = slip/1.0d2 ! relation is in cm, convert to m
+          write(*,1307) typ(i),slip
+  134 continue
+ 1301 format('Rupture length:')
+ 1302 format(4X,A6,':',F12.3,X,'km')
+ 1303 format('Rupture width:')
+ 1304 format('Rupture area:')
+ 1305 format(4X,A6,':',F12.3,X,'km^2')
+ 1306 format('Average slip:')
+ 1307 format(4X,A6,':',F12.3,X,'m')
+      RETURN
+      END
+
+!----------------------------------------------------------------------!
+
       SUBROUTINE allenhayes(mom,mag)
+! Allen, T.I., Hayes, G.P. (2017). Alternative rupture‐scaling
+! relationships for subduction interface and other offshore
+! environments. Bulletin of the Seismological Society of America 107,
+! 1240–1253.
       IMPLICIT none
       REAL*8 mom,mag,a(1),b(1),len,wid1,wid2,area1,area2,maxslp,avgslp
       CHARACTER*3 typ(1)
@@ -387,26 +468,26 @@
       write(0,*)
      1 '                       MAIBEROZA (Mai and Beroza, 2000): ',
      2                         'global finite fault models (Mw 5.5-',
-     3                         '8.0 events)'
+     3                         '8.0)'
 !      write(0,*)
 !     1 '                       HANKSBAKUN (Hanks and Bakun, 2008)'
       write(0,*)
      1 '                       *BLASERETAL (Blaser et al., 2010): ',
-     2                         'global subduction zone events (Mw 4.8-',
+     2                         'global subduction zone (Mw 4.8-',
      3                         '9.5)'
       write(0,*)
      1 '                       *STRASSERETAL (Strasser et al., 2010): ',
-     2                         'global subduction zone events (Mw 6.0-',
+     2                         'global subduction zone (Mw 6.0-',
      3                         '9.5)'
       write(0,*)
-     1 '                       *YENMA (Yen and Ma, 2011): collision ',
-     2                         'zone (Taiwan) events (Mw 4.6-8.9)'
+     1 '                       *YENMA (Yen and Ma, 2011): Taiwan ',
+     2                         'collision zone (Mw 4.6-8.9)'
 !      write(0,*)
 !     1 '                       STIRLINGETAL (Stirling et al., 2013)'
       write(0,*)
      1 '                       ALLENHAYES (Allen and Hayes, 2017): ',
-     2                         'global finite fault models of Mw 7.1-',
-     3                         '9.2 subduction interface events'
+     2                         'global finite fault models, ',
+     3                         'subduction interface (Mw 7.1-9.2)'
       write(0,*)
      1 '                       * not yet implemented'
       STOP
