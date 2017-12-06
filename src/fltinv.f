@@ -36,23 +36,23 @@ C----
       if (vrb.ge.2) then
           write(0,*)
           write(0,'("Parsed command line inputs:")')
-          write(0,'("fltf:   ",4X,A)'),fltf
-          write(0,'("obsf:   ",4x,A)'),obsf
-          write(0,'("ofile:  ",4X,A)'),ofile
-          write(0,'("haff:   ",4X,A)'),haff
-          write(0,'("smoof:  ",4X,A)'),smoof
-          write(0,'("annf:   ",4X,A)'),annf
-          write(0,'("smooth: ",F12.6)'),smooth
-          write(0,'("damp:   ",F12.6)'),damp
-          write(0,'("geo:    ",I5)'),geo
-          write(0,'("p:      ",I5)'),p
-          write(0,'("invert: ",I5)'),invert
-          write(0,'("ostyle: ",I5)'),ostyle
-          write(0,'("misfit: ",I5)'),misfit
-          write(0,'("getdmp: ",I5)'),getdmp
-          write(0,'("fact:   ",F12.6)'),fact
-          write(0,'("stscon: ",F12.6)'),stscon
-          write(0,'("lkfile: ",4X,A)'),lkfile
+          write(0,'("fltf:   ",4X,A)') fltf
+          write(0,'("obsf:   ",4x,A)') obsf
+          write(0,'("ofile:  ",4X,A)') ofile
+          write(0,'("haff:   ",4X,A)') haff
+          write(0,'("smoof:  ",4X,A)') smoof
+          write(0,'("annf:   ",4X,A)') annf
+          write(0,'("smooth: ",F12.6)') smooth
+          write(0,'("damp:   ",F12.6)') damp
+          write(0,'("geo:    ",I5)') geo
+          write(0,'("p:      ",I5)') p
+          write(0,'("invert: ",I5)') invert
+          write(0,'("ostyle: ",I5)') ostyle
+          write(0,'("misfit: ",I5)') misfit
+          write(0,'("getdmp: ",I5)') getdmp
+          write(0,'("fact:   ",F12.6)') fact
+          write(0,'("stscon: ",F12.6)') stscon
+          write(0,'("lkfile: ",4X,A)') lkfile
           write(0,*)
       endif
 
@@ -80,8 +80,8 @@ C----
       if (vrb.ge.3) then
           write(0,'("INPUT OBSERVATIONS")')
           write(0,'("------------------")')
-          write(0,'("nobs: ",I5)'),nobs
-          write(0,'(3A12,3A14)'),'x','y','z','ux','uy','uz'
+          write(0,'("nobs: ",I5)') nobs
+          write(0,'(3A12,3A14)') 'x','y','z','ux','uy','uz'
           do 901 i = 1,nobs
               write(0,'(3F12.2,3F14.4)') (obs(i,j),j=1,6)
   901     continue
@@ -96,8 +96,8 @@ C----
       if (vrb.ge.3) then
           write(0,'("INPUT FAULTS")')
           write(0,'("------------")')
-          write(0,'("nflt: ",I5)'),nflt
-          write(0,'(3A12,4A14)'),'x','y','z','str','dip','wid','len'
+          write(0,'("nflt: ",I5)') nflt
+          write(0,'(3A12,4A14)') 'x','y','z','str','dip','wid','len'
           do 902 i = 1,nflt
               write(0,'(3F12.2,4F14.4)') (flt(i,j),j=1,7)
   902     continue
@@ -127,7 +127,7 @@ C----
           write(0,*)
           write(0,'("HALF-SPACE PARAMETERS")')
           write(0,'("---------------------")')
-          write(0,'(3A14)'),'vp','vs','dens'
+          write(0,'(3A14)') 'vp','vs','dens'
           write(0,'(3F14.4)') haf(1),haf(2),haf(3)
           write(0,*)
       endif
