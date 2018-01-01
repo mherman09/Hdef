@@ -60,7 +60,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE getpole(pole,polec,model,verbos)
       IMPLICIT none
-      CHARACTER*80 polec
+      CHARACTER*80 polec,model_name
       REAL*8 pole(3),x(3)
       INTEGER i,isave,model,verbos
 
@@ -109,8 +109,18 @@ C----------------------------------------------------------------------C
 
       ! Compute Cartesian Euler pole
       if (i.gt.0) then
+          if (i.eq.1) then
+              model_name = 'MORVEL'
+          elseif (i.eq.2) then
+              model_name = 'NUVEL-1A'
+          elseif (i.eq.3) then
+              model_name = 'MORVEL56'
+          else
+              call usage('!! Error: No such model!')
+          endif
           if (verbos.eq.1) then
-              write(0,*) 'getpole says: Using plate circuit model'
+              write(0,*) 'getpole says: Using plate circuit model: ',
+     1                   trim(model_name)
           endif
           call model2pole(pole,polec,model,verbos)
       elseif (i.lt.0) then
@@ -272,8 +282,8 @@ C----------------------------------------------------------------------C
                   x(i,2) = 65.5
                   x(i,3) = 0.968
               elseif (plate(i).eq.'ITRF') then
-                  x(i,1) = -68.2+180.0
-                  x(i,2) = -63.4
+                  x(i,1) = -68.2
+                  x(i,2) = 63.4
                   x(i,3) = 0.677
               elseif (plate(i).eq.'PA') then
                   x(i,1) = 0.0
