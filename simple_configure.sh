@@ -279,7 +279,8 @@ scripts: \\
       \$(BIN)/surf_disp.sh \\
       \$(BIN)/simplify_ffm.sh \\
       \$(BIN)/ternary.sh \\
-      \$(BIN)/trg_schem.sh 
+      \$(BIN)/trg_schem.sh \\
+      \$(BIN)/gmtcpt.sh
 \$(BIN)/coul_hor.sh: scripts/coul_hor.sh
 	cp scripts/coul_hor.sh \$(BIN)/coul_hor.sh
 \$(BIN)/coul_dip.sh: scripts/coul_dip.sh
@@ -294,6 +295,8 @@ scripts: \\
 	cp scripts/ternary.sh \$(BIN)/ternary.sh
 \$(BIN)/trg_schem.sh: scripts/trg_schem.sh
 	cp scripts/trg_schem.sh \$(BIN)/trg_schem.sh
+\$(BIN)/gmtcpt.sh: scripts/gmtcpt.sh
+	cp scripts/gmtcpt.sh \$(BIN)/gmtcpt.sh
 
 other: \\
       \$(BIN)/pole2vel \\
