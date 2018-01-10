@@ -857,19 +857,19 @@ fi
 if [ "$FORMAT" == "SEPARATE" ]
 then
     list=$red
-    getVal > r.tmp
+    getVal > rrr.tmp
     list=$green
-    getVal > g.tmp
+    getVal > ggg.tmp
     list=$blue
-    getVal > b.tmp
-    paste r.tmp g.tmp b.tmp |\
+    getVal > bbb.tmp
+    paste rrr.tmp ggg.tmp bbb.tmp |\
         awk '{
             r = $1*255; if(r<0){r=0}; if(r>255){r=255}
             g = $2*255; if(g<0){g=0}; if(g>255){g=255}
             b = $3*255; if(b<0){b=0}; if(b>255){b=255}
             print NR, r"/"g"/"b, NR+1, r"/"g"/"b
         }' > gmtcpttmp.cpt
-    rm *.tmp
+    rm rrr.tmp ggg.tmp bbb.tmp
 elif [ "$FORMAT" == "STANDARD" ]
 then
     echo $rgb |\
