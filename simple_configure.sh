@@ -235,7 +235,8 @@ misc: \\
       \$(BIN)/pt2fin \\
       \$(BIN)/perturb \\
       \$(BIN)/readkik \\
-      \$(BIN)/eqempirical
+      \$(BIN)/eqempirical \\
+      \$(BIN)/colortool
 \$(BIN)/dateutil: src/dateutil.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil src/dateutil.f
 \$(BIN)/eventfrequency: src/eventfrequency.f
@@ -252,6 +253,10 @@ misc: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
 \$(BIN)/eqempirical: src/eqempirical.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/eqempirical src/eqempirical.f
+\$(BIN)/colortool: src/colortool.f90 src/colormodule.f90
+	\$(FC) \$(FFLAG) -c src/colormodule.f90 -ffree-form
+	\$(FC) \$(FFLAG) -o \$(BIN)/colortool src/colortool.f90 src/colormodule.f90 -ffree-form
+	rm colormodule.o colormodule.mod
 
 fits: \\
       \$(BIN)/polyfit \\
