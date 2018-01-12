@@ -2,12 +2,14 @@
 
 # Configure script command line options
 function usage() {
-    echo "$0 [--fortran_compiler=FC] [--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [--bin_dir=/PATH/TO/EXECUTABLES] [--interactive]"
+    echo "$0 [-f|--fortran_compiler=FC] [-l|--lapack_dir=/PATH/TO/LAPACK/LIBRARIES] [-b|--bin_dir=/PATH/TO/EXECUTABLES]"
+    echo "   [-i|--interactive] [-d|--default]"
     echo
-    echo "--fortran_compiler=FC                      Define Fortran compiler"
-    echo "--lapack_dir=/PATH/TO/LAPACK/LIBRARIES     Define location of LAPACK libraries"
-    echo "--bin_dir=/PATH/TO/EXECUTABLES             Define path for installing executables"
-    echo "--interactive                              Script prompts for inputs"
+    echo "-f|--fortran_compiler=FC                   Define Fortran compiler"
+    echo "-l|--lapack_dir=/PATH/TO/LAPACK/LIBRARIES  Define location of LAPACK libraries"
+    echo "-b|--bin_dir=/PATH/TO/EXECUTABLES          Define path for installing executables"
+    echo "-i|--interactive                           Script prompts for inputs"
+    echo "-d|--default                               Use Matt's default values (FC=gfortran, LAPACK_DIR=/sw/lib/lapack, BIN_DIR=bin)"
     echo
     echo "Note: if working in a root directory or trying to install programs in a root directory, may have to use \"sudo $0\""
     exit 1
@@ -22,14 +24,14 @@ FC=""
 LAPACK_LIB_DIR=""
 BIN_DIR=""
 INTERACTIVE="N"
-DEFAULT="N"
 while [ "$1" != "" ]
 do
     case $1 in
-        --fortran_compiler=*)FC=`echo $1 | sed -e "s/--fortran_compiler=//"`;;
-        --lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/--lapack_dir=//"`;;
-        --bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/--bin_dir=//"`;;
-        --interactive)INTERACTIVE="Y";;
+        -f=*|--fortran_compiler=*)FC=`echo $1 | sed -e "s/.*=//"`;;
+        -l=*|--lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        -b=*|--bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        -i=*|--interactive)INTERACTIVE="Y";;
+        -d|--default)FC="gfortran";LAPACK_LIB_DIR="/sw/lib/lapack";BIN_DIR="bin";;
         *)echo "!! Error: No option $1"; usage;;
     esac
     shift
