@@ -58,6 +58,8 @@ program main
     endif
 end
 
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
+
 subroutine formatrgb(red,grn,blu,rgbstring)
     implicit none
     real :: red,grn,blu
@@ -124,12 +126,17 @@ subroutine maxchroma(lin,hin,cmax)
         if (clip(1).eq.0.and.clip(2).eq.0.and.clip(3).eq.0) then
             cmax = c
         else
+            !write(0,*) 'Using max chroma= ',cmax
             return
         endif
         c = c + 0.2
     enddo
 return
 end
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
+! Color space conversion subroutines
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
 subroutine lch2lab(ciec,cieh,ciea,cieb)
 ! Lightness-chroma-hue to lightness-a-b
@@ -305,6 +312,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
     integer :: i,j,narg
     character(len=200) :: tag
     character(len=*) :: option
+    character(len=1) :: ch1,ch2
     real :: hue1,hue2,light1,light2,chroma1,chroma2
     integer :: ncolors,vrb
     option = ''
@@ -312,8 +320,8 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
     hue2 = 360.0
     light1 = 0.0
     light2 = 100.0
-    chroma1 = 50.0
-    chroma2 = 50.0
+    chroma1 = 40.0
+    chroma2 = 40.0
     ncolors = 10
     vrb = 0
     narg = iargc()
@@ -321,15 +329,54 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
     i = 1
     do while (i.le.narg)
         call getarg(i,tag)
-        if (tag(1:11).eq.'-perceptual') then
+        if (tag(1:5).eq.'-cmap') then
             i = i + 1
             call getarg(i,option)
         elseif (tag(1:4).eq.'-hue') then
+            hue1 = -1.0
+            hue2 = -1.0
             i = i + 1
             call getarg(i,tag)
             j = index(tag,',')
             tag(j:j) = ' '
-            read(tag,*) hue1,hue2
+            read(tag,*) ch1,ch2
+            if (ch1.eq.'m') then
+                hue1 = 0
+            elseif (ch1.eq.'r') then
+                hue1 = 30
+            elseif (ch1.eq.'o') then
+                hue1 = 50
+            elseif (ch1.eq.'y') then
+                hue1 = 90
+            elseif (ch1.eq.'g') then
+                hue1 = 150
+            elseif (ch1.eq.'b') then
+                hue1 = 270
+            elseif (ch1.eq.'p') then
+                hue1 = 330
+            endif
+            if (ch2.eq.'m') then
+                hue2 = 0
+            elseif (ch2.eq.'r') then
+                hue2 = 30
+            elseif (ch2.eq.'o') then
+                hue2 = 50
+            elseif (ch2.eq.'y') then
+                hue2 = 90
+            elseif (ch2.eq.'g') then
+                hue2 = 150
+            elseif (ch2.eq.'b') then
+                hue2 = 270
+            elseif (ch2.eq.'p') then
+                hue2 = 330
+            endif
+            if (hue1.lt.-0.5.and.hue2.lt.-0.5) then
+                read(tag,*) hue1,hue2
+            elseif (hue1.lt.-0.5) then
+                read(tag,*) hue1,ch2
+            elseif (hue2.lt.-0.5) then
+                read(tag,*) ch1,hue2
+            endif
         elseif (tag(1:6).eq.'-light') then
             i = i + 1
             call getarg(i,tag)
@@ -348,6 +395,8 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
             read(tag,*) ncolors
         elseif (tag(1:2).eq.'-v') then
             vrb = 1
+        elseif (tag(1:2).eq.'-d') then
+            call usage('long')
         else
             call usage('!! Error: no option '//trim(tag))
         endif
@@ -359,21 +408,51 @@ end
 subroutine usage(str)
     implicit none
     character(len=*) :: str
-    if (str.ne.'') then
+    if (str.ne.''.and.str.ne.'long') then
         write(0,*) str
         write(0,*)
     endif
-    write(0,*) 'Usage: colortool -perceptual OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-ncolors N] [-v verbose]'
-    write(0,*) '-perceptual OPTION      Generate a perceptually linear color scheme'
-    write(0,*) '                            spiral: rotate through hues in LCH space (r->o->y->g->b->p)'
-    write(0,*) '                            linear: draw line through LAB space'
+    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2]'
+    write(0,*) '                 [-ncolors N] [-v verbose] [-d]'
+    write(0,*)
+    write(0,*) '-cmap OPTION            Generate a perceptually linear colormap'
+    if (str.eq.'long') then
+        write(0,*) '    spiral: rotate through hues in lightness-chroma-hue space (r->o->y->g->b->p)'
+        write(0,*) '    linear: draw line through lightness-a-b space (a=chroma*cos(hue), b=chroma*sin(hue))'
+        write(0,*)
+    endif
     write(0,*) '-hue H1,H2              Starting and ending hues (default: 0,360)'
-    write(0,*) '                            0=360=magenta, 30=red, 45=orange, 90=yellow, 150=green, 270=blue, 330=purple'
+    if (str.eq.'long') then
+        write(0,*) '    Can also define hues with the following names or first letters'
+        write(0,*) '        0=360=magenta'
+        write(0,*) '        30=red'
+        write(0,*) '        50=orange'
+        write(0,*) '        90=yellow'
+        write(0,*) '        150=green'
+        write(0,*) '        270=blue'
+        write(0,*) '        330=purple'
+        write(0,*)
+    endif
     write(0,*) '-lightness L1,L2        Starting and ending hues (default: 0,100)'
-    write(0,*) '-chroma C1,C2           Starting and ending chroma (default: 50,50)'
-    write(0,*) '                            0=grey, max value depends on hue (program limits chroma to max value automatically)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-chroma C1,C2           Starting and ending chroma (default: 40,40)'
+    if (str.eq.'long') then
+        write(0,*) '    Chroma is similar to saturation; its max value depends on hue and lightness'
+        write(0,*) '    0=grey, max=full color'
+        write(0,*) '    The max chroma will be limited by the program automatically'
+        write(0,*)
+    endif
     write(0,*) '-ncolors N              Number of colors (default: 10)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
     write(0,*) '-verbose                Turn on verbose mode'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-d                      Detailed help'
     stop
 return
 end
