@@ -3,26 +3,83 @@ program main
     implicit none
     real :: l,c,h,a,b,a1,a2,b1,b2
     real :: red,grn,blu
+    real :: x1,y1,z1,x2,y2,z2
     character(len=200) :: rgbstring
     real :: cmax
     integer :: i,n
     integer :: clip(3)
+    character(len=3) :: typ1,typ2
 
     ! User-defined variables
     real :: hue1,hue2,light1,light2,chroma1,chroma2
-    character(len=200) :: option
+    character(len=200) :: option,convert1,convert2
     integer :: ncolors,vrb
 
     ! Parse command line
-    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
+    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2)
     if (vrb.gt.0) then
         write(0,*) 'Color mapping option: ',trim(option)
         write(0,*) 'Hue range:            ',hue1,hue2
         write(0,*) 'Lightness range:      ',light1,light2
         write(0,*) 'Chroma range:         ',chroma1,chroma2
         write(0,*) 'Number of colors:     ',ncolors
+        write(0,*) 'Convert from:         ',trim(convert1)
+        write(0,*) 'To:                   ',trim(convert2)
     endif
 
+    ! Color space conversion
+    if (convert1.ne.'') then
+        i = index(convert1,'=')
+        if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
+        convert1(i:i) = ' '
+        i = index(convert1,',')
+        if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
+        convert1(i:i) = ' '
+        i = index(convert1,',')
+        if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
+        convert1(i:i) = ' '
+        read(convert1,*) typ1
+        read(convert2,*) typ2
+        if (typ2.ne.'lab'.and.typ2.ne.'lch'.and.typ2.ne.'rgb') call usage('!! Error: OTYP must be lab, lch, or rgb')
+        if (typ1.eq.'lch') then
+            read(convert1,*) typ1,x1,y1,z1
+            if (typ2.eq.'lab') then
+                call lch2lab(y1,z1,y2,z2)
+                x2 = x1
+            elseif (typ2.eq.'rgb') then
+                call lch2rgb(x1,y1,z1,x2,y2,z2)
+            endif
+        elseif (typ1.eq.'lab') then
+            read(convert1,*) typ1,x1,y1,z1
+            if (typ2.eq.'lch') then
+                call lab2lch(y1,z1,y2,z2)
+                x2 = x1
+            elseif (typ2.eq.'rgb') then
+                call lab2rgb(x1,y1,z1,x2,y2,z2)
+            endif
+        elseif(typ1.eq.'rgb') then
+            read(convert1,*) typ1,x1,y1,z1
+            if (typ2.eq.'lch') then
+                call rgb2lch(x1,y1,z1,x2,y2,z2)
+            elseif (typ2.eq.'lab') then
+                call rgb2lab(x1,y1,z1,x2,y2,z2)
+            endif
+        else
+            call usage('!! Error: no color space type "'//trim(typ1)//'"')
+        endif
+        write(*,1002) trim(typ1),x1,y1,z1,trim(typ2),x2,y2,z2
+        if (typ2.eq.'rgb') then
+            call checkrgb(x2,y2,z2,clip)
+            if (clip(1).ne.0.or.clip(2).ne.0.or.clip(3).ne.0) then
+                write(*,'(A)') '!! Input color coordinate outside RGB space; clipping to range [0-255]'
+                write(*,1002) trim(typ1),x1,y1,z1,trim(typ2),x2,y2,z2
+            endif
+        endif
+1002    format(A3,'(',F6.1,',',F6.1,',',F6.1')',' = ',A3,'(',F6.1,',',F6.1,',',F6.1')')
+        stop
+    endif
+
+    ! Generate colormap
     n = ncolors
     if (option.eq.'spiral') then
         do i = 1,n
@@ -35,7 +92,7 @@ program main
             call lab2rgb(l,a,b,red,grn,blu)
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
-            print *,trim(rgbstring)
+            write(*,*) trim(rgbstring)
         enddo
     elseif (option.eq.'linear') then
         call lch2lab(chroma1,hue1,a1,b1)
@@ -51,7 +108,7 @@ program main
             call lab2rgb(l,a,b,red,grn,blu)
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
-            print *,trim(rgbstring)
+            write(*,*) trim(rgbstring)
         enddo
     else
         call usage('!! Error: no option named "'//trim(option)//'"')
@@ -201,17 +258,17 @@ subroutine xyz2lab(xin,yin,zin,ciel,ciea,cieb)
     y = yin/refy
     z = zin/refz
     if (x.gt.0.008856) then
-        x = x**(1/3)
+        x = x**(1.0/3.0)
     else
         x = 7.787*x + 16.0/116.0
     endif
     if (y.gt.0.008856) then
-        y = y**(1/3)
+        y = y**(1.0/3.0)
     else
         y = 7.787*y + 16.0/116.0
     endif
     if (z.gt.0.008856) then
-        z = z**(1/3)
+        z = z**(1.0/3.0)
     else
         z = 7.787*z + 16.0/116.0
     endif
@@ -303,15 +360,33 @@ subroutine lch2rgb(lin,cin,hin,r,g,b)
 return
 end
 
+subroutine rgb2lab(red,grn,blu,l,a,b)
+    implicit none
+    real :: red,grn,blu,l,a,b
+    real :: x,y,z
+    call rgb2xyz(red,grn,blu,x,y,z)
+    call xyz2lab(x,y,z,l,a,b)
+return
+end
+
+subroutine rgb2lch(red,grn,blu,l,c,h)
+    implicit none
+    real :: red,grn,blu,l,c,h
+    real :: a,b
+    call rgb2lab(red,grn,blu,l,a,b)
+    call lab2lch(a,b,c,h)
+return
+end
+
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 ! User interface subroutines
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
-subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
+subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2)
     implicit none
     integer :: i,j,narg
     character(len=200) :: tag
-    character(len=*) :: option
+    character(len=*) :: option,convert1,convert2
     character(len=1) :: ch1,ch2
     real :: hue1,hue2,light1,light2,chroma1,chroma2
     integer :: ncolors,vrb
@@ -323,6 +398,8 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
     chroma1 = 40.0
     chroma2 = 40.0
     ncolors = 10
+    convert1 = ''
+    convert2 = ''
     vrb = 0
     narg = iargc()
     if (narg.eq.0) call usage('')
@@ -349,7 +426,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
             elseif (ch1.eq.'y') then
                 hue1 = 90
             elseif (ch1.eq.'g') then
-                hue1 = 150
+                hue1 = 140
             elseif (ch1.eq.'b') then
                 hue1 = 270
             elseif (ch1.eq.'p') then
@@ -364,7 +441,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
             elseif (ch2.eq.'y') then
                 hue2 = 90
             elseif (ch2.eq.'g') then
-                hue2 = 150
+                hue2 = 140
             elseif (ch2.eq.'b') then
                 hue2 = 270
             elseif (ch2.eq.'p') then
@@ -393,6 +470,11 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb)
             i = i + 1
             call getarg(i,tag)
             read(tag,*) ncolors
+        elseif (tag(1:8).eq.'-convert') then
+            i = i + 1
+            call getarg(i,convert1)
+            i = i + 1
+            call getarg(i,convert2)
         elseif (tag(1:2).eq.'-v') then
             vrb = 1
         elseif (tag(1:2).eq.'-d') then
@@ -412,47 +494,52 @@ subroutine usage(str)
         write(0,*) str
         write(0,*)
     endif
-    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2]'
-    write(0,*) '                 [-ncolors N] [-v verbose] [-d]'
+    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-ncolors N]'
+    write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-d]'
     write(0,*)
-    write(0,*) '-cmap OPTION            Generate a perceptually linear colormap'
+    write(0,*) '-cmap OPTION              Generate a perceptually linear colormap'
     if (str.eq.'long') then
         write(0,*) '    spiral: rotate through hues in lightness-chroma-hue space (r->o->y->g->b->p)'
         write(0,*) '    linear: draw line through lightness-a-b space (a=chroma*cos(hue), b=chroma*sin(hue))'
         write(0,*)
     endif
-    write(0,*) '-hue H1,H2              Starting and ending hues (default: 0,360)'
+    write(0,*) '-hue H1,H2                Starting and ending hues (default: 0,360)'
     if (str.eq.'long') then
-        write(0,*) '    Can also define hues with the following names or first letters'
-        write(0,*) '        0=360=magenta'
-        write(0,*) '        30=red'
-        write(0,*) '        50=orange'
-        write(0,*) '        90=yellow'
-        write(0,*) '        150=green'
-        write(0,*) '        270=blue'
-        write(0,*) '        330=purple'
+        write(0,*) '    Can also define hues with color names or first letters'
+        write(0,*) '        0=360  "magenta"'
+        write(0,*) '        30     "red"'
+        write(0,*) '        50     "orange"'
+        write(0,*) '        90     "yellow"'
+        write(0,*) '        140    "green"'
+        write(0,*) '        270    "blue"'
+        write(0,*) '        330    "purple"'
         write(0,*)
     endif
-    write(0,*) '-lightness L1,L2        Starting and ending hues (default: 0,100)'
+    write(0,*) '-lightness L1,L2          Starting and ending hues (default: 0,100)'
     if (str.eq.'long') then
         write(0,*)
     endif
-    write(0,*) '-chroma C1,C2           Starting and ending chroma (default: 40,40)'
+    write(0,*) '-chroma C1,C2             Starting and ending chroma (default: 40,40)'
     if (str.eq.'long') then
         write(0,*) '    Chroma is similar to saturation; its max value depends on hue and lightness'
         write(0,*) '    0=grey, max=full color'
         write(0,*) '    The max chroma will be limited by the program automatically'
         write(0,*)
     endif
-    write(0,*) '-ncolors N              Number of colors (default: 10)'
+    write(0,*) '-ncolors N                Number of colors (default: 10)'
     if (str.eq.'long') then
         write(0,*)
     endif
-    write(0,*) '-verbose                Turn on verbose mode'
+    write(0,*) '-convert ITYP=X,Y,Z OTYP  Convert a color of type ITYP to type OTYP (does not print colors)'
+    if (str.eq.'long') then
+        write(0,*) '    Available color types: lch, lab, rgb (planning to implement hsv eventually)'
+        write(0,*)
+    endif
+    write(0,*) '-verbose                  Turn on verbose mode'
     if (str.eq.'long') then
         write(0,*)
     endif
-    write(0,*) '-d                      Detailed help'
+    write(0,*) '-d                        Detailed help'
     stop
 return
 end
