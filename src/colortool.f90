@@ -11,12 +11,13 @@ program main
     character(len=3) :: typ1,typ2
 
     ! User-defined variables
-    real :: hue1,hue2,light1,light2,chroma1,chroma2
-    character(len=200) :: option,convert1,convert2
+    real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
+    character(len=200) :: option,convert1,convert2,gmt
     integer :: ncolors,vrb
 
     ! Parse command line
-    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2)
+    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2,&
+                gmt,lim1,lim2)
     if (vrb.gt.0) then
         write(0,*) 'Color mapping option: ',trim(option)
         write(0,*) 'Hue range:            ',hue1,hue2
@@ -25,6 +26,8 @@ program main
         write(0,*) 'Number of colors:     ',ncolors
         write(0,*) 'Convert from:         ',trim(convert1)
         write(0,*) 'To:                   ',trim(convert2)
+        write(0,*) 'GMT file:             ',trim(gmt)
+        write(0,*) 'Limits:               ',lim1,lim2
     endif
 
     ! Color space conversion
@@ -80,6 +83,9 @@ program main
     endif
 
     ! Generate colormap
+    if (gmt.ne.'none') then
+        open(unit=11,file=gmt,status='unknown')
+    endif
     n = ncolors
     if (option.eq.'spiral') then
         do i = 1,n
@@ -92,7 +98,12 @@ program main
             call lab2rgb(l,a,b,red,grn,blu)
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
-            write(*,*) trim(rgbstring)
+            if (gmt.eq.'none') then
+                write(*,*) trim(rgbstring)
+            else
+                c = lim1 + (lim2-lim1)*(i-1)/n
+                write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+            endif
         enddo
     elseif (option.eq.'linear') then
         call lch2lab(chroma1,hue1,a1,b1)
@@ -108,11 +119,17 @@ program main
             call lab2rgb(l,a,b,red,grn,blu)
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
-            write(*,*) trim(rgbstring)
+            if (gmt.eq.'none') then
+                write(*,*) trim(rgbstring)
+            else
+                c = lim1 + (lim2-lim1)*(i-1)/n
+                write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+            endif
         enddo
     else
         call usage('!! Error: no option named "'//trim(option)//'"')
     endif
+    1003 format(2(F16.4,X,A30))
 end
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
@@ -382,14 +399,16 @@ end
 ! User interface subroutines
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
-subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2)
+subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2,&
+                  gmt,lim1,lim2)
     implicit none
     integer :: i,j,narg
     character(len=200) :: tag
-    character(len=*) :: option,convert1,convert2
+    character(len=*) :: option,convert1,convert2,gmt
     character(len=1) :: ch1,ch2
-    real :: hue1,hue2,light1,light2,chroma1,chroma2
+    real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
     integer :: ncolors,vrb
+    real :: dc
     option = ''
     hue1 = 0.0
     hue2 = 360.0
@@ -400,7 +419,11 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
     ncolors = 10
     convert1 = ''
     convert2 = ''
+    lim1 = 0.0
+    lim2 = 1.0
     vrb = 0
+    dc = -1.0
+    gmt = 'none'
     narg = iargc()
     if (narg.eq.0) call usage('')
     i = 1
@@ -466,15 +489,28 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
             j = index(tag,',')
             tag(j:j) = ' '
             read(tag,*) chroma1,chroma2
-        elseif (tag(1:8).eq.'-ncolors') then
-            i = i + 1
-            call getarg(i,tag)
-            read(tag,*) ncolors
         elseif (tag(1:8).eq.'-convert') then
             i = i + 1
             call getarg(i,convert1)
             i = i + 1
             call getarg(i,convert2)
+        elseif (tag(1:4).eq.'-gmt') then
+            i = i + 1
+            call getarg(i,gmt)
+        elseif (tag(1:7).eq.'-limits') then
+            i = i + 1
+            call getarg(i,tag)
+            j = index(tag,',')
+            tag(j:j) = ' '
+            read(tag,*) lim1,lim2
+        elseif (tag(1:8).eq.'-ncolors'.or.tag(1:2).eq.'-n') then
+            i = i + 1
+            call getarg(i,tag)
+            read(tag,*) ncolors
+        elseif (tag(1:3).eq.'-dc') then
+            i = i + 1
+            call getarg(i,tag)
+            read(tag,*) dc
         elseif (tag(1:2).eq.'-v') then
             vrb = 1
         elseif (tag(1:2).eq.'-d') then
@@ -484,6 +520,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
         endif
         i = i + 1
     enddo
+    if (gmt.ne.'none'.and.dc.gt.0.0) ncolors = int((lim2-lim1)/dc)
 return
 end
 
@@ -494,8 +531,8 @@ subroutine usage(str)
         write(0,*) str
         write(0,*)
     endif
-    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-ncolors N]'
-    write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-d]'
+    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-n[colors] N]'
+    write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-gmt CPTFILE] [-limits MIN,MAX] [-dc D] [-d]'
     write(0,*)
     write(0,*) '-cmap OPTION              Generate a perceptually linear colormap'
     if (str.eq.'long') then
@@ -526,13 +563,25 @@ subroutine usage(str)
         write(0,*) '    The max chroma will be limited by the program automatically'
         write(0,*)
     endif
-    write(0,*) '-ncolors N                Number of colors (default: 10)'
+    write(0,*) '-n[colors] N              Number of colors (default: 10)'
     if (str.eq.'long') then
         write(0,*)
     endif
     write(0,*) '-convert ITYP=X,Y,Z OTYP  Convert a color of type ITYP to type OTYP (does not print colors)'
     if (str.eq.'long') then
         write(0,*) '    Available color types: lch, lab, rgb (planning to implement hsv eventually)'
+        write(0,*)
+    endif
+    write(0,*) '-gmt CPTFILE              Print a GMT color palette (default prints R/G/B list)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-limits [MIN,MAX]         Starting and ending values (only for use with -gmt; default 0,1)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-dc D                     Increment of color palette (only for use with -gmt; default depends on N)'
+    if (str.eq.'long') then
         write(0,*)
     endif
     write(0,*) '-verbose                  Turn on verbose mode'
