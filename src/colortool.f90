@@ -1,5 +1,6 @@
 program main
     use colormodule
+
     implicit none
     real :: l,c,h,a,b,a1,a2,b1,b2
     real :: red,grn,blu
@@ -13,10 +14,10 @@ program main
     ! User-defined variables
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
     character(len=200) :: option,convert1,convert2,gmt
-    integer :: ncolors,vrb
+    integer :: ncolors
 
     ! Parse command line
-    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2,&
+    call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
                 gmt,lim1,lim2)
     if (vrb.gt.0) then
         write(0,*) 'Color mapping option: ',trim(option)
@@ -102,7 +103,11 @@ program main
                 write(*,*) trim(rgbstring)
             else
                 c = lim1 + (lim2-lim1)*(i-1)/n
-                write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                if (gmt.ne.'print') then
+                    write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                else
+                    write(*,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                endif
             endif
         enddo
     elseif (option.eq.'linear') then
@@ -123,7 +128,11 @@ program main
                 write(*,*) trim(rgbstring)
             else
                 c = lim1 + (lim2-lim1)*(i-1)/n
-                write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                if (gmt.ne.'print') then
+                    write(11,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                else
+                    write(*,1003) c,trim(rgbstring),c+(lim2-lim1)/n,trim(rgbstring)
+                endif
             endif
         enddo
     else
@@ -158,6 +167,7 @@ end
 subroutine checkrgb(r,g,b,clip)
 ! RGB colors only make up ~50% of the visible lightness-chroma-hue spectrum
 ! Check that RGB values are in range 0-255 and return whether they needed to be clipped
+    use colormodule
     implicit none
     real :: r,g,b
     integer :: clip(3)
@@ -399,16 +409,17 @@ end
 ! User interface subroutines
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
-subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,convert1,convert2,&
+subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
                   gmt,lim1,lim2)
+    use colormodule
     implicit none
     integer :: i,j,narg
     character(len=200) :: tag
     character(len=*) :: option,convert1,convert2,gmt
     character(len=1) :: ch1,ch2
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
-    integer :: ncolors,vrb
-    real :: dc
+    integer :: ncolors
+    real :: dz
     option = ''
     hue1 = 0.0
     hue2 = 360.0
@@ -422,7 +433,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
     lim1 = 0.0
     lim2 = 1.0
     vrb = 0
-    dc = -1.0
+    dz = -1.0
     gmt = 'none'
     narg = iargc()
     if (narg.eq.0) call usage('')
@@ -496,7 +507,16 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
             call getarg(i,convert2)
         elseif (tag(1:4).eq.'-gmt') then
             i = i + 1
-            call getarg(i,gmt)
+            if (i.gt.narg) then
+                gmt = 'print'
+            else
+                call getarg(i,gmt)
+                j = index(gmt,'-')
+                if (j.eq.1) then
+                    gmt = 'print'
+                    i = i - 1
+                endif
+            endif
         elseif (tag(1:7).eq.'-limits') then
             i = i + 1
             call getarg(i,tag)
@@ -507,10 +527,18 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
             i = i + 1
             call getarg(i,tag)
             read(tag,*) ncolors
-        elseif (tag(1:3).eq.'-dc') then
+        elseif (tag(1:3).eq.'-dz') then
             i = i + 1
             call getarg(i,tag)
-            read(tag,*) dc
+            read(tag,*) dz
+        elseif (tag(1:2).eq.'-T') then
+            j = index(tag,'-T')
+            tag(j:j+1) = '  '
+            j = index(tag,'/')
+            tag(j:j) = ' '
+            j = index(tag,'/')
+            tag(j:j) = ' '
+            read(tag,*) lim1,lim2,dz
         elseif (tag(1:2).eq.'-v') then
             vrb = 1
         elseif (tag(1:2).eq.'-d') then
@@ -520,7 +548,10 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,vrb,con
         endif
         i = i + 1
     enddo
-    if (gmt.ne.'none'.and.dc.gt.0.0) ncolors = int((lim2-lim1)/dc)
+    if (gmt.ne.'none') then
+        if (dz.gt.lim2-lim1) call usage('!! Error: dz is larger than zmax-zmin')
+        if (dz.gt.0.0) ncolors = int((lim2-lim1)/dz)
+    endif
 return
 end
 
@@ -532,9 +563,10 @@ subroutine usage(str)
         write(0,*)
     endif
     write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-n[colors] N]'
-    write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-gmt CPTFILE] [-limits MIN,MAX] [-dc D] [-d]'
+    write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-gmt CPTFILE] [-limits MIN,MAX] [-dz DZ]'
+    write(0,*) '                 [-Tzmin/zmax/dz] [-d]'
     write(0,*)
-    write(0,*) '-cmap OPTION              Generate a perceptually linear colormap'
+    write(0,*) '-cmap OPTION              Option to generate a colormap'
     if (str.eq.'long') then
         write(0,*) '    spiral: rotate through hues in lightness-chroma-hue space (r->o->y->g->b->p)'
         write(0,*) '    linear: draw line through lightness-a-b space (a=chroma*cos(hue), b=chroma*sin(hue))'
@@ -552,15 +584,17 @@ subroutine usage(str)
         write(0,*) '        330    "purple"'
         write(0,*)
     endif
-    write(0,*) '-lightness L1,L2          Starting and ending hues (default: 0,100)'
+    write(0,*) '-lightness L1,L2          Starting and ending lightness (default: 0,100)'
     if (str.eq.'long') then
+        write(0,*) '    This is probably the most important variable for a good color palette!!!'
+        write(0,*) '    0=black, 100=white'
         write(0,*)
     endif
     write(0,*) '-chroma C1,C2             Starting and ending chroma (default: 40,40)'
     if (str.eq.'long') then
         write(0,*) '    Chroma is similar to saturation; its max value depends on hue and lightness'
         write(0,*) '    0=grey, max=full color'
-        write(0,*) '    The max chroma will be limited by the program automatically'
+        write(0,*) '    The max chroma will be limited by the program automatically to fit into RGB space'
         write(0,*)
     endif
     write(0,*) '-n[colors] N              Number of colors (default: 10)'
@@ -580,7 +614,11 @@ subroutine usage(str)
     if (str.eq.'long') then
         write(0,*)
     endif
-    write(0,*) '-dc D                     Increment of color palette (only for use with -gmt; default depends on N)'
+    write(0,*) '-dz DZ                    Increment of color palette (only for use with -gmt; default depends on N)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-Tzmin/zmax/dz            Min, max, and increment in GMT makecpt format (overrides -limits and -dz)'
     if (str.eq.'long') then
         write(0,*)
     endif
