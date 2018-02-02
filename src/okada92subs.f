@@ -1,29 +1,29 @@
-C======================================================================C
-C Subroutines to compute deformation from point and finite sources in
-C an elastic half-space.
-C
-C Reference:
-C Okada, Y., 1992, Internal deformation due to shear and tensile
-C   faults in a half-space. Bulletin of the Seismological Society of
-C   America 82, pp. 1018-1040.
-C
-C Notes:
-C - All variables are assumed to be in SI units
-C - Angles input into subroutines are in degrees
-C - Coordinate system is relative to the fault orientation:
-C   - X points in the along-strike direction
-C   - Y points in the horizontal up-dip direction
-C   - Depths are defined positive DOWN
-C======================================================================C
+!======================================================================C
+! Subroutines to compute deformation from point and finite sources in
+! an elastic half-space.
+!
+! Reference:
+! Okada, Y., 1992, Internal deformation due to shear and tensile
+!   faults in a half-space. Bulletin of the Seismological Society of
+!   America 82, pp. 1018-1040.
+!
+! Notes:
+! - All variables are assumed to be in SI units
+! - Angles input into subroutines are in degrees
+! - Coordinate system is relative to the fault orientation:
+!   - X points in the along-strike direction
+!   - Y points in the horizontal up-dip direction
+!   - Depths are defined positive DOWN
+!======================================================================C
 
-C      SUBROUTINE PTDISP(disp,x,y,stdp,evdp,dipin,rakin,area,slip,
-C     1                 vp,vs,dens)
+!      SUBROUTINE PTDISP(disp,x,y,stdp,evdp,dipin,rakin,area,slip,
+!     1                 vp,vs,dens)
       SUBROUTINE o92pt(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,area,slip,
      1                 vp,vs,dens)
-C----
-C Compute displacement vector at a point in anywhere in a half-space
-C due to a point source
-C----
+!----
+! Compute displacement vector at a point in anywhere in a half-space
+! due to a point source
+!----
 
       IMPLICIT none
       REAL*8 x,y,stdp,evdp,z,c,d             ! Coordinates
@@ -31,7 +31,7 @@ C----
       REAL*8 vp,vs,dens                      ! Half-space parameters
       INTEGER i,j
       REAL*8 u(6,3),f(6,3),ux,uy,uz
-C      REAL*8 disp(3)
+!      REAL*8 disp(3)
       REAL*8 zro
       DATA zro/0.0d0/
 
@@ -59,63 +59,63 @@ C      REAL*8 disp(3)
       COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
 
-C----
-C If station is above surface, set displacements to zero and exit
-C----
+!----
+! If station is above surface, set displacements to zero and exit
+!----
       if (stdp.lt.zro) then
-C          disp(1) = zro
-C          disp(2) = zro
-C          disp(3) = zro
+!          disp(1) = zro
+!          disp(2) = zro
+!          disp(3) = zro
           ux = zro
           uy = zro
           uz = zro
           return
       endif
 
-C----
-C Initialize components of displacement, u(i,j):
-C   i = 1-3: components from unit strike-slip source
-C   i = 4-6: components from unit dip-slip source
-C   i = 7-9: components from unit tensile source (NOT FINISHED)
-C   i = 10-12: components from unit inflation source (NOT FINISHED)
-C
-C thru - a flag indicating number of times through calculation;
-C          used for generating mirror source
-C----
+!----
+! Initialize components of displacement, u(i,j):
+!   i = 1-3: components from unit strike-slip source
+!   i = 4-6: components from unit dip-slip source
+!   i = 7-9: components from unit tensile source (NOT FINISHED)
+!   i = 10-12: components from unit inflation source (NOT FINISHED)
+!
+! thru - a flag indicating number of times through calculation;
+!          used for generating mirror source
+!----
       thru = 0
       do 102 i = 1,6
           do 101 j = 1,3
-C              ut(i,j) = zro
+!              ut(i,j) = zro
               u(i,j) = zro
   101     continue
   102 continue
 
-C----
-C Source and halfspace constants
-C----
+!----
+! Source and halfspace constants
+!----
       call dipvar(dipin)
       call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
 
-C----
-C Calculate displacement components (done in sub disp0)
-C   x in direction of strike
-C   y in updip direction (horizontal)
-C   z vertical
-C----
+!----
+! Calculate displacement components (done in sub disp0)
+!   x in direction of strike
+!   y in updip direction (horizontal)
+!   z vertical
+!----
       c = evdp
       z = -stdp
   103 d = c - z
 
       call geomvars0(x,y,c,d)
 
-C f(i,j): dummy displacement components
-C
+! f(i,j): dummy displacement components
+!
       if (thru.eq.0) then
           call disp0(f,x,y,c,d)
           do 105 i = 1,6
               do 104 j = 1,3
-C                  ut(i,j) = ut(i,j) + f(i,j)
+!                  ut(i,j) = ut(i,j) + f(i,j)
                   u(i,j) = u(i,j) + f(i,j)
   104         continue
   105     continue
@@ -125,23 +125,23 @@ C                  ut(i,j) = ut(i,j) + f(i,j)
       else
           call disp0(f,x,y,c,d)
           do 106 i = 1,6
-C              ut(i,1) = ut(i,1) - f(i,1)
+!              ut(i,1) = ut(i,1) - f(i,1)
               u(i,1) = u(i,1) - f(i,1)
   106     continue
           z = -stdp
       endif
 
-C----
-C Double double toil and trouble...put it all together...and....PRESTO!
-C Combine displacement components to get displacements at the receiver
-C (+x in strike direction; +y in updip horizontal direction)
-C----
-C      ux = Mss*(ut(1,1)+ut(1,2)+z*ut(1,3))
-C     1                               + Mds*(ut(4,1)+ut(4,2)+z*ut(4,3))
-C      uy = Mss*(ut(2,1)+ut(2,2)+z*ut(2,3))
-C     1                               + Mds*(ut(5,1)+ut(5,2)+z*ut(5,3))
-C      uz = Mss*(ut(3,1)+ut(3,2)+z*ut(3,3))
-C     1                               + Mds*(ut(6,1)+ut(6,2)+z*ut(6,3))
+!----
+! Double double toil and trouble...put it all together...and....PRESTO!
+! Combine displacement components to get displacements at the receiver
+! (+x in strike direction; +y in updip horizontal direction)
+!----
+!      ux = Mss*(ut(1,1)+ut(1,2)+z*ut(1,3))
+!     1                               + Mds*(ut(4,1)+ut(4,2)+z*ut(4,3))
+!      uy = Mss*(ut(2,1)+ut(2,2)+z*ut(2,3))
+!     1                               + Mds*(ut(5,1)+ut(5,2)+z*ut(5,3))
+!      uz = Mss*(ut(3,1)+ut(3,2)+z*ut(3,3))
+!     1                               + Mds*(ut(6,1)+ut(6,2)+z*ut(6,3))
       ux = Mss*(u(1,1)+u(1,2)+z*u(1,3)) + Mds*(u(4,1)+u(4,2)+z*u(4,3))
       uy = Mss*(u(2,1)+u(2,2)+z*u(2,3)) + Mds*(u(5,1)+u(5,2)+z*u(5,3))
       uz = Mss*(u(3,1)+u(3,2)+z*u(3,3)) + Mds*(u(6,1)+u(6,2)+z*u(6,3))
@@ -149,26 +149,26 @@ C     1                               + Mds*(ut(6,1)+ut(6,2)+z*ut(6,3))
       RETURN
       END
 
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE PTSTN(strain,x,y,stdp,evdp,dipin,rakin,area,slip,
-C     1                    vp,vs,dens)
+!      SUBROUTINE PTSTN(strain,x,y,stdp,evdp,dipin,rakin,area,slip,
+!     1                    vp,vs,dens)
       SUBROUTINE o92ptstn(strain,x,y,stdp,evdp,dipin,rakin,area,slip,
      1                    vp,vs,dens)
-C----
-C Static elastic strain at a location (internal or surface) due to
-C a point source shear dislocation in an isotropic halfspace.
-C
-C INPUTS (ALL IN SI UNITS):
-C   - Geometric Parameters (relative to source location):
-C         x (along-strike), y (horizontal up-dip), station depth,
-C         event depth
-C   - Source parameters:
-C         fault dip (deg), fault rake (deg), fault area, slip
-C   - Physical parameters of half-space:
-C         vp, vs, density
-C OUTPUT: strain matrix at receiver (in x-y coordinates)
-C----
+!----
+! Static elastic strain at a location (internal or surface) due to
+! a point source shear dislocation in an isotropic halfspace.
+!
+! INPUTS (ALL IN SI UNITS):
+!   - Geometric Parameters (relative to source location):
+!         x (along-strike), y (horizontal up-dip), station depth,
+!         event depth
+!   - Source parameters:
+!         fault dip (deg), fault rake (deg), fault area, slip
+!   - Physical parameters of half-space:
+!         vp, vs, density
+! OUTPUT: strain matrix at receiver (in x-y coordinates)
+!----
       IMPLICIT NONE
       REAL*8 x,y,stdp,evdp,z,c,d
       REAL*8 dipin,rakin,area,slip,Mss,Mds
@@ -209,7 +209,7 @@ C----
  315      continue
           return
       endif
-C----
+!----
       thru = 0
       do 306 i = 1,6
           u(i) = 0.0d0
@@ -219,17 +219,17 @@ C----
               uz(i,j) = 0.0d0
   305     continue
   306 continue
-C----
-C Source and halfspace constants
-C----
+!----
+! Source and halfspace constants
+!----
       call dipvar(dipin)
       call hafspc(vp,vs,dens)
       call moment0(Mss,Mds,slip,rakin,area)
-C----
-C x in direction of strike
-C y in updip direction (horizontal)
-C z vertical
-C----
+!----
+! x in direction of strike
+! y in updip direction (horizontal)
+! z vertical
+!----
       c = evdp
       z = -stdp
   301 d = c - z
@@ -267,10 +267,10 @@ C----
 
           z = -stdp
       endif
-C----
-C Chug, chug, chug...partial derivatives of displacement (+x in strike
-C direction, +y in updip direction)
-C----
+!----
+! Chug, chug, chug...partial derivatives of displacement (+x in strike
+! direction, +y in updip direction)
+!----
       uxx = Mss*(ux(1,1)+ux(1,2)+z*ux(1,3))
      1                                 + Mds*(ux(4,1)+ux(4,2)+z*ux(4,3))
       uyx = Mss*(ux(2,1)+ux(2,2)+z*ux(2,3))
@@ -289,10 +289,10 @@ C----
      1                         + Mds*(uz(5,1)+uz(5,2)+u(5)+z*uz(5,3))
       uzz = Mss*(uz(3,1)+uz(3,2)+u(3)+z*uz(3,3))
      1                         + Mds*(uz(6,1)+uz(6,2)+u(6)+z*uz(6,3))
-C----
-C Strain tensor from partial derivatives (in coordinate system
-C with +x in direction of strike, +y updip)
-C----
+!----
+! Strain tensor from partial derivatives (in coordinate system
+! with +x in direction of strike, +y updip)
+!----
       strain(1,1) = uxx
       strain(2,2) = uyy
       strain(3,3) = uzz
@@ -306,28 +306,28 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE FNDISP(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,wid,len,
-C     1                   slip,vp,vs,dens)
+!      SUBROUTINE FNDISP(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,wid,len,
+!     1                   slip,vp,vs,dens)
       SUBROUTINE o92rect(ux,uy,uz,x,y,stdp,evdp,dipin,rakin,wid,len,
      1                   slip,vp,vs,dens)
-C----
-C Static elastic displacement at a location (internal or surface) due
-C to a finite rectangular source shear dislocation in a uniform,
-C isotropic halfspace.
-C
-C INPUTS (ALL IN SI UNITS):
-C   - Geometric Parameters (relative to source location):
-C         x (along-strike), y (horizontal up-dip), station depth,
-C         event depth
-C   - Source parameters:
-C         fault dip (deg), fault rake (deg), along-dip width, along-
-C         strike length, slip
-C   - Physical parameters of half-space:
-C         vp, vs, density
-C OUTPUT: x, y, z displacements at station (in x-y coordinates, not N-E)
-C----
+!----
+! Static elastic displacement at a location (internal or surface) due
+! to a finite rectangular source shear dislocation in a uniform,
+! isotropic halfspace.
+!
+! INPUTS (ALL IN SI UNITS):
+!   - Geometric Parameters (relative to source location):
+!         x (along-strike), y (horizontal up-dip), station depth,
+!         event depth
+!   - Source parameters:
+!         fault dip (deg), fault rake (deg), along-dip width, along-
+!         strike length, slip
+!   - Physical parameters of half-space:
+!         vp, vs, density
+! OUTPUT: x, y, z displacements at station (in x-y coordinates, not N-E)
+!----
       IMPLICIT none
       REAL*8 eps
       PARAMETER (eps=1.0d-4)
@@ -368,28 +368,28 @@ C----
           uz = 0.0d0
           return
       endif
-C----
-C Initialize displacement components
-C----
+!----
+! Initialize displacement components
+!----
       thru = 0
       do 302 i = 1,6
           do 301 j = 1,3
               u(i,j) = zro
  301      continue
  302  continue
-C----
-C Source and halfspace constants
-C----
+!----
+! Source and halfspace constants
+!----
       call dipvar(dipin)
       call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin)
-C----
-C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
-C----
+!----
+! Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
+!----
       ksi(1) = x+len*0.5d0
       ksi(2) = x-len*0.5d0
-C      ksi(1) = x
-C      ksi(2) = x-len
+!      ksi(1) = x
+!      ksi(2) = x-len
       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
       if (dabs(ksi(2)).lt.eps) ksi(2) = zro
 
@@ -401,22 +401,22 @@ C      ksi(2) = x-len
 
       eta(1) = p+wid*0.5d0
       eta(2) = p-wid*0.5d0
-C      eta(1) = p
-C      eta(2) = p-wid
+!      eta(1) = p
+!      eta(2) = p-wid
       if (dabs(eta(1)).lt.eps) eta(1) = zro
       if (dabs(eta(2)).lt.eps) eta(2) = zro
       if (dabs(q)     .lt.eps) q      = zro
-C----
-C Check for singular cases (after Okada DC3D)
-C----
+!----
+! Check for singular cases (after Okada DC3D)
+!----
       call rectsingular(eq,ek,ee,ksi,eta,q,eps)
       if (eq.eq.1) then
           call singulardisplacement(ux,uy,uz)
           goto 399
       endif
-C----
-C Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2)
-C----
+!----
+! Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2)
+!----
       fac = one
       do 308 ii = 1,2
       do 307 jj = 1,2
@@ -443,9 +443,9 @@ C----
 
   307 continue
   308 continue
-C----
-C Mirror source
-C----
+!----
+! Mirror source
+!----
       if (thru.eq.0) then
           z = stdp
           thru = 1
@@ -453,11 +453,11 @@ C----
       else
           z = -stdp
       endif
-C----
-C Cross your fingers, knock on wood, or pray to your God. Whatever
-C works for you.....ALAKAZAM! Displacements at the receiver. Same
-C as above, +x in strike direction, +y in updip horizontal direction
-C----
+!----
+! Cross your fingers, knock on wood, or pray to your God. Whatever
+! works for you.....ALAKAZAM! Displacements at the receiver. Same
+! as above, +x in strike direction, +y in updip horizontal direction
+!----
       ux = Mss*((u(1,1)+u(1,2)+z*u(1,3)))
      1   + Mds*((u(4,1)+u(4,2)+z*u(4,3)))
       uy = Mss*((u(2,1)+u(2,2)+z*u(2,3))*cd
@@ -473,28 +473,28 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE FNSTN(strain,x,y,stdp,evdp,dipin,rakin,wid,len,
-C     1                      slip,vp,vs,dens)
+!      SUBROUTINE FNSTN(strain,x,y,stdp,evdp,dipin,rakin,wid,len,
+!     1                      slip,vp,vs,dens)
       SUBROUTINE o92rectstn(strain,x,y,stdp,evdp,dipin,rakin,wid,len,
      1                      slip,vp,vs,dens)
-C----
-C Static elastic strain at a location (internal or surface) due to
-C a finite rectangular source shear dislocation in a uniform, isotropic
-C halfspace.
-C
-C INPUTS (ALL IN SI UNITS):
-C   - Geometric Parameters (relative to source location):
-C         x (along-strike), y (horizontal up-dip), station depth,
-C         event depth
-C   - Source parameters:
-C         fault dip (deg), fault rake (deg), along-dip width, along-
-C         strike length, slip
-C   - Physical parameters of half-space:
-C         vp, vs, density
-C OUTPUT: strain at receiver
-C----
+!----
+! Static elastic strain at a location (internal or surface) due to
+! a finite rectangular source shear dislocation in a uniform, isotropic
+! halfspace.
+!
+! INPUTS (ALL IN SI UNITS):
+!   - Geometric Parameters (relative to source location):
+!         x (along-strike), y (horizontal up-dip), station depth,
+!         event depth
+!   - Source parameters:
+!         fault dip (deg), fault rake (deg), along-dip width, along-
+!         strike length, slip
+!   - Physical parameters of half-space:
+!         vp, vs, density
+! OUTPUT: strain at receiver
+!----
       IMPLICIT NONE
       REAL*8 eps
       PARAMETER (eps=1.0d-4)
@@ -538,9 +538,9 @@ C----
  415      continue
           return
       endif
-C----
-C Initialize partial derivative components
-C----
+!----
+! Initialize partial derivative components
+!----
       thru = 0
       do 402 i = 1,6
           u(i) = zro
@@ -550,19 +550,19 @@ C----
               fl(i,j) = zro
   401     continue
   402 continue
-C----
-C Source and halfspace constants
-C----
+!----
+! Source and halfspace constants
+!----
       call dipvar(dipin)
       call hafspc(vp,vs,dens)
       call moment1(Mss,Mds,slip,rakin)
-C----
-C Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
-C----
+!----
+! Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
+!----
       ksi(1) = x+len*0.5d0
       ksi(2) = x-len*0.5d0
-C      ksi(1) = x
-C      ksi(2) = x-len
+!      ksi(1) = x
+!      ksi(2) = x-len
       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
       if (dabs(ksi(2)).lt.eps) ksi(2) = zro
 
@@ -574,22 +574,22 @@ C      ksi(2) = x-len
 
       eta(1) = p+wid*0.5d0
       eta(2) = p-wid*0.5d0
-C      eta(1) = p
-C      eta(2) = p-wid
+!      eta(1) = p
+!      eta(2) = p-wid
       if (dabs(eta(1)).lt.eps) eta(1) = zro
       if (dabs(eta(2)).lt.eps) eta(2) = zro
       if (dabs(q)     .lt.eps) q      = zro
-C----
-C Check for singular cases (after Okada DC3D)
-C----
+!----
+! Check for singular cases (after Okada DC3D)
+!----
       call rectsingular(eq,ek,ee,ksi,eta,q,eps)
       if (eq.eq.1) then
           call singularstrain(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
           goto 499
       endif
-C----
-C Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2)
-C----
+!----
+! Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2)
+!----
       fac = one
       do 408 ii = 1,2
       do 407 jj = 1,2
@@ -627,9 +627,9 @@ C----
 
   407 continue
   408 continue
-C----
-C Mirror source
-C----
+!----
+! Mirror source
+!----
       if (thru.eq.0) then
           z = stdp
           thru = 1
@@ -637,9 +637,9 @@ C----
       else
           z = -stdp
       endif
-c----
-c If this works, I'm getting a beer. 'Nuff said.
-c----
+!----
+! If this works, I'm getting a beer. 'Nuff said.
+!----
       uxx = Mss*(fj(1,1)+fj(1,2)+z*fj(1,3))
      1    + Mds*(fj(4,1)+fj(4,2)+z*fj(4,3))
       uyx = Mss*((fj(2,1)+fj(2,2)+z*fj(2,3))*cd
@@ -672,10 +672,10 @@ c----
      1                          + (fl(3,1)+fl(3,2)-u(3)-z*fl(3,3))*cd)
      2    + Mds*((fl(5,1)+fl(5,2)-u(5)-z*fl(5,3))*sd
      3                          + (fl(6,1)+fl(6,2)-u(6)-z*fl(6,3))*cd)
-c----
-c Strain tensor from partial derivatives (still in coordinate system
-c with +x in direction of strike, +y updip)
-c----
+!----
+! Strain tensor from partial derivatives (still in coordinate system
+! with +x in direction of strike, +y updip)
+!----
   499 continue
       strain(1,1) = uxx
       strain(2,2) = uyy
@@ -690,17 +690,17 @@ c----
       RETURN
       END
 
-C======================================================================C
-C----------------------------------------------------------------------C
-C-------------------------- SUBROUTINES -------------------------------C
-C----------------------------------------------------------------------C
-C======================================================================C
+!======================================================================C
+!----------------------------------------------------------------------C
+!-------------------------- SUBROUTINES -------------------------------C
+!----------------------------------------------------------------------C
+!======================================================================C
 
       SUBROUTINE dipvar(DIPIN)
-C----
-C PRE-CALCULATE DIP VARIABLES.
-C IF (DIP.GT.89.9999D0) DIP = 89.9999D0 (TO AVOID DIVIDE BY ZERO ERROR)
-C----
+!----
+! PRE-CALCULATE DIP VARIABLES.
+! IF (DIP.GT.89.9999D0) DIP = 89.9999D0 (TO AVOID DIVIDE BY ZERO ERROR)
+!----
       IMPLICIT NONE
       REAL*8 PI,D2R
       PARAMETER (PI=4.0D0*DATAN(1.0D0),D2R=PI/1.8D2)
@@ -722,15 +722,15 @@ C----
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE HAFSPC(vp,vs,dens)
+!      SUBROUTINE HAFSPC(vp,vs,dens)
       SUBROUTINE hafspc(vp,vs,dens)
-C----
-C Calculate half-space constants (Lame parameters, etc.)
-C
-C Note: in Poisson half-space, vs = vp/sqrt(3), lamda = mu, a = 2/3
-C----
+!----
+! Calculate half-space constants (Lame parameters, etc.)
+!
+! Note: in Poisson half-space, vs = vp/sqrt(3), lamda = mu, a = 2/3
+!----
       IMPLICIT none
       REAL*8 vp,vs,dens,mu,lamda
       REAL*8 a,CA1,CA2,CB,CC
@@ -747,18 +747,18 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
-C------------------- Source Moment Subroutines ------------------------C
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+!------------------- Source Moment Subroutines ------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE PTMOM(Mss,Mds,slip,rakin,area)
+!      SUBROUTINE PTMOM(Mss,Mds,slip,rakin,area)
       SUBROUTINE moment0(Mss,Mds,slip,rakin,area)
-C----
-C Divide slip into strike-slip and dip-slip, and calculate moment of
-C each component (POINT SOURCE).
-C
-C Note: These values are not strictly seismic moments.
-C----
+!----
+! Divide slip into strike-slip and dip-slip, and calculate moment of
+! each component (POINT SOURCE).
+!
+! Note: These values are not strictly seismic moments.
+!----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
@@ -771,16 +771,16 @@ C----
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE FNMOM(Mss,Mds,slip,rakin)
+!      SUBROUTINE FNMOM(Mss,Mds,slip,rakin)
       SUBROUTINE moment1(Mss,Mds,slip,rakin)
-C----
-C Divide slip into strike-slip and dip-slip, and calculate moment of
-C each component (FINITE SOURCE).
-C
-C Note: These values are not strictly seismic moments.
-C----
+!----
+! Divide slip into strike-slip and dip-slip, and calculate moment of
+! each component (FINITE SOURCE).
+!
+! Note: These values are not strictly seismic moments.
+!----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
@@ -793,18 +793,18 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
-C----------------------------------------------------------------------C
-C------------------- Point Source Subroutines -------------------------C
-C----------------------------------------------------------------------C
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+!------------------- Point Source Subroutines -------------------------C
+!----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE PTGEOM(x,y,c,d)
+!      SUBROUTINE PTGEOM(x,y,c,d)
       SUBROUTINE geomvars0(x,y,c,d)
-C----
-C Calculate geometric variables from x, y, and d (difference in depth
-C between source and station)
-C----
+!----
+! Calculate geometric variables from x, y, and d (difference in depth
+! between source and station)
+!----
       IMPLICIT none
       REAL*8 x,y,c,d
 
@@ -835,7 +835,7 @@ C----
       xd = x*d
       xc = x*c
 
-C R = total distance between source and station
+! R = total distance between source and station
       R  = dsqrt(xx+yy+dd)
       R2 = R*R
       R3 = R2*R
@@ -848,9 +848,9 @@ C R = total distance between source and station
       Rd3 = Rd2*Rd
       Rd4 = Rd3*Rd
 
-C p, q, s, t = distances in rotated reference frame.
-C p = fault dip-parallel distance
-C q = fault dip-perpendicular distance
+! p, q, s, t = distances in rotated reference frame.
+! p = fault dip-parallel distance
+! q = fault dip-perpendicular distance
       p = y*cd + d*sd
       q = y*sd - d*cd
       s = p*sd + q*cd
@@ -861,9 +861,9 @@ C q = fault dip-perpendicular distance
       dq = d*q
       pq = p*q
 
-C----
-C Other variables
-C----
+!----
+! Other variables
+!----
       A3 = 1.0d0 - 3.0d0*xx/R2
       A5 = 1.0d0 - 5.0d0*xx/R2
       A7 = 1.0d0 - 7.0d0*xx/R2
@@ -903,14 +903,14 @@ C----
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE PTCOMP(f,x,y,c,d)
+!      SUBROUTINE PTCOMP(f,x,y,c,d)
       SUBROUTINE disp0(f,x,y,c,d)
-C----
-C Calculate the components of displacement (from table on p. 1025 in
-C Okada, 1992) in the array f(6,3).
-C----
+!----
+! Calculate the components of displacement (from table on p. 1025 in
+! Okada, 1992) in the array f(6,3).
+!----
       IMPLICIT none
       REAL*8 f(6,3),x,y,c,d
 
@@ -930,11 +930,11 @@ C----
       COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
 
-C----
-C When calculating terms from real source (thru = 0), include all
-C components of displacement. Using mirror source (thru = 1), only
-C include first column of f.
-C----
+!----
+! When calculating terms from real source (thru = 0), include all
+! components of displacement. Using mirror source (thru = 1), only
+! include first column of f.
+!----
       if (thru.eq.0) then
           f(1,1) =  CA1*q/R3    + CA2*3.0d0*xx*q/R5
           f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*xy*q/R5
@@ -942,12 +942,12 @@ C----
           f(4,1) =                CA2*3.0d0*x*pq/R5
           f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*pq/R5
           f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*pq/R5
-C          f(7,1) =  CA1*x/R3 - CA2*3.0d0*x*q*q/R5
-C          f(8,1) =  CA1*t/R3 - CA2*3.0d0*y*q*q/R5
-C          f(9,1) =  CA1*s/R3 - CA2*3.0d0*d*q*q/R5
-C          f(10,1) = -CA1*x/R3
-C          f(11,1) = -CA1*y/R3
-C          f(12,1) = -CA1*d/R3
+!          f(7,1) =  CA1*x/R3 - CA2*3.0d0*x*q*q/R5
+!          f(8,1) =  CA1*t/R3 - CA2*3.0d0*y*q*q/R5
+!          f(9,1) =  CA1*s/R3 - CA2*3.0d0*d*q*q/R5
+!          f(10,1) = -CA1*x/R3
+!          f(11,1) = -CA1*y/R3
+!          f(12,1) = -CA1*d/R3
 
           f(1,2) = -3.0d0*xx*q/R5 - CB*I1*sd
           f(2,2) = -3.0d0*xy*q/R5 - CB*I2*sd
@@ -955,12 +955,12 @@ C          f(12,1) = -CA1*d/R3
           f(4,2) = -3.0d0*x*pq/R5 + CB*I3*cdsd
           f(5,2) = -3.0d0*y*pq/R5 + CB*I1*cdsd
           f(6,2) = -3.0d0*c*pq/R5 + CB*I5*cdsd
-C          f(7,2) = 3.0d0*x*q*q/R5 - CB*I3*sdsd
-c          f(8,2) = 3.0d0*y*q*q/R5 - CB*I1*sdsd
-C          f(9,2) = 3.0d0*c*q*q/R5 - CB*I5*sdsd
-C          f(10,2) =                 CB*x/R3
-C          f(11,2) =                 CB*y/R3
-C          f(12,2) =                 CB*d/R3
+!          f(7,2) = 3.0d0*x*q*q/R5 - CB*I3*sdsd
+!          f(8,2) = 3.0d0*y*q*q/R5 - CB*I1*sdsd
+!          f(9,2) = 3.0d0*c*q*q/R5 - CB*I5*sdsd
+!          f(10,2) =                 CB*x/R3
+!          f(11,2) =                 CB*y/R3
+!          f(12,2) =                 CB*d/R3
 
           f(1,3) = -CC*A3*cd/R3 + a*3.0d0*c*q*A5/R5
           f(2,3) =  CC*3.0d0*xy*cd/R5
@@ -971,14 +971,14 @@ C          f(12,2) =                 CB*d/R3
           f(5,3) = -CC*(c2d-3.0d0*y*t/R2)/R3
      1                                 + a*3.0d0*c*(s-5.0d0*y*pq/R2)/R5
           f(6,3) = -CC*A3*cdsd/R3 + a*3.0d0*c*(t+5.0d0*d*pq/R2)/R5
-C          f(7,3) = -CC*3.0d0*x*s/R5 +a*15.0d0*c*x*q*q/R7 -a*3.0d0*x*z/R5
-C          f(8,3) =  CC*(s2d-3.0d0*y*s/R2)/R3
-c     1             + a*3.0d0*c*(t-y+5.0d0*y*q*q/R2)/R5 - a*3.0d0*y*z/R5
-C          f(9,3) = -CC*(1.0d0-A3*sdsd)/R3
-C     1             - a*3.0d0*c*(s-d+5.0d0*d*q*q/R2)/R5 + a*3.0d0*d*z/R5
-C          f(10,3) = CC*3.0d0*x*d/R5
-C          f(11,3) = CC*3.0d0*y*d/R5
-C          f(12,3) = CC*C3/R3
+!          f(7,3) = -CC*3.0d0*x*s/R5 +a*15.0d0*c*x*q*q/R7 -a*3.0d0*x*z/R5
+!          f(8,3) =  CC*(s2d-3.0d0*y*s/R2)/R3
+!     1             + a*3.0d0*c*(t-y+5.0d0*y*q*q/R2)/R5 - a*3.0d0*y*z/R5
+!          f(9,3) = -CC*(1.0d0-A3*sdsd)/R3
+!     1             - a*3.0d0*c*(s-d+5.0d0*d*q*q/R2)/R5 + a*3.0d0*d*z/R5
+!          f(10,3) = CC*3.0d0*x*d/R5
+!          f(11,3) = CC*3.0d0*y*d/R5
+!          f(12,3) = CC*C3/R3
       else
           f(1,1) =  CA1*q/R3    + CA2*3.0d0*xx*q/R5
           f(2,1) =  CA1*x*sd/R3 + CA2*3.0d0*xy*q/R5
@@ -986,26 +986,26 @@ C          f(12,3) = CC*C3/R3
           f(4,1) =                CA2*3.0d0*x*pq/R5
           f(5,1) =  CA1*s/R3    + CA2*3.0d0*y*pq/R5
           f(6,1) = -CA1*t/R3    + CA2*3.0d0*d*pq/R5
-C          f(7,1) =  CA1*x/R3 - CA2*3.0d0*x*q*q/R5
-C          f(8,1) =  CA1*t/R3 - CA2*3.0d0*y*q*q/R5
-C          f(9,1) =  CA1*s/R3 - CA2*3.0d0*d*q*q/R5
-C          f(10,1) = -CA1*x/R3
-C          f(11,1) = -CA1*y/R3
-C          f(12,1) = -CA1*d/R3
+!          f(7,1) =  CA1*x/R3 - CA2*3.0d0*x*q*q/R5
+!          f(8,1) =  CA1*t/R3 - CA2*3.0d0*y*q*q/R5
+!          f(9,1) =  CA1*s/R3 - CA2*3.0d0*d*q*q/R5
+!          f(10,1) = -CA1*x/R3
+!          f(11,1) = -CA1*y/R3
+!          f(12,1) = -CA1*d/R3
       endif
 
 
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE PTXDER(fx,x,y,c,d)
+!      SUBROUTINE PTXDER(fx,x,y,c,d)
       SUBROUTINE xderiv0(fx,x,y,c,d)
-C----
-C Calculate the components of displacement x-derivatives (from table on
-C p. 1026 in Okada, 1992) in the array fx(6,3).
-C----
+!----
+! Calculate the components of displacement x-derivatives (from table on
+! p. 1026 in Okada, 1992) in the array fx(6,3).
+!----
       IMPLICIT none
       REAL*8 fx(6,3),x,y,c,d
 
@@ -1027,11 +1027,11 @@ C----
       COMMON /PRODUCTS/ xx,xy,yy,dd,xd,xc,xq,yq,dq,pq
       COMMON /TAG/    thru
 
-C----
-C When calculating terms from real source (thru = 0), include all
-C components of displacement. Using mirror source (thru = 1), only
-C include first column of fx.
-C----
+!----
+! When calculating terms from real source (thru = 0), include all
+! components of displacement. Using mirror source (thru = 1), only
+! include first column of fx.
+!----
       if (thru.eq.0) then
           fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*xq*(1.0d0+A5)/R5
           fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*yq*A5/R5
@@ -1039,12 +1039,12 @@ C----
           fx(4,1) =                     CA2*3.0d0*pq*A5/R5
           fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*xy*pq/R7
           fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*pq/R7
-C          fx(7,1) =  CA1*A3/R3        - CA2*3.0d0*q*q*A5/R5
-C          fx(8,1) = -CA1*3.0d0*x*t/R5 + CA2*15.0d0*xy*q*q/R7
-C          fx(9,1) = -CA1*3.0d0*x*s/R5 + CA2*15.0d0*xd*q*q/R7
-C          fx(10,1) = -CA1*A3/R3
-C          fx(11,1) =  CA1*3.0d0*xy/R5
-C          fx(12,1) =  CA1*3.0d0*xd/R5
+!          fx(7,1) =  CA1*A3/R3        - CA2*3.0d0*q*q*A5/R5
+!          fx(8,1) = -CA1*3.0d0*x*t/R5 + CA2*15.0d0*xy*q*q/R7
+!          fx(9,1) = -CA1*3.0d0*x*s/R5 + CA2*15.0d0*xd*q*q/R7
+!          fx(10,1) = -CA1*A3/R3
+!          fx(11,1) =  CA1*3.0d0*xy/R5
+!          fx(12,1) =  CA1*3.0d0*xd/R5
 
           fx(1,2) = -3.0d0 *xq*(1.0d0+A5)/R5 - CB*J1*sd
           fx(2,2) = -3.0d0 *yq*A5/R5         - CB*J2*sd
@@ -1052,12 +1052,12 @@ C          fx(12,1) =  CA1*3.0d0*xd/R5
           fx(4,2) = -3.0d0 *pq*A5/R5         + CB*J3*sd*cd
           fx(5,2) =  15.0d0*xy*pq/R7        + CB*J1*sd*cd
           fx(6,2) =  15.0d0*xc*pq/R7        + CB*K3*sd*cd
-C          fx(7,2) =   3.0d0*q*q*A5/R5       - CB*J3*sdsd
-C          fx(8,2) = -15.0d0*xy*q*q/R7       - CB*J1*sdsd
-C          fx(9,2) = -15.0d0*xc*q*q/R7       - CB*K3*sdsd
-C          fx(10,2) =                           CB*A3/R3
-C          fx(11,2) =                          -CB*3.0d0*xy/R5
-C          fx(12,2) =                          -CB*3.0d0*xd/R5
+!          fx(7,2) =   3.0d0*q*q*A5/R5       - CB*J3*sdsd
+!          fx(8,2) = -15.0d0*xy*q*q/R7       - CB*J1*sdsd
+!          fx(9,2) = -15.0d0*xc*q*q/R7       - CB*K3*sdsd
+!          fx(10,2) =                           CB*A3/R3
+!          fx(11,2) =                          -CB*3.0d0*xy/R5
+!          fx(12,2) =                          -CB*3.0d0*xd/R5
 
           fx(1,3) =  CC*3.0d0*x*(2.0d0+A5)*cd/R5
      1                                    - a*15.0d0*c*xq*(2.0d0+A7)/R7
@@ -1070,15 +1070,15 @@ C          fx(12,2) =                          -CB*3.0d0*xd/R5
      1                              - a*15.0d0*xc*(s-7.0d0*y*pq/R2)/R7
           fx(6,3) =  CC*3.0d0*x*(2.0d0+A5)*sd*cd/R5
      1                              - a*15.0d0*xc*(t+7.0d0*d*pq/R2)/R7
-C          fx(7,3) = -CC*3.0d0*s*A5/R5
-C     1                          + a*15.0d0*c*q*q*A7/R7 - a*3.0d0*z*A5/R5
-C          fx(8,3) = -CC*3.0d0*x*(s2d-5.0d0*y*s/R2)/R5
-C     1        - a*15.0d0*xc*(t-y+7.0d0*y*q*q/R2)/R7 + a*15.0d0*xy*z/R7
-C          fx(9,3) =  CC*3.0d0*x*(1.0d0-(2.0d0+A5)*sdsd)/R5
-C     1        + a*15.0d0*xc*(s-d+7.0d0*d*q*q/R2)/R7 - a*15.0d0*xd*z/R7
-C          fx(10,3) =  CC*3.0d0*d*A5/R5
-C          fx(11,3) = -CC*15.0d0*xy*d/R7
-C          fx(12,3) = -CC*3.0d0*x*C5/R5
+!          fx(7,3) = -CC*3.0d0*s*A5/R5
+!     1                          + a*15.0d0*c*q*q*A7/R7 - a*3.0d0*z*A5/R5
+!          fx(8,3) = -CC*3.0d0*x*(s2d-5.0d0*y*s/R2)/R5
+!     1        - a*15.0d0*xc*(t-y+7.0d0*y*q*q/R2)/R7 + a*15.0d0*xy*z/R7
+!          fx(9,3) =  CC*3.0d0*x*(1.0d0-(2.0d0+A5)*sdsd)/R5
+!     1        + a*15.0d0*xc*(s-d+7.0d0*d*q*q/R2)/R7 - a*15.0d0*xd*z/R7
+!          fx(10,3) =  CC*3.0d0*d*A5/R5
+!          fx(11,3) = -CC*15.0d0*xy*d/R7
+!          fx(12,3) = -CC*3.0d0*x*C5/R5
       else
           fx(1,1) = -CA1*3.0d0*x*q/R5 + CA2*3.0d0*xq*(1.0d0+A5)/R5
           fx(2,1) =  CA1*A3*sd/R3     + CA2*3.0d0*yq*A5/R5
@@ -1086,25 +1086,25 @@ C          fx(12,3) = -CC*3.0d0*x*C5/R5
           fx(4,1) =                     CA2*3.0d0*pq*A5/R5
           fx(5,1) = -CA1*3.0d0*x*s/R5 - CA2*15.0d0*xy*pq/R7
           fx(6,1) =  CA1*3.0d0*x*t/R5 - CA2*15.0d0*x*d*pq/R7
-C          fx(7,1) =  CA1*A3/R3        - CA2*3.0d0*q*q*A5/R5
-C          fx(8,1) = -CA1*3.0d0*x*t/R5 + CA2*15.0d0*xy*q*q/R7
-C          fx(9,1) = -CA1*3.0d0*x*s/R5 + CA2*15.0d0*xd*q*q/R7
-C          fx(10,1) = -CA1*A3/R3
-C          fx(11,1) =  CA1*3.0d0*xy/R5
-C          fx(12,1) =  CA1*3.0d0*xd/R5
+!          fx(7,1) =  CA1*A3/R3        - CA2*3.0d0*q*q*A5/R5
+!          fx(8,1) = -CA1*3.0d0*x*t/R5 + CA2*15.0d0*xy*q*q/R7
+!          fx(9,1) = -CA1*3.0d0*x*s/R5 + CA2*15.0d0*xd*q*q/R7
+!          fx(10,1) = -CA1*A3/R3
+!          fx(11,1) =  CA1*3.0d0*xy/R5
+!          fx(12,1) =  CA1*3.0d0*xd/R5
       endif
 
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE PTYDER(fy,x,y,c,d)
+!      SUBROUTINE PTYDER(fy,x,y,c,d)
       SUBROUTINE yderiv0(fy,x,y,c,d)
-C----
-C Calculate the components of displacement y-derivatives (from table on
-C p. 1026 in Okada, 1992) in the array fx(6,3).
-C----
+!----
+! Calculate the components of displacement y-derivatives (from table on
+! p. 1026 in Okada, 1992) in the array fx(6,3).
+!----
       IMPLICIT none
       REAL*8 fy(6,3),x,y,c,d
 
@@ -1136,12 +1136,12 @@ C----
           fy(5,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3
      1                                         + CA2*3.0d0*(y*V2+pq)/R5
           fy(6,1) = -CA1*(c2d-3.0d0*y*t/R2)/R3 + CA2*3.0d0*d*V2/R5
-C          fy(7,1) = -CA1*3.0d0*xy/R5 - CA2*3.0d0*xq*W2/R5
-C          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
-C          fy(9,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3 - CA2*3.0d0*dq*W2/R5
-C          fy(10,1) =  CA1*3.0d0*xy/R5
-C          fy(11,1) = -CA1*B3/R3
-C          fy(12,1) =  CA1*3.0d0*y*d/R5
+!          fy(7,1) = -CA1*3.0d0*xy/R5 - CA2*3.0d0*xq*W2/R5
+!          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
+!          fy(9,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3 - CA2*3.0d0*dq*W2/R5
+!          fy(10,1) =  CA1*3.0d0*xy/R5
+!          fy(11,1) = -CA1*B3/R3
+!          fy(12,1) =  CA1*3.0d0*y*d/R5
 
           fy(1,2) = -3.0d0*xx*U2/R5                - CB*J2*sd
           fy(2,2) = -3.0d0*xy*U2/R5 - 3.0d0*x*q/R5 - CB*J4*sd
@@ -1149,12 +1149,12 @@ C          fy(12,1) =  CA1*3.0d0*y*d/R5
           fy(4,2) = -3.0d0*x*V2/R5                  + CB*J1*cdsd
           fy(5,2) = -3.0d0*y*V2/R5   - 3.0d0*p*q/R5 + CB*J2*cdsd
           fy(6,2) = -3.0d0*c*V2/R5                  + CB*K1*cdsd
-C          fy(7,2) = 3.0d0*xq*W2/R5                - CB*J1*sdsd
-C          fy(8,2) = 3.0d0*yq*W2/R5 + 3.0d0*q*q/R5 - CB*J2*sdsd
-C          fy(9,2) = 3.0d0*c*q*W2/R5               - CB*K1*sdsd
-C          fy(10,2) =                                -CB*3.0d0*xy/R5
-C          fy(11,2) =                                 CB*B3/R3
-C          fy(12,2) =                                -CB*3.0d0*y*d/R5
+!          fy(7,2) = 3.0d0*xq*W2/R5                - CB*J1*sdsd
+!          fy(8,2) = 3.0d0*yq*W2/R5 + 3.0d0*q*q/R5 - CB*J2*sdsd
+!          fy(9,2) = 3.0d0*c*q*W2/R5               - CB*K1*sdsd
+!          fy(10,2) =                                -CB*3.0d0*xy/R5
+!          fy(11,2) =                                 CB*B3/R3
+!          fy(12,2) =                                -CB*3.0d0*y*d/R5
 
           fy(1,3) =  CC*3.0d0*y*A5*cd/R5
      1                          + a*3.0d0*c*(A5*sd-5.0d0*y*q*A7/R2)/R5
@@ -1168,17 +1168,17 @@ C          fy(12,2) =                                -CB*3.0d0*y*d/R5
      1              + a*3.0d0*c*(s2d-10.0d0*y*s/R2-5.0d0*pq*B7/R2)/R5
           fy(6,3) =  CC*3.0d0*y*A5*cdsd/R5
      1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*pq/R4)/R5
-C          fy(7,3) = -CC*3.0d0*x*(s2d-5.0d0*y*s/R2)/R5
-C     1          - a*15.0d0*xc*(t-y+7.0d0*y*q*q/R2)/R7 + a*15.0d0*xy*z/R7
-C          fy(8,3) = -CC*3.0d0*(2.0d0*y*s2d+s*B5)/R5
-C     1          - a*3.0d0*c*(2.0d0*sdsd+10.0d0*y*(t-y)/R2
-C     2             -5.0d0*q*q*B7/R2)/R5 - a*3.0d0*z*B5/R5
-C          fy(9,3) =  CC*3.0d0*y*(1.0d0-A5*sdsd)/R5
-C     1          + a*3.0d0*c*((3.0d0+A5)*s2d-5.0d0*y*d*(2.0d0
-C     2             -7.0d0*q*q/R2)/R2)/R5 - a*15.0d0*y*d*z/R7
-C          fy(10,3) = -CC*15.0d0*xy*d/R7
-C          fy(11,3) =  CC*3.0d0*d*B5/R5
-C          fy(12,3) = -CC*3.0d0*y*C5/R5
+!          fy(7,3) = -CC*3.0d0*x*(s2d-5.0d0*y*s/R2)/R5
+!     1          - a*15.0d0*xc*(t-y+7.0d0*y*q*q/R2)/R7 + a*15.0d0*xy*z/R7
+!          fy(8,3) = -CC*3.0d0*(2.0d0*y*s2d+s*B5)/R5
+!     1          - a*3.0d0*c*(2.0d0*sdsd+10.0d0*y*(t-y)/R2
+!     2             -5.0d0*q*q*B7/R2)/R5 - a*3.0d0*z*B5/R5
+!          fy(9,3) =  CC*3.0d0*y*(1.0d0-A5*sdsd)/R5
+!     1          + a*3.0d0*c*((3.0d0+A5)*s2d-5.0d0*y*d*(2.0d0
+!     2             -7.0d0*q*q/R2)/R2)/R5 - a*15.0d0*y*d*z/R7
+!          fy(10,3) = -CC*15.0d0*xy*d/R7
+!          fy(11,3) =  CC*3.0d0*d*B5/R5
+!          fy(12,3) = -CC*3.0d0*y*C5/R5
       else
           fy(1,1) =  CA1*(sd-3.0d0*y*q/R2)/R3  + CA2*3.0d0*xx*U2/R5
           fy(2,1) = -CA1*3.0d0*xy*sd/R5     + CA2*3.0d0*x*(y*U2+q)/R5
@@ -1187,25 +1187,25 @@ C          fy(12,3) = -CC*3.0d0*y*C5/R5
           fy(5,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3
      1                                         + CA2*3.0d0*(y*V2+pq)/R5
           fy(6,1) = -CA1*(c2d-3.0d0*y*t/R2)/R3 + CA2*3.0d0*d*V2/R5
-C          fy(7,1) = -CA1*3.0d0*xy/R5 - CA2*3.0d0*xq*W2/R5
-C          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
-C          fy(9,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3 - CA2*3.0d0*dq*W2/R5
-C          fy(10,1) =  CA1*3.0d0*xy/R5
-C          fy(11,1) = -CA1*B3/R3
-C          fy(12,1) =  CA1*3.0d0*y*d/R5
+!          fy(7,1) = -CA1*3.0d0*xy/R5 - CA2*3.0d0*xq*W2/R5
+!          fy(8,1) =  CA1*(c2d-3.0d0*y*t/R2)/R3 - CA2*3.0d0*(y*q*W2+q*q)/R5
+!          fy(9,1) =  CA1*(s2d-3.0d0*y*s/R2)/R3 - CA2*3.0d0*dq*W2/R5
+!          fy(10,1) =  CA1*3.0d0*xy/R5
+!          fy(11,1) = -CA1*B3/R3
+!          fy(12,1) =  CA1*3.0d0*y*d/R5
       endif
 
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE PTZDER(fz,x,y,c,d)
+!      SUBROUTINE PTZDER(fz,x,y,c,d)
       SUBROUTINE zderiv0(fz,x,y,c,d)
-C----
-C Calculate the components of displacement z-derivatives (from table on
-C p. 1026 in Okada, 1992) in the array fx(6,3).
-C----
+!----
+! Calculate the components of displacement z-derivatives (from table on
+! p. 1026 in Okada, 1992) in the array fx(6,3).
+!----
       IMPLICIT none
       REAL*8 fz(6,3),x,y,c,d
 
@@ -1235,13 +1235,13 @@ C----
           fz(5,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3 + CA2*3.0d0*y*V3/R5
           fz(6,1) =  CA1*(s2d-3.0d0*d*t/R2)/R3
      1                                      + CA2*3.0d0*(d*V3-pq)/R5
-C          fz(7,1) =  CA1*3.0d0*xd/R5 - CA2*3.0d0*xq*W3/R5
-C          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*yq*W3/R5
-C          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
-C     1                                - CA2*3.0d0*q*(d*W3-q)/R5
-C          fz(10,1) = -CA1*3.0d0*xd/R5
-C          fz(11,1) = -CA1*3.0d0*y*d/R5
-C          fz(12,1) =  CA1*C3/R3
+!          fz(7,1) =  CA1*3.0d0*xd/R5 - CA2*3.0d0*xq*W3/R5
+!          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*yq*W3/R5
+!          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
+!     1                                - CA2*3.0d0*q*(d*W3-q)/R5
+!          fz(10,1) = -CA1*3.0d0*xd/R5
+!          fz(11,1) = -CA1*3.0d0*y*d/R5
+!          fz(12,1) =  CA1*C3/R3
 
           fz(1,2) = -3.0d0*xx*U3/R5 + CB*K1*sd
           fz(2,2) = -3.0d0*xy*U3/R5 + CB*K2*sd
@@ -1249,12 +1249,12 @@ C          fz(12,1) =  CA1*C3/R3
           fz(4,2) = -3.0d0*x*V3/R5   - CB*K3*sd*cd
           fz(5,2) = -3.0d0*y*V3/R5   - CB*K1*sd*cd
           fz(6,2) = -3.0d0*c*V3/R5   + CB*A3*sd*cd/R3
-C          fz(7,2) = 3.0d0*xq*W3/R5 + CB*K3*sdsd
-C          fz(8,2) = 3.0d0*yq*W3/R5 + CB*K1*sdsd
-C          fz(9,2) = 3.0d0*c*q*W3/R5 - CB*A3*sdsd/R3
-C          fz(10,2) =  CB*3.0d0*xd/R5
-C          fz(11,2) =  CB*3.0d0*y*d/R5
-C          fz(12,2) = -CB*C3/R3
+!          fz(7,2) = 3.0d0*xq*W3/R5 + CB*K3*sdsd
+!          fz(8,2) = 3.0d0*yq*W3/R5 + CB*K1*sdsd
+!          fz(9,2) = 3.0d0*c*q*W3/R5 - CB*A3*sdsd/R3
+!          fz(10,2) =  CB*3.0d0*xd/R5
+!          fz(11,2) =  CB*3.0d0*y*d/R5
+!          fz(12,2) = -CB*C3/R3
 
           fz(1,3) = -CC*3.0d0*d*A5*cd/R5
      1                          + a*3.0d0*c*(A5*cd+5.0d0*d*q*A7/R2)/R5
@@ -1268,18 +1268,18 @@ C          fz(12,2) = -CB*C3/R3
      1               - a*3.0d0*c*((3.0d0+A5)*c2d+35.0d0*y*d*pq/R4)/R5
           fz(6,3) = -CC*3.0d0*d*A5*sd*cd/R5
      1               - a*3.0d0*c*(s2d-(10.0d0*d*t-5.0d0*pq*C7)/R2)/R5
-C          fz(7,3) = -CC*3.0d0*x*(c2d+5.0d0*d*s/R2)/R5
-C     1       + a*15.0d0*xc*(s-d+7.0d0*d*q*q/R2)/R7
-C     2       - a*3.0d0*x*(1.0d0+5.0d0*d*z/R2)/R5
-C          fz(8,3) =  CC*3.0d0*(d*B5*s2d-y*C5*c2d)/R5
-C     1       + a*3.0d0*c*((3.0d0+A5)*s2d-5.0d0*y*d*(2.0d0
-C     2       -7.0d0*q*q/R2)/R2)/R5 - a*3.0d0*y*(1.0d0+5.0d0*d*z/R2)/R5
-C          fz(9,3) = -CC*3.0d0*d*(1.0d0-A5*sdsd)/R5
-C     1       - a*3.0d0*c*(c2d+10.0d0*d*(s-d)/R2-5.0d0*q*q*C7/R2)/R5
-C     2       - a*3.0d0*z*(1.0d0+C5)/R5
-C          fz(10,3) = -CC*3.0d0*x*C5/R5
-C          fz(11,3) = -CC*3.0d0*y*C5/D5
-C          fz(12,3) =  CC*3.0d0*d*(2.0d0+C5)/R5
+!          fz(7,3) = -CC*3.0d0*x*(c2d+5.0d0*d*s/R2)/R5
+!     1       + a*15.0d0*xc*(s-d+7.0d0*d*q*q/R2)/R7
+!     2       - a*3.0d0*x*(1.0d0+5.0d0*d*z/R2)/R5
+!          fz(8,3) =  CC*3.0d0*(d*B5*s2d-y*C5*c2d)/R5
+!     1       + a*3.0d0*c*((3.0d0+A5)*s2d-5.0d0*y*d*(2.0d0
+!     2       -7.0d0*q*q/R2)/R2)/R5 - a*3.0d0*y*(1.0d0+5.0d0*d*z/R2)/R5
+!          fz(9,3) = -CC*3.0d0*d*(1.0d0-A5*sdsd)/R5
+!     1       - a*3.0d0*c*(c2d+10.0d0*d*(s-d)/R2-5.0d0*q*q*C7/R2)/R5
+!     2       - a*3.0d0*z*(1.0d0+C5)/R5
+!          fz(10,3) = -CC*3.0d0*x*C5/R5
+!          fz(11,3) = -CC*3.0d0*y*C5/D5
+!          fz(12,3) =  CC*3.0d0*d*(2.0d0+C5)/R5
       else
           fz(1,1) =  CA1*(cd+3.0d0*d*q/R2)/R3  + CA2*3.0d0*xx*U3/R5
           fz(2,1) =  CA1*3.0d0*xd*sd/R5       + CA2*3.0d0*xy*U3/R5
@@ -1288,21 +1288,21 @@ C          fz(12,3) =  CC*3.0d0*d*(2.0d0+C5)/R5
           fz(5,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3 + CA2*3.0d0*y*V3/R5
           fz(6,1) =  CA1*(s2d-3.0d0*d*t/R2)/R3
      1                                      + CA2*3.0d0*(d*V3-pq)/R5
-C          fz(7,1) =  CA1*3.0d0*xd/R5 - CA2*3.0d0*xq*W3/R5
-C          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*yq*W3/R5
-C          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
-C     1                                - CA2*3.0d0*q*(d*W3-q)/R5
-C          fz(10,1) = -CA1*3.0d0*xd/R5
-C          fz(11,1) = -CA1*3.0d0*y*d/R5
-C          fz(12,1) =  CA1*C3/R3
+!          fz(7,1) =  CA1*3.0d0*xd/R5 - CA2*3.0d0*xq*W3/R5
+!          fz(8,1) = -CA1*(s2d-3.0d0*d*t/R2)/R3 - CA2*3.0d0*yq*W3/R5
+!          fz(9,1) =  CA1*(c2d+3.0d0*d*s/R2)/R3
+!     1                                - CA2*3.0d0*q*(d*W3-q)/R5
+!          fz(10,1) = -CA1*3.0d0*xd/R5
+!          fz(11,1) = -CA1*3.0d0*y*d/R5
+!          fz(12,1) =  CA1*C3/R3
       endif
 
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE PTSDSP(f,x,y,c,d)
+!      SUBROUTINE PTSDSP(f,x,y,c,d)
       SUBROUTINE disp0stn(f,x,y,c,d)
       IMPLICIT none
       REAL*8 f(6),x,y,c,d
@@ -1329,30 +1329,30 @@ C      SUBROUTINE PTSDSP(f,x,y,c,d)
       f(5) = -CC*(c2d-3.0d0*y*t/R2)/R3
      1                                   + a*3.0d0*c*(s-5.0*y*pq/R2)/R5
       f(6) = -CC*A3*cdsd/R3  + a*3.0d0*c*(t+5.0*d*pq/R2)/R5
-C      f(7) = -CC*3.0d0*x*s/R5 +a*15.0d0*c*x*q*q/R7 -a*3.0d0*x*z/R5
-C      f(8) =  CC*(s2d-3.0d0*y*s/R2)/R3
-c     1             + a*3.0d0*c*(t-y+5.0d0*y*q*q/R2)/R5 - a*3.0d0*y*z/R5
-C      f(9) = -CC*(1.0d0-A3*sdsd)/R3
-C     1             - a*3.0d0*c*(s-d+5.0d0*d*q*q/R2)/R5 + a*3.0d0*d*z/R5
-C      f(10) = CC*3.0d0*x*d/R5
-C      f(11) = CC*3.0d0*y*d/R5
-C      f(12) = CC*C3/R3
+!      f(7) = -CC*3.0d0*x*s/R5 +a*15.0d0*c*x*q*q/R7 -a*3.0d0*x*z/R5
+!      f(8) =  CC*(s2d-3.0d0*y*s/R2)/R3
+!     1             + a*3.0d0*c*(t-y+5.0d0*y*q*q/R2)/R5 - a*3.0d0*y*z/R5
+!      f(9) = -CC*(1.0d0-A3*sdsd)/R3
+!     1             - a*3.0d0*c*(s-d+5.0d0*d*q*q/R2)/R5 + a*3.0d0*d*z/R5
+!      f(10) = CC*3.0d0*x*d/R5
+!      f(11) = CC*3.0d0*y*d/R5
+!      f(12) = CC*C3/R3
 
       RETURN
       END
 
-C----------------------------------------------------------------------C
-C----------------------------------------------------------------------C
-C------------------- Finite Source Subroutines ------------------------C
-C----------------------------------------------------------------------C
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+!------------------- Finite Source Subroutines ------------------------C
+!----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE FNVAR(ksi,eta,q,z,ek,ee,eps)
+!      SUBROUTINE FNVAR(ksi,eta,q,z,ek,ee,eps)
       SUBROUTINE rectvars(ksi,eta,q,z,ek,ee,eps)
-C----
-C Calculate geometric variables needed for displacements and strains
-C due to finite rectangular source.
-C----
+!----
+! Calculate geometric variables needed for displacements and strains
+! due to finite rectangular source.
+!----
       IMPLICIT NONE
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
       REAL*8 a,CA1,CA2,CB,CC
@@ -1378,7 +1378,7 @@ C----
       COMMON /YVARS/ E2,F2,G2,H2,P2,Q2
       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
-C----
+!----
       ybar = eta*cd + q*sd
       dbar = eta*sd - q*cd
       cbar = dbar + z
@@ -1389,13 +1389,13 @@ C----
       R5 = R3*R2
       Rd = R+dbar
       h = q*cd - z
-C----
+!----
       if (dabs(q).lt.eps) then
           TH = 0.0d0
       else
           TH = datan(ksi*eta/(q*R))
       endif
-C----
+!----
       if (ek.eq.1) then
           X11 = 0.0d0
           X32 = 0.0d0
@@ -1426,7 +1426,7 @@ C----
       Z32 = sd/R3 - h*Y32
       Z53 = 3.0d0*sd/R5 - h*Y53
       Z0  = Z32 - ksi*ksi*Z53
-C----
+!----
       XX = sqrt(ksi*ksi+q*q)
 
       I3 = ybar/(cd*Rd) - (logRe-sd*dlog(Rd))/(cdcd)
@@ -1439,7 +1439,7 @@ C----
       endif
       I1 = -ksi*cd/Rd - I4*sd
       I2 = dlog(Rd) + I3*sd
-C----
+!----
       D11 = 1.0d0/(R*Rd)
 
       K1 = ksi*(D11-Y11*sd)/cd
@@ -1453,7 +1453,7 @@ C----
       J6 = (K3-J5*sd)/cd
       J1 = J5*cd - J6*sd
       J4 = -ksi*Y11 - J2*cd + J3*sd
-C----
+!----
       E2 = sd/R - ybar*q/R3
       F2 = dbar/R3 + ksi*ksi*Y32*sd
       G2 = 2.0d0*X11*sd - ybar*q*X32
@@ -1471,13 +1471,13 @@ C----
       RETURN
       END
 
-C - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
 
-C      SUBROUTINE FNCOMP(f,ksi,eta,q,z)
+!      SUBROUTINE FNCOMP(f,ksi,eta,q,z)
       SUBROUTINE disp1(f,ksi,eta,q,z)
-C----
-C Components of displacement from finite source
-C----
+!----
+! Components of displacement from finite source
+!----
       IMPLICIT none
       REAL*8 f(6,3),ksi,eta,q,z
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1503,9 +1503,9 @@ C----
           f(4,1) =               CA2*q/R
           f(5,1) = TH*0.5d0    + CA2*eta*q*X11
           f(6,1) = CA1*logRk   - CA2*q*q*X11
-C          f(7,1) = -CA1*logRe - CA2*q*q*Y11
-C          f(8,1) = -CA1*logRk - CA2*q*q*X11
-C          f(9,1) =   TH*0.5d0 - CA2*q*(eta*X11+ksi*Y11)
+!          f(7,1) = -CA1*logRe - CA2*q*q*Y11
+!          f(8,1) = -CA1*logRk - CA2*q*q*X11
+!          f(9,1) =   TH*0.5d0 - CA2*q*(eta*X11+ksi*Y11)
 
           f(1,2) = -ksi*q*Y11 - TH - CB*I1*sd
           f(2,2) = -q/R            + CB*ybar*sd/Rd
@@ -1513,9 +1513,9 @@ C          f(9,1) =   TH*0.5d0 - CA2*q*(eta*X11+ksi*Y11)
           f(4,2) = -q/R            + CB*I3*cdsd
           f(5,2) = -eta*q*X11 - TH - CB*ksi*cdsd/Rd
           f(6,2) =  q*q*X11        + CB*I4*cdsd
-C          f(7,2) =  q*q*Y11                  - CB*I3*sdsd
-C          f(8,2) =  q*q*X11                  + CB*ksi*sdsd/Rd
-C          f(9,2) =  q*(eta*X11+ksi*Y11) - TH - CB*I4*sdsd
+!          f(7,2) =  q*q*Y11                  - CB*I3*sdsd
+!          f(8,2) =  q*q*X11                  + CB*ksi*sdsd/Rd
+!          f(9,2) =  q*(eta*X11+ksi*Y11) - TH - CB*I4*sdsd
 
           f(1,3) = CC*ksi*Y11*cd - a*ksi*q*Z32
           f(2,3) = CC*(cd/R+2.0d0*q*Y11*sd) - a*cbar*q/R3
@@ -1523,11 +1523,11 @@ C          f(9,2) =  q*(eta*X11+ksi*Y11) - TH - CB*I4*sdsd
           f(4,3) = CC*cd/R - q*Y11*sd - a*cbar*q/R3
           f(5,3) = CC*ybar*X11 - a*cbar*eta*q*X32
           f(6,3) = -dbar*X11 - ksi*Y11*sd - a*cbar*(X11 - q*q*X32)
-C          f(7,3) = -CC*(sd/R+q*Y11*cd) - a*(z*Y11-q*q*Z32)
-C          f(8,3) =  CC*2.0d0*ksi*Y11*sd + dbar*X11
-C         1                                   - a*cbar*(X11-q*q*X32)
-C          f(9,3) =  CC*(ybar*X11+ksi*Y11*cd)
-C         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
+!          f(7,3) = -CC*(sd/R+q*Y11*cd) - a*(z*Y11-q*q*Z32)
+!          f(8,3) =  CC*2.0d0*ksi*Y11*sd + dbar*X11
+!         1                                   - a*cbar*(X11-q*q*X32)
+!          f(9,3) =  CC*(ybar*X11+ksi*Y11*cd)
+!         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
       else
           f(1,1) = TH*0.5d0    + CA2*ksi*q*Y11
           f(2,1) =               CA2*q/R
@@ -1535,20 +1535,20 @@ C         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
           f(4,1) =               CA2*q/R
           f(5,1) = TH*0.5d0    + CA2*eta*q*X11
           f(6,1) = CA1*logRk   - CA2*q*q*X11
-C          f(7,1) = -CA1*logRe - CA2*q*q*Y11
-C          f(8,1) = -CA1*logRk - CA2*q*q*X11
-C          f(9,1) =   TH*0.5d0 - CA2*q*(eta*X11+ksi*Y11)
+!          f(7,1) = -CA1*logRe - CA2*q*q*Y11
+!          f(8,1) = -CA1*logRk - CA2*q*q*X11
+!          f(9,1) =   TH*0.5d0 - CA2*q*(eta*X11+ksi*Y11)
       endif
       RETURN
       END
 
-C-------------------
+!-------------------
 
-C      SUBROUTINE FNXDER(fx,ksi,eta,q,z)
+!      SUBROUTINE FNXDER(fx,ksi,eta,q,z)
       SUBROUTINE xderiv1(fx,ksi,eta,q,z)
-C----
-C Components of x-derivatives of displacement from finite source
-C----
+!----
+! Components of x-derivatives of displacement from finite source
+!----
       IMPLICIT none
       REAL*8 fx(6,3),ksi,eta,q,z
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1572,9 +1572,9 @@ C----
           fx(4,1) =              - CA2*ksi*q/R3
           fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
           fx(6,1) =  CA1/R       + CA2*q*q/R3
-C          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-C          fx(8,1) = -CA1/R       + CA2*q*q/R3
-C          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
+!          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
+!          fx(8,1) = -CA1/R       + CA2*q*q/R3
+!          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
 
           fx(1,2) =  ksi*ksi*q*Y32     - CB*J1*sd
           fx(2,2) =  ksi*q/R3          - CB*J2*sd
@@ -1582,9 +1582,9 @@ C          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
           fx(4,2) =  ksi*q/R3          + CB*J4*cdsd
           fx(5,2) =  eta*q/R3 + q*Y11  + CB*J5*cdsd
           fx(6,2) = -q*q/R3            + CB*J6*cdsd
-C          fx(7,2) = -ksi*q*q*Y32      - CB*J4*sdsd
-C          fx(8,2) = -q*q/R3           - CB*J5*sdsd
-C          fx(9,2) = q*q*q*Y32         - CB*J6*sdsd
+!          fx(7,2) = -ksi*q*q*Y32      - CB*J4*sdsd
+!          fx(8,2) = -q*q/R3           - CB*J5*sdsd
+!          fx(9,2) = q*q*q*Y32         - CB*J6*sdsd
 
           fx(1,3) =  CC*Y0*cd - a*q*Z0
           fx(2,3) = -CC*ksi*(cd/R3+2.0d0*q*Y32*sd)
@@ -1594,11 +1594,11 @@ C          fx(9,2) = q*q*q*Y32         - CB*J6*sdsd
           fx(4,3) = -CC*ksi*cd/R3 + ksi*q*Y32*sd + a*3.0d0*cbar*ksi*q/R5
           fx(5,3) = -CC*ybar/R3 + a*3.0d0*cbar*eta*q/R5
           fx(6,3) = dbar/R3 - Y0*sd + a*cbar*(1.0d0-3.0d0*q*q/R2)/R3
-C          fx(7,3) =  CC*ksi*sd/R3 + ksi*q*Y32*cd
-C         1                + a*ksi*(3.0d0*cbar*eta/R5 - 2.0d0*Z32 - Z0)
-C          fx(8,3) =  CC*2.0d0*Y0*sd - dbar/R3
-C         1                + a*cbar*(1.0d0-3.0d0*q*q/R2)/R3
-C          fx(9,3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
+!          fx(7,3) =  CC*ksi*sd/R3 + ksi*q*Y32*cd
+!         1                + a*ksi*(3.0d0*cbar*eta/R5 - 2.0d0*Z32 - Z0)
+!          fx(8,3) =  CC*2.0d0*Y0*sd - dbar/R3
+!         1                + a*cbar*(1.0d0-3.0d0*q*q/R2)/R3
+!          fx(9,3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
       else
           fx(1,1) = -CA1*q*Y11   - CA2*ksi*ksi*q*Y32
           fx(2,1) =              - CA2*ksi*q/R3
@@ -1606,21 +1606,21 @@ C          fx(9,3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
           fx(4,1) =              - CA2*ksi*q/R3
           fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
           fx(6,1) =  CA1/R       + CA2*q*q/R3
-C          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-C          fx(8,1) = -CA1/R       + CA2*q*q/R3
-C          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
+!          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
+!          fx(8,1) = -CA1/R       + CA2*q*q/R3
+!          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
       endif
 
       RETURN
       END
 
-C-------------------
+!-------------------
 
-C      SUBROUTINE FNYDER(fy,ksi,eta,q,z)
+!      SUBROUTINE FNYDER(fy,ksi,eta,q,z)
       SUBROUTINE yderiv1(fy,ksi,eta,q,z)
-C----
-C Components of y-derivatives of displacement from finite source
-C----
+!----
+! Components of y-derivatives of displacement from finite source
+!----
       IMPLICIT none
       REAL*8 fy(6,3),ksi,eta,q,z
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1646,9 +1646,9 @@ C----
           fy(4,1) =                                    CA2*E2
           fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
           fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
-C          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
-C          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
-C          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
+!          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
+!          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
+!          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
 
           fy(1,2) = -ksi*F2 - dbar*X11     + CB*(ksi*Y11+J4)*sd
           fy(2,2) = -E2                    + CB*(1.0d0/R+J5)*sd
@@ -1656,9 +1656,9 @@ C          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
           fy(4,2) = -E2                    + CB*J1*cdsd
           fy(5,2) = -eta*G2 - ksi*Y11*sd + CB*J2*cdsd
           fy(6,2) =  q*G2                  + CB*J3*cdsd
-C          fy(7,2) =  q*F2 - CB*J1*sdsd
-C          fy(8,2) =  q*G2 - CB*J2*sdsd
-C          fy(9,2) = -q*H2 - CB*J3*sdsd
+!          fy(7,2) =  q*F2 - CB*J1*sdsd
+!          fy(8,2) =  q*G2 - CB*J2*sdsd
+!          fy(9,2) = -q*H2 - CB*J3*sdsd
 
           fy(1,3) = -CC*ksi*P2*cd - a*ksi*Q2
           fy(2,3) =  2.0d0*CC*(dbar/R3-Y0*sd)*sd - ybar*cd/R3
@@ -1672,13 +1672,13 @@ C          fy(9,2) = -q*H2 - CB*J3*sdsd
      1                 - a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
           fy(6,3) =  ksi*P2*sd + ybar*dbar*X32
      1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
-C          fy(7,3) =  CC*(q/R3+Y0*cdsd)
-C     1                  + a*(z*cd/R3+3.0d0*cbar*dbar*q/R5-q*Z0*sd)
-C          fy(8,3) = -CC*2.0d0*ksi*P2*sd - ybar*dbar*X32
-C     1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
-C          fy(9,3) = -CC*(ksi*P2*cd-X11+ybar*ybar*X32)
-C     1                 + a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
-C     2                 + a*ksi*Q2
+!          fy(7,3) =  CC*(q/R3+Y0*cdsd)
+!     1                  + a*(z*cd/R3+3.0d0*cbar*dbar*q/R5-q*Z0*sd)
+!          fy(8,3) = -CC*2.0d0*ksi*P2*sd - ybar*dbar*X32
+!     1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
+!          fy(9,3) = -CC*(ksi*P2*cd-X11+ybar*ybar*X32)
+!     1                 + a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
+!     2                 + a*ksi*Q2
       else
           fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
           fy(2,1) =                                    CA2*E2
@@ -1686,22 +1686,22 @@ C     2                 + a*ksi*Q2
           fy(4,1) =                                    CA2*E2
           fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
           fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
-C          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
-C          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
-C          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
+!          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
+!          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
+!          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
       endif
       z=z
 
       RETURN
       END
 
-C-------------------
+!-------------------
 
-C      SUBROUTINE FNZDER(fz,ksi,eta,q,z)
+!      SUBROUTINE FNZDER(fz,ksi,eta,q,z)
       SUBROUTINE zderiv1(fz,ksi,eta,q,z)
-C----
-C Components of z-derivatives of displacement from finite source
-C----
+!----
+! Components of z-derivatives of displacement from finite source
+!----
       IMPLICIT none
       REAL*8 fz(6,3),ksi,eta,q,z
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1729,9 +1729,9 @@ C----
           fz(4,1) =                                    CA2*E3
           fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
           fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
-C          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
-C          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
-C          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
+!          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
+!          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
+!          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
 
           fz(1,2) = -ksi*F3 - ybar*X11     + CB*K1*sd
           fz(2,2) = -E3                    + CB*ybar*D11*sd
@@ -1739,9 +1739,9 @@ C          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
           fz(4,2) = -E3                    - CB*K3*cdsd
           fz(5,2) = -eta*G3 - ksi*Y11*cd - CB*ksi*D11*cdsd
           fz(6,2) =  q*G3                  - CB*K4*cdsd
-C          fz(7,2) =  q*F3 + CB*K3*sdsd
-C          fz(8,2) =  q*G3 + CB*ksi*D11*sdsd
-C          fz(9,2) = -q*H3 + CB*K4*sdsd
+!          fz(7,2) =  q*F3 + CB*K3*sdsd
+!          fz(8,2) =  q*G3 + CB*ksi*D11*sdsd
+!          fz(9,2) = -q*H3 + CB*K4*sdsd
 
           fz(1,3) = CC*ksi*P3*cd - a*ksi*Q3
           fz(2,3) = 2.0d0*CC*(ybar/R3-Y0*cd)*sd + dbar*cd/R3
@@ -1755,13 +1755,13 @@ C          fz(9,2) = -q*H3 + CB*K4*sdsd
      1                 - a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
           fz(6,3) = -ksi*P3*sd + X11 - dbar*dbar*X32
      1                     - a*cbar*((dbar-2.0*q*cd)*X32-dbar*q*q*X53)
-C          fz(7,3) = -eta/R3 + Y0*cdcd
-C     1               - a*(z*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sdsd+q*Z0*cd)
-C          fz(8,3) =  CC*2.0d0*ksi*P3*sd - X11 + dbar*dbar*X32
-C     1                - a*cbar*((dbar-2.0d0*q*cd)*X32-dbar*q*q*X53)
-C          fz(9,3) =  CC*(ksi*P3*cd+ybar*dbar*X32)
-C     1                 + a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
-C     2                 + a*ksi*Q3
+!          fz(7,3) = -eta/R3 + Y0*cdcd
+!     1               - a*(z*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sdsd+q*Z0*cd)
+!          fz(8,3) =  CC*2.0d0*ksi*P3*sd - X11 + dbar*dbar*X32
+!     1                - a*cbar*((dbar-2.0d0*q*cd)*X32-dbar*q*q*X53)
+!          fz(9,3) =  CC*(ksi*P3*cd+ybar*dbar*X32)
+!     1                 + a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
+!     2                 + a*ksi*Q3
       else
           fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
           fz(2,1) =                                    CA2*E3
@@ -1769,23 +1769,23 @@ C     2                 + a*ksi*Q3
           fz(4,1) =                                    CA2*E3
           fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
           fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
-C          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
-C          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
-C          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
+!          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
+!          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
+!          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
       endif
       z=z
 
       RETURN
       END
 
-C-------------------
+!-------------------
 
-C      SUBROUTINE FNSDSP(f,ksi,eta,q,z)
+!      SUBROUTINE FNSDSP(f,ksi,eta,q,z)
       SUBROUTINE disp1stn(f,ksi,eta,q,z)
-C----
-C Components of displacement due to finite source for calculating
-C partial derivatives
-C----
+!----
+! Components of displacement due to finite source for calculating
+! partial derivatives
+!----
       IMPLICIT none
       REAL*8 f(6),ksi,eta,q,z
       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
@@ -1804,22 +1804,22 @@ C----
       f(4) = CC*cd/R - q*Y11*sd - a*cbar*q/R3
       f(5) = CC*ybar*X11 - a*cbar*eta*q*X32
       f(6) = -dbar*X11 - ksi*Y11*sd - a*cbar*(X11 - q*q*X32)
-C      f(7) = -CC*(sd/R+q*Y11*cd) - a*(z*Y11-q*q*Z32)
-C      f(8) =  CC*2.0d0*ksi*Y11*sd + dbar*X11
-C         1                                   - a*cbar*(X11-q*q*X32)
-C      f(9) =  CC*(ybar*X11+ksi*Y11*cd)
-C         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
+!      f(7) = -CC*(sd/R+q*Y11*cd) - a*(z*Y11-q*q*Z32)
+!      f(8) =  CC*2.0d0*ksi*Y11*sd + dbar*X11
+!         1                                   - a*cbar*(X11-q*q*X32)
+!      f(9) =  CC*(ybar*X11+ksi*Y11*cd)
+!         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
 
       RETURN
       END
 
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
-C      SUBROUTINE FNSING(eq,ek,ee,ksi,eta,q,eps)
+!      SUBROUTINE FNSING(eq,ek,ee,ksi,eta,q,eps)
       SUBROUTINE rectsingular(eq,ek,ee,ksi,eta,q,eps)
-C----
-C Check to see if observation point lies on singular locations
-C----
+!----
+! Check to see if observation point lies on singular locations
+!----
       IMPLICIT none
       REAL*8 q,ksi(2),eta(2),eps,R12,R22,R21
       INTEGER eq,ek(2),ee(2)
@@ -1846,11 +1846,11 @@ C----
       RETURN
       END
 
-C----------------------------------------------------------------------C
-C If observation point lies at point source or on finite fault edge,
-C return zeros.
-C----
-C      SUBROUTINE SINGSN(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
+!----------------------------------------------------------------------C
+! If observation point lies at point source or on finite fault edge,
+! return zeros.
+!----
+!      SUBROUTINE SINGSN(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
       SUBROUTINE singularstrain(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
       IMPLICIT none
       REAL*8 uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz
@@ -1869,7 +1869,7 @@ C      SUBROUTINE SINGSN(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
       RETURN
       END
 
-C      SUBROUTINE SINGDS(ux,uy,uz)
+!      SUBROUTINE SINGDS(ux,uy,uz)
       SUBROUTINE singulardisplacement(ux,uy,uz)
       IMPLICIT none
       REAL*8 ux,uy,uz

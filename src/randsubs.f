@@ -8,9 +8,9 @@
       RETURN
       END
 
-C----------------------------------------------------------------------C
-C Random number generators from Numerical Recipes, Press et al.
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
+! Random number generators from Numerical Recipes, Press et al.
+!----------------------------------------------------------------------C
 
       FUNCTION ran1(idum)
       INTEGER idum,IA,IM,IQ,IR,NTAB,NDIV
@@ -77,13 +77,13 @@ C----------------------------------------------------------------------C
       FUNCTION ran3(idum)
       INTEGER idum
       INTEGER MBIG,MSEED,MZ
-C     REAL MBIG,MSEED,MZ
+!     REAL MBIG,MSEED,MZ
       REAL ran3,FAC
       PARAMETER (MBIG=1000000000,MSEED=161803398,MZ=0,FAC=1./MBIG)
-C     PARAMETER (MBIG=4000000.,MSEED=1618033.,MZ=0.,FAC=1./MBIG)
+!     PARAMETER (MBIG=4000000.,MSEED=1618033.,MZ=0.,FAC=1./MBIG)
       INTEGER i,iff,ii,inext,inextp,k
       INTEGER mj,mk,ma(55)
-C     REAL mj,mk,ma(55)
+!     REAL mj,mk,ma(55)
       SAVE iff,inext,inextp,ma
       DATA iff /0/
       if(idum.lt.0.or.iff.eq.0)then
@@ -120,7 +120,7 @@ C     REAL mj,mk,ma(55)
       return
       END
 
-C----------------------------------------------------------------------C
+!----------------------------------------------------------------------C
 
       SUBROUTINE nrand(y1,y2,idum)
       IMPLICIT none
