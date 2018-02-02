@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ###############################################################################
 # Script for automatically computing and plotting surface displacements 
@@ -31,7 +31,7 @@ PSFILE="$OFILE.ps"
 
 # Background vertical displacement grid is (NN x NN) points
 NN="100"
-#NN="50"
+NN="40"
 
 # Horizontal vectors sampled every SAMP points from (NN x NN) grid
 SAMP="5"
@@ -46,7 +46,7 @@ DISP_THR="0.05" # meters
 
 function USAGE() {
 echo
-echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME]"
+echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME] [-gps GPS_FILE]"
 echo "    SRC_TYPE    Either MT (moment tensor), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
 echo "    SRC_FILE        Name of input file"
 echo "                      MT:  EVLO EVLA EVDP STR DIP RAK MAG"
@@ -58,6 +58,7 @@ echo "    -Tvmin/vmax/dv  Define vertical color bar limits"
 echo "    -getscript      Copy surf_disp.sh to working directory"
 echo "    -novector       Do not plot horizontal vectors"
 echo "    -o FILENAME     Define basename for output file (will produce FILENAME.ps and FILENAME.pdf)"
+echo "    -gps GPS_FILE    Compare synthetic and observed displacements (GPS_FILE format: lon lat edisp ndisp zdisp)"
 echo
 exit
 }
@@ -88,6 +89,7 @@ VERT_CPT_RANGE=""
 GETSCRIPT="N"
 PLOT_VECT="Y"
 OFILE="surf_disp"
+GPS_FILE=""
 shift;shift
 while [ "$1" != "" ]
 do
@@ -98,6 +100,7 @@ do
         -novect*) PLOT_VECT="N" ;;
         -getscript) GETSCRIPT="Y" ;;
         -o) shift;OFILE="$1" ;;
+        -gps) shift;GPS_FILE="$1" ;;
         *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
@@ -265,9 +268,16 @@ else
     echo "Using map limits from command line: $W $E $S $N"
 fi
 
-# Create (NN x NN) point horizontal grid
+# Locations of displacement computations
 grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.dat
-grid -x $W $E -nx $NN_SAMP -y $S $N -ny $NN_SAMP -z $Z -o sta_samp.dat
+if [ -z $GPS_FILE ]
+then
+    # Create (NN x NN) point horizontal grid for vectors
+    grid -x $W $E -nx $NN_SAMP -y $S $N -ny $NN_SAMP -z $Z -o sta_samp.dat
+else
+    # Take points from GPS file for vectors
+    awk '{print $1,$2,0}' $GPS_FILE > sta_samp.dat
+fi
 
 #####
 #	COMPUTE SURFACE DISPLACEMENTS
@@ -308,8 +318,7 @@ else
 fi
 awk '{print $1,$2,$6}' disp.out | gmt xyz2grd -Gvert.grd $LIMS -I$NN+/$NN+
 gmt grdimage vert.grd $PROJ $LIMS -Cvert.cpt -Y1.5i -K > $PSFILE
-gmt psscale -D2.5i/-0.8i/5.0i/0.2ih -Cvert.cpt -Ba$DT -Bg$DT \
-    -B+l"Vertical Displacement (m)" -Al -K -O >> $PSFILE
+gmt psscale -D0i/-0.9i+w5.0i/0.2i+h+ml -Cvert.cpt -Ba$DT -Bg$DT -B+l"Vertical Displacement (m)" -K -O >> $PSFILE
 
 # Map stuff
 ANNOT=`echo $W $E | awk '{if($2-$1<=10){print 1}else{print 2}}'`
@@ -364,73 +373,81 @@ fi
 
 if [ $PLOT_VECT == "Y" ]
 then
-    # If max displacement is much larger than other displacements, don't use it
-    MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.out |\
-           awk 'BEGIN{m1=0;m2=0}
-                {if($1>m1){m2=m1;m1=$1;ln=NR}}
-                END{if(m1>2*m2){print ln}else{print 0}}'`
+    if [ -z $GPS_FILE ]
+    then
+        # If max displacement is much larger than other displacements, don't use it
+        MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.out |\
+               awk 'BEGIN{m1=0;m2=0}
+                    {if($1>m1){m2=m1;m1=$1;ln=NR}}
+                    END{if(m1>2*m2){print ln}else{print 0}}'`
+    else
+        MAXLN=0
+    fi
     # Scale vectors differently depending on maximum horizontal displacement
     MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
          awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
     DISP_LBL=`echo $MAX | awk -f vect_label.awk`
     VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
     MAX=0.5
-    ## Plot displacements smaller than DISP_THR faded
-    #awk '{
-    #    if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
-    #      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-    #    }
-    #}' disp.out |\
-    #    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,175/175/175 -K -O >> $PSFILE
-    ## Plot larger displacements in black
-    #awk '{
-    #    if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
-    #      print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-    #    }
-    #}' disp.out |\
-    #    gmt psxy $PROJ $LIMS -SV10p+e+a45 -W2p,black -K -O >> $PSFILE
-    # Scale vector thickness by displacement magnitude
+    # Plot differently depending on whether data are grid or GPS
+    if [ -z $GPS_FILE ]
+    then
         # Plot displacements smaller than DISP_THR faded
-    awk '{
-        if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
-          print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-        }
-    }' disp_samp.out |\
-        gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE
-    # Plot larger displacements in black
-    awk '{
-        if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
-          print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
-        }
-    }' disp_samp.out |\
-        gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
+        awk '{
+            if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
+              print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+            }
+        }' disp_samp.out |\
+            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE
+        # Plot larger displacements in black
+        awk '{
+            if (sqrt($4*$4+$5*$5)>='"$DISP_THR"'&&NR!='"$MAXLN"') {
+              print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
+            }
+        }' disp_samp.out |\
+            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
+    else
+        # Color verticval motions same as background synthetic verticals
+        awk '{print $1,$2,$5}' $GPS_FILE | gmt psxy $PROJ $LIMS -Sc0.1i -W0.5p -Cvert.cpt -K -O >> $PSFILE
+        # Plot horizontal GPS displacements in black
+        awk '{print $1,$2,atan2($3,$4)/0.01745,'"$VEC_SCALE"'*sqrt($3*$3+$4*$4)}' $GPS_FILE |\
+            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
+        # Plot synthetic displacements in another color
+        awk '{print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)}' disp_samp.out |\
+            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,orange -K -O >> $PSFILE
+    fi
 fi
 
 
+# Legend (all coordinates are in cm from the bottom left)
 if [ $PLOT_VECT == "Y" ]
 then
-# Legend (all coordinates are in cm from the bottom left)
-gmt psxy -JX10c -R0/10/0/10 -W1p -Gwhite -K -O >> $PSFILE << EOF
-0.2 0.2
-0.2 1.5
-`echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6}'` 1.5
-`echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6}'` 0.2
-0.2 0.2
-EOF
-echo $VEC_SCALE $DISP_LBL |\
-    awk '{print 0.4,0.5,0,$1*$2}' |\
-    gmt psxy -JX -R -Sv10p+e+a45 -W2p,black -N -K -O >> $PSFILE
-echo $VEC_SCALE $DISP_LBL |\
-    awk '{if ($2!=1) {print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meters"}
-          else{print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meter"}}' |\
-    gmt pstext -JX -R -F+f+j -N -K -O >> $PSFILE
-gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE << EOF
-`echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.7}'` 0.2 10,2 LB \
-    Displacements less than $DISP_THR m are in light grey
-EOF
+    echo 0.2 0.2 > legend.tmp
+    echo 0.2 1.5 >> legend.tmp
+    echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6,1.5}' >> legend.tmp
+    echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6,0.2}' >> legend.tmp
+    echo 0.2 0.2 >> legend.tmp
+    gmt psxy legend.tmp -JX10c -R0/10/0/10 -W1p -Gwhite -K -O >> $PSFILE
+    echo $VEC_SCALE $DISP_LBL |\
+        awk '{print 0.4,0.5,0,$1*$2}' |\
+        gmt psxy -JX -R -Sv10p+e+a45 -W2p,black -N -K -O >> $PSFILE
+    echo $VEC_SCALE $DISP_LBL |\
+        awk '{if ($2!=1) {print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meters"}
+              else{print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meter"}}' |\
+        gmt pstext -JX -R -F+f+j -N -K -O >> $PSFILE
+    if [ -z $GPS_FILE ]
+    then
+        echo $VEC_SCALE $DISP_LBL |\
+            awk '{print $1*$2+0.7,"0.2 10,2 LB Displacements less than '"$DISP_THR"' m are in light grey"}' |\
+            gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE
+    else
+        echo $VEC_SCALE $DISP_LBL |\
+            awk '{print $1*$2+0.7,"0.2 10,2 LB Observed=black; Synthetic=color"}' |\
+            gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE
+    fi
 else
-VEC_SCALE=0
-DISP_LBL=0
+    VEC_SCALE=0
+    DISP_LBL=0
 fi
 
 if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
