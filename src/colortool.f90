@@ -606,7 +606,7 @@ subroutine usage(str)
         write(0,*) '    Available color types: lch, lab, rgb (planning to implement hsv eventually)'
         write(0,*)
     endif
-    write(0,*) '-gmt CPTFILE              Print a GMT color palette (default prints R/G/B list)'
+    write(0,*) '-gmt [CPTFILE]            Print GMT color palette (default prints R/G/B list)'
     if (str.eq.'long') then
         write(0,*)
     endif
