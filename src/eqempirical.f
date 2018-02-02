@@ -480,7 +480,7 @@
      2                         'global subduction zone (Mw 6.0-',
      3                         '9.5)'
       write(0,*)
-     1 '                       *YENMA (Yen and Ma, 2011): Taiwan ',
+     1 '                       YENMA (Yen and Ma, 2011): Taiwan ',
      2                         'collision zone (Mw 4.6-8.9)'
 !      write(0,*)
 !     1 '                       STIRLINGETAL (Stirling et al., 2013)'
