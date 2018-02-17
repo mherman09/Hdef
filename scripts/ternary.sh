@@ -4,11 +4,11 @@
 #	USAGE STATEMENT
 #####
 function usage() {
-    echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j VAL] [-a PSFILE] [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y]"
-    echo "    -f IFILE             Input file (fss fth fno [mag [val]])"
-    echo "    -c CPT               Color palette file"
+    echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j DX] [-a PSFILE] [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y]"
+    echo "    -f IFILE             Input file (fth fss fno [mag [val]])"
+    echo "    -c CPT               Color palette file (color by val)"
     echo "    -s SCALE             Symbol scale factor (default: 0.002)"
-    echo "    -j VAL               Jitter symbols randomly by up to VAL"
+    echo "    -j DX                Jitter symbols randomly by up to DX"
     echo "    -a PSFILE            Add ternary diagram to an existing PostScript file"
     echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left"
     echo "    -t FONTSZ            Define font size"
