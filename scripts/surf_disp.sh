@@ -46,7 +46,7 @@ DISP_THR="0.05" # meters
 
 function USAGE() {
 echo
-echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME] [-gps GPS_FILE]"
+echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME] [-gps GPS_FILE] [-vecscale SCALE] [-veclbl LENGTH]"
 echo "    SRC_TYPE    Either MT (moment tensor), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
 echo "    SRC_FILE        Name of input file"
 echo "                      MT:  EVLO EVLA EVDP STR DIP RAK MAG"
@@ -59,6 +59,8 @@ echo "    -getscript      Copy surf_disp.sh to working directory"
 echo "    -novector       Do not plot horizontal vectors"
 echo "    -o FILENAME     Define basename for output file (will produce FILENAME.ps and FILENAME.pdf)"
 echo "    -gps GPS_FILE    Compare synthetic and observed displacements (GPS_FILE format: lon lat edisp ndisp zdisp)"
+echo "    -vecscale SCALE  Scale vectors by SCALE inches (default tries to define a best scale)"
+echo "    -veclbl LENGTH   Vector in legend has length LENGTH (default tries to define best length)"
 echo
 exit
 }
@@ -90,6 +92,8 @@ GETSCRIPT="N"
 PLOT_VECT="Y"
 OFILE="surf_disp"
 GPS_FILE=""
+VEC_SCALE=""
+DISP_LBL=""
 shift;shift
 while [ "$1" != "" ]
 do
@@ -101,6 +105,8 @@ do
         -getscript) GETSCRIPT="Y" ;;
         -o) shift;OFILE="$1" ;;
         -gps) shift;GPS_FILE="$1" ;;
+        -vecscale) shift;VEC_SCALE="$1" ;;
+        -veclbl) shift;DISP_LBL="$1" ;;
         *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
@@ -386,8 +392,14 @@ then
     # Scale vectors differently depending on maximum horizontal displacement
     MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.out |\
          awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
-    DISP_LBL=`echo $MAX | awk -f vect_label.awk`
-    VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
+    if [ -z $DISP_LBL ]
+    then
+        DISP_LBL=`echo $MAX | awk -f vect_label.awk`
+    fi
+    if [ -z $VEC_SCALE ]
+    then
+        VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
+    fi
     MAX=0.5
     # Plot differently depending on whether data are grid or GPS
     if [ -z $GPS_FILE ]
