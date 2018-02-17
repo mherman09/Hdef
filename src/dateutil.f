@@ -37,6 +37,7 @@ C----
               endif
               goto 102
   101     continue
+          close(11)
       else
           call getfmt(arg,ifmt)
           call rdarg(arg,ifmt,opt,long)
@@ -183,7 +184,7 @@ C----
               write(ans,9999) yr2,mo2,dy2,hr,mn,sc
           endif
       endif
- 9997 format(F14.5)
+ 9997 format(F20.8)
  9998 format(I6,I4,1F6.1)
  9999 format(I6,I4,4F6.1)
       RETURN
