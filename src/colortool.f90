@@ -84,7 +84,7 @@ program main
     endif
 
     ! Generate colormap
-    if (gmt.ne.'none') then
+    if (gmt.ne.'none'.and.gmt.ne.'print') then
         open(unit=11,file=gmt,status='unknown')
     endif
     n = ncolors
