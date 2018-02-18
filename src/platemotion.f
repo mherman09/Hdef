@@ -793,8 +793,12 @@ C----------------------------------------------------------------------C
               elseif (tag.eq.'NUVEL1A'.or.tag.eq.'NUVEL-1A'.or.
      1                tag.eq.'2') then
                   model = 2*model
-              elseif (tag.eq.'MORVEL56'.or.tag.eq.'3') then
+              elseif (tag.eq.'MORVEL56'.or.
+     1                tag.eq.'MORVEL-56'.or.
+     2                tag.eq.'3') then
                   model = 3*model
+              else
+                  call usage('!! Error: no model named '//trim(tag))
               endif
           elseif (tag(1:4).eq.'-ver') then
               verbos = 1
@@ -817,39 +821,39 @@ C----------------------------------------------------------------------C
       SUBROUTINE usage(str)
       IMPLICIT none
       CHARACTER str*(*)
-      if(trim(str).ne.'') write(*,*) trim(str)
-      write(*,*)
+      if(trim(str).ne.'') write(0,*) trim(str)
+      write(0,*)
      1 'Usage: platemotion -plate P1/P2 | -pole lon/lat/vel ',
      2                       '[-model[?] OPTION] [-f IFILE] ',
      3                       '[-o OFILE] [-verbos] [-h]'
-      write(*,*)
+      write(0,*)
      1 '  -plate P1/P2      Define plates (P2 moving w.r.t. fixed P1)'
-      write(*,*)
+      write(0,*)
      1 '  -pole LON/LAT/VEL Define Euler pole (velocity in deg/Ma)'
-      write(*,*)
+      write(0,*)
      1 '  -model[?] OPTION  Define which plate velocity model to use ',
      2                      '(default: MORVEL)'
-      write(*,*)
+      write(0,*)
      1 '                        1. MORVEL (DeMets et al., 2010)'
-      write(*,*)
+      write(0,*)
      1 '                        2. NUVEL-1A  (DeMets et al., 1994)'
-      write(*,*)
+      write(0,*)
      1 '                        3. MORVEL56 (Argus et al., 2011)'
-      write(*,*)
+      write(0,*)
      1 '                        To see available plates, use -model?'
-      write(*,*)
+      write(0,*)
      1 '  -f IFILE          Input file (default: run with stdin)'
-      write(*,*)
+      write(0,*)
      1 '                        lon lat'
-      write(*,*)
+      write(0,*)
      1 '  -o OFILE          Output file (default: print to stdout)'
-      write(*,*)
+      write(0,*)
      1 '                        v_east v_north (mm/yr)'
-      write(*,*)
+      write(0,*)
      1 '  -verbose          Turn on verbose mode (for debugging)'
-      write(*,*)
+      write(0,*)
      1 '  -h                Online help'
-      write(*,*)
+      write(0,*)
       STOP
       END
 
