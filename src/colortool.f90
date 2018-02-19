@@ -37,15 +37,28 @@ program main
         if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
         convert1(i:i) = ' '
         i = index(convert1,',')
-        if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
+        if (i.le.0) then
+            i = index(convert1,'/')
+            if (i.le.0) then
+                call usage('!! Error: format for input type, value is TYP=V1,V2,V3 or TYP=V1/V2/V3')
+            endif
+        endif
         convert1(i:i) = ' '
         i = index(convert1,',')
-        if (i.le.0) call usage('!! Error: format for input type, value is TYP=V1,V2,V3')
+        if (i.le.0) then
+            i = index(convert1,'/')
+            if (i.le.0) then
+                call usage('!! Error: format for input type, value is TYP=V1,V2,V3 or TYP=V1/V2/V3')
+            endif
+        endif
         convert1(i:i) = ' '
         read(convert1,*) typ1
         read(convert2,*) typ2
+        if (typ2.eq.'LAB') typ2 = 'lab'
+        if (typ2.eq.'LCH') typ2 = 'lch'
+        if (typ2.eq.'RGB') typ2 = 'rgb'
         if (typ2.ne.'lab'.and.typ2.ne.'lch'.and.typ2.ne.'rgb') call usage('!! Error: OTYP must be lab, lch, or rgb')
-        if (typ1.eq.'lch') then
+        if (typ1.eq.'lch'.or.typ1.eq.'LCH') then
             read(convert1,*) typ1,x1,y1,z1
             if (typ2.eq.'lab') then
                 call lch2lab(y1,z1,y2,z2)
@@ -53,7 +66,7 @@ program main
             elseif (typ2.eq.'rgb') then
                 call lch2rgb(x1,y1,z1,x2,y2,z2)
             endif
-        elseif (typ1.eq.'lab') then
+        elseif (typ1.eq.'lab'.or.typ1.eq.'LAB') then
             read(convert1,*) typ1,x1,y1,z1
             if (typ2.eq.'lch') then
                 call lab2lch(y1,z1,y2,z2)
@@ -61,7 +74,7 @@ program main
             elseif (typ2.eq.'rgb') then
                 call lab2rgb(x1,y1,z1,x2,y2,z2)
             endif
-        elseif(typ1.eq.'rgb') then
+        elseif(typ1.eq.'rgb'.or.typ1.eq.'RGB') then
             read(convert1,*) typ1,x1,y1,z1
             if (typ2.eq.'lch') then
                 call rgb2lch(x1,y1,z1,x2,y2,z2)
@@ -79,7 +92,7 @@ program main
                 write(*,1002) trim(typ1),x1,y1,z1,trim(typ2),x2,y2,z2
             endif
         endif
-1002    format(A3,'(',F6.1,',',F6.1,',',F6.1')',' = ',A3,'(',F6.1,',',F6.1,',',F6.1')')
+1002    format(A3,'(',F0.1,',',F0.1,',',F0.1')',' = ',A3,'(',F0.1,',',F0.1,',',F0.1')')
         stop
     endif
 
