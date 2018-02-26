@@ -113,7 +113,7 @@ program main
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
             if (gmt.eq.'none') then
-                write(*,*) trim(rgbstring)
+                write(*,'(A)') trim(rgbstring)
             else
                 c = lim1 + (lim2-lim1)*(i-1)/n
                 if (gmt.ne.'print') then
@@ -138,7 +138,7 @@ program main
             call checkrgb(red,grn,blu,clip)
             call formatrgb(red,grn,blu,rgbstring)
             if (gmt.eq.'none') then
-                write(*,*) trim(rgbstring)
+                write(*,'(A)') trim(rgbstring)
             else
                 c = lim1 + (lim2-lim1)*(i-1)/n
                 if (gmt.ne.'print') then
@@ -433,7 +433,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
     integer :: ncolors
     real :: dz
-    option = ''
+    option = 'spiral'
     hue1 = 0.0
     hue2 = 360.0
     light1 = 0.0
@@ -575,7 +575,7 @@ subroutine usage(str)
         write(0,*) str
         write(0,*)
     endif
-    write(0,*) 'Usage: colortool -cmap OPTION [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-n[colors] N]'
+    write(0,*) 'Usage: colortool [-cmap OPTION] [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-n[colors] N]'
     write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-gmt CPTFILE] [-limits MIN,MAX] [-dz DZ]'
     write(0,*) '                 [-Tzmin/zmax/dz] [-d]'
     write(0,*)
