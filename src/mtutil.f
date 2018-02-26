@@ -269,7 +269,7 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '    -dcp      double couple percentage'
       write(*,*)
-     1 '    -sv       slip vector'
+     1 '    -sv       slip vector (az plunge)'
       write(*,*)
       write(*,*)
      1 '    INPUT format:'
