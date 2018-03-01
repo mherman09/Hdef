@@ -1,4 +1,4 @@
-Hdef version 1.2.0
+Hdef version 2018.03.01
 
 The primary purpose for this suite of codes is the forward calculation of
 displacements, strains, and stresses in an elastic half-space (hence,
@@ -12,6 +12,10 @@ Geodynamics. I got tired of always rewriting and recalculating and looking up
 certain equations and typing them into my calculator or Matlab, so I wrote some
 simple codes to have these results at my fingertips. These are included, and you
 may find them useful as well.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Directions for installation are in the file INSTALL.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -35,4 +39,40 @@ Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional
 moment tensors to constrain the kinematics and stress evolution of the 2010–2013
 Canterbury earthquake sequence, South Island, New Zealand. Tectonophysics 633,
 1-15.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Alphabetical list of programs in Hdef (*requires LAPACK; ^use with caution: deprecated):
+	colortool              generate perceptually linear color maps
+	coul_dip.sh            plot Coulomb stress changes on a dipping plane
+	coul_hor.sh            plot Coulomb stress changes on a horizontal plane
+	coul_xsec.sh           plot Coulomb stress changes on a vertical cross-section
+	dateutil               convert from/to dates and number of days
+	distaz2lola            compute coordinates from distance/azimuth from a point
+	eqempirical            implement earthquake empirical relation
+	eventfrequency         count frequency of a list of values
+	ff2gmt                 convert finite fault parameters to GMT format
+	*fltinv                linear inversion for fault slip
+	gmtcpt.sh              make GMT color palette from (nice) existing color maps
+	grid                   generate evenly spaced values
+	lola2distaz            compute distance/azimuth between coordinate pairs
+	*mtutil                convert between seismic source parameterizations
+	*multifit              fit data series with multiple functions
+	numint                 numerical integration
+	o92util                compute displacement, stress, strain from fault source
+	perturb                randomly vary values
+	platemotion            compute velocity for plate pair or Euler pole
+	^pole2vel              compute velocity for Euler pole (superceded by platemotion)
+	*polyfit               fit data series with a polynomial function
+	^*polyfit_special      fit data series with a polynomial function (windowed)
+	^pt2fin                convert point source to finite source (superceded by eqempirical)
+	readkik                read strong motion in KiK-net format
+	simplify_ffm.sh        remove slip less than threshold value from FFM
+	sphfinrot              make finite rotation on sphere
+	surf_disp.sh           plot surface displacements
+	ternary.sh             plot earthquakes on ternary discriminant diagram
+	trg_schem.sh           plot target fault kinematics
+	utm2geo                convert UTM to geographic coordinates
+	vec2los                project vector onto line of sight
+	wraplos                wrap input value onto rotations around frequency
 
