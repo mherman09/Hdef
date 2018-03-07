@@ -14,11 +14,11 @@ program main
     ! User-defined variables
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
     character(len=200) :: option,convert1,convert2,gmt
-    integer :: ncolors
+    integer :: ncolors,saturate
 
     ! Parse command line
     call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
-                gmt,lim1,lim2)
+                gmt,lim1,lim2,saturate)
     if (vrb.gt.0) then
         write(0,*) 'Color mapping option: ',trim(option)
         write(0,*) 'Hue range:            ',hue1,hue2
@@ -29,6 +29,7 @@ program main
         write(0,*) 'To:                   ',trim(convert2)
         write(0,*) 'GMT file:             ',trim(gmt)
         write(0,*) 'Limits:               ',lim1,lim2
+        write(0,*) 'Saturating CPT        ',saturate
     endif
 
     ! Color space conversion
@@ -152,6 +153,76 @@ program main
         call usage('!! Error: no option named "'//trim(option)//'"')
     endif
     1003 format(2(F16.4,X,A30))
+
+    if (gmt.ne.'none'.and.saturate.eq.1) then
+        if (option.eq.'spiral') then
+            ! Background color
+            l = light1
+            c = chroma1
+            h = hue1
+            call maxchroma(l,h,cmax)
+            if (c.gt.cmax) c = cmax
+            call lch2lab(c,h,a,b)
+            call lab2rgb(l,a,b,red,grn,blu)
+            call checkrgb(red,grn,blu,clip)
+            call formatrgb(red,grn,blu,rgbstring)
+            if (gmt.eq.'print') then
+                write(*,*) 'B',rgbstring
+            else
+                write(11,*) 'B',rgbstring
+            endif
+            ! Foreground
+            l = light2
+            c = chroma2
+            h = hue2
+            call maxchroma(l,h,cmax)
+            if (c.gt.cmax) c = cmax
+            call lch2lab(c,h,a,b)
+            call lab2rgb(l,a,b,red,grn,blu)
+            call checkrgb(red,grn,blu,clip)
+            call formatrgb(red,grn,blu,rgbstring)
+            if (gmt.eq.'print') then
+                write(*,*) 'F',rgbstring
+            else
+                write(11,*) 'F',rgbstring
+            endif
+        elseif (option.eq.'linear') then
+            call lch2lab(chroma1,hue1,a1,b1)
+            call lch2lab(chroma2,hue2,a2,b2)
+            ! Background color
+            l = light1
+            a = a1
+            b = b1
+            call lab2lch(a,b,c,h)
+            call maxchroma(l,h,cmax)
+            if (c.gt.cmax) c = cmax
+            call lch2lab(c,h,a,b)
+            call lab2rgb(l,a,b,red,grn,blu)
+            call checkrgb(red,grn,blu,clip)
+            call formatrgb(red,grn,blu,rgbstring)
+            if (gmt.eq.'print') then
+                write(*,*) 'B',rgbstring
+            else
+                write(11,*) 'B',rgbstring
+            endif
+            ! Foreground
+            l = light2
+            a = a2
+            b = b2
+            call lab2lch(a,b,c,h)
+            call maxchroma(l,h,cmax)
+            if (c.gt.cmax) c = cmax
+            call lch2lab(c,h,a,b)
+            call lab2rgb(l,a,b,red,grn,blu)
+            call checkrgb(red,grn,blu,clip)
+            call formatrgb(red,grn,blu,rgbstring)
+            if (gmt.eq.'print') then
+                write(*,*) 'F',rgbstring
+            else
+                write(11,*) 'F',rgbstring
+            endif
+        endif
+    endif
 end
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
@@ -423,7 +494,7 @@ end
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
 subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
-                  gmt,lim1,lim2)
+                  gmt,lim1,lim2,saturate)
     use colormodule
     implicit none
     integer :: i,j,narg
@@ -431,7 +502,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
     character(len=*) :: option,convert1,convert2,gmt
     character(len=1) :: ch1,ch2
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
-    integer :: ncolors
+    integer :: ncolors,saturate
     real :: dz
     option = 'spiral'
     hue1 = 0.0
@@ -448,6 +519,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
     vrb = 0
     dz = -1.0
     gmt = 'none'
+    saturate = 0
     narg = iargc()
     if (narg.eq.0) call usage('')
     i = 1
@@ -554,6 +626,8 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
             read(tag,*) lim1,lim2,dz
         elseif (tag(1:2).eq.'-v') then
             vrb = 1
+        elseif (tag(1:2).eq.'-D') then
+            saturate = 1
         elseif (tag(1:2).eq.'-d') then
             call usage('long')
         else
@@ -577,7 +651,7 @@ subroutine usage(str)
     endif
     write(0,*) 'Usage: colortool [-cmap OPTION] [-hue H1,H2] [-lightness L1,L2] [-chroma C1,C2] [-n[colors] N]'
     write(0,*) '                 [-convert ITYP=X,Y,Z OTYP] [-v verbose] [-gmt CPTFILE] [-limits MIN,MAX] [-dz DZ]'
-    write(0,*) '                 [-Tzmin/zmax/dz] [-d]'
+    write(0,*) '                 [-Tzmin/zmax/dz] [-D] [-d]'
     write(0,*)
     write(0,*) '-cmap OPTION              Option to generate a colormap'
     if (str.eq.'long') then
@@ -632,6 +706,10 @@ subroutine usage(str)
         write(0,*)
     endif
     write(0,*) '-Tzmin/zmax/dz            Min, max, and increment in GMT makecpt format (overrides -limits and -dz)'
+    if (str.eq.'long') then
+        write(0,*)
+    endif
+    write(0,*) '-D                        Define background(foreground) colors as beginning(ending) colors in cpt'
     if (str.eq.'long') then
         write(0,*)
     endif
