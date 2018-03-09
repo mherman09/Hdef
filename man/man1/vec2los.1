@@ -1,0 +1,45 @@
+.TH VEC2LOS 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+vec2los \- compute line-of-sight projection of three-component vector
+
+.SH SYNOPSIS
+.P
+.B vec2los
+.BI -a " azimuth"
+.BI -i " inclination"
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+.BI [-h]
+
+.SH DESCRIPTION
+.B vec2los
+projects a three-component vector onto a look direction defined by an
+.I azimuth
+measured clockwise from north and an
+.I inclination
+measured up from horizontal (vertical=90).
+
+.SH OPTIONS
+.TP
+.BI -a " azimuth"
+.I Azimuth
+(in degrees) of the line-of-sight, measured clockwise from north
+.TP
+.BI -i " inclination"
+.I Inclination
+(in degrees) of the line-of-sight, measured from 0=horizontal to 90=vertical (looking down)
+.TP
+.BI -f " input_file"
+Input file (default reads standard input) in format:
+.I stlo stla stdp disp_east disp_north disp_vertical
+(positive up)
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output) in format:
+.I stlo stla stdp disp_LOS
+.TP
+.BI -h
+Usage statement
+
+.RS

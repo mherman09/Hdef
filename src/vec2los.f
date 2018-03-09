@@ -11,6 +11,7 @@ C----
       REAL*8 az,incl,cosaz,cosinc,sinaz,sininc
       CHARACTER*40 ifile,ofile
       LOGICAL ex
+      INTEGER uin,uout
 
 C----
 C Parse command line
@@ -24,7 +25,7 @@ C----
           write(*,*) '!! Error: Input displacement vector file ',
      1               'unspecified'
           call usage('!! Use -f IFILE to specify input file')
-      else
+      elseif (ifile.ne.'stdin') then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no input file: '//ifile)
       endif
@@ -44,22 +45,33 @@ C----
 C----
 C Control files
 C----
-      open (unit=11,file=ifile,status='old')
-      open (unit=12,file=ofile,status='unknown')
+      if (ifile.eq.'stdin') then
+          uin = 5
+      else
+          uin = 11
+          open (unit=uin,file=ifile,status='old')
+      endif
+      if (ofile.eq.'stdout') then
+          uout = 6
+      else
+          uout = 12
+          open (unit=uout,file=ofile,status='unknown')
+      endif
 
 C----
 C Convert NEZ to LOS
 C----
-   11 read (11,*,end=12) stlo,stla,stdp,uE,uN,uZ
+   11 read (uin,*,end=12) stlo,stla,stdp,uE,uN,uZ
           uLOS = uN*cosaz*cosinc
      1             + uE*sinaz*cosinc
      2                 - uZ*sininc
-          write (12,9991) stlo,stla,stdp,uLOS
+          write (uout,9991) stlo,stla,stdp,uLOS
           goto 11
    12 continue
 
  9991 format(3F12.4,X,3E12.4)
-
+      if (uin.eq.11) close(11)
+      if (uout.eq.12) close(12)
       END
 
 C======================================================================C
@@ -71,8 +83,8 @@ C======================================================================C
       INTEGER i,narg
       az = -99999.0d0
       incl = -99999.0d0
-      ifile = 'none'
-      ofile = 'none'
+      ifile = 'stdin'
+      ofile = 'stdout'
       narg = iargc()
       if (narg.eq.0) then
           call usage('!! Error: no command line arguments specified')
@@ -115,17 +127,18 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: vec2los -a AZ -i INC -f IFILE -o OFILE [-h]'
+     1 'Usage: vec2los -a AZ -i INC [-f IFILE] [-o OFILE] [-h]'
       write(*,*)
       write(*,*)
      1 '-a AZ     Look azimuth (CW from N)'
       write(*,*)
-     1 '-i INC    Look inclination (from horizontal)'
+     1 '-i INC    Look inclination (from horizontal=0 to vertical=90)'
       write(*,*)
-     1 '-f IFILE  Input vector displacement file (stlo stla stdp uE ',
-     2                                                'uN uZ)'
+     1 '-f IFILE  Input vector displacement file (default: stdin)',
+     2            ' (stlo stla stdp uE uN uZ)'
       write(*,*)
-     1 '-o OFILE  Output LOS displacement file (stlo stla stdp uLOS)'
+     1 '-o OFILE  Output LOS displacement file (default: stdout)',
+     2            ' (stlo stla stdp uLOS)'
       write (*,*)
      1 '-h        Online help (this message)'
       write (*,*)
