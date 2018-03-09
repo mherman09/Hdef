@@ -8,7 +8,7 @@ C----
       COMMON /DVARS/ yr1,mo1,yr2,mo2,dy1,dy2,ndy
       CHARACTER*40 ifile,ofile
       CHARACTER*240 arg,ans
-      INTEGER opt,p,long,c,ifmt
+      INTEGER opt,p,long,c,ifmt,u
 
 C----
 C Parse command line
@@ -25,8 +25,13 @@ C Calculate date/day
 C----
       if (p.eq.0) open(unit=12,file=ofile,status='unknown')
       if (c.eq.0) then
-          open(unit=11,file=ifile,status='old')
-  102     read(11,'(A240)',end=101) arg
+          if (ifile.eq.'stdin') then
+              u = 5
+          else
+              u = 11
+              open(unit=u,file=ifile,status='old')
+          endif
+  102     read(u,'(A240)',end=101) arg
               call getfmt(arg,ifmt)
               call rdarg(arg,ifmt,opt,long)
               call getans(ans,opt,long)
@@ -37,14 +42,15 @@ C----
               endif
               goto 102
   101     continue
-          close(11)
+          if (u.eq.11) close(11)
       else
           call getfmt(arg,ifmt)
           call rdarg(arg,ifmt,opt,long)
           call getans(ans,opt,long)
           write(*,*) trim(ans)
       endif
-C
+
+
       END
 
 C======================================================================C
@@ -297,10 +303,7 @@ C----------------------------------------------------------------------C
           write(0,*) '!! Error: Type of date computation unspecified'
           call usage('!! Use -nday or -date')
       endif
-      if (ifile.eq.'none'.and.c.eq.0) then
-          write(0,*) '!! Error: Input data is unspecified'
-          call usage('!! Use -f IFILE or -c ARGS')
-      elseif (c.eq.0) then
+      if (c.eq.0.and.ifile.ne.'stdin') then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no input file: '//ifile)
       endif
@@ -318,11 +321,11 @@ C
       CHARACTER*40 ifile,ofile,tag
       CHARACTER*240 arg
       INTEGER i,narg,j,opt,p,c,long
-      ifile = 'none'
+      ifile = 'stdin'
       ofile = 'none'
       opt = 0
       long = 0
-      p = 0
+      p = 1
       c = 0
       arg = 'none'
       narg = iargc()
