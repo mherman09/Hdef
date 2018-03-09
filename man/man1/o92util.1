@@ -62,7 +62,7 @@ to define the target parameters as a command line argument.
 .BI -haf " halfspace_file"
 Optional file to define half-space elastic moduli. The default values
 are
-.IR vp "=6800 m/s, " vs "=3926 m/s, and " dens "=2800 kg/m^3 (" lambda "=4.3e10 Pa, " shear_modulus "=4.3e10 Pa)."
+.IR vp "=6800 m/s, " vs "=3926 m/s, and " dens "=2800 kg/m^3 (Lame parameters: " lambda "=4.3e10 Pa, " shear_modulus "=4.3e10 Pa)."
 This file can take the following formats, depending on the elastic moduli to specify:
 .IR "vp(m/s) vs(m/s) dens(kg/m^3)" ;
 .IR "" Lame " lambda(Pa) shear_modulus(Pa)" ;
@@ -116,9 +116,9 @@ Shear stress resolved onto target geometry (requires
 .IR "stlo stla stdp(km) shear(Pa)" .
 Use
 .B -shear
-to project shear stress onto fault slip vector, or
+to project shear traction onto fault slip vector, or
 .B -shearmax
-to print magnitude of maximum shear stress on target plane.
+to print magnitude of maximum shear traction on target plane.
 .TP
 .BI -normal " output_file"
 Normal stress resolved onto target geometry (requires
@@ -157,7 +157,8 @@ where
 is degrees clockwise from north.
 .TP
 .BI -empirical " WC" | MB | B | YM [ p ]
-Choose the empirical relation for earthquake magnitude and slip, width, and length.
+Choose the empirical relation for earthquake magnitude and slip, width, and length (default is
+.IR WC ).
 The options are
 .IR W "ells and " C oppersmith
 (1994),
