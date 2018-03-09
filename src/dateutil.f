@@ -369,6 +369,7 @@ C
               i = i + 1
               call getarg(i,ifile)
           elseif (tag(1:2).eq.'-o') then
+              p = 0
               i = i + 1
               call getarg(i,ofile)
           elseif (tag(1:2).eq.'-p') then
