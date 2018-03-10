@@ -79,7 +79,9 @@ Moment
 .IR magnitude "=2/3*log10(" moment ")-6.0"
 .TP
 .BI "-mom [" output_file ]
-Seismic moment in N*m.
+Seismic
+.I moment
+in N*m.
 .TP
 .BI "-ternary [" output_file ]
 Earthquake mechanism characterization from Frohlich (1992):
@@ -88,7 +90,7 @@ which add up to one.
 .TP
 .BI "-dcp [" output_file ]
 Double couple percentage:
-.IR dcp =min(1-2* nmag / pmag ,1-2* nmag / tmag )
+.IR dcp =min(1-2*abs( nmag / pmag ),1-2*abs( nmag / tmag ))
 .TP
 .BI "-sv [" output_file ]
 Slip vector
@@ -99,12 +101,15 @@ and
 
 .SH REFERENCES
 .TP
-Aki, K., and Richards, P.G. (2002). Quantitative Seismology. University Science Books.
+Aki, K., and Richards, P.G. (2002).
+Quantitative Seismology. University Science Books.
 .TP
-Frohlich, C. (1992). Triangle diagrams: ternary graphs to display similarity and diversity of
+Frohlich, C. (1992).
+Triangle diagrams: ternary graphs to display similarity and diversity of
 earthquake focal mechanisms. Physics of the Earth and Planetary Interiors 75, 193-198.
 .TP
-Jost, M.L., Herrmann, R.B. (1989). A student's guide to and review of moment tensors.
+Jost, M.L., Herrmann, R.B. (1989).
+A student's guide to and review of moment tensors.
 Seismological Research Letters 60, 37-57.
 
 .RS
