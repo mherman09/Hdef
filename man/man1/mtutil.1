@@ -1,0 +1,110 @@
+.TH MTUTIL 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic parameters
+
+.SH SYNOPSIS
+.P
+.B mtutil -sdr|-mij|-pnt|-mag|-mom
+.BI [ input ]
+.B -sdr|-mij|-pnt|-mag|-mom|-ternary|-dcp|-sv
+.BI [ output ]
+
+.SH DESCRIPTION
+.B mtutil
+converts between earthquake source parameters. Inputs can be strike/dip/rake,
+moment tensor components, moment tensor principal axes, seismic moment, or magnitude. Outputs can be
+any of these values (when possible, e.g., you cannot convert a seismic moment to strike/dip/rake), a
+ternary representation of the focal mechanism (Frohlich, 1992), double-couple percentage, or slip vectors.
+See Jost and Herrmann (1989) for more details.
+
+
+.SH OPTIONS
+.TP
+.B INPUTS
+.TP
+.BI "-sdr [" input_file | strike , dip , rake ]
+.IR Strike ", " dip ", and " rake
+as defined by Aki and Richards (2002).
+.TP
+.BI "-mij [" input_file | mrr , mtt , mpp , mrt , mrp , mtp ]
+Moment tensor components as are typically published by the USGS NEIC or Global CMT project, where
+.I r
+is the radial (vertical) direction,
+.I t
+corresponds to east, and
+.I p
+corresponds to south.
+.TP
+.BI "-pnt [" input_file | px , py , pz , nx , ny , nz , tx , ty , tz , pmag , nmag , tmag ]
+Moment tensor eigenvectors and eigenvalues, also referred to as P (maximum compression), N
+(neutral), and T (maximum tension) axes. Note:
+.I pmag
+is typically negative and
+.I tmag
+is typically positive.
+.TP
+.BI "-mag [" input_file | magnitude ]
+Moment
+.IR magnitude "=2/3*log10(" moment ")-6.0"
+.TP
+.BI "-mom [" input_file | moment ]
+Seismic
+.I moment
+in N*m.
+.TP
+.B OUTPUTS
+.TP
+.BI "-sdr [" output_file ]
+When used as the output option with
+.B -sdr
+as the input, prints
+.IR strike ", " dip ", and " rake
+of the second nodal plane. When used as the output option with
+.B -mij
+or
+.BR -pnt ,
+prints results for both nodal planes.
+.TP
+.BI "-mij [" output_file ]
+Moment tensor components:
+.IR  mrr ", " mtt ", " mpp ", " mrt ", " mrp ", and " mtp
+.TP
+.BI "-pnt [" output_file ]
+Moment tensor eigenvectors (normalized to length=1) and eigenvalues:
+.IR  px ", " py ", " pz ", " nx ", " ny ", " nz ", " tx ", " ty ", " tz ", " pmag ", " nmag ", and " tmag
+.TP
+.BI "-mag [" output_file ]
+Moment
+.IR magnitude "=2/3*log10(" moment ")-6.0"
+.TP
+.BI "-mom [" output_file ]
+Seismic moment in N*m.
+.TP
+.BI "-ternary [" output_file ]
+Earthquake mechanism characterization from Frohlich (1992):
+.IR fraction_thrust ", " fraction_strike-slip ", and " fraction_normal ,
+which add up to one.
+.TP
+.BI "-dcp [" output_file ]
+Double couple percentage:
+.IR dcp =min(1-2* nmag / pmag ,1-2* nmag / tmag )
+.TP
+.BI "-sv [" output_file ]
+Slip vector
+.I azimuth
+and
+.I plunge
+(horizontal=0, vertical=90)
+
+.SH REFERENCES
+.TP
+Aki, K., and Richards, P.G. (2002). Quantitative Seismology. University Science Books.
+.TP
+Frohlich, C. (1992). Triangle diagrams: ternary graphs to display similarity and diversity of
+earthquake focal mechanisms. Physics of the Earth and Planetary Interiors 75, 193-198.
+.TP
+Jost, M.L., Herrmann, R.B. (1989). A student's guide to and review of moment tensors.
+Seismological Research Letters 60, 37-57.
+
+.RS
