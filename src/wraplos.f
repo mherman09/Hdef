@@ -9,16 +9,17 @@ c----
       REAL*8 stlo,stla,stdp,ulos,wvl,phase
       CHARACTER*40 ifile,ofile
       LOGICAL ex
+      INTEGER uin,uout
 
       call gcmdln(wvl,ifile,ofile)
       if (wvl.le.0.0d0) then
           write(*,*) '!! Error: wavelength is undefined'
           call usage('!! Use -w WVLNTH')
       endif
-      if (ifile.eq.'none') then
+      if (ifile.eq.'none'.and.ifile.ne.'stdin') then
           write(*,*) '!! Error: Input LOS vector file unspecified'
           call usage('!! Use -f IFILE to specify input file')
-      else
+      elseif (ifile.ne.'stdin') then
           inquire(file=ifile,EXIST=ex)
           if (.not.ex) call usage('!! Error: no input file: '//ifile)
       endif
@@ -27,23 +28,36 @@ c----
           call usage('!! Use -o OFILE to specify phase output file')
       endif
 
-      open (unit=10,file=ifile,status='old')
-      open (unit=20,file=ofile,status='unknown')
+      if (ifile.eq.'stdin') then
+          uin = 5
+      else
+          uin = 11
+          open (unit=uin,file=ifile,status='old')
+      endif
+      if (ofile.eq.'stdout') then
+          uout = 6
+      else
+          uout = 12
+          open (unit=uout,file=ofile,status='unknown')
+      endif
 
 c----
 c Convert line of sight displacement to phase difference from satellite
 c----
-   13 read (10,*,end=14) stlo,stla,stdp,ulos
+   13 read (uin,*,end=14) stlo,stla,stdp,ulos
           ulos = 100.0d0*ulos
           phase = 2.0d0*tpi*ulos/wvl
           phase = dmod(phase,tpi)
           if (phase.lt.-pi) phase = phase + tpi
           if (phase.gt.pi) phase = phase - tpi
-          write (20,9991) stlo,stla,stdp,phase
+          write (uout,9991) stlo,stla,stdp,phase
           goto 13
    14 continue
 
- 9991 format(3F12.4,X,3E12.4)
+ 9991 format(3F12.4,X,1P3E14.6)
+
+      if (uin.eq.11) close(uin)
+      if (uout.eq.12) close(uout)
 
       END
 
@@ -55,8 +69,8 @@ C======================================================================C
       CHARACTER*40 tag,ifile,ofile
       INTEGER i,narg
       wvl = -1.0d0
-      ifile = 'none'
-      ofile = 'none'
+      ifile = 'stdin'
+      ofile = 'stdout'
       narg = iargc()
       if (narg.eq.0) call usage(' ')
       i = 0
