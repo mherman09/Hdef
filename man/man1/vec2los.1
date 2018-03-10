@@ -14,7 +14,7 @@ vec2los \- compute line-of-sight projection of three-component vector
 
 .SH DESCRIPTION
 .B vec2los
-projects a three-component vector onto a look direction defined by an
+projects a three-component vector onto an axis corresponding to a look direction defined by an
 .I azimuth
 measured clockwise from north and an
 .I inclination
@@ -38,6 +38,7 @@ Input file (default reads standard input) in format:
 .BI -o " output_file"
 Output file (default prints to standard output) in format:
 .I stlo stla stdp disp_LOS
+(positive in look direction)
 .TP
 .BI -h
 Usage statement

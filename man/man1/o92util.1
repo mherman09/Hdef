@@ -9,7 +9,11 @@ o92util \- compute fault-generated deformation in an elastic half-space
 .I fault_file
 .B -sta
 .I station_file
-.B -disp|-strain|...
+.B [-trg
+.IB target_file ]
+.B [-haf
+.IB halfspace_file ]
+.B -disp|-strain|-stress|-estress|-shear[max]|-normal|-coul
 .I defm_file
 .B [...]
 
@@ -56,7 +60,7 @@ then target fault parameters correspond to matching station coordinate.
 Alternatively, replace
 .I target_file
 with
-.IR strike / dip / rake / friction
+.IB strike / dip / rake / friction
 to define the target parameters as a command line argument.
 .TP
 .BI -haf " halfspace_file"

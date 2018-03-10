@@ -6,11 +6,10 @@ colortool \- convert between color spaces and create color palettes
 .SH SYNOPSIS
 .P
 .B colortool
-.BI -hue " hue1,hue2"
-.BI -lightness " lightness1,lightness2"
-.BI -chroma " chroma1,chroma2 " |
-.B -convert
-.IR input_type = x,y,z
+.BI -hue " hue1" , hue2
+.BI -lightness " lightness1" , lightness2
+.BI -chroma " chroma1" , "chroma2 " |
+.BI -convert " input_type" = x , y , z
 .IB output_type
 .BI
 .BI [...]
@@ -37,15 +36,15 @@ only implements colors for a perfectly reflecting diffuser surface in daylight.
 
 .SH OPTIONS
 .TP
-.BI -lightness " lightness1,lightness2"
+.BI -lightness " lightness1" , lightness2
 Starting and ending lightness values, where 0=black and 100=white (default:
 .IR lightness1 "=0, " lightness2 =100)
 .TP
-.BI -chroma " chroma1,chroma2"
+.BI -chroma " chroma1" , chroma2
 Starting and ending chroma values (default:
 .IR chroma1 "=40, " chroma2 =40)
 .TP
-.BI -hue " hue1,hue2"
+.BI -hue " hue1" , hue2
 Starting and ending hue values (default:
 .IR hue1 "=0, " hue2 =360).
 Hue=0=magenta, 40=red, 60=orange, 100=yellow, 135=green, 305=blue, 330=purple.
@@ -56,6 +55,10 @@ Convert color in one set of coordinates to another.
 can take the following values: LCH, LAB (where a=chroma*cos(hue), b=chroma*sin(hue)), RGB, or HSV. 
 .IR X ", " y ", and " z
 correspond to the components of the defined color system.
+.TP
+.BR "-cmap [" spiral | linear ]
+Define progression through LCH/LAB color space. "spiral" changes hue uniformly (rotates around the color space),
+and "linear" changes A and B uniformly (shortest distance between two points in the color space).
 .TP
 .BR -n[colors] " N"
 Number of color increments to output (default: N=10)
