@@ -419,7 +419,7 @@ C Initialize variable values
   100 continue
       narg = iargc()
       if (narg.eq.0) then
-          call usage('!! Error: no command line arguments specified')
+          call usage('')
       endif
       i = 0
    11 i = i + 1
@@ -527,8 +527,8 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: grid -x X1 X2 [-nx NX|-dx DX] ',
-     2            '-y Y1 Y2 [-ny NY|-dy DY] -RX1/X2/Y1/Y2'
+     1 'Usage: grid -x X1 X2 -nx NX|-dx DX ',
+     2            '[-y Y1 Y2 -ny NY|-dy DY] [-RX1/X2/Y1/Y2]'
       write(*,*)
      1 '            [-z Z|-dip X0 Y0 Z0 STR ',
      2              'DIP|-xsec X0 Y0 AZ [-xz]] [-exp x|y]'
