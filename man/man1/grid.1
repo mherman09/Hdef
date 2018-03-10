@@ -1,0 +1,102 @@
+.TH GRID 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+grid \- generate regularly spaced points
+
+.SH SYNOPSIS
+.P
+.B grid
+.BI -x " x1 x2"
+.BI -dx " dx" "|-nx " nx
+.BI [-y " y1 y2" ]
+.BI [-dy " dy" "|-ny " ny ]
+.BI [...]
+
+.SH DESCRIPTION
+.B grid
+produces regularly spaced points with a constant z-coordinate, on a dipping surface,
+or on a vertically dipping plane.
+
+.SH OPTIONS
+.TP
+.BI -x " x1 x2"
+Minimum and maximum x-coordinates
+.TP
+.BI -dx " dx"
+X-coordinate increment
+.TP
+.BI -nx " nx"
+Number of points from minimum to maximum x-coordinate (inclusive)
+.TP
+.BI -y " y1 y2"
+Minimum and maximum y-coordinates
+.TP
+.BI -dy " dy"
+Y-coordinate increment
+.TP
+.BI -ny " ny"
+Number of points from minimum to maximum y-coordinate (inclusive)
+.TP
+.BI -z " z"
+Z-coordinate (default: z=0)
+.TP
+.BI -dip " lon0 lat0 dep0 strike dip"
+Project z-coordinates onto dipping plane with geometry
+.I strike
+and
+.IR dip ,
+containing the point
+.IR "" ( lon0 ", " lat0 ", " dep0 ).
+Treat
+.I x
+and
+.I y
+as geographic coordinates.
+.TP
+.BI -xsec " lon0 lat0 azimuth " [-xz]
+Generate geographic points on a vertically dipping plane containing the point
+.IR "" ( lon0 ", " lat0 )
+and with orientation
+.IR azimuth .
+Treat
+.I x
+as the horizontal distance (in km) parallel to the azimuth and 
+.I y
+as the depth (in km, positive downward). If
+.B -xz
+is used, then print
+.I x
+and
+.IR z .
+.TP
+.BI -R xmin / xmax / ymin / ymax
+Define
+.IR xmin ", " xmax ", " ymin ", and " ymax
+with GMT syntax.
+.TP
+.BI -clip " clip_file " [-in?]
+Set points outside polygon defined by
+.I clip_file
+to have depth 
+.IR z =-12345.
+If
+.B -in?
+is used, take points from standard input and only print them if they lie within the boundary
+defined by
+.IR clip_file .
+.TP
+.BI -exp " x" | y
+Change definition of number of points or increment from linear to multiplicative.
+.I Nx
+and
+.I ny
+specify number of points (including endpoints) with an equal ratio spacing, and
+.I dx
+and
+.I dy
+become multiplicative factors (required to be greater than 1).
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output)
+
+.RS
