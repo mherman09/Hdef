@@ -72,7 +72,7 @@ C Read inputs
           elseif (mode.eq.31) then
               call pnt2sdr(line,soln)
           elseif (mode.eq.32) then
-              call usage('!! PNT to MIJ not operational yet')
+              call pnt2mij(line,soln)
           elseif (mode.eq.33) then
               call usage('!! Silly, you already have PNT axes!')
           elseif (mode.eq.34) then
@@ -177,7 +177,7 @@ C----------------------------------------------------------------------C
       input = ''
       output = ''
       narg = iargc()
-      if (narg.lt.2) call usage('!! Error: not enough arguments')
+      if (narg.lt.2) call usage('')
 C Get input type
       i = 1
       call getarg(i,tag)

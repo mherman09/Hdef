@@ -556,3 +556,39 @@ C----------------------------------------------------------------------C
  1001 format(F5.2)
       RETURN
       END
+
+C----------------------------------------------------------------------C
+
+      SUBROUTINE pnt2mij(line,soln)
+      IMPLICIT none
+      CHARACTER*(*) line,soln
+      REAL*8 pnt(3,3),eig(3)
+      REAL*8 mxx,myy,mzz,mxy,mxz,myz
+      REAL*8 mrr,mtt,mpp,mrt,mrp,mtp
+      read(line,*) pnt(1,1),pnt(1,2),pnt(1,3),
+     1             pnt(2,1),pnt(2,2),pnt(2,3),
+     2             pnt(3,1),pnt(3,2),pnt(3,3),
+     3             eig(1),eig(2),eig(3)
+      mxx = eig(1)*pnt(1,1)*pnt(1,1) + eig(2)*pnt(2,1)*pnt(2,1) + 
+     1                                          eig(3)*pnt(3,1)*pnt(3,1)
+      myy = eig(1)*pnt(1,2)*pnt(1,2) + eig(2)*pnt(2,2)*pnt(2,2) +
+     1                                          eig(3)*pnt(3,2)*pnt(3,2)
+      mzz = eig(1)*pnt(1,3)*pnt(1,3) + eig(2)*pnt(2,3)*pnt(2,3) +
+     1                                          eig(3)*pnt(3,3)*pnt(3,3)
+      mxy = eig(1)*pnt(1,1)*pnt(1,2) + eig(2)*pnt(2,1)*pnt(2,2) +
+     1                                          eig(3)*pnt(3,1)*pnt(3,2)
+      mxz = eig(1)*pnt(1,1)*pnt(1,3) + eig(2)*pnt(2,1)*pnt(2,3) +
+     1                                          eig(3)*pnt(3,1)*pnt(3,3)
+      myz = eig(1)*pnt(1,2)*pnt(1,3) + eig(2)*pnt(2,2)*pnt(2,3) +
+     1                                          eig(3)*pnt(3,2)*pnt(3,3)
+      mrr = mzz
+      mtt = myy
+      mpp = mxx
+      mrt = -myz
+      mrp = mxz
+      mtp = -mxy
+C Write moment tensor components
+      write(soln,9999) mrr,mtt,mpp,mrt,mrp,mtp
+ 9999 format(6(1PE14.6))
+      RETURN
+      END
