@@ -1,0 +1,68 @@
+.TH PLATEMOTION 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+platemotion \- compute velocities from plate pairs
+
+.SH SYNOPSIS
+.P
+.B platemotion
+.BI -plate " plate1" / plate2 |-pole " lon" / lat / rot_vel
+.B [...]
+
+.SH DESCRIPTION
+.B platemotion
+computes velocities at a geographic location corresponding to a pair of plates
+from a plate circuit model or from an Euler pole.
+
+.SH OPTIONS
+.TP
+.BI -plate " plate1" / plate2
+Plate pair from built-in plate circuit. Use
+.B -model?
+to see available plates for given plate circuit.
+.TP
+.BI -pole " lon" / lat / rot_vel
+Euler pole for plate pair located at
+.IR "" ( lon ", " lat )
+and with rotational velocity
+.I rot_vel
+(in degrees/million years, with positive indicating counter-clockwise).
+.TP
+.BI -model[?] " MORVEL" | NUVEL-1A | MORVEL56
+Plate circuit (default: MORVEL). Use
+.B -model?
+to print plates available in each model to standard error and exit program.
+See
+.B REFERENCES
+for more details about each plate circuit.
+.TP
+.BI -f " input_file"
+Input file (default reads standard input)
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output)
+.TP
+.BI -verbose
+Print
+.B platemotion
+progress
+.TP
+.BI -h
+Print usage statement
+
+.SH REFERENCES
+.TP
+Argus, D.F., Gordon, R.G., DeMets, C. (2011).
+Geologically current motion of 56 plates relative to the no-net-rotation reference frame.
+Geochemistry Geophysics Geosystems 12, 1-13.
+.TP
+DeMets, C., Gordon, R.G., Argus, D.F., Stein, S. (1990).
+Current plate motions. Geophysical Journal International 101, 425-478.
+.TP
+DeMets, C., Gordon, R.G., Argus, D.F., Stein, S. (1994).
+Effect of recent revisions to the geomagnetic reversal time-scale on estimates of current
+plate motions. Geophysical Research Letters 21, 2191-2194.
+.TP
+DeMets, C., Gordon, R.G., & Argus, D.F. (2010).
+Geologically current plate motions. Geophysical Journal International 181, 1-80.
+.RS
