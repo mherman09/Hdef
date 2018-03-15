@@ -1,0 +1,43 @@
+.TH DISTAZ2LOLA 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+distaz2lola \- compute geographic coordinates given distance and azimuth from a point
+
+.SH SYNOPSIS
+.P
+.B distaz2lola
+.BI -f " input_file" "|-s|-c " "lon lat distance azimuth"
+.BI [-o " output_file" ]
+.BI [-h]
+
+.SH DESCRIPTION
+.B distaz2lola
+uses the haversine equation to compute the geographic coordinate
+.I distance
+km away from an initial coordinate
+.IR "" ( lon0 ", " lat0 )
+along a great circle path oriented at an
+.I azimuth
+degrees (measured clockwise from north) from the initial point.
+
+.SH OPTIONS
+.TP
+.BI -f " input_file"
+Read
+.I lon0 lat0 distance azimuth
+from an input file
+.TP
+.BI -s
+Read from standard input
+.TP
+.BI -c " lon0 lat0 distance azimuth"
+Read from the command line
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output) in format:
+.I lon lat
+.TP
+.BI -h
+Usage statement
+
+.RS
