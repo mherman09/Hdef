@@ -67,8 +67,8 @@ C----
       goto 1000
   991 call errmes('!! Error: problem with reading input (lon1 lat1 '//
      1                                                     'lon2 lat2)')
- 8889 format(2F18.6)
- 9999 format(2F18.6)
+ 8889 format(2F20.8)
+ 9999 format(2F20.8)
  1000 continue
 
       END
