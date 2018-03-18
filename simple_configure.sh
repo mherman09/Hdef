@@ -205,12 +205,6 @@ defm: \\
       \$(BIN)/o92util \\
       \$(BIN)/vec2los \\
       \$(BIN)/wraplos
-\$(BIN)/o92util: src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/o92util src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
-\$(BIN)/vec2los: src/vec2los.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/vec2los src/vec2los.f
-\$(BIN)/wraplos: src/wraplos.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/wraplos src/wraplos.f
 
 geom: \\
       \$(BIN)/lola2distaz \\
@@ -218,66 +212,25 @@ geom: \\
       \$(BIN)/sphfinrot \\
       \$(BIN)/platemotion \\
       \$(BIN)/utm2geo
-\$(BIN)/lola2distaz: src/lola2distaz.f src/geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/lola2distaz src/lola2distaz.f src/geomsubs.f
-\$(BIN)/distaz2lola: src/distaz2lola.f src/geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/distaz2lola src/distaz2lola.f src/geomsubs.f
-\$(BIN)/sphfinrot: src/sphfinrot.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot src/sphfinrot.f
-\$(BIN)/platemotion: src/platemotion.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/platemotion src/platemotion.f
-\$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
 
 misc: \\
+      \$(BIN)/colortool \\
       \$(BIN)/dateutil \\
       \$(BIN)/eventfrequency \\
       \$(BIN)/ff2gmt \\
       \$(BIN)/grid \\
-      \$(BIN)/pt2fin \\
       \$(BIN)/perturb \\
       \$(BIN)/readkik \\
-      \$(BIN)/eqempirical \\
-      \$(BIN)/colortool
-\$(BIN)/dateutil: src/dateutil.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil src/dateutil.f
-\$(BIN)/eventfrequency: src/eventfrequency.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency src/eventfrequency.f
-\$(BIN)/ff2gmt: src/ff2gmt.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
-\$(BIN)/grid: src/grid.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
-\$(BIN)/pt2fin: src/pt2fin.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/pt2fin src/pt2fin.f
-\$(BIN)/perturb: src/perturb.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/perturb src/perturb.f src/randsubs.f
-\$(BIN)/readkik: src/readkik.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
-\$(BIN)/eqempirical: src/eqempirical.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/eqempirical src/eqempirical.f
-\$(BIN)/colortool: src/colortool.f90 src/colormodule.f90
-	\$(FC) \$(FFLAG) -c src/colormodule.f90 -ffree-form
-	\$(FC) \$(FFLAG) -o \$(BIN)/colortool src/colortool.f90 src/colormodule.f90 -ffree-form
-	rm colormodule.o colormodule.mod
+      \$(BIN)/eqempirical
 
 fits: \\
       \$(BIN)/polyfit \\
       \$(BIN)/polyfit_special \\
       \$(BIN)/multifit \\
       \$(BIN)/fltinv
-\$(BIN)/polyfit: src/polyfit.f src/lsqsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit src/polyfit.f src/lsqsubs.f \$(LAPACK)
-\$(BIN)/polyfit_special: src/polyfit_special.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit_special src/polyfit_special.f \$(LAPACK)
-\$(BIN)/multifit: src/multifit.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/multifit src/multifit.f \$(LAPACK)
-\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
 
 seis: \\
       \$(BIN)/mtutil
-\$(BIN)/mtutil: src/mtutil.f src/mtsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/mtutil src/mtutil.f src/mtsubs.f \$(LAPACK)
 
 scripts: \\
       \$(BIN)/coul_hor.sh \\
@@ -288,62 +241,108 @@ scripts: \\
       \$(BIN)/ternary.sh \\
       \$(BIN)/trg_schem.sh \\
       \$(BIN)/gmtcpt.sh
-\$(BIN)/coul_hor.sh: scripts/coul_hor.sh
-	cp scripts/coul_hor.sh \$(BIN)/coul_hor.sh
+
+other: \\
+      \$(BIN)/numint
+
+# Rules for Fortran programs
+\$(BIN)/colortool: src/colortool.f90
+	\$(FC) \$(FFLAG) -o \$(BIN)/colortool src/colortool.f90 -ffree-form
+	rm colormodule.mod
+\$(BIN)/dateutil: src/dateutil.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/dateutil src/dateutil.f
+\$(BIN)/distaz2lola: src/distaz2lola.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/distaz2lola src/distaz2lola.f src/geomsubs.f
+\$(BIN)/eqempirical: src/eqempirical.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/eqempirical src/eqempirical.f
+\$(BIN)/eventfrequency: src/eventfrequency.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency src/eventfrequency.f
+\$(BIN)/ff2gmt: src/ff2gmt.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
+\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
+\$(BIN)/grid: src/grid.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
+\$(BIN)/lola2distaz: src/lola2distaz.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/lola2distaz src/lola2distaz.f src/geomsubs.f
+\$(BIN)/mtutil: src/mtutil.f src/mtsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/mtutil src/mtutil.f src/mtsubs.f \$(LAPACK)
+\$(BIN)/multifit: src/multifit.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/multifit src/multifit.f \$(LAPACK)
+\$(BIN)/numint: src/numint.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/numint src/numint.f
+\$(BIN)/o92util: src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/o92util src/o92util.f src/okada92subs.f src/geomsubs.f src/okada92subs_volume.f
+\$(BIN)/perturb: src/perturb.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/perturb src/perturb.f src/randsubs.f
+\$(BIN)/platemotion: src/platemotion.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/platemotion src/platemotion.f
+\$(BIN)/polyfit: src/polyfit.f src/lsqsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit src/polyfit.f src/lsqsubs.f \$(LAPACK)
+\$(BIN)/polyfit_special: src/polyfit_special.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit_special src/polyfit_special.f \$(LAPACK)
+\$(BIN)/readkik: src/readkik.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
+\$(BIN)/sphfinrot: src/sphfinrot.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot src/sphfinrot.f
+\$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
+\$(BIN)/vec2los: src/vec2los.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/vec2los src/vec2los.f
+\$(BIN)/wraplos: src/wraplos.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/wraplos src/wraplos.f
+
+# Rules for shell scripts
 \$(BIN)/coul_dip.sh: scripts/coul_dip.sh
 	cp scripts/coul_dip.sh \$(BIN)/coul_dip.sh
+\$(BIN)/coul_hor.sh: scripts/coul_hor.sh
+	cp scripts/coul_hor.sh \$(BIN)/coul_hor.sh
 \$(BIN)/coul_xsec.sh: scripts/coul_xsec.sh
 	cp scripts/coul_xsec.sh \$(BIN)/coul_xsec.sh
-\$(BIN)/surf_disp.sh: scripts/surf_disp.sh
-	cp scripts/surf_disp.sh \$(BIN)/surf_disp.sh
+\$(BIN)/gmtcpt.sh: scripts/gmtcpt.sh
+	cp scripts/gmtcpt.sh \$(BIN)/gmtcpt.sh
 \$(BIN)/simplify_ffm.sh: scripts/simplify_ffm.sh
 	cp scripts/simplify_ffm.sh \$(BIN)/simplify_ffm.sh
+\$(BIN)/surf_disp.sh: scripts/surf_disp.sh
+	cp scripts/surf_disp.sh \$(BIN)/surf_disp.sh
 \$(BIN)/ternary.sh: scripts/ternary.sh
 	cp scripts/ternary.sh \$(BIN)/ternary.sh
 \$(BIN)/trg_schem.sh: scripts/trg_schem.sh
 	cp scripts/trg_schem.sh \$(BIN)/trg_schem.sh
-\$(BIN)/gmtcpt.sh: scripts/gmtcpt.sh
-	cp scripts/gmtcpt.sh \$(BIN)/gmtcpt.sh
 
-other: \\
-      \$(BIN)/pole2vel \\
-      \$(BIN)/numint
-\$(BIN)/pole2vel: src/pole2vel.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/pole2vel src/pole2vel.f
-\$(BIN)/numint: src/numint.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/numint src/numint.f
-
+# Clean bin directory
 .PHONY: clean
 clean:
-	-rm \$(BIN)/o92util
-	-rm \$(BIN)/vec2los
-	-rm \$(BIN)/wraplos
-	-rm \$(BIN)/lola2distaz
-	-rm \$(BIN)/distaz2lola
-	-rm \$(BIN)/sphfinrot
-	-rm \$(BIN)/platemotion 
-	-rm \$(BIN)/utm2geo
+	-rm \$(BIN)/colortool
 	-rm \$(BIN)/dateutil
+	-rm \$(BIN)/distaz2lola
+	-rm \$(BIN)/eqempirical
 	-rm \$(BIN)/eventfrequency
 	-rm \$(BIN)/ff2gmt
-	-rm \$(BIN)/grid
-	-rm \$(BIN)/pt2fin
-	-rm \$(BIN)/perturb
-	-rm \$(BIN)/polyfit
-	-rm \$(BIN)/multifit
 	-rm \$(BIN)/fltinv
-	-rm \$(BIN)/readkik
+	-rm \$(BIN)/grid
+	-rm \$(BIN)/lola2distaz
 	-rm \$(BIN)/mtutil
-	-rm \$(BIN)/coul_hor.sh
+	-rm \$(BIN)/multifit
+	-rm \$(BIN)/numint
+	-rm \$(BIN)/o92util
+	-rm \$(BIN)/perturb
+	-rm \$(BIN)/platemotion 
+	-rm \$(BIN)/polyfit
+	-rm \$(BIN)/polyfit_special
+	-rm \$(BIN)/readkik
+	-rm \$(BIN)/sphfinrot
+	-rm \$(BIN)/utm2geo
+	-rm \$(BIN)/vec2los
+	-rm \$(BIN)/wraplos
 	-rm \$(BIN)/coul_dip.sh
+	-rm \$(BIN)/coul_hor.sh
 	-rm \$(BIN)/coul_xsec.sh
-	-rm \$(BIN)/surf_disp.sh
+	-rm \$(BIN)/gmtcpt.sh
 	-rm \$(BIN)/simplify_ffm.sh
+	-rm \$(BIN)/surf_disp.sh
 	-rm \$(BIN)/ternary.sh
 	-rm \$(BIN)/trg_schem.sh
-	-rm \$(BIN)/pole2vel
-	-rm \$(BIN)/numint
-	-rm \$(BIN)/polyfit_special
 
 
 EOF
