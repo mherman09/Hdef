@@ -1,0 +1,45 @@
+.TH LOLA2DISTAZ 1 "March 2018" "Version 2018.03.01" "User Manuals"
+
+.SH NAME
+lola2distaz \- compute distance and azimuth between two geographic points
+
+.SH SYNOPSIS
+.P
+.B lola2distaz
+.BI -f " input_file" "|-s|-c " "lon1 lat1 lon2 lat2"
+.BI [-o " output_file" ]
+.BI [-h]
+
+.SH DESCRIPTION
+.B lola2distaz
+uses the haversine equation to compute the
+.I distance
+(in km) and
+.I azimuth
+(degrees)
+along a great circle path starting from
+.IR "" ( lon1 ", " lat1 )
+and ending at
+.IR "" ( lon2 ", " lat2 )
+
+.SH OPTIONS
+.TP
+.BI -f " input_file"
+Read
+.I lon1 lat1 lon2 lat2
+from an input file
+.TP
+.BI -s
+Read from standard input
+.TP
+.BI -c " lon1 lat1 lon2 lat2"
+Read from the command line
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output) in format:
+.I distance azimuth
+.TP
+.BI -h
+Usage statement
+
+.RS
