@@ -330,7 +330,7 @@ C
       arg = 'none'
       narg = iargc()
       if (narg.eq.0) then
-          call usage('!! Error: no command line arguments specified')
+          call usage('')
       endif
       i = 0
   201 i = i + 1

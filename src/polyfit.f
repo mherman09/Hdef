@@ -166,8 +166,9 @@ C======================================================================C
       ord = -1
       ncon = 0
       narg = iargc()
-      if (narg.eq.0) call usage('!! Error: no command line arguments '//
-     1                                         'specified')
+      if (narg.eq.0) then
+          call usage('')
+      endif
       i = 0
   101 i = i + 1
       if (i.gt.narg) goto 102

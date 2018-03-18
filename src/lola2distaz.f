@@ -94,7 +94,7 @@ C----------------------------------------------------------------------C
       c = 0
       p = 1
       narg = iargc()
-      if (narg.eq.0) call usage('!! Error: no command line arguments')
+      if (narg.eq.0) call usage('')
       i = 0
   901 i = i + 1
       if (i.gt.narg) goto 902

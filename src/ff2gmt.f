@@ -506,7 +506,7 @@ C----------------------------------------------------------------------c
       itype = 1 ! 1=static, 2=fsp
       narg = iargc()
       if (narg.eq.0) then
-          call usage('!! Error: no command line arguments specified')
+          call usage('')
       endif
       i = 0
   901 i = i + 1
