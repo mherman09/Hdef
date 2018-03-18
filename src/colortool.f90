@@ -1,15 +1,24 @@
-program main
-    use colormodule
+module colormodule
+real, parameter :: refx =  95.047 !! For perfect reflecting diffuser in daylight at 2 degrees
+real, parameter :: refy = 100.000 !! For perfect reflecting diffuser in daylight at 2 degrees
+real, parameter :: refz = 108.883 !! For perfect reflecting diffuser in daylight at 2 degrees
+integer :: verbose
+end module
 
-    implicit none
-    real :: l,c,h,a,b,a1,a2,b1,b2
-    real :: red,grn,blu
-    real :: x1,y1,z1,x2,y2,z2
-    character(len=200) :: rgbstring
-    real :: cmax
-    integer :: i,n
-    integer :: clip(3)
-    character(len=3) :: typ1,typ2
+!==================================================================================================!
+
+program main
+use colormodule
+
+implicit none
+real :: l,c,h,a,b,a1,a2,b1,b2
+real :: red,grn,blu
+real :: x1,y1,z1,x2,y2,z2
+character(len=200) :: rgbstring
+real :: cmax
+integer :: i,n
+integer :: clip(3)
+character(len=3) :: typ1,typ2
 
     ! User-defined variables
     real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
@@ -19,7 +28,7 @@ program main
     ! Parse command line
     call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
                 gmt,lim1,lim2,saturate)
-    if (vrb.gt.0) then
+    if (verbose.gt.0) then
         write(0,*) 'Color mapping option: ',trim(option)
         write(0,*) 'Hue range:            ',hue1,hue2
         write(0,*) 'Lightness range:      ',light1,light2
@@ -516,7 +525,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
     convert2 = ''
     lim1 = 0.0
     lim2 = 1.0
-    vrb = 0
+    verbose = 0
     dz = -1.0
     gmt = 'none'
     saturate = 0
@@ -625,7 +634,7 @@ subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert
             tag(j:j) = ' '
             read(tag,*) lim1,lim2,dz
         elseif (tag(1:2).eq.'-v') then
-            vrb = 1
+            verbose = 1
         elseif (tag(1:2).eq.'-D') then
             saturate = 1
         elseif (tag(1:2).eq.'-d') then
