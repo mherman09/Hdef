@@ -259,7 +259,7 @@ other: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency src/eventfrequency.f
 \$(BIN)/ff2gmt: src/ff2gmt.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
-\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f
+\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f src/randsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
