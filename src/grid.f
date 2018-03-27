@@ -10,6 +10,7 @@ C----
       REAL*8 x1,x2,y1,y2,dx,dy,dz,dd,ref(5),dist,az,lo,la
       REAL*8 x,y,z,xx(1000),yy(1000),zsave
       INTEGER i,j,k,nx,ny,p,xsec,xz,nn,io,datain,expflg
+      INTEGER iWantOutside
 
 C----
 C Get parameters from the command line
@@ -30,7 +31,7 @@ C     xz:
 C     clip:  
 C----
       call gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,clip,
-     1            datain,expflg)
+     1            datain,expflg,iWantOutside)
       if (datain.eq.1) goto 9001
 C Check that limits and increments are properly defined
       if (x2.lt.x1) call usage('!! Error: X2 must be greater than X1')
@@ -76,6 +77,8 @@ C----
               call pnpoly(x,y,xx,yy,nn,io)
               if (io.eq.1) then
                   write(*,*) trim(line)
+              elseif (iWantOutside.eq.1) then
+                  write(*,*) trim(line),' OUTSIDE'
               endif
               goto 1003
  1004     continue
@@ -391,12 +394,12 @@ C3         IF ((Y(I)*X(J)-X(I)*Y(J))/(X(J)-X(I))) 2,4,5
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(x1,x2,nx,dx,y1,y2,ny,dy,z,ofile,p,ref,xsec,xz,
-     1                  clip,datain,expflg)
+     1                  clip,datain,expflg,iWantOutside)
       IMPLICIT none
       CHARACTER*40 tag,ofile
       CHARACTER*200 clip
       REAL*8 x1,x2,y1,y2,z,dx,dy,ref(5)
-      INTEGER narg,i,j,nx,ny,p,xsec,xz,datain,expflg
+      INTEGER narg,i,j,nx,ny,p,xsec,xz,datain,expflg,iWantOutside
 C Initialize variable values
       x1 = 0.0d0
       x2 = 0.0d0
@@ -414,6 +417,7 @@ C Initialize variable values
       clip = 'none'
       datain = 0
       expflg = 0
+      iWantOutside = 0
       do 100 i = 1,5
           ref(i) = -1.0d0
   100 continue
@@ -436,6 +440,9 @@ C Initialize variable values
           xz = 1
       elseif (tag(1:4).eq.'-in?') then
           datain = 1
+          if (tag(5:6).eq.'o2') then
+              iWantOutside = 1
+          endif
       elseif (tag(1:5).eq.'-clip') then
           i = i + 1
           call getarg(i,clip)
@@ -564,9 +571,9 @@ C----------------------------------------------------------------------C
      1 '-clip XYFILE           Clip points to lie in interior of ',
      2                            'XYFILE (outside points are -12345)'
       write(*,*)
-     1 '-in?                   Check if input points (from standard ',
+     1 '-in?[o2]               Check if input points (from standard ',
      2                          'input) are in polygon (requires -clip',
-     3                          ' to be set)'
+     3                          ' to be set) appending o2 prints all'
       write(*,*)
      1 '-o OFILE               Output to file (default prints to ',
      2              'standard output)'

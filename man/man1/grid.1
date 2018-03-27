@@ -74,7 +74,7 @@ Define
 .IR xmin ", " xmax ", " ymin ", and " ymax
 with GMT syntax.
 .TP
-.BI -clip " clip_file " [-in?]
+.BI -clip " clip_file " [-in?[o2]]
 Set points outside polygon defined by
 .I clip_file
 to have depth 
@@ -84,6 +84,9 @@ If
 is used, take points from standard input and only print them if they lie within the boundary
 defined by
 .IR clip_file .
+Appending
+.B o2
+will print outside elements followed by "OUTSIDE".
 .TP
 .BI -exp " x" | y
 Change definition of number of points or increment from linear to multiplicative.
