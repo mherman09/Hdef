@@ -30,7 +30,7 @@ do
         -f=*|--fortran_compiler=*)FC=`echo $1 | sed -e "s/.*=//"`;;
         -l=*|--lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
         -b=*|--bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
-        -i=*|--interactive)INTERACTIVE="Y";;
+        -i|--interactive)INTERACTIVE="Y";;
         -d|--default)FC="gfortran";LAPACK_LIB_DIR="/sw/lib/lapack";BIN_DIR="bin";;
         *)echo "!! Error: No option $1"; usage;;
     esac
