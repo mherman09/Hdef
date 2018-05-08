@@ -422,11 +422,14 @@ C----------------------------------------------------------------------C
       IMPLICIT none
       REAL*8 sta(3)
       CHARACTER*40 staf 
-      INTEGER i,nsta,chk,xy
+      INTEGER i,nsta,chk,xy,ios
       chk = 0
       open(unit=18,file=staf,status='old')
       do 181 i = 1,nsta
-          read(18,*) sta(1),sta(2),sta(3)
+          read(18,*,err=999,end=999,iostat=ios) sta(1),sta(2),sta(3)
+  999     if (ios.ne.0) then
+              call usage('!! Error in reading station coordinates')
+          endif
           if ((dabs(sta(1)).gt.360.or.dabs(sta(2)).gt.90).and.
      1                                                xy.ne.1) then
               if (chk.eq.0) then
@@ -979,10 +982,10 @@ C Read faults
           call usage('!! Error: NFLT in -vol file not equal to NLINE')
       endif
       nflt = i - 1
-!      print *,'nflt',nflt
-!      do 101 i=1,nflt
-!          print *,evlo(i),evla(i),evdp(i),slip(i)
-!  101 continue
+C      print *,'nflt',nflt
+C      do 101 i=1,nflt
+C          print *,evlo(i),evla(i),evdp(i),slip(i)
+C  101 continue
       close(34) 
       RETURN
       END
