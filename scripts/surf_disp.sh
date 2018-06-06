@@ -19,23 +19,8 @@ fi
 
 ###############################################################################
 # The user can specify the following variables:
-#  PSFILE   Name of the output PostScript file
-#  NN       Density of the computation grid (NN x NN)
-#  SAMP     Sampling interval (from the NN x NN grid) for plotting vectors
 #  DISP_THR (Horizontal) displacement threshold for plotting as bold vectors
 ###############################################################################
-
-# Name of output PostScript file
-PSFILE="surf_disp.ps"
-PSFILE="$OFILE.ps"
-
-# Background vertical displacement grid is (NN x NN) points
-NN="100"
-NN="40"
-
-# Horizontal vectors sampled every SAMP points from (NN x NN) grid
-SAMP="5"
-NN_SAMP=`echo $NN $SAMP | awk '{print int($1/$2)}'`
 
 # Horizontal displacements below DISP_THR will be faded
 DISP_THR="0.05" # meters
@@ -53,6 +38,8 @@ echo "                      MT:  EVLO EVLA EVDP STR DIP RAK MAG"
 echo "                      FFM: finite fault model in static subfault format"
 echo "                      FSP: finite fault model in SRCMOD FSP format"
 echo "    -Rw/e/s/n       Define map limits"
+echo "    -nvert          Number of background grid points (1D; default: 100)"
+echo "    -nvec           Number of vectors (1D; default: 20)"
 echo "    -seg            Plot segmented finite faults"
 echo "    -Tvmin/vmax/dv  Define vertical color bar limits"
 echo "    -getscript      Copy surf_disp.sh to working directory"
@@ -94,6 +81,8 @@ OFILE="surf_disp"
 GPS_FILE=""
 VEC_SCALE=""
 DISP_LBL=""
+NN="100" # Background vertical displacement grid is (NN x NN) points
+NN_SAMP="20" # Horizontal vectors grid is (NN_SAMP x NN_SAMP) points
 shift;shift
 while [ "$1" != "" ]
 do
@@ -107,6 +96,8 @@ do
         -gps) shift;GPS_FILE="$1" ;;
         -vecscale) shift;VEC_SCALE="$1" ;;
         -veclbl) shift;DISP_LBL="$1" ;;
+        -nvert)shift;NN="$1";;
+        -nvec)shift;NN_SAMP="$1";;
         *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
