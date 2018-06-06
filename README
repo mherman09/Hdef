@@ -13,11 +13,13 @@ certain equations and typing them into my calculator or Matlab, so I wrote some
 simple codes to have these results at my fingertips. These are included, and you
 may find them useful as well.
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Directions for installation are in the file INSTALL.
+Tutorials can be found at my website: http://www.matthewwherman.com/software.html
+Man pages for many of the programs are in the man/ directory.
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are no guarantees: happy? I think these results are correct, and I have
 used these codes to make calculations for peer-reviewed publications, but I
@@ -40,7 +42,7 @@ moment tensors to constrain the kinematics and stress evolution of the 2010–20
 Canterbury earthquake sequence, South Island, New Zealand. Tectonophysics 633,
 1-15.
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Alphabetical list of programs in Hdef (*requires LAPACK; ^use with caution: deprecated):
 	colortool              generate perceptually linear color maps
