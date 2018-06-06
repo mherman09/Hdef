@@ -1,7 +1,7 @@
 module colormodule
-real, parameter :: refx =  95.047 !! For perfect reflecting diffuser in daylight at 2 degrees
-real, parameter :: refy = 100.000 !! For perfect reflecting diffuser in daylight at 2 degrees
-real, parameter :: refz = 108.883 !! For perfect reflecting diffuser in daylight at 2 degrees
+double precision, parameter :: refx =  95.047 !! For perfect reflecting diffuser in daylight at 2 degrees
+double precision, parameter :: refy = 100.000 !! For perfect reflecting diffuser in daylight at 2 degrees
+double precision, parameter :: refz = 108.883 !! For perfect reflecting diffuser in daylight at 2 degrees
 integer :: verbose
 end module
 
@@ -12,27 +12,27 @@ use colormodule
 implicit none
 
 ! User-defined variables from command line
-real :: hue1, hue2                               ! Hue start/end values
-real :: light1, light2                           ! Lightness start/end values
-real :: chroma1, chroma2                         ! Chroma start/end values
-real :: lim1, lim2                               ! GMT color palette start/end values
-character(len=200) :: option                     ! Path through color space (spiral or linear)
-character(len=200) :: convert1, convert2         ! Change between color spaces
-character(len=200) :: gmtfile                    ! Output GMT color palette
+double precision :: hue1, hue2                               ! Hue start/end values
+double precision :: light1, light2                           ! Lightness start/end values
+double precision :: chroma1, chroma2                         ! Chroma start/end values
+double precision :: lim1, lim2                               ! GMT color palette start/end values
+character(len=1024) :: option                     ! Path through color space (spiral or linear)
+character(len=1024) :: convert1, convert2         ! Change between color spaces
+character(len=1024) :: gmtfile                    ! Output GMT color palette
 integer :: ncolors                               ! Number of colors
 integer :: saturate                              ! Set background/foreground colors to min/max values
 
 ! Local variables
-real :: a1, a2, b1, b2                           ! AB for option=linear color maps
-real :: l, c, h, a, b                            ! CIE-LAB colorspace variables
-real :: red, grn, blu                            ! RGB colorspace variables
+double precision :: a1, a2, b1, b2                           ! AB for option=linear color maps
+double precision :: l, c, h, a, b                            ! CIE-LAB colorspace variables
+double precision :: red, grn, blu                            ! RGB colorspace variables
 character(len=200) :: rgbstring                  ! Formatted RGB string
-real :: cmax                                     ! Maximum chroma for RGB representation at LH coordinate
+double precision :: cmax                                     ! Maximum chroma for RGB representation at LH coordinate
 integer :: clip(3)                               ! Indicator if color has been clipped to fit into RGB space
 character(len=200) :: background, foreground     ! Background and foreground colors for GMT color palette
 integer :: i
 integer :: uout
-
+double precision :: lcheck,ccheck,hcheck
 
 ! Parse command line
 call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
@@ -86,6 +86,7 @@ do i = 1,ncolors
     ! Calculate RGB coordinates
     call lch2rgb(l,c,h,red,grn,blu)
     call checkrgb(red,grn,blu,clip)
+    call rgb2lch(red,grn,blu,lcheck,ccheck,hcheck)
     ! Print nicely formatted RGB coordinates
     call formatrgb(red,grn,blu,rgbstring)
     if (gmtfile.eq.'none') then
@@ -107,7 +108,7 @@ do i = 1,ncolors
         endif
     endif
 enddo
-1003 format(2(F16.4,X,A30))
+1003 format(2(F20.6,X,A30))
 
 if (gmtfile.ne.'none'.and.saturate.eq.1) then
     write(uout,'(A)') 'B '//trim(background)
@@ -128,8 +129,8 @@ character(len=*) :: convert1, convert2
 ! Local
 integer :: i
 character(len=3) :: typ1, typ2
-real :: x1, y1, z1
-real :: x2, y2, z2
+double precision :: x1, y1, z1
+double precision :: x2, y2, z2
 integer :: clip(3)
 
 ! Check formatting of input strings
@@ -226,8 +227,8 @@ end
 
 subroutine formatrgb(red,grn,blu,rgbstring)
 implicit none
-real :: red,grn,blu
-character(len=200) :: tmpstring
+double precision :: red,grn,blu
+character(len=1024) :: tmpstring
 character(len=*) :: rgbstring
 integer :: j,jj
 write(tmpstring,1001) red,grn,blu
@@ -252,7 +253,7 @@ subroutine checkrgb(r,g,b,clip)
 ! Check that RGB values are in range 0-255 and return whether they needed to be clipped
 use colormodule
 implicit none
-real :: r,g,b
+double precision :: r,g,b
 integer :: clip(3)
 clip = 0
 if (r.lt.0.0) then
@@ -284,8 +285,9 @@ end
 subroutine maxchroma(lin,hin,cmax)
 ! Look for largest possible chroma at lightness-hue coordinate
 implicit none
-real :: lin,hin,cmax,c,c1,c2,r,g,b
+double precision :: lin,hin,cmax,c,c1,c2,r,g,b
 integer :: clip(3)
+cmax = 0.0d0
 c1 = 0.0
 c2 = 128.0
 c = c1
@@ -310,8 +312,8 @@ end
 subroutine lch2lab(ciec,cieh,ciea,cieb)
 ! Lightness-chroma-hue to lightness-a-b
 implicit none
-real :: ciec,cieh,ciea,cieb
-real, parameter :: pi = 4.0*atan(1.0)
+double precision :: ciec,cieh,ciea,cieb
+double precision, parameter :: pi = 4.0*atan(1.0)
 ciea = ciec*cos(cieh*pi/180.0)
 cieb = ciec*sin(cieh*pi/180.0)
 return
@@ -322,8 +324,8 @@ end
 subroutine lab2lch(ciea,cieb,ciec,cieh)
 ! Lightness-a-b to lightness-chroma-hue
 implicit none
-real :: ciea,cieb,ciec,cieh
-real, parameter :: pi = 4.0*atan(1.0)
+double precision :: ciea,cieb,ciec,cieh
+double precision, parameter :: pi = 4.0*atan(1.0)
 cieh = atan2(cieb,ciea)
 if (cieh.gt.0) then
     cieh = cieh/pi*180.0
@@ -340,7 +342,7 @@ subroutine lab2xyz (ciel,ciea,cieb,x,y,z)
 ! Lightness-a-b to x-y-z tristimulus
 use colormodule
 implicit none
-real :: ciel,ciea,cieb,x,y,z
+double precision :: ciel,ciea,cieb,x,y,z
 y = (ciel+16.0)/116.0
 x = ciea/500.0 + y
 z = y - cieb/200.0
@@ -371,7 +373,7 @@ subroutine xyz2lab(xin,yin,zin,ciel,ciea,cieb)
 ! X-y-z tristimulus to lightness-a-b
 use colormodule
 implicit none
-real :: xin,yin,zin,x,y,z,ciel,ciea,cieb
+double precision :: xin,yin,zin,x,y,z,ciel,ciea,cieb
 x = xin/refx
 y = yin/refy
 z = zin/refz
@@ -401,7 +403,7 @@ end
 subroutine rgb2xyz(rin,gin,bin,x,y,z)
 ! Red-green-blue to x-y-z tristimulus
 implicit none
-real :: rin,gin,bin,r,g,b,x,y,z
+double precision :: rin,gin,bin,r,g,b,x,y,z
 r = rin/255.0
 g = gin/255.0
 b = bin/255.0
@@ -434,7 +436,7 @@ end
 subroutine xyz2rgb(xin,yin,zin,r,g,b)
 ! X-y-z tristimulus to red-green-blue
 implicit none
-real :: xin,yin,zin,x,y,z,r,g,b
+double precision :: xin,yin,zin,x,y,z,r,g,b
 x = xin/100.0
 y = yin/100.0
 z = zin/100.0
@@ -467,8 +469,8 @@ end
 subroutine lab2rgb(lin,ain,bin,r,g,b)
 ! Lightness-a-b to red-green-blue
 implicit none
-real :: lin,ain,bin,r,g,b
-real :: x,y,z
+double precision :: lin,ain,bin,r,g,b
+double precision :: x,y,z
 call lab2xyz(lin,ain,bin,x,y,z)
 call xyz2rgb(x,y,z,r,g,b)
 return
@@ -479,8 +481,8 @@ end
 subroutine lch2rgb(lin,cin,hin,r,g,b)
 ! Lightness-chroma-hue to red-green-blue
 implicit none
-real :: lin,cin,hin,r,g,b
-real :: a1,b1
+double precision :: lin,cin,hin,r,g,b
+double precision :: a1,b1
 call lch2lab(cin,hin,a1,b1)
 call lab2rgb(lin,a1,b1,r,g,b)
 return
@@ -490,8 +492,8 @@ end
 
 subroutine rgb2lab(red,grn,blu,l,a,b)
 implicit none
-real :: red,grn,blu,l,a,b
-real :: x,y,z
+double precision :: red,grn,blu,l,a,b
+double precision :: x,y,z
 call rgb2xyz(red,grn,blu,x,y,z)
 call xyz2lab(x,y,z,l,a,b)
 return
@@ -501,8 +503,8 @@ end
 
 subroutine rgb2lch(red,grn,blu,l,c,h)
 implicit none
-real :: red,grn,blu,l,c,h
-real :: a,b
+double precision :: red,grn,blu,l,c,h
+double precision :: a,b
 call rgb2lab(red,grn,blu,l,a,b)
 call lab2lch(a,b,c,h)
 return
@@ -520,9 +522,9 @@ integer :: i,j,narg
 character(len=200) :: tag
 character(len=*) :: option,convert1,convert2,gmtfile
 character(len=1) :: ch1,ch2
-real :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
+double precision :: hue1,hue2,light1,light2,chroma1,chroma2,lim1,lim2
 integer :: ncolors,saturate
-real :: dz
+double precision :: dz
 option = 'spiral'
 hue1 = 0.0
 hue2 = 360.0
