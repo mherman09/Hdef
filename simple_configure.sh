@@ -261,6 +261,13 @@ other: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
 \$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f src/randsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
+\$(BIN)/fltinv_new: src/fltinv.f90 src/fltinvmodules.f90 src/fltinvsubs.f90 src/linear_subs.f90 \
+                   src/okada92subs.f src/geomsubs.f src/randsubs.f
+        \$(FC) \$(FFLAG) -c src/fltinvmodules.f90
+        \$(FC) \$(FFLAG) -o \$(BIN)/fltinv_new src/fltinv.f90 src/fltinvmodules.f90 src/fltinvsubs.f90 \
+                                               src/linear_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f \
+                                               $(LAPACK)
+        rm fltinvmodules.o arrays.mod command_line.mod gf.mod io.mod trig.mod
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
 \$(BIN)/lola2distaz: src/lola2distaz.f src/geomsubs.f
