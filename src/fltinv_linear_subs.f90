@@ -9,14 +9,14 @@ subroutine lsqr_invert()
 ! Invert displacements and pre-stresses for fault slip using a linear least squares approach
 !----
 use command_line, only : verbosity
-use arrays, only : nfaults, fault_slip
+use arrays, only : fault_slip
 use io, only : stderr
 implicit none
 ! Local variables
-double precision, dimension(:,:), allocatable :: A, b, x
-integer :: nrows, ncols, ptr_disp, ptr_stress, ptr_damp, ptr_smooth
+double precision, dimension(:,:), allocatable :: A, b, x, Atmp
+integer :: nrows, ncols, ncols2, ptr_disp, ptr_stress, ptr_damp, ptr_smooth
 
-if (verbosity.ge.1) then
+if (verbosity.ge.2) then
     write(stderr,'("Starting lsqr_invert()")')
 endif
 
@@ -30,25 +30,40 @@ endif
 if (.not.allocated(b)) then
     allocate(b(nrows,1))
 endif
+A = 0.0d0
+b = 0.0d0
+
+! Load model matrix, A, and constraint vector, b
+ncols2 = ncols
+call lsqr_load_arrays(A,b,nrows,ncols2,ptr_disp,ptr_stress,ptr_damp,ptr_smooth)
+
+! Resize A if necessary
+if (ncols2.lt.ncols) then
+    if (.not.allocated(Atmp)) then
+        allocate(Atmp(nrows,ncols2))
+    endif
+    Atmp(1:nrows,1:ncols2) = A(1:nrows,1:ncols2)
+    deallocate(A)
+    allocate(A(nrows,ncols2))
+    A = Atmp
+    deallocate(Atmp)
+    ncols = ncols2
+endif
+!! NEED TO MATCH UP OLD FAULT LIST WITH (POTENTIALLY RE-ORDERED) NEW FAULT LIST!!!!!
+
+! Solve generalized least squares problem
 if (.not.allocated(x)) then
     allocate(x(ncols,1))
 endif
-A = 0.0d0
-b = 0.0d0
-x = 0.0d0
-
-! Load model matrix, A, and constraint vector, b
-call lsqr_load_arrays(A,b,nrows,ncols,ptr_disp,ptr_stress,ptr_damp,ptr_smooth)
-
-! Solve generalized least squares problem
 call lsqr_solve(x,A,b,nrows,ncols)
+! call lsqr_nnls_solve(x,A,b,nrows,ncols)
 
 if (.not.allocated(fault_slip)) then
-    allocate(fault_slip(nfaults))
+    allocate(fault_slip(ncols))
 endif
 fault_slip = x(:,1)
 
-if (verbosity.ge.1) then
+if (verbosity.ge.2) then
     write(stderr,'("Finished lsqr_invert()")')
     write(stderr,*)
 endif
@@ -78,15 +93,7 @@ ptr_smooth = 0
 
 ! Row dimensions corresponding to displacement data
 if (displacement_file.ne.'none') then
-    if (disp_comp.eq.'a') then
-        nrows = nrows + 3*ndisplacements
-    elseif (disp_comp.eq.'h') then
-        nrows = nrows + 2*ndisplacements
-    elseif (disp_comp.eq.'v') then
-        nrows = nrows + 1*ndisplacements
-    else
-        call usage('!! Error: disp_comp must be "a", "h", or "v"')
-    endif
+    nrows = nrows + len_trim(disp_comp)*ndisplacements
     ptr_disp = 1
 endif
 
@@ -107,16 +114,22 @@ else
     ncols = nfaults
 endif
 
-! Add rows for damping (one additional row per model DOF in inversion)
+! Add rows for damping (one row per model DOF)
+! Damp each slip component separately
 if (damping_constant.gt.0.0d0) then
     ptr_damp = nrows + 1
     nrows = nrows + ncols
 endif
 
 ! Add rows for smoothing
+! Smooth each slip component separately
 if (smoothing_constant.gt.0.0d0) then
     ptr_smooth = nrows + 1
-    nrows = nrows + nsmooth
+    if (rake_file.eq.'none') then
+        nrows = nrows + 2*nsmooth
+    else
+        nrows = nrows + nsmooth
+    endif
 endif
 
 if (verbosity.ge.2) then
@@ -164,6 +177,11 @@ if (smoothing_constant.gt.0.0d0) then
     call lsqr_load_smooth(A,b,nrows,ncols,smoothing_constant,ptr_smooth)
 endif
 
+! Apply constraints
+if (slip_constraint_file.ne.'none') then
+    call lsqr_load_slip_constraint(A,b,nrows,ncols,ptr_stress,ptr_smooth)
+endif
+
 if (verbosity.ge.3) then
     write(stderr,'("A =")')
     write(fmt,9001) ncols
@@ -203,58 +221,86 @@ double precision :: A(nrows,ncols), b(nrows,1)
 ! Local variables
 integer :: i, j, n
 
-if (verbosity.ge.4) then
+if (verbosity.ge.2) then
     write(stderr,'(A)') 'Starting lsqr_load_disp()'
 endif
 
 do i = 1,ndisplacements
     do j = 1,nfaults
-        ! For selected components of displacements, load strike-slip source GFs into model matrix
-        if (disp_comp.eq.'a') then
+        ! For selected components of displacements, load strike-slip (or constant rake)
+        ! source GFs into model matrix
+        if (disp_comp.eq.'123') then
             A(i,j)                    = disp_gfs(i,j,1) ! ssx
             A(i+ndisplacements,j)     = disp_gfs(i,j,2) ! ssy
             A(i+2*ndisplacements,j)   = disp_gfs(i,j,3) ! ssz
-        elseif (disp_comp.eq.'h') then
+        elseif (disp_comp.eq.'12') then
             A(i,j)                    = disp_gfs(i,j,1) ! ssx
             A(i+ndisplacements,j)     = disp_gfs(i,j,2) ! ssy
-        elseif (disp_comp.eq.'v') then
+        elseif (disp_comp.eq.'13') then
+            A(i,j)                    = disp_gfs(i,j,1) ! ssx
+            A(i+ndisplacements,j)     = disp_gfs(i,j,3) ! ssz
+        elseif (disp_comp.eq.'23') then
+            A(i,j)                    = disp_gfs(i,j,2) ! ssy
+            A(i+ndisplacements,j)     = disp_gfs(i,j,3) ! ssz
+        elseif (disp_comp.eq.'1') then
+            A(i,j)                    = disp_gfs(i,j,1) ! ssx
+        elseif (disp_comp.eq.'2') then
+            A(i,j)                    = disp_gfs(i,j,2) ! ssy
+        elseif (disp_comp.eq.'3') then
             A(i,j)                    = disp_gfs(i,j,3) ! ssz
         endif
 
         ! Choose columns to load selected fault slip components
         if (rake_file.eq.'none') then
             n = nfaults
-        else
-            exit
-        endif
-
-        ! For selected components of displacements, load dip-slip source GFs into model matrix
-        if (disp_comp.eq.'a') then
-            A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
-            A(i+ndisplacements,j+n)   = disp_gfs(i,j,5) ! dsy
-            A(i+2*ndisplacements,j+n) = disp_gfs(i,j,6) ! dsz
-        elseif (disp_comp.eq.'h') then
-            A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
-            A(i+ndisplacements,j+n)   = disp_gfs(i,j,5) ! dsy
-        elseif (disp_comp.eq.'v') then
-            A(i,j+n)                  = disp_gfs(i,j,6) ! dsz
+            ! For selected components of displacements, load dip-slip source GFs into model matrix
+            if (disp_comp.eq.'123') then
+                A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
+                A(i+ndisplacements,j+n)   = disp_gfs(i,j,5) ! dsy
+                A(i+2*ndisplacements,j+n) = disp_gfs(i,j,6) ! dsz
+            elseif (disp_comp.eq.'12') then
+                A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
+                A(i+ndisplacements,j+n)   = disp_gfs(i,j,5) ! dsy
+            elseif (disp_comp.eq.'13') then
+                A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
+                A(i+ndisplacements,j+n)   = disp_gfs(i,j,6) ! dsz
+            elseif (disp_comp.eq.'23') then
+                A(i,j+n)                  = disp_gfs(i,j,5) ! dsy
+                A(i+ndisplacements,j+n)   = disp_gfs(i,j,6) ! dsz
+            elseif (disp_comp.eq.'1') then
+                A(i,j+n)                  = disp_gfs(i,j,4) ! dsx
+            elseif (disp_comp.eq.'2') then
+                A(i,j+n)                  = disp_gfs(i,j,5) ! dsy
+            elseif (disp_comp.eq.'3') then
+                A(i,j+n)                  = disp_gfs(i,j,6) ! dsz
+            endif
         endif
     enddo
 
     ! Load selected components of observed displacements into constraint vector
-    if (disp_comp.eq.'a') then
+    if (disp_comp.eq.'123') then
         b(i,1)                  = displacements(i,4) ! x
         b(i+ndisplacements,1)   = displacements(i,5) ! y
         b(i+2*ndisplacements,1) = displacements(i,6) ! z
-    elseif (disp_comp.eq.'h') then
+    elseif (disp_comp.eq.'12') then
         b(i,1)                  = displacements(i,4) ! x
         b(i+ndisplacements,1)   = displacements(i,5) ! y
-    elseif (disp_comp.eq.'v') then
+    elseif (disp_comp.eq.'13') then
+        b(i,1)                  = displacements(i,4) ! x
+        b(i+ndisplacements,1)   = displacements(i,6) ! z
+    elseif (disp_comp.eq.'23') then
+        b(i,1)                  = displacements(i,5) ! y
+        b(i+ndisplacements,1)   = displacements(i,6) ! z
+    elseif (disp_comp.eq.'1') then
+        b(i,1)                  = displacements(i,4) ! x
+    elseif (disp_comp.eq.'2') then
+        b(i,1)                  = displacements(i,5) ! y
+    elseif (disp_comp.eq.'3') then
         b(i,1)                  = displacements(i,6) ! z
     endif
 enddo
 
-if (verbosity.ge.4) then
+if (verbosity.ge.2) then
     write(stderr,'(A)') 'Finished lsqr_load_disp()'
     write(stderr,*)
 endif
@@ -275,7 +321,7 @@ double precision :: A(nrows,ncols), b(nrows,1)
 ! Local variables
 integer :: i, j
 
-if (verbosity.ge.4) then
+if (verbosity.ge.2) then
     write(stderr,'(A)') 'Finished lsqr_load_stress()'
 endif
 
@@ -297,7 +343,7 @@ do i = 1,nfaults
     b(ptr_stress+nfaults+i-1,1) = prestresses(i,2) ! ds
 enddo
 
-if (verbosity.ge.4) then
+if (verbosity.ge.2) then
     write(stderr,'(A)') 'Finished lsqr_load_stress()'
     write(stderr,*)
 endif
@@ -322,7 +368,7 @@ double precision :: A(n,m), b(n,1), damp
 integer :: i, j
 
 if (verbosity.ge.2) then
-    write(stderr,'("Starting damping_linear_ls()")')
+    write(stderr,'(A)') "Starting lsqr_load_damp()"
 endif
 
 do i = 0,m-1
@@ -337,7 +383,8 @@ do i = 0,m-1
 enddo
 
 if (verbosity.ge.2) then
-    write(stderr,'("Finished damping_linear_ls()")')
+    write(stderr,'(A)') "Finished lsqr_load_damp()"
+    write(stderr,*)
 endif
 
 return
@@ -350,14 +397,19 @@ subroutine lsqr_load_smooth(A,b,nrows,ncols,smoothing_constant,ptr_smooth)
 ! Add equations to model matrix to minimize the curvature (second derivative)
 ! of the solution to Ax = b with weighting factor smooth.
 !----
-use command_line, only : rake_file
+use command_line, only : verbosity, rake_file
 use arrays, only : nfaults, nsmooth, smoothing_pointers, smoothing_neighbors
+use io, only : stderr
 implicit none
 ! I/O variables
 integer :: nrows, ncols, ptr_smooth
 double precision :: A(nrows,ncols), b(nrows,1), smoothing_constant
 ! Local variables
 integer :: i, j, ifault, nneighbor, ineighbor, neighbor
+
+if (verbosity.ge.2) then
+    write(stderr,'(A)') "Starting lsqr_load_smooth()"
+endif
 
 ! Read smoothing element linking file and load into A
 do i = 1,nsmooth
@@ -368,23 +420,132 @@ do i = 1,nsmooth
     ! Fault to be smoothed gets weight of nneighbor
     A(ptr_smooth+i-1,ifault) = dble(nneighbor)*smoothing_constant*smoothing_constant
     if (rake_file.eq.'none') then
-        A(ptr_smooth+i-1,ifault+nfaults) = dble(nneighbor)*smoothing_constant*smoothing_constant
+        b(ptr_smooth+nsmooth+i-1,1) = 0.0d0
+        A(ptr_smooth+nsmooth+i-1,ifault+nfaults) = &
+                               dble(nneighbor)*smoothing_constant*smoothing_constant
     endif
     ! Each neighboring fault gets weight of -1
     do j = 0,nneighbor-1
         neighbor = smoothing_neighbors(ineighbor+j)
         A(ptr_smooth+i-1,neighbor) = -1.0d0*smoothing_constant*smoothing_constant
         if (rake_file.eq.'none') then
-            A(ptr_smooth+i-1,neighbor+nfaults) = -1.0d0*smoothing_constant*smoothing_constant
+            A(ptr_smooth+nsmooth+i-1,neighbor+nfaults) = &
+                                     -1.0d0*smoothing_constant*smoothing_constant
         endif
     enddo
 enddo
 
+if (verbosity.ge.2) then
+    write(stderr,'(A)') "Finished lsqr_load_smooth()"
+    write(stderr,*)
+endif
+
 return
 end
 
-!----------------------------------------------------------------------C
-!
+!--------------------------------------------------------------------------------------------------!
+
+subroutine lsqr_load_slip_constraint(A,b,nrows,ncols,ptr_stress,ptr_smooth)
+use command_line, only : displacement_file, prestress_file, disp_comp, rake_file, &
+                         smoothing_file, verbosity
+use arrays, only : nfaults, slip_constraints, is_this_fault_constrained, &
+                   ndisplacements, nsmooth
+use io, only : stderr
+implicit none
+! I/O variables
+integer :: nrows, ncols, ptr_stress, ptr_smooth
+double precision :: A(nrows,ncols), b(nrows,1)
+! Local variables
+integer :: i, j, n, dn
+
+if (verbosity.ge.2) then
+    write(stderr,'(A)') "Starting lsqr_load_slip_constraint()"
+endif
+
+! Move contribution from constrained fault segments to observation side of equation (do not
+! renumber yet.....will do that later in subroutine)
+do i = 1,nfaults
+    ! Is the strike-slip (or constant rake) component of this fault constrained?
+    if (is_this_fault_constrained(i,1).eq.1) then
+        ! Move displacements corresponding to this slip component to b vector
+        if (displacement_file.ne.'none') then
+            do n = 0,len_trim(disp_comp)-1
+                dn = n*ndisplacements
+                do j = 1,ndisplacements
+                    b(j+dn,1) = b(j+dn,1) - A(j+dn,i)*slip_constraints(i,1)
+                enddo
+            enddo
+        endif
+        ! Move stresses corresponding to this slip component to b vector
+        if (prestress_file.ne.'none') then
+            do j = 1,nfaults
+                b(ptr_stress+j-1,1) = b(ptr_stress+j-1,1) &
+                                        - A(ptr_stress+j-1,i)*slip_constraints(i,1)
+            enddo
+        endif
+        ! Move smoothing corresponding to this slip component to b vector
+        if (smoothing_file.ne.'none') then
+            do j = 1,nsmooth
+                b(ptr_smooth+j-1,1) = b(ptr_smooth+j-1,1) &
+                                        - A(ptr_smooth+j-1,i)*slip_constraints(i,1)
+            enddo
+        endif
+        A(1,i) = -1.0d10
+    endif
+
+    ! Is the dip-slip component of this fault constrained?
+    if (is_this_fault_constrained(i,2).eq.1.and.rake_file.eq.'none') then
+        ! Move displacements corresponding to this slip component to b vector
+        if (displacement_file.ne.'none') then
+            do n = 0,len_trim(disp_comp)-1
+                dn = n*ndisplacements
+                do j = 1,ndisplacements
+                    b(j+dn,1) = b(j+dn,1) - A(j+dn,i+nfaults)*slip_constraints(i,2)
+                enddo
+            enddo
+        endif
+        ! Move stresses corresponding to this slip component to b vector
+        if (prestress_file.ne.'none') then
+            do j = 1,nfaults
+                b(ptr_stress+nfaults+j-1,1) = b(ptr_stress+nfaults+j-1,1) &
+                                 - A(ptr_stress+nfaults+j-1,i)*slip_constraints(i,2)
+            enddo
+        endif
+        ! Move smoothing corresponding to this slip component to b vector
+        if (smoothing_file.ne.'none') then
+            do j = 1,nsmooth
+                b(ptr_smooth+nsmooth+j-1,1) = b(ptr_smooth+nsmooth+j-1,1) &
+                        - A(ptr_smooth+nsmooth+j-1,i+nfaults)*slip_constraints(i,2)
+            enddo
+        endif
+        A(1,i+nfaults) = -1.0d10
+    endif
+enddo
+
+! Renumber rows and columns of arrays
+n = 0
+do i = 1,ncols
+    if (A(1,i).lt.-1.0d9) then
+        if (i.lt.ncols) then
+            do j = i,ncols-1
+                A(:,j) = A(:,j+1)
+            enddo
+        endif
+        n = n + 1
+    endif
+enddo
+ncols = ncols - n
+
+if (verbosity.ge.2) then
+    write(stderr,'(A)') "Finishes lsqr_load_slip_constraint()"
+    write(stderr,*)
+endif
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
 !      SUBROUTINE getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp,
 !     1                   smooth,smoof,fact,getdmp,sgf,stscon,nsts,cmpnt)
 !      IMPLICIT none
@@ -530,6 +691,31 @@ if (verbosity.ge.2) then
     write(stderr,'(A)') 'Finished lsqr_solve()'
     write(stderr,*)
 endif
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine lsqr_nnls_solve(x,A,b,nrows,ncols)
+implicit none
+! I/O variables
+integer :: nrows, ncols
+double precision :: A(nrows,ncols), b(nrows,1), x(nrows,1)
+! Local variables
+integer :: mode
+integer, dimension(:), allocatable :: indx
+double precision :: rnorm
+double precision, dimension(:), allocatable :: btmp, xtmp, w
+
+allocate(btmp(nrows))
+btmp = b(:,1)
+allocate(xtmp(ncols))
+allocate(w(ncols))
+allocate(indx(ncols))
+
+call nnls(A, nrows, ncols, btmp, xtmp, rnorm, w, indx, mode)
+x(:,1) = xtmp
 
 return
 end
