@@ -8,33 +8,58 @@ subroutine check_inputs()
 !----
 ! Check for proper input specifications
 !----
-use command_line
+use command_line, only : fault_file, displacement_file, prestress_file, disp_comp
 use io
 implicit none
+
 ! Fault file is required
 if (fault_file.eq.'none') then
     write(stderr,*) '!! Error: Input fault geometry file unspecified'
     call usage('!! Use -f FAULT_FILE to specify input file')
 endif
+
 ! Need one of displacements or pre-stresses to invert for slip
 if (displacement_file.eq.'none'.and.prestress_file.eq.'none') then
     write(stderr,*) '!! Error: No observation file specified'
     write(stderr,*) '!! Use -d DISP_FILE to specify displacement input file'
     call usage('!! Or -s PRESTS_FILE to specify pre-stress input file')
 endif
+
+! Verify displacement component variable makes sense
+if (disp_comp.ne.'123'.and. &
+        disp_comp.ne.'12'.and.disp_comp.ne.'13'.and.disp_comp.ne.'23'.and. &
+        disp_comp.ne.'1'.and.disp_comp.ne.'2'.and.disp_comp.ne.'3') then
+    write(stderr,*) '!! Error: disp_comp (',disp_comp,') must be one of ',&
+                    '123, 12, 13, 23, 1, 2, or 3'
+    call usage('!! Error: disp_comp set incorrectly')
+endif
+
 return
 end
 
 !--------------------------------------------------------------------------------------------------!
 
 subroutine check_problem_parameters()
+!----
+! Check that problem parameters are properly defined
+!----
 use command_line
 use io
 use arrays, only : nfaults, ndisplacements
 implicit none
-! Check linear problem dimensions
+! Local variables
+integer :: n
+
+! n: number of slip components to invert for
+if (rake_file.eq.'none') then
+    n = 2
+else
+    n = 1
+endif
+
+! Check linear least squares problem dimensions
 if (trim(inversion_mode).eq.'linear') then
-    if (2*nfaults.gt.3*ndisplacements) then
+    if (n*nfaults.gt.len_trim(disp_comp)*ndisplacements) then
         if (damping_constant.gt.0.0d0) then
             ! okay!
         elseif (smoothing_constant.gt.0.0d0) then
@@ -54,15 +79,71 @@ else
         write(stderr,*) '!! adding constraints: damping, smoothing, or stress minimization with pre-stresses'
     endif
 endif
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine check_results()
+!----
+! Compare inverted fault slip to observed surface displacements
+!----
+use command_line, only : displacement_file, disp_comp
+use arrays, only : nfaults, fault_slip_nice, ndisplacements, displacements
+implicit none
+! Local variables
+integer :: i, j, k
+double precision :: fault_slip_magnitude, disp, disp_max
+double precision, parameter :: factor = 100.0d0
+
+if (displacement_file.eq.'none') then
+    return
+endif
+
+! Compute maximum observed displacement
+disp_max = 0.0d0
+do i = 1,ndisplacements
+    disp = 0.0d0
+    do j = 1,len_trim(disp_comp)
+        read(disp_comp(j:j),*) k
+        disp = disp + displacements(i,3+k)*displacements(i,3+k)
+    enddo
+    if (disp.gt.disp_max) then
+        disp_max = disp
+    endif
+enddo
+
+! do i = 1,nfaults
+!     fault_slip_magnitude = fault_slip_nice(i,1)*fault_slip_nice(i,1) &
+!                              + fault_slip_nice(i,2)*fault_slip_nice(i,2)
+!     if (fault_slip_magnitude.gt.mxdisp*100.0d0) then
+!     endif
+! !              write(0,'(A)') '!! Warning: inverted displacements are '//
+! !     1                       'very large compared to the observed '//
+! !     2                       'displacements.'
+! !              write(0,'(A)') '!! You might want to increase the '//
+! !     1                       'damping or smoothing constants'
+! !              goto 912
+! !          endif
+! !  911 continue
+! enddo
+
 return
 end
 
 !--------------------------------------------------------------------------------------------------!
 
 subroutine check_file_exist(file_name)
+!----
+! Check that a file exists
+!----
 implicit none
+! I/O variables
 character(len=*) :: file_name
+! Local variables
 logical :: ex
+
 inquire(file=file_name,exist=ex)
 if (.not.ex) then
     call usage('!! Error: no file found named '//trim(file_name))
@@ -73,9 +154,16 @@ end
 !--------------------------------------------------------------------------------------------------!
 
 subroutine line_count(nlines,file_name)
+!----
+! Count the number of lines in a file
+!----
 implicit none
+! I/O variables
 character(len=*) :: file_name
-integer :: nlines, ios
+integer :: nlines
+! Local variables
+integer :: ios
+
 open(unit=41,file=file_name,status='old')
 nlines= 0
 do
@@ -104,17 +192,17 @@ use command_line, only : fault_file, verbosity
 use arrays, only : nfaults, faults
 use io
 ! Local variables
-integer :: i, j
+integer :: i, j, ios
 
 if (verbosity.ge.2) then
     write(stderr,'("Starting read_faults()")')
 endif
 
-! Check that the input file exists
+! Check that the fault file exists, count the number of lines
 call check_file_exist(fault_file)
-
-! Count the number of lines and allocate displacements array
 call line_count(nfaults,fault_file)
+
+! Allocate memory for fault array (x, y, z, str, dip, wid, len)
 if (.not.allocated(faults)) then
     allocate(faults(nfaults,7))
 endif
@@ -122,8 +210,11 @@ endif
 ! Read the file
 open(unit=22,file=fault_file,status='old')
 do i = 1,nfaults
-    ! File format: x y z str dip wid len (in meters, degrees)
-    read(22,*) (faults(i,j),j=1,7)
+    ! File format: x y z str dip wid len (SI units: meters, degrees)
+    read(22,*,iostat=ios) (faults(i,j),j=1,7)
+    if (ios.ne.0) then
+        call usage('!! Read error in subroutine read_faults()')
+    endif
 enddo
 close(22)
 
@@ -140,6 +231,7 @@ endif
 if (verbosity.ge.2) then
     write(stderr,*)
 endif
+
 return
 end
 
@@ -153,8 +245,8 @@ use command_line, only : displacement_file, verbosity
 use arrays, only : displacements, ndisplacements
 use io
 implicit none
-! local variables
-integer :: i, j
+! Local variables
+integer :: i, j, ios
 
 if (verbosity.ge.2) then
     write(stderr,'("Starting read_displacements()")')
@@ -162,18 +254,18 @@ endif
 
 if (displacement_file.eq.'none') then
     if (verbosity.ge.2) then
-        write(stderr,'(A)') 'No displacements to read'
+        write(stderr,'(A)') 'User specifies no displacements to read'
         write(stderr,'(A)') 'Finished read_displacements()'
         write(stderr,*)
     endif
     return
 endif
 
-! Check that the defined displacement file exists
+! Check that the displacement file exists, count the number of lines
 call check_file_exist(displacement_file)
-
-! Count the number of lines and allocate displacements array
 call line_count(ndisplacements,displacement_file)
+
+! Allocate memory for displacement array (x, y, z, ux, uy, uz)
 if (.not.allocated(displacements)) then
     allocate(displacements(ndisplacements,6))
 endif
@@ -181,8 +273,11 @@ endif
 ! Read the file
 open(unit=21,file=displacement_file,status='old')
 do i = 1,ndisplacements
-    ! File format: x y z ux uy uz (all in meters)
-    read(21,*) (displacements(i,j),j=1,6)
+    ! File format: x y z ux uy uz (SI units: meters)
+    read(21,*,iostat=ios) (displacements(i,j),j=1,6)
+    if (ios.ne.0) then
+        call usage('!! Read error in subroutine read_displacements()')
+    endif
 enddo
 close(21)
 
@@ -199,6 +294,7 @@ endif
 if (verbosity.ge.2) then
     write(stderr,*)
 endif
+
 return
 end
 
@@ -206,14 +302,14 @@ end
 
 subroutine read_prestresses()
 !----
-! Read pre-stresses on each input fault
+! Read pre-stresses on input faults
 !----
 use command_line, only : prestress_file, verbosity
 use arrays, only : nfaults, prestresses
 use io
 implicit none
 ! Local variables
-integer :: i, j, n
+integer :: i, j, n, ios
 
 if (verbosity.ge.2) then
     write(stderr,'("Starting read_prestresses()")')
@@ -221,19 +317,22 @@ endif
 
 if (prestress_file.eq.'none') then
     if (verbosity.ge.2) then
-        write(stderr,'(A)') 'No pre-stresses to read'
+        write(stderr,'(A)') 'User specifies no pre-stresses to read'
         write(stderr,'(A)') 'Finished read_prestresses()'
         write(stderr,*)
     endif
     return
 endif
 
-! Check number of pre-stresses is same as number of faults
+! Check that the pre-stress file exists, count the number of lines, and verify
+! the number of lines is the same as the number of faults
 call check_file_exist(prestress_file)
 call line_count(n,prestress_file)
 if (n.ne.nfaults) then
     call usage('!! Error: pre-stress file must have same number of lines as fault file')
 endif
+
+! Allocate memory for prestress array (sxx, syy, szz, sxy, sxz, syzß)
 if (.not.allocated(prestresses)) then
     allocate(prestresses(nfaults,6))
 endif
@@ -241,8 +340,11 @@ endif
 ! Read the file
 open(unit=23,file=prestress_file,status='old')
 do i = 1,nfaults
-    ! File format: xx yy zz xy xz yz (in N/m^2)
-    read(23,*) (prestresses(i,j),j=1,6)
+    ! File format: xx yy zz xy xz yz (SI units: Pa)
+    read(23,*,iostat=ios) (prestresses(i,j),j=1,6)
+    if (ios.ne.0) then
+        call usage('!! Read error in subroutine read_prestresses()')
+    endif
 enddo
 close(23)
 
@@ -274,18 +376,19 @@ use gf, only : gf_vp, gf_vs, gf_dens
 use io
 implicit none
 ! Local variables
-character(len=200) :: line
-character(len=10) :: moduli
+character(len=256) :: line, moduli
 double precision :: lambda, shear_modulus, poisson_ratio, young_modulus
+integer :: ios
 
 if (verbosity.ge.2) then
     write(stderr,'("Starting read_halfspace()")')
 endif
 
-! Use defaults if undefined
+! Use default values if undefined
 if (halfspace_file.eq.'none') then
     if (verbosity.ge.2) then
-        write(stderr,'("Using default half-space moduli")')
+        write(stderr,'(A)') 'User specifies no half-space information'
+        write(stderr,'(A)') 'Using default half-space moduli'
     endif
     gf_vp = 6800.0d0
     gf_vs = 3926.0d0
@@ -300,38 +403,63 @@ if (halfspace_file.eq.'none') then
     return
 endif
 
-! Check if exists
+! Check if half-space file exists
 call check_file_exist(halfspace_file)
 
-! Read the file
+! Parse the half-space file
 open(unit=23,file=halfspace_file,status='old')
 read(23,'(A)') line
+
+! First, try reading in default format (vp vs dens)
+read(line,*,iostat=ios) gf_vp, gf_vs, gf_dens
+if (ios.eq.0) then
+    if (verbosity.ge.2) then
+        write(stderr,'("Finished read_halfspace()")')
+    endif
+    if (verbosity.ge.3) then
+        write(stderr,'(3A14)') 'vp','vs','dens'
+        write(stderr,'(3F14.4)') gf_vp, gf_vs, gf_dens
+    endif
+    if (verbosity.ge.2) then
+        write(stderr,*)
+    endif
+    return
+endif
+
+! If that fails, parse the format of the line
 read(line,*) moduli
-if (trim(moduli).eq.'Lame'.or.trim(moduli).eq.'lame') then
-    read(23,*) moduli, lambda, shear_modulus
+
+! "lambda-shear" lambda shear_modulus
+if (trim(moduli).eq.'lambda-shear') then
+    read(line,*) moduli, lambda, shear_modulus
     gf_dens = 3.0d3
     gf_vp = dsqrt((lambda+2.0d0*shear_modulus)/gf_dens)
     gf_vs = dsqrt(shear_modulus/gf_dens)
-elseif (trim(moduli).eq.'Poisson'.or.trim(moduli).eq.'poisson') then
-    read(23,*) moduli, shear_modulus, poisson_ratio
+
+! "shear-poisson" shear_modulus poisson_ratio
+elseif (trim(moduli).eq.'shear-poisson') then
+    read(line,*) moduli, shear_modulus, poisson_ratio
     lambda = 2.0d0*shear_modulus*poisson_ratio/(1.0d0-2.0d0*poisson_ratio)
     gf_dens = 3.0d3
     gf_vp = dsqrt((lambda+2.0d0*shear_modulus)/gf_dens)
     gf_vs = dsqrt(shear_modulus/gf_dens)
-elseif (trim(moduli).eq.'Young'.or.trim(moduli).eq.'young') then
-    read(23,*) moduli, young_modulus, poisson_ratio
-    lambda = young_modulus*poisson_ratio/((1.0d0+poisson_ratio)*(1.0d0-2.0d0*poisson_ratio))
+
+! "young-poisson" young_modulus poisson_ratio
+elseif (trim(moduli).eq.'young-poisson') then
+    read(line,*) moduli, young_modulus, poisson_ratio
+    lambda = young_modulus*poisson_ratio/&
+                 ((1.0d0+poisson_ratio)*(1.0d0-2.0d0*poisson_ratio))
     shear_modulus = 0.25d0*(young_modulus - 3.0d0*poisson_ratio + &
                              dsqrt(young_modulus*young_modulus + &
                                      9.0d0*poisson_ratio*poisson_ratio + &
                                      2.0d0*young_modulus*poisson_ratio))
+    gf_dens = 3.0d3
     gf_vp = dsqrt((lambda+2.0d0*shear_modulus)/gf_dens)
     gf_vs = dsqrt(shear_modulus/gf_dens)
+
 else
-    read(23,*) gf_vp, gf_vs, gf_dens
+    call usage('!! Error: No half-space option '//trim(moduli))
 endif
-gf_vp = dsqrt((lambda+2.0d0*shear_modulus)/gf_dens)
-gf_vs = dsqrt(shear_modulus/gf_dens)
 close(23)
 
 if (verbosity.ge.2) then
@@ -344,37 +472,44 @@ endif
 if (verbosity.ge.2) then
     write(stderr,*)
 endif
+
 return
 end
 
 !--------------------------------------------------------------------------------------------------!
 
 subroutine read_rakes()
+!----
+! Read in information constraining fault rakes to constant value(s)
+!----
 use command_line, only : verbosity, rake_file
 use arrays, only : nfaults, rakes
 use io
 implicit none
 ! Local variables
 integer :: i, n, ios
-double precision :: rake
 
 if (verbosity.ge.2) then
-    write(stderr,'("Starting read_rakes()")')
+    write(stderr,'(A)') 'Starting read_rakes()'
 endif
 
 if (rake_file.eq.'none') then
     if (verbosity.ge.2) then
-        write(stderr,'("Finished read_rakes()")')
+        write(stderr,'(A)') 'User specifies no rake constraints'
+        write(stderr,'(A)') 'Finished read_rakes()'
+        write(stderr,*)
     endif
     return
 endif
 
+! Allocate memory for rake constraint array (one per fault)
 if (.not.allocated(rakes)) then
     allocate(rakes(nfaults))
 endif
 
-! Try to read rake as a real
-read(rake_file,*,iostat=ios) rake
+! Try to read rake as a real number first
+read(rake_file,*,iostat=ios) rakes(1)
+
 ! If not a real, try to read as a file
 if (ios.ne.0) then
     call check_file_exist(rake_file)
@@ -389,11 +524,17 @@ if (ios.ne.0) then
     close(24)
 else
     n = 1
-    rakes = rake
+endif
+
+! If only one rake value is given, set it for all the faults
+if (n.eq.1) then
+    do i = 2,nfaults
+        rakes(i) = rakes(1)
+    enddo
 endif
 
 if (verbosity.ge.2) then
-    write(stderr,'("Finished read_rakes()")')
+    write(stderr,'(A)') 'Finished read_rakes()'
 endif
 if (verbosity.ge.3) then
     write(stderr,'("nrakes: ",I10)') n
@@ -405,12 +546,16 @@ endif
 if (verbosity.ge.2) then
     write(stderr,*)
 endif
+
 return
 end
 
 !--------------------------------------------------------------------------------------------------!
 
 subroutine read_smoothing()
+!----
+! Read in file defining fault neighbors for Laplacian smoothing
+!----
 use command_line, only : verbosity, smoothing_file
 use arrays, only : nfaults, nsmooth, smoothing_pointers, smoothing_neighbors
 use io, only : stderr
@@ -420,31 +565,38 @@ integer :: i, j, ineighbor, nneighbor
 character(len=1024) :: iline
 
 if (verbosity.ge.2) then
-    write(stderr,'("Starting read_smoothing()")')
+    write(stderr,'(A)') 'Starting read_smoothing()'
 endif
 
 if (smoothing_file.eq.'none') then
     if (verbosity.ge.2) then
-        write(stderr,'("Finished read_smoothing()")')
+        write(stderr,'(A)') 'User specifies no smoothing'
+        write(stderr,'(A)') 'Finished read_smoothing()'
+        write(stderr,*)
     endif
     return
 endif
 
+! Check that the smoothing file exists and count the number of lines
+! There can be at most one set of links for each fault
 call check_file_exist(smoothing_file)
 call line_count(nsmooth,smoothing_file)
 if (nsmooth.gt.nfaults) then
     call usage('!! Error: number of lines in smoothing file is larger than nfaults')
 endif
 
+! First, allocate memory for smoothing reference array (ifault nneighbors ptr_neighbor_array)
 if (.not.allocated(smoothing_pointers)) then
     allocate(smoothing_pointers(nsmooth,3))
 endif
 
+! Read the smoothing file the first time
 open(unit=25,file=smoothing_file,status='old')
 do i = 1,nsmooth
     read(25,'(A)') iline
-    ! smoothing_pointers: fault# nneighbors pointer_to_neighbor_array
+    ! First two fields: ifault nneighbors
     read(iline,*) (smoothing_pointers(i,j),j=1,2)
+    ! Compute pointer to the location of the fault info in the smoothing_neighbors array
     if (i.eq.1) then
         smoothing_pointers(i,3) = 1
     else
@@ -453,15 +605,17 @@ do i = 1,nsmooth
 enddo
 rewind(25)
 
+! Now, allocate memory for neighbors
 if (.not.allocated(smoothing_neighbors)) then
     allocate(smoothing_neighbors(smoothing_pointers(nsmooth,3)+smoothing_pointers(nsmooth,2)))
 endif
 
+! Read the smoothing file again and load the neighbors
 do i = 1,nsmooth
     read(25,'(A)') iline
     nneighbor = smoothing_pointers(i,2)
     ineighbor = smoothing_pointers(i,3)
-    read(iline,*) j,j,(smoothing_neighbors(smoothing_pointers(i,3)+j-1),j=1,nneighbor)
+    read(iline,*) j,j,(smoothing_neighbors(ineighbor+j-1),j=1,nneighbor)
 enddo
 close(25)
 
@@ -479,6 +633,92 @@ endif
 if (verbosity.ge.2) then
     write(stderr,*)
 endif
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine read_slip_constraints()
+!----
+! Read in file defining constraints on slip
+!----
+use command_line, only : verbosity, slip_constraint_file
+use arrays, only : nfaults, nconstraints, slip_constraints, is_this_fault_constrained
+use io, only : stderr
+implicit none
+! Local variables
+integer :: i, j, ios
+character(len=1024) :: iline
+
+if (verbosity.ge.2) then
+    write(stderr,'(A)') 'Starting read_slip_constraints()'
+endif
+
+if (slip_constraint_file.eq.'none') then
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'User specifies no constraints on slip'
+        write(stderr,'(A)') 'Finished read_slip_constraints()'
+        write(stderr,*)
+    endif
+    return
+endif
+
+! Check that the slip constraint file exists and count the number of lines
+! There can be at most one set of constraints for each fault
+call check_file_exist(slip_constraint_file)
+call line_count(nconstraints,slip_constraint_file)
+if (nconstraints.gt.nfaults) then
+    call usage('!! Error: number of constraints is larger than nfaults')
+endif
+
+! Allocate memory for slip constraint array (ss_constraint ds_constraint)
+if (.not.allocated(slip_constraints)) then
+    allocate(slip_constraints(nfaults,2))
+endif
+slip_constraints = 0.0d0
+
+! Allocate memory for slip constraint indicator array (ss? ds?)
+if (.not.allocated(is_this_fault_constrained)) then
+    allocate(is_this_fault_constrained(nfaults,2))
+endif
+is_this_fault_constrained = 0
+
+! Read slip constraint file
+open(unit=25,file=slip_constraint_file,status='old')
+do i = 1,nconstraints
+    read(25,'(A)') iline
+    read(iline,*) j
+    if (j.gt.nfaults) then
+        call usage('!! Error: read in constraint greater than nfaults')
+    endif
+
+    ! Read input (ifault [ss_]slip [ds_slip])
+    read(iline,*,iostat=ios) j,slip_constraints(j,1),slip_constraints(j,2)
+    is_this_fault_constrained(j,:) = 1
+    if (ios.ne.0) then
+        read(iline,*,iostat=ios) j,slip_constraints(j,1)
+        is_this_fault_constrained(j,1) = 1
+    endif
+    if (ios.ne.0) then
+        call usage('!! Read error in read_slip_constraints()')
+    endif
+enddo
+
+if (verbosity.ge.2) then
+    write(stderr,'("Finished read_slip_constraints()")')
+endif
+if (verbosity.ge.3) then
+    write(stderr,'("nconstraints: ",I10)') nconstraints
+    write(stderr,'(3A14)') 'fault','ss_constraint','ds_constraint'
+    do i = 1,nfaults
+        write(stderr,'(I14,2(1PE14.6))') i,slip_constraints(i,1),slip_constraints(i,2)
+    enddo
+endif
+if (verbosity.ge.2) then
+    write(stderr,*)
+endif
+
 return
 end
 
@@ -704,6 +944,7 @@ endif
 
 if (displacement_file.eq.'none') then
     if (verbosity.ge.2) then
+        write(stderr,'(A)') 'Not using displacements'
         write(stderr,'(A)') 'Finished calc_disp_gfs()'
         write(stderr,*)
     endif
@@ -814,12 +1055,13 @@ implicit none
 double precision :: ststr, stdip
 integer :: i, j, k
 
-if (verbosity.ge.1) then
+if (verbosity.ge.2) then
     write(stderr,'(A)') 'Starting calc_stress_gfs()'
 endif
 
 if (prestress_file.eq.'none') then
     if (verbosity.ge.2) then
+        write(stderr,'(A)') 'Not using pre-stresses'
         write(stderr,'(A)') 'Finished calc_stress_gfs()'
         write(stderr,*)
     endif
@@ -871,11 +1113,6 @@ do i = 1,nfaults
             gf_rak  = rakes(j)
             call calc_shear_okada(stress_gfs(i,j,1),stress_gfs(i,j,2),ststr,stdip)
         endif
-!      do 303 i = 1,nsts
-!          do 304 j = 1,nflt
-!              do 305 k = 1,4
-!                  sgf(i,j,k) = sgf(i,j,k)*mxdisp/mxsts
-!  305         continue
     enddo
 enddo
 
@@ -1273,18 +1510,66 @@ end
 subroutine write_output()
 use command_line
 use io, only : stdout
-use arrays, only : nfaults, fault_slip
+use arrays, only : nfaults, fault_slip, fault_slip_nice, &
+                   is_this_fault_constrained, slip_constraints
 implicit none
 ! Local variables
-integer :: i
+integer :: i, n, output_unit
+
+if (.not.allocated(fault_slip_nice)) then
+    allocate(fault_slip_nice(nfaults,2))
+endif
+
+n = 0
+do i = 1,nfaults
+    if (allocated(is_this_fault_constrained)) then
+        if (is_this_fault_constrained(i,1).eq.0) then
+            n = n + 1
+            fault_slip_nice(i,1) = fault_slip(n)
+        else
+            fault_slip_nice(i,1) = slip_constraints(i,1)
+        endif
+    else
+        fault_slip_nice(i,1) = fault_slip(i)
+    endif
+enddo
+
+if (rake_file.eq.'none') then
+    do i = 1,nfaults
+        if (allocated(is_this_fault_constrained)) then
+            if (is_this_fault_constrained(i,2).eq.0) then
+                n = n + 1
+                fault_slip_nice(i,2) = fault_slip(n)
+            else
+                fault_slip_nice(i,2) = slip_constraints(i,2)
+            endif
+        else
+            fault_slip_nice(i,2) = fault_slip(i+nfaults)
+        endif
+    enddo
+endif
+
+! Check that the results are reasonable
+call check_results()
+
+if (output_file.eq.'stdout') then
+    output_unit = stdout
+else
+    output_unit = 61
+    open(unit=output_unit,file=output_file,status='unknown')
+endif
 
 do i = 1,nfaults
     if (rake_file.eq.'none') then
-        write(stdout,'(1P2E14.6)') fault_slip(i),fault_slip(nfaults+i)
+        write(output_unit,'(1P2E14.6)') fault_slip_nice(i,1),fault_slip_nice(i,2)
     else
-        write(stdout,'(1P1E14.6)') fault_slip(i)
+        write(output_unit,'(1P1E14.6)') fault_slip_nice(i,1)
     endif
 enddo
+
+if (output_file.ne.'stdout') then
+    close(output_unit)
+endif
 
 return
 end

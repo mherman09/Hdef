@@ -1,12 +1,14 @@
 module command_line
     character(len=256) :: fault_file             ! fault locations and geometries
+    character(len=256) :: output_file            ! inverted fault slip
     character(len=256) :: displacement_file      ! observed displacements
     character(len=256) :: prestress_file         ! pre-stresses on faults
     character(len=256) :: halfspace_file         ! elastic half-space parameters
     character(len=256) :: smoothing_file         ! fault neighbor file for smoothing
     character(len=256) :: inversion_mode         ! inversion algorithm
-    character(len=1) :: disp_comp                ! component(s) of displacement data to use
+    character(len=3) :: disp_comp                ! component(s) of displacement data to use
     character(len=256) :: rake_file              ! rake(s) of fault slip
+    character(len=256) :: slip_constraint_file   ! rake(s) of fault slip
     double precision :: damping_constant         ! reduce length of output solution
     double precision :: smoothing_constant       ! reduce curvature of solution
     integer :: geographic                        ! input coordinates are geographic
@@ -20,10 +22,14 @@ module arrays
     integer :: ndisplacements
     integer :: nignore
     integer :: nsmooth
+    integer :: nconstraints
     integer, dimension(:), allocatable :: smoothing_neighbors
     integer, dimension(:,:), allocatable :: smoothing_pointers
+    integer, dimension(:,:), allocatable :: is_this_fault_constrained
     double precision, dimension(:), allocatable :: rakes
+    double precision, dimension(:,:), allocatable :: slip_constraints
     double precision, dimension(:), allocatable :: fault_slip
+    double precision, dimension(:,:), allocatable :: fault_slip_nice
     double precision, dimension(:,:), allocatable :: faults
     double precision, dimension(:,:), allocatable :: displacements
     double precision, dimension(:,:), allocatable :: prestresses

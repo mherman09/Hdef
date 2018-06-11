@@ -23,6 +23,10 @@ call check_inputs()
 !----
 ! Read control files
 !----
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'Reading inversion parameters from files'
+    write(stderr,*)
+endif
 ! Read fault geometries: faults(nfaults,7)
 call read_faults()
 ! Read displacement observations: displacements(ndisplacements,6)
@@ -33,11 +37,13 @@ call read_prestresses()
 call read_halfspace()
 ! Read rake angle(s): rakes(nfaults)
 call read_rakes()
-! Read smoothing file: smoothing(nsmooth)
+! Read smoothing file: smoothing_pointers(nsmooth,3), smoothing_array(nneighbors_total)
 call read_smoothing()
+! Read slip constraint file: slip_constraints(nfaults,2), is_this_fault_constrained(nfaults,2)
+call read_slip_constraints()
 
 !----
-! Post-read check
+! Post-read checks
 !----
 ! If coordinates are specified as geographic, convert to Cartesian
 if (geographic.eq.1) then
@@ -63,40 +69,13 @@ call calc_stress_gfs()
 ! Run inversion
 !----
 if (inversion_mode.eq.'linear') then
+    if (verbosity.ge.1) then
+        write(stderr,'(A)') 'Performing linear least squares inversion'
+    endif
     call lsqr_invert()
 else
     call usage('!! Error: inversion mode '//trim(inversion_mode)//' is not available')
 endif
-
-!----
-!! Get best damping parameter
-!!----
-!      if (getdmp.ge.1) then
-!          if (vrb.ge.1) then
-!              write(0,'("SEARCHING FOR BEST DAMPING COEFFICIENT")')
-!          endif
-!          call getdamp(soln,gf,obs,nobs,OBSMAX,nflt,FLTMAX,damp0,smooth,
-!     1                 smoof,fact,getdmp,sgf,stscon,nsts,cmpnt)
-!          damp = damp0
-!      endif
-!
-
-
-      ! Check that results are reasonable
-!      do 911 i = 1,nflt
-!          disp = soln(i,1)*soln(i,1)+soln(i,2)*soln(i,2)
-!          if (disp.gt.mxdisp*100.0d0) then
-!              write(0,'(A)') '!! Warning: inverted displacements are '//
-!     1                       'very large compared to the observed '//
-!     2                       'displacements.'
-!              write(0,'(A)') '!! You might want to increase the '//
-!     1                       'damping or smoothing constants'
-!              goto 912
-!          endif
-!  911 continue
-!  912 continue
-
-
 
 !----
 ! Print misfit to standard output if requested
@@ -159,16 +138,18 @@ integer :: i, narg
 character(len=256) :: tag
 integer :: char_index
 
+output_file = 'stdout'
 fault_file = 'none'
 displacement_file = 'none'
 prestress_file = 'none'
 halfspace_file = 'none'
 smoothing_file = 'none'
 inversion_mode = 'linear'
+slip_constraint_file = 'none'
 damping_constant = -1.0d0
 smoothing_constant = -1.0d0
 geographic = 0
-disp_comp = 'a'
+disp_comp = '123'
 rake_file = 'none'
 verbosity = 0
 
@@ -180,6 +161,9 @@ do while (i.le.narg)
     if (trim(tag).eq.'-f'.or.trim(tag).eq.'--faults') then
         i = i + 1
         call get_command_argument(i,fault_file)
+    elseif (trim(tag).eq.'-o'.or.trim(tag).eq.'--output') then
+        i = i + 1
+        call get_command_argument(i,output_file)
     elseif (trim(tag).eq.'-d'.or.trim(tag).eq.'--displacements') then
         i = i + 1
         call get_command_argument(i,displacement_file)
@@ -204,22 +188,16 @@ do while (i.le.narg)
         call get_command_argument(i,smoothing_file)
     elseif (trim(tag).eq.'--geographic') then
         geographic = 1
-    elseif (trim(tag).eq.'--horizontal') then
-        if (disp_comp.eq.'v') then
-            disp_comp = 'a'
-        else
-            disp_comp = 'h'
-        endif
-    elseif (trim(tag).eq.'--vertical') then
-        if (disp_comp.eq.'h') then
-            disp_comp = 'a'
-        else
-            disp_comp = 'v'
-        endif
-    elseif (trim(tag).eq.'--rake') then
+    elseif (trim(tag).eq.'--disp_comp') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) rake_file
+        read(tag,*) disp_comp
+    elseif (trim(tag).eq.'--rake') then
+        i = i + 1
+        call get_command_argument(i,rake_file)
+    elseif (trim(tag).eq.'--slip_constraint') then
+        i = i + 1
+        call get_command_argument(i,slip_constraint_file)
     elseif (trim(tag).eq.'-v'.or.trim(tag).eq.'--verbose') then
         verbosity = 1
         i = i + 1
@@ -245,6 +223,7 @@ if (verbosity.ge.1) then
 endif
 if (verbosity.ge.2) then
     write(stderr,'("Parsed command line inputs")')
+    write(stderr,'("    output_file:        ",A)') trim(output_file)
     write(stderr,'("    fault_file:         ",A)') trim(fault_file)
     write(stderr,'("    displacement_file:  ",A)') trim(displacement_file)
     write(stderr,'("    prestress_file:     ",A)') trim(prestress_file)
@@ -255,6 +234,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    smoothing constant: ",F20.8)') smoothing_constant
     write(stderr,'("    geographic flag:    ",I20)') geographic
     write(stderr,'("    disp component:     ",A)') disp_comp
+    write(stderr,'("    slip constraint:    ",A)') slip_constraint_file
     write(stderr,'("    rake file:          ",A)') trim(rake_file)
     write(stderr,*)
 endif
@@ -282,17 +262,18 @@ if (string.ne.'') then
 endif
 write(stderr,*) 'Usage: fltinv ...options...'
 write(stderr,*)
+write(stderr,*) '-o|--output OUTPUT_FILE'
+write(stderr,*) '-m|--mode MODE'
 write(stderr,*) '-f|--faults FAULT_FILE'
 write(stderr,*) '-d|--displacements DISP_FILE'
 write(stderr,*) '-s|--prestresses PRESTS_FILE'
 write(stderr,*) '-h|--halfspace HAFSPC_FILE'
 write(stderr,*) '--damping DAMP'
 write(stderr,*) '--smoothing SMOOTH SMOOTH_FILE'
-write(stderr,*) '-m|--mode MODE'
 write(stderr,*) '--geographic'
-write(stderr,*) '--horizontal'
-write(stderr,*) '--vertical'
+write(stderr,*) '--disp_comp [1][2][3]'
 write(stderr,*) '--rake RAKE'
+write(stderr,*) '--slip_constraint CONST_FILE'
 write(stderr,*) '-v|--verbose VRB_LEVEL'
 stop
 end
