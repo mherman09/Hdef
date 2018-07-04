@@ -28,13 +28,15 @@ See Jost and Herrmann (1989) for more details.
 as defined by Aki and Richards (2002).
 .TP
 .BI "-mij [" input_file | mrr , mtt , mpp , mrt , mrp , mtp ]
-Moment tensor components as are typically published by the USGS NEIC or Global CMT project, where
+Moment tensor components as typically published by the Global CMT project, where
 .I r
 is the radial (vertical) direction,
 .I t
-corresponds to east, and
+is co-latitude, corresponding to south, and
 .I p
-corresponds to south.
+is longitude, corresponding to east. This follows the convention in Gilbert and Dziewonski (1975),
+which is used in the GCMT project. In e=x, n=y, z coordinates:
+.IR mzz , myy , mxx , -myz , mxz , -mxy
 .TP
 .BI "-pnt [" input_file | px , py , pz , nx , ny , nz , tx , ty , tz , pmag , nmag , tmag ]
 Moment tensor eigenvectors and eigenvalues, also referred to as P (maximum compression), N
@@ -107,6 +109,11 @@ Quantitative Seismology. University Science Books.
 Frohlich, C. (1992).
 Triangle diagrams: ternary graphs to display similarity and diversity of
 earthquake focal mechanisms. Physics of the Earth and Planetary Interiors 75, 193-198.
+.TP
+Gilbert, F., Dziewonski, A.M. (1975).
+An application of normal mode theory to the retrieval of structural parameters and
+source mechanisms from seismic spectra.
+Philosophical Transactions of the Royal Society of London. Series A, 278, 187–269.
 .TP
 Jost, M.L., Herrmann, R.B. (1989).
 A student's guide to and review of moment tensors.
