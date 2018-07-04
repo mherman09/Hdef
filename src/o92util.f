@@ -160,7 +160,7 @@ C----
      1                                         'SUBFAULTS'
           write(0,*)
       endif
-      
+
 C----
 C Check for auto flag to define stations
 C----
@@ -221,7 +221,7 @@ C----
      1                 dx,dy,slip,typ,vp,vs,dens,dspf,stnf,stsf,
      2                 norf,shrf,coulf,xy,prog,long)
       endif
- 
+
 C----
 C Write fault input to GMT-compatible file
 C----
@@ -421,7 +421,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE chksta(sta,staf,nsta,xy)
       IMPLICIT none
       REAL*8 sta(3)
-      CHARACTER*40 staf 
+      CHARACTER*40 staf
       INTEGER i,nsta,chk,xy,ios
       chk = 0
       open(unit=18,file=staf,status='old')
@@ -499,7 +499,7 @@ C----
           write(*,*) '!! Error: no input faults read'
           call usage('!! Check input files for correct format')
       endif
- 
+
 C Remove all fault sources with slip less than sthr
       smax = 0.0d0
       if (sthr.lt.-1.0d-6) then
@@ -986,7 +986,7 @@ C      print *,'nflt',nflt
 C      do 101 i=1,nflt
 C          print *,evlo(i),evla(i),evdp(i),slip(i)
 C  101 continue
-      close(34) 
+      close(34)
       RETURN
       END
 
@@ -1142,9 +1142,13 @@ C         Compute displacements
               call calcdisp(uN,uE,uZ,stlo,stla,stdp,nflt,evlo,evla,evdp,
      1                      str,dip,rak,dx,dy,slip,vp,vs,dens,flttyp,xy)
               if (long.eq.0.and.kdsp.eq.1) then
-                  write(21,9990) stlo,stla,stdp*1d-3,uE,uN,uZ
+C                  write(21,9990) stlo,stla,stdp*1d-3,uE,uN,uZ
+                  write(21,9994) stlo,stla,stdp*1d-3,uE,uN,uZ
               elseif (long.eq.1.and.kdsp.eq.1) then
-                  write(21,9993) stlo,stla,stdp*1d-3,uE,uN,uZ
+C                  write(21,9993) stlo,stla,stdp*1d-3,uE,uN,uZ
+                  write(21,9994) stlo,stla,stdp*1d-3,uE,uN,uZ
+              elseif (long.eq.2.and.kdsp.eq.1) then
+                  write(21,9994) stlo,stla,stdp*1d-3,uE,uN,uZ
               elseif (kdsp.eq.2) then
                   az = atan2(uE,uN)*r2d
                   hdsp = dsqrt(uE*uE+uN*uN)
@@ -1197,6 +1201,7 @@ C         Update progress indicator
  9991 format(3F12.4,X,6E16.6)
  9992 format(3F12.4,X,1E16.6)
  9993 format(3F12.4,X,3F16.8)
+ 9994 format(3F12.4,X,1P3E16.6)
       RETURN
       END
 
@@ -2504,6 +2509,8 @@ C Parse command line
               else
                   i = i - 1
               endif
+          elseif (tag(1:4).eq.'-sci') then
+              long = 2
           elseif (tag(1:2).eq.'-h'.or.tag(1:5).eq.'-help') then
               call usagelong(' ')
           elseif (tag(1:2).eq.'-d'.or.tag(1:8).eq.'-details') then
