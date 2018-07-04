@@ -1,161 +1,235 @@
-      PROGRAM sphfinrot
-C----
-C Given a point (ilon,ilat), a pole of rotation (plon,plat), and a
-C finite angle of rotation, in degrees, calculate the new point
-C (olon,olat).
-C
-C Based on results found at:
-C inside.mines.edu/~gmurray/ArbitraryAxisRotation
-C----
+module sphfinrot_cmdln
+    ! Command line variables
+    character(len=1024) :: input_file
+    character(len=1024) :: output_file
+endmodule
 
-      IMPLICIT none
-      REAL*8 olon,olat,ilon,ilat,plon,plat,angle
-      REAL*8 ix,iy,iz,px,py,pz,ox,oy,oz
-      CHARACTER*30 ifile,ofile
-      INTEGER user
+module sphfinrot_vars
+    ! Program variables
+    double precision :: input_lon
+    double precision :: input_lat
+    double precision :: output_lon
+    double precision :: output_lat
+    double precision :: pole_lon
+    double precision :: pole_lat
+    double precision :: rotation_angle
+endmodule
 
-      call gcmdln(ifile,ofile,user)
+module sphfinrot_const
+    ! Constants
+    double precision, parameter :: pi = 4.0d0*datan(1.0d0)
+    double precision, parameter :: d2r = pi/1.8d2
+    double precision, parameter :: r2d = 1.8d2/pi
+endmodule
 
-      if (user.eq.1) then
-          print *,'Enter lon_init lat_init pole_lon pole_lat angle:'
-          read *,ilon,ilat,plon,plat,angle
-          call rotate(olon,olat,ilon,ilat,plon,plat,angle)
-          write (*,9999), olon,olat
-      else
-          open (unit=11,file=ifile,status='old')
-          open (unit=12,file=ofile,status='unknown')
-  101     read (11,*,end=102) ilon,ilat,plon,plat,angle
-              call rotate(olon,olat,ilon,ilat,plon,plat,angle)
-              write (12,9999) olon,olat
-              goto 101
-  102     continue
-      endif
+!--------------------------------------------------------------------------------------------------!
 
- 9999 format(2F14.6)
+program sphfinrot
+!----
+! Given a point (ilon,ilat), a pole of rotation (plon,plat), and a finite angle of rotation
+! (degrees), calculate the rotated point (olon,olat).
+!
+! Based on equations shown by Glenn Murray:
+! https://sites.google.com/site/glennmurray/Home/rotation-matrices-and-formulas/rotation-about-an-arbitrary-axis-in-3-dimensions
+!----
+use sphfinrot_cmdln
+use sphfinrot_vars
+implicit none
+! Local variables
+integer :: luin, luout, ios
+
+call gcmdln()
+write(0,*) 'input_file:     ',trim(input_file)
+write(0,*) 'output_file:    ',trim(output_file)
+write(0,*) 'pole_lon:       ',pole_lon
+write(0,*) 'pole_lon:       ',pole_lat
+write(0,*) 'rotation_angle: ',rotation_angle
+
+call check_inputs(luin,luout)
+
+do
+    read(luin,*,iostat=ios) input_lon,input_lat
+    if (ios.ne.0) then
+        exit
+    endif
+    call rotate()
+    write(luout,1001) output_lon,output_lat
+enddo
+1001 format(1P2E14.6)
+
+if (input_file.ne.'stdin') then
+    close(luin)
+endif
+if (output_file.ne.'none') then
+    close(luout)
+endif
+
 
       END
 
-C----------------------------------------------------------------------c
+!--------------------------------------------------------------------------------------------------!
 
-      SUBROUTINE rotate(olon,olat,ilon,ilat,plon,plat,angle)
-      IMPLICIT NONE
-      REAL*8 olon,olat,ilon,ilat,plon,plat,angle
-      REAL*8 ix,iy,iz,px,py,pz,ox,oy,oz
-      REAL*8 pi,d2r,r2d
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2,r2d=1.8d2/pi)
+subroutine check_inputs(luin,luout)
+use sphfinrot_cmdln
+use sphfinrot_vars
+implicit none
+! I/O variables
+integer :: luin, luout
+! Local variables
+logical :: ex
 
-      call lonlat2xyz(ix,iy,iz,ilon,ilat)
-      call lonlat2xyz(px,py,pz,plon,plat)
+! Input file
+if (input_file.eq.'stdin') then
+    luin = 5
+else
+    inquire(file=input_file,exist=ex)
+    if (.not.ex) then
+        call usage('!! Error: no input file found named '//trim(input_file))
+    endif
+    luin = 11
+    open(luin,file=input_file,status='old')
+endif
 
-      ox = px*(px*ix+py*iy+pz*iz)*(1.0d0-dcos(angle*d2r))
-     1         + ix*dcos(angle*d2r)
-     2         + (-pz*iy+py*iz)*dsin(angle*d2r)
-      oy = py*(px*ix+py*iy+pz*iz)*(1.0d0-dcos(angle*d2r))
-     1         + iy*dcos(angle*d2r)
-     2         + ( pz*ix-px*iz)*dsin(angle*d2r)
-      oz = pz*(px*ix+py*iy+pz*iz)*(1.0d0-dcos(angle*d2r))
-     1         + iz*dcos(angle*d2r)
-     2         + (-py*ix+px*iy)*dsin(angle*d2r)
+! Output file
+if (output_file.eq.'none') then
+    luout = 6
+else
+    luout = 12
+    open(luout,file=output_file,status='unknown')
+endif
 
-      olon = datan2(oy,ox)*r2d
-      olat = dasin(oz)*r2d
+! Pole
+if (pole_lon.lt.-1.0d9.or.pole_lat.lt.-1.0d9) then
+    call usage('!! Error: location of rotation pole not defined')
+endif
 
-      RETURN
-      END
+! Angle
+if (rotation_angle.lt.-1.0d9) then
+    call usage('!! Error: rotation angle not defined')
+endif
 
-C----------------------------------------------------------------------C
+return
+end
 
-      SUBROUTINE lonlat2xyz(x,y,z,lon,lat)
+!--------------------------------------------------------------------------------------------------!
 
-      IMPLICIT none
-      REAL*8 pi,d2r
-      PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/1.8d2)
-      REAL*8 lon,lat,x,y,z
+subroutine rotate()
+use sphfinrot_vars
+use sphfinrot_const
+implicit none
+! Local variables
+double precision :: input_x, input_y, input_z
+double precision :: pole_x, pole_y, pole_z
+double precision :: output_x, output_y, output_z
+double precision :: cosr, sinr, dot_prod
 
-      x = dcos(lon*d2r)*dcos(lat*d2r)
-      y = dsin(lon*d2r)*dcos(lat*d2r)
-      z = dsin(lat*d2r)
+! Convert to Cartesian coordinates
+call lonlat2xyz(input_x,input_y,input_z,input_lon,input_lat)
+call lonlat2xyz(pole_x,pole_y,pole_z,pole_lon,pole_lat)
 
-      RETURN
-      END
+! Store some variables
+cosr = dcos(rotation_angle*d2r)
+sinr = dsin(rotation_angle*d2r)
+dot_prod = pole_x*input_x + pole_y*input_y + pole_z*input_z
 
-C----------------------------------------------------------------------C
+! Matrix multiplication
+output_x = pole_x*(dot_prod)*(1.0d0-cosr) + input_x*cosr + (-pole_z*input_y+pole_y*input_z)*sinr
+output_y = pole_y*(dot_prod)*(1.0d0-cosr) + input_y*cosr + ( pole_z*input_x-pole_x*input_z)*sinr
+output_z = pole_z*(dot_prod)*(1.0d0-cosr) + input_z*cosr + (-pole_y*input_x+pole_x*input_y)*sinr
 
-      SUBROUTINE gcmdln(ifile,ofile,user)
+! Convert back to geographic coordinates
+output_lon = datan2(output_y,output_x)*r2d
+output_lat = dasin(output_z)*r2d
 
-      IMPLICIT NONE
-      CHARACTER*30 ifile,ofile,tag
-      INTEGER i,narg,user
+return
+end
 
-      user = 0
-      ifile = 'sphfinrot.in'
-      ofile = 'sphfinrot.out'
+!--------------------------------------------------------------------------------------------------!
 
-      narg = iargc()
-      if (narg.eq.0) call usage()
+subroutine lonlat2xyz(x,y,z,lon,lat)
+use sphfinrot_const
+implicit none
+! I/O variables
+double precision :: lon, lat ,x, y, z
 
-      i = 0
- 9998 i = i + 1
-      if (i.gt.narg) goto 9999
-          call getarg(i,tag)
-          if (tag(1:2).eq.'-f') then
-              i = i + 1
-              call getarg(i,ifile)
-          elseif (tag(1:2).eq.'-o') then
-              i = i + 1
-              call getarg(i,ofile)
-          elseif (tag(1:2).eq.'-d') then
-              write(*,*) 'Running with default file names'
-          elseif (tag(1:2).eq.'-u') then
-              user = 1
-          elseif (tag(1:2).eq.'-h'.or.tag(1:2).eq.'-?') then
-              call usage()
-          endif
-          goto 9998
- 9999 continue
+x = dcos(lon*d2r)*dcos(lat*d2r)
+y = dsin(lon*d2r)*dcos(lat*d2r)
+z = dsin(lat*d2r)
 
-      RETURN
-      END
+return
+end
 
-C----------------------------------------------------------------------C
+!--------------------------------------------------------------------------------------------------!
 
-      SUBROUTINE usage()
-      IMPLICIT none
+subroutine gcmdln()
+use sphfinrot_cmdln
+use sphfinrot_vars, only : pole_lon, pole_lat, rotation_angle
+implicit none
+! Local variables
+character(len=1024) :: tag
+integer :: i, narg
 
-      write(*,*)
-     1 'Usage: sphfinrot -f [IFILE] -o [OFILE] -d -u -h/-?'
-      write(*,*)
-     1 '  -f [IFILE] (Default sphfinrot.in) name of input file'
-      write(*,*)
-     1 '  -o [OFILE] (Default sphfinrot.out) name of output file'
-      write(*,*)
-     1 '  -d         Run with default file names'
-      write (*,*)
-     1 '  -u         Prompt user to enter information through standard'
-      write (*,*)
-     1 '                 input for single calculation'
-      write (*,*)
-     1 '  -h/-?      Online help (this screen)'
-      write (*,*) ''
-      write (*,*)
-     1 '  sphfinrot makes a counter-clockwise finite rotation of a',
-     2     ' point around a pole'
-      write (*,*) ''
-      write (*,*)
-     1 '    Input file'
-      write (*,*)
-     1 '        lon_init lat_init pole_lon pole_lat angle'
-      write (*,*)
-     1 '         :  :'
-      write(*,*) ''
-      write (*,*)
-     1 '    Output file'
-      write (*,*)
-     1 '        lon_final lat_final'
-      write (*,*)
-     1 '         :  :'
-      write (*,*) ''
+input_file = 'none'
+output_file = 'none'
+pole_lon = -1.0d10
+pole_lat = -1.0d10
+rotation_angle = -1.0d10
 
-      STOP
-      END
+narg = command_argument_count()
+if (narg.eq.0) call usage('')
+i = 0
+do while (i.le.narg)
+    call get_command_argument(i,tag)
+    if (trim(tag).eq.'-f') then
+        i = i + 1
+        call get_command_argument(i,input_file)
+    elseif (trim(tag).eq.'-o') then
+        i = i + 1
+        call get_command_argument(i,output_file)
+    elseif (trim(tag).eq.'-pole') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) pole_lon
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) pole_lat
+    elseif (trim(tag).eq.'-angle') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) rotation_angle
+    elseif (trim(tag).eq.'-h'.or.trim(tag).eq.'-?') then
+        call usage('')
+    endif
+    i = i + 1
+enddo
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine usage(string)
+!----
+! Print program usage statement and exit
+!----
+implicit none
+! I/O variables
+character(len=*) :: string
+! Local variables
+integer :: string_length
+
+if (string.ne.'') then
+    string_length = len(string)
+    write(0,*) trim(string)
+    write(0,*)
+endif
+write(0,'(A)') 'Usage: sphfinrot -f IFILE [-o OFILE] -pole PLON PLAT -angle ANGLE [-h/-?]'
+write(0,'(A)')
+write(0,'(A)') '  -f [IFILE]       Input file: input_lon input_lat'
+write(0,'(A)') '  -o [OFILE]       Output file (default: stdout): rotated_lon rotated_lat'
+write(0,'(A)') '  -pole PLON PLAT  Rotation pole location'
+write(0,'(A)') '  -angle ANGLE     Rotation angle (counter-clockwise)'
+write(0,'(A)') '  -h/-?            Online help (this message)'
+
+stop
+end
 
