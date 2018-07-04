@@ -293,6 +293,7 @@ other: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
 \$(BIN)/sphfinrot: src/sphfinrot.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot src/sphfinrot.f90
+	rm sphfinrot*.mod
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
 \$(BIN)/vec2los: src/vec2los.f
