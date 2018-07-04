@@ -176,8 +176,10 @@
       lat1 = lat1*d2r      ! deg -> rad
       lon1 = lon1*d2r      ! deg -> rad
 
+      ! Spherical law of cosines
       lat2 = dasin(dsin(lat1)*dcos(dist)+dcos(lat1)*dsin(dist)*dcos(az))
 
+      ! Spherical law of cosines and law of sines
       lon2 = lon1 + datan2(dsin(az)*dsin(dist)*dcos(lat1),
      1                           dcos(dist)-dsin(lat1)*dsin(lat2))
 

@@ -254,7 +254,7 @@ C----------------------------------------------------------------------C
      1 '    -sdr      Strike, dip, and rake angles'
       write(*,*)
      1 '    -mij      Moment tensor components (mrr mtt mpp mrt mrp ',
-     2                                                         'mtp)'
+     2                                          'mtp; GCMT definition)'
       write(*,*)
      1 '    -pnt      P, N, T axes (x,y,z,mag)'
       write(*,*)

@@ -332,7 +332,7 @@ C----
       REAL*8 a(lda,n),w(n),work(lwmax),m(6)
       REAL*8 p(3),t(3),slip(3),normal(3),str,dip,rak,str2,dip2,rak2
       INTEGER i
-C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=n, p=e)
+C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
 C Moment tensor components (r=z, t=e, p=n):
       read(line,*) m(1),m(2),m(3),m(4),m(5),m(6)
       a(3,3) =  m(1)     ! mrr =  mzz
@@ -451,7 +451,7 @@ C----
       INTEGER info,lwork
       REAL*8 a(lda,n),w(n),work(lwmax),m(6)
       REAL*8 p(3),o(3),t(3)
-C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=n, p=e)
+C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
 C Moment tensor components (r=z, t=e, p=n):
       read(line,*) m(1),m(2),m(3),m(4),m(5),m(6)
       a(3,3) =  m(1)     ! mrr =  mzz

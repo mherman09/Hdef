@@ -698,6 +698,9 @@ end
 !--------------------------------------------------------------------------------------------------!
 
 subroutine lsqr_nnls_solve(x,A,b,nrows,ncols)
+!----
+! Invert with non-negative constraints (DOES NOT WORK YET...)
+!----
 implicit none
 ! I/O variables
 integer :: nrows, ncols
