@@ -53,9 +53,9 @@ do
         rho = dsqrt(x*x+y*y)
         c = 2.0d0*datan2(rho,2.0d0*radius)
         arg1 = dcos(c)*dsin(lat0*d2r) + y*dsin(c)*dcos(lat0*d2r)/rho
-        lat = datan2(arg1, dsqrt(1.0d0-arg1*arg1))
-        lon = lon0 + datan2(x*dsin(c),rho*dcos(lat0*d2r)*dcos(c)-y*dsin(lat0*d2r)*dsin(c))
-        write(luout,*) lon/d2r,lat/d2r
+        lat = datan2(arg1, dsqrt(1.0d0-arg1*arg1))/d2r
+        lon = lon0 + datan2(x*dsin(c),rho*dcos(lat0*d2r)*dcos(c)-y*dsin(lat0*d2r)*dsin(c))/d2r
+        write(luout,*) lon, lat
     else
         call usage('!! Error: mode must be "project" or "inverse"')
     endif
