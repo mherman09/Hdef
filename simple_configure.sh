@@ -221,7 +221,8 @@ misc: \\
       \$(BIN)/grid \\
       \$(BIN)/perturb \\
       \$(BIN)/readkik \\
-      \$(BIN)/eqempirical
+      \$(BIN)/eqempirical \\
+      \$(BIN)/stereo_project
 
 fits: \\
       \$(BIN)/polyfit \\
@@ -294,6 +295,8 @@ other: \\
 \$(BIN)/sphfinrot: src/sphfinrot.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/sphfinrot src/sphfinrot.f90
 	rm sphfinrot*.mod
+\$(BIN)/stereo_project: src/stereo_project.f90
+	\$(FC) \$(FFLAG) -o \$(BIN)/stereo_project src/stereo_project.f90
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
 \$(BIN)/vec2los: src/vec2los.f
@@ -342,6 +345,7 @@ clean:
 	-rm \$(BIN)/polyfit_special
 	-rm \$(BIN)/readkik
 	-rm \$(BIN)/sphfinrot
+	-rm \$(BIN)/stereo_project
 	-rm \$(BIN)/utm2geo
 	-rm \$(BIN)/vec2los
 	-rm \$(BIN)/wraplos
