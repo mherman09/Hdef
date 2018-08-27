@@ -4,11 +4,11 @@
       REAL*8 pi,r2d
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi)
       REAL*8 lon1,lat1,lon2,lat2,dist,az,cmdin(4)
-      CHARACTER*30 ifile,ofile
+      CHARACTER*30 ifile,ofile,lonrng
       INTEGER c,p,funit
       LOGICAL ex
       
-      call gcmdln(ifile,ofile,c,cmdin,p)
+      call gcmdln(ifile,ofile,c,cmdin,p,lonrng)
       if (c.eq.1) goto 103
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input lon lat dist az file unspecified'
@@ -28,7 +28,14 @@
           dist = cmdin(3)
           az   = cmdin(4)
           call dlola(lon2,lat2,lon1,lat1,dist,az)
-          write (6,8889) lon2*r2d,lat2*r2d
+          lon2 = lon2*r2d
+          lat2 = lat2*r2d
+          if (lonrng.eq.'NEG'.and.lon2.gt.180.0d0) then
+              lon2 = lon2-360.0d0
+          elseif (lonrng.eq.'POS'.and.lon2.lt.0.0d0) then
+              lon2 = lon2+360.0d0
+          endif
+          write (6,8889) lon2,lat2
       else
           if (ifile.eq.'stdin') then
               funit = 5
@@ -42,10 +49,17 @@
                   call errmes('!! Error: latitude is greater than 90')
               endif
               call dlola(lon2,lat2,lon1,lat1,dist,az)
+              lon2 = lon2*r2d
+              lat2 = lat2*r2d
+              if (lonrng.eq.'NEG'.and.lon2.gt.180.0d0) then
+                  lon2 = lon2-360.0d0
+              elseif (lonrng.eq.'POS'.and.lon2.lt.0.0d0) then
+                  lon2 = lon2+360.0d0
+              endif
               if (p.eq.0) then
-                  write(12,9999) lon2*r2d,lat2*r2d
+                  write(12,9999) lon2,lat2
               else
-                  write(*,9999) lon2*r2d,lat2*r2d
+                  write(*,9999) lon2,lat2
               endif
               goto 101
   102     continue
@@ -70,13 +84,14 @@ C======================================================================C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ifile,ofile,c,cmdin,p)
+      SUBROUTINE gcmdln(ifile,ofile,c,cmdin,p,lonrng)
       IMPLICIT NONE
-      CHARACTER*30 ifile,ofile,tag
+      CHARACTER*30 ifile,ofile,tag,lonrng
       INTEGER i,narg,c,p
       REAL*8 cmdin(4)
       ifile = 'none'
       ofile = 'none'
+      lonrng = ''
       c = 0
       p = 1
       narg = iargc()
@@ -108,6 +123,9 @@ C----------------------------------------------------------------------C
               read(tag,'(BN,F12.0)') cmdin(4)
           elseif (tag(1:2).eq.'-s') then
               ifile = 'stdin'
+          elseif (tag(1:4).eq.'-lon') then
+              i = i + 1
+              call getarg(i,lonrng)
           elseif (tag(1:2).eq.'-p') then
               p = 1
           elseif (tag(1:2).eq.'-h') then
@@ -133,7 +151,7 @@ C----------------------------------------------------------------------C
       endif
       write(*,*)
      1 'Usage: distaz2lola -f IFILE|-s [-o OFILE|-p] [-c LON1 LAT1 ',
-     1                     'DIST AZ] [-h]'
+     1                     'DIST AZ] [-lon NEG|POS] [-h]'
       write(*,*)
       write(*,*)
      1 '-f IFILE               Input file: lon lat dist(km) az(deg)'
@@ -146,6 +164,8 @@ C----------------------------------------------------------------------C
       write(*,*)
      1 '-c LON1 LAT1 DIST AZ   Compute LON2 LAT2, ',
      2                           'print to standard output'
+      write(*,*)
+     1 '-lon NEG|POS           Longitude range: -180,180 or 0,360'
       write(*,*)
      1 '-h                     Online help (this screen)'
       write(*,*)
