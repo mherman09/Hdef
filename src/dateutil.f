@@ -99,7 +99,7 @@ C----------------------------------------------------------------------C
               read(arg1(11:12),*) mn1
               read(arg1(13:14),*) sc1
           endif
-          if (opt.eq.1) then
+          if (opt.eq.1.or.opt.eq.3) then
               read(arg2(1:4),*) yr2
               read(arg2(5:6),*) mo2
               read(arg2(7:8),*) dy2
@@ -112,11 +112,11 @@ C----------------------------------------------------------------------C
               read(arg2,*) ndy
           endif
       elseif (ifmt.eq.2) then
-          if (long.eq.0.and.opt.eq.1) then
+          if (long.eq.0.and.opt.eq.1.or.opt.eq.3) then
               read(arg,*) yr1,mo1,dy1,yr2,mo2,dy2
           elseif (long.eq.0.and.opt.eq.2) then
               read(arg,*) yr1,mo1,dy1,ndy
-          elseif (long.eq.1.and.opt.eq.1) then
+          elseif (long.eq.1.and.opt.eq.1.or.opt.eq.3) then
               read(arg,*,end=2001) yr1,mo1,dy1,hr1,mn1,sc1,
      1                             yr2,mo2,dy2,hr2,mn2,sc2
           elseif (long.eq.1.and.opt.eq.2) then
@@ -132,7 +132,7 @@ C----------------------------------------------------------------------C
               read(arg1(15:16),*) mn1
               read(arg1(18:19),*) sc1
           endif
-          if (opt.eq.1) then
+          if (opt.eq.1.or.opt.eq.3) then
               read(arg2(1:4),*) yr2
               read(arg2(6:7),*) mo2
               read(arg2(9:10),*) dy2    
@@ -145,7 +145,7 @@ C----------------------------------------------------------------------C
               read(arg2,*) ndy
           endif
       endif
-      if (opt.eq.1.and.long.eq.1) then
+      if (opt.eq.1.or.opt.eq.3.and.long.eq.1) then
           dy1 = dy1 + hr1/2.4d1 + mn1/1.44d3 + sc1/8.64d4
           dy2 = dy2 + hr2/2.4d1 + mn2/1.44d3 + sc2/8.64d4
       endif
@@ -170,11 +170,21 @@ C----
       REAL*8 dy1,dy2,ndy
       COMMON /DVARS/ yr1,mo1,yr2,mo2,dy1,dy2,ndy
       REAL*8 jd1,jd2,hr,mn,sc
+      REAL*8 dyr,dmo,ddy
       call date2jd(jd1,yr1,mo1,dy1)
-      if (opt.eq.1) then
+      if (opt.eq.1.or.opt.eq.3) then
           call date2jd(jd2,yr2,mo2,dy2)
           ndy = jd2 - jd1
-          write(ans,9997) ndy
+          if (ndy.lt.30.0d0) then
+              dyr = yr2-yr1
+              dmo = mo2-mo1
+              ddy = dy2-dy1
+          endif
+          if (opt.eq.1) then
+              write(ans,9997) ndy
+          elseif (opt.eq.3) then
+              write(ans,9997) ndy*24.0d0*3600.0d0
+          endif
       else
           jd2 = jd1 + ndy
           call jd2date(yr2,mo2,dy2,jd2)
@@ -190,7 +200,7 @@ C----
               write(ans,9999) yr2,mo2,dy2,hr,mn,sc
           endif
       endif
- 9997 format(F20.8)
+ 9997 format(1PE20.10)
  9998 format(I6,I4,1F6.1)
  9999 format(I6,I4,4F6.1)
       RETURN
@@ -241,16 +251,16 @@ C----
      2    year.eq.1582.and.month.eq.10.and.day.lt.15.0d0) then
           B = 0.0d0
       else
-          A = floor(dble(yrp)/100)
+          A = floor(dble(yrp)/100.0d0)
           B = 2.0d0 - A + floor(A*0.25d0)
       endif
       if (yrp.lt.0) then
           C = floor(365.25d0*dble(yrp) - 0.75d0)
       else
-          C = floor(365.25*dble(yrp))
+          C = floor(365.25d0*dble(yrp))
       endif
       D = floor(30.6001d0*(dble(mop)+1.0d0))
-      jd = B+C+D+day+1720994.5
+      jd = B+C+D+day+1720994.5d0
       RETURN
       END
 
@@ -340,6 +350,8 @@ C
               opt = 1
           elseif (tag(1:5).eq.'-date') then
               opt = 2
+          elseif (tag(1:5).eq.'-nsec') then
+              opt = 3
           elseif (tag(1:5).eq.'-long') then
               long = 1
           elseif (tag(1:2).eq.'-c') then
