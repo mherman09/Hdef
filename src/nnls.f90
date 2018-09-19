@@ -1,10 +1,7 @@
 MODULE precision
 IMPLICIT NONE
-INTEGER, PARAMETER  :: dp = SELECTED_REAL_KIND(15, 60)
+INTEGER, PARAMETER  :: dp = 8 !SELECTED_REAL_KIND(15, 60)
 END MODULE precision
-
-
-
 
 !     SUBROUTINE nnls(a, m, n, b, x, rnorm, w, indx, mode)
 !
@@ -58,9 +55,9 @@ SUBROUTINE nnls (a, m, n, b, x, rnorm, w, indx, mode)
 USE precision
 IMPLICIT NONE
 INTEGER, INTENT(IN)       :: m, n
-INTEGER, INTENT(OUT)      :: indx(:), mode
-REAL (dp), INTENT(IN OUT) :: a(:,:), b(:)
-REAL (dp), INTENT(OUT)    :: x(:), rnorm, w(:)
+INTEGER, INTENT(OUT)      :: indx(n), mode
+REAL (dp), INTENT(IN OUT) :: a(m,n), b(m)
+REAL (dp), INTENT(OUT)    :: x(n), rnorm, w(n)
 
 INTERFACE
   SUBROUTINE g1(a, b, cterm, sterm, sig)
@@ -85,6 +82,7 @@ END INTERFACE
 INTEGER                 :: i, ii, ip, iter, itmax, iz, iz1, iz2, izmax,   &
                            j, jj, jz, l, mda, npp1, nsetp
 REAL (dp), DIMENSION(m) :: zz
+REAL (dp), DIMENSION(n) :: tempn
 REAL (dp), DIMENSION(1) :: dummy
 REAL (dp)               :: alpha, asave, cc, factor = 0.01_dp, sm, &
                            ss, t, temp, two = 2.0_dp, unorm, up, wmax,    &
@@ -98,10 +96,12 @@ END IF
 iter = 0
 itmax = 3*n
 
+itmax=10*n
+
 !                    INITIALIZE THE ARRAYS indx() AND X().
 
+x(1:n)=zero
 DO i = 1,n
-  x(i) = zero
   indx(i) = i
 END DO
 
@@ -117,12 +117,15 @@ npp1 = 1
 
 !         COMPUTE COMPONENTS OF THE DUAL (NEGATIVE GRADIENT) VECTOR W().
 
+!$OMP parallel do private(iz,j) DEFAULT(SHARED)
 DO iz = iz1,iz2
   j = indx(iz)
   w(j) = DOT_PRODUCT(a(npp1:m,j), b(npp1:m))
 END DO
+!$OMP end parallel do
 
 !                                   FIND LARGEST POSITIVE W(J).
+izmax = 0 ! <- Matt change
 60 wmax = zero
 DO iz = iz1,iz2
   j = indx(iz)
@@ -187,10 +190,12 @@ npp1 = npp1+1
 
 mda = SIZE(a,1)
 IF (iz1  <=  iz2) THEN
+!$O M P parallel do private(jz,jj) DEFAULT(SHARED)
   DO jz = iz1,iz2
     jj = indx(jz)
     CALL h12 (2, nsetp, npp1, m, a(:,j), up, a(:,jj), 1, mda, 1)
   END DO
+!$O M P end parallel do
 END IF
 
 IF (nsetp /= m) THEN
@@ -231,17 +236,17 @@ END DO
 !          IF ALL NEW CONSTRAINED COEFFS ARE FEASIBLE THEN ALPHA WILL
 !          STILL = 2.    IF SO EXIT FROM SECONDARY LOOP TO MAIN LOOP.
 
-!IF (alpha == two) GO TO 330
-IF (dabs(alpha-two) <= 1.0d-10) GO TO 330
-
+IF (abs(alpha-two) .lt. 1.0d-8) GO TO 330
 
 !          OTHERWISE USE ALPHA WHICH WILL BE BETWEEN 0. AND 1. TO
 !          INTERPOLATE BETWEEN THE OLD X AND THE NEW ZZ.
 
+!$OMP parallel do private(ip,l) DEFAULT(SHARED)
 DO ip = 1,nsetp
   l = indx(ip)
   x(l) = x(l) + alpha*(zz(ip)-x(l))
 END DO
+!$OMP end parallel do
 
 !        MODIFY A AND B AND THE INDEX ARRAYS TO MOVE COEFFICIENT I
 !        FROM SET P TO SET Z.
@@ -256,19 +261,17 @@ IF (jj /= nsetp) THEN
     indx(j-1) = ii
     CALL g1 (a(j-1,ii), a(j,ii), cc, ss, a(j-1,ii))
     a(j,ii) = zero
-    DO l = 1,n
-      IF (l /= ii) THEN
-
+    tempn(1:n) = a(j-1,1:n)
 !                 Apply procedure G2 (CC,SS,A(J-1,L),A(J,L))
-
-        temp = a(j-1,l)
-        a(j-1,l) = cc*temp + ss*a(j,l)
-        a(j,l)   = -ss*temp + cc*a(j,l)
-      END IF
-    END DO
-
+    IF(ii>1)then
+      a(j-1,1:ii-1) = cc*tempn(1:ii-1) + ss*a(j,1:ii-1)
+      a(j,1:ii-1)   = -ss*tempn(1:ii-1) + cc*a(j,1:ii-1)
+    ENDIF
+    IF(ii<n)then
+      a(j-1,ii+1:n) = cc*tempn(ii+1:n) + ss*a(j,ii+1:n)
+      a(j,ii+1:n)   = -ss*tempn(ii+1:n) + cc*a(j,ii+1:n)
+    ENDIF
 !                 Apply procedure G2 (CC,SS,B(J-1),B(J))
-
     temp = b(j-1)
     b(j-1) = cc*temp + ss*b(j)
     b(j)   = -ss*temp + cc*b(j)
@@ -375,7 +378,7 @@ IF (ABS(a) > ABS(b)) THEN
   RETURN
 END IF
 
-IF (dabs(b) > zero) THEN
+IF (abs(b) .gt. 1.0d-8) THEN
   xr = a / b
   yr = SQRT(one + xr**2)
   sterm = SIGN(one/yr, b)
@@ -480,8 +483,7 @@ IF (b < 0) THEN
       sm = sm + c(i3) * u(i)
       i3 = i3 + ice
     END DO
-    !IF (sm /= 0) THEN
-    IF (dabs(sm) > 0.0d0) THEN
+    IF (abs(sm) .gt. 1.0d-8) THEN
       sm = sm * b
       c(i2) = c(i2) + sm * up
       DO i = l1, m
@@ -496,108 +498,108 @@ RETURN
 END SUBROUTINE h12
 
 
-! !================ A sample test program =====================
-!
-! PROGRAM test_nnls
-! ! Fit a mixture of exponentials by NNLS.
-! ! The fitting of a sum of exponentials:
-!
-! !   Y = Sum A(i).exp(-b(i).t)
-!
-! ! to a set of values of Y is very ill-conditioned problem in non-linear
-! ! least squares.   The parameters to be fitted are the amplitudes A(i)
-! ! and the b(i)'s.   Often the number of terms is unknown.   Sometimes the
-! ! discrete A(i)'s are replaced by a continuous function and the sum replaced
-! ! with an integral.
-!
-! ! A common practice is to fit the sum with the b(i)'s held fixed and
-! ! then constrain the amplitudes A(i) to be positive.   That is done in
-! ! this example.   We will fit:
-!
-! !  Y = Sum A(i).exp(-t/t0(i))
-!
-! ! where the t0(i)'s increase by a factor of sqrt(2) from 2.0 to 1024.
-! ! The `data' will be generated with 3 exponential terms:
-!
-! !  Y = 100 * ( exp(-t/5) + exp(-t/50) + exp(-t/500) ) + noise
-!
-! ! The times (t) will be 10, 20, ..., 1000.
-!
-! ! The nearest fitted t0'2 to each of these t0's are:
-! !   5 between   4   and   5.66
-! !  50 between  32   and  45.3
-! ! 500 between 362.0 and 512
-!
-! ! Test example added 29 June 1998
-!
-! USE precision
-! IMPLICIT NONE
-!
-! REAL (dp) :: x(100,19), y(100), t0(19), arg, arglimit, noise(100), t, rnorm, &
-!              b(19), w(19)
-! INTEGER   :: i, indx(19), j, mode
-!
-! INTERFACE
-!   SUBROUTINE nnls (a, m, n, b, x, rnorm, w, indx, mode)
-!     USE precision
-!     IMPLICIT NONE
-!     INTEGER, INTENT(IN)       :: m, n
-!     INTEGER, INTENT(OUT)      :: indx(:), mode
-!     REAL (dp), INTENT(IN OUT) :: a(:,:), b(:)
-!     REAL (dp), INTENT(OUT)    :: x(:), rnorm, w(:)
-!   END SUBROUTINE nnls
-! END INTERFACE
-!
-! t0(1) = 2.0
-! t0(2) = t0(1) * SQRT(2.0_dp)
-! DO i = 3, 19
-!   t0(i) = 2.0_dp * t0(i-2)
-! END DO
-!
-! ! Calculate the X-matrix, avoiding underflow
-!
-! arglimit = LOG( 2.0_dp * TINY(1.0_dp) )
-! DO j = 1, 19
-!   DO i = 1, 100
-!     arg = -10._dp * i / t0(j)
-!     IF (arg > arglimit) THEN
-!       x(i,j) = EXP(arg)
-!     ELSE
-!       x(i:100,j) = 0.0_dp
-!       EXIT
-!     END IF
-!   END DO
-! END DO
-!
-! ! Generate Y's with uniformly-distributed noise.
-!
-! CALL RANDOM_NUMBER( noise )
-! DO i = 1, 100
-!   t = 10._dp * i
-!   y(i) = 100._dp * ( exp(-t/5._dp) + exp(-t/50._dp) + exp(-t/500._dp) ) +  &
-!          noise(i) - 0.5_dp
-! END DO
-!
-! ! Now call NNLS to do the fitting.
-!
-! CALL nnls (x, 100, 19, y, b, rnorm, w, indx, mode)
-!
-! SELECT CASE (mode)
-!   CASE (1)
-!     DO i = 1, 19
-!       IF (b(i) > 0.0_dp) THEN
-!         WRITE(*, '(a, f9.1, a, f9.1)')  &
-!                  ' Time constant: ', t0(i), '  Fitted amplitude = ', b(i)
-!       END IF
-!     END DO
-!     WRITE(*, '(a, 19i3)') ' Array INDX =', indx
-!     WRITE(*, '(a/ (" ", 10f8.0))') ' Alternate solution:', w
-!     WRITE(*, '(a, f9.2)') ' rnorm = ', rnorm
-!   CASE (2)
-!     WRITE(*, *) 'Error in input argument 2 or 3'
-!   CASE (3)
-!     WRITE(*, *) 'Failed to converge'
-! END SELECT
-!
-! STOP
-! END PROGRAM test_nnls
+!================ A sample test program =====================
+
+!PROGRAM test_nnls
+! Fit a mixture of exponentials by NNLS.
+! The fitting of a sum of exponentials:
+
+!   Y = Sum A(i).exp(-b(i).t)
+
+! to a set of values of Y is very ill-conditioned problem in non-linear
+! least squares.   The parameters to be fitted are the amplitudes A(i)
+! and the b(i)'s.   Often the number of terms is unknown.   Sometimes the
+! discrete A(i)'s are replaced by a continuous function and the sum replaced
+! with an integral.
+
+! A common practice is to fit the sum with the b(i)'s held fixed and
+! then constrain the amplitudes A(i) to be positive.   That is done in
+! this example.   We will fit:
+
+!  Y = Sum A(i).exp(-t/t0(i))
+
+! where the t0(i)'s increase by a factor of sqrt(2) from 2.0 to 1024.
+! The `data' will be generated with 3 exponential terms:
+
+!  Y = 100 * ( exp(-t/5) + exp(-t/50) + exp(-t/500) ) + noise
+
+! The times (t) will be 10, 20, ..., 1000.
+
+! The nearest fitted t0'2 to each of these t0's are:
+!   5 between   4   and   5.66
+!  50 between  32   and  45.3
+! 500 between 362.0 and 512
+
+! Test example added 29 June 1998
+
+!USE precision
+!IMPLICIT NONE
+
+!REAL (dp) :: x(100,19), y(100), t0(19), arg, arglimit, noise(100), t, rnorm, &
+!             b(19), w(19)
+!INTEGER   :: i, indx(19), j, mode
+
+!INTERFACE
+!  SUBROUTINE nnls (a, m, n, b, x, rnorm, w, indx, mode)
+!    USE precision
+!    IMPLICIT NONE
+!    INTEGER, INTENT(IN)       :: m, n
+!    INTEGER, INTENT(OUT)      :: indx(:), mode
+!    REAL (dp), INTENT(IN OUT) :: a(:,:), b(:)
+!    REAL (dp), INTENT(OUT)    :: x(:), rnorm, w(:)
+!  END SUBROUTINE nnls
+!END INTERFACE
+
+!t0(1) = 2.0
+!t0(2) = t0(1) * SQRT(2.0_dp)
+!DO i = 3, 19
+!  t0(i) = 2.0_dp * t0(i-2)
+!END DO
+
+! Calculate the X-matrix, avoiding underflow
+
+!arglimit = LOG( 2.0_dp * TINY(1.0_dp) )
+!DO j = 1, 19
+!  DO i = 1, 100
+!    arg = -10._dp * i / t0(j)
+!    IF (arg > arglimit) THEN
+!      x(i,j) = EXP(arg)
+!    ELSE
+!      x(i:100,j) = 0.0_dp
+!      EXIT
+!    END IF
+!  END DO
+!END DO
+
+! Generate Y's with uniformly-distributed noise.
+
+!CALL RANDOM_NUMBER( noise )
+!DO i = 1, 100
+!  t = 10._dp * i
+!  y(i) = 100._dp * ( exp(-t/5._dp) + exp(-t/50._dp) + exp(-t/500._dp) ) +  &
+!         noise(i) - 0.5_dp
+!END DO
+
+! Now call NNLS to do the fitting.
+
+!CALL nnls (x, 100, 19, y, b, rnorm, w, indx, mode)
+
+!SELECT CASE (mode)
+!  CASE (1)
+!    DO i = 1, 19
+!      IF (b(i) > 0.0_dp) THEN
+!        WRITE(*, '(a, f9.1, a, f9.1)')  &
+!                 ' Time constant: ', t0(i), '  Fitted amplitude = ', b(i)
+!      END IF
+!    END DO
+!    WRITE(*, '(a, 19i3)') ' Array INDX =', indx
+!    WRITE(*, '(a/ (" ", 10f8.0))') ' Alternate solution:', w
+!    WRITE(*, '(a, f9.2)') ' rnorm = ', rnorm
+!  CASE (2)
+!    WRITE(*, *) 'Error in input argument 2 or 3'
+!  CASE (3)
+!    WRITE(*, *) 'Failed to converge'
+!END SELECT
+
+!STOP
+!END PROGRAM test_nnls
