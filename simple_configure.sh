@@ -228,8 +228,7 @@ fits: \\
       \$(BIN)/polyfit \\
       \$(BIN)/polyfit_special \\
       \$(BIN)/multifit \\
-      \$(BIN)/fltinv \\
-      \$(BIN)/fltinv_new
+      \$(BIN)/fltinv
 
 seis: \\
       \$(BIN)/mtutil
@@ -261,15 +260,17 @@ other: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/eventfrequency src/eventfrequency.f
 \$(BIN)/ff2gmt: src/ff2gmt.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
-\$(BIN)/fltinv: src/fltinv.f src/okada92subs.f src/geomsubs.f src/randsubs.f
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f src/okada92subs.f src/geomsubs.f \$(LAPACK) src/randsubs.f 
-\$(BIN)/fltinv_new: src/fltinv.f90 src/fltinvmodules.f90 src/fltinvsubs.f90 src/fltinv_linear_subs.f90 \\
-                   src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90
-	\$(FC) \$(FFLAG) -c src/fltinvmodules.f90
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv_new src/fltinv.f90 src/fltinvmodules.f90 src/fltinvsubs.f90 \\
-                                               src/fltinv_linear_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f \\
-                                               src/nnls.f90 \$(LAPACK)
-	rm fltinvmodules.o nnls.o arrays.mod command_line.mod gf.mod io.mod trig.mod precision.mod
+FLTINV_MODULES = src/fltinv_io_module.f90 \
+                 src/fltinv_variable_module.f90 \
+                 src/fltinv_elast_module.f90 \
+                 src/fltinv_okada_module.f90 \
+                 src/fltinv_lsqr_module.f90 \
+                 src/fltinv_anneal_module.f90
+FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90
+\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK)
+	rm *.o *.mod
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
 \$(BIN)/lola2distaz: src/lola2distaz.f src/geomsubs.f
@@ -340,7 +341,7 @@ clean:
 	-rm \$(BIN)/numint
 	-rm \$(BIN)/o92util
 	-rm \$(BIN)/perturb
-	-rm \$(BIN)/platemotion 
+	-rm \$(BIN)/platemotion
 	-rm \$(BIN)/polyfit
 	-rm \$(BIN)/polyfit_special
 	-rm \$(BIN)/readkik
