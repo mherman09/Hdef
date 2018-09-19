@@ -5,17 +5,23 @@
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi,radius=6371.0d0)
       REAL*8 lon1,lat1,lon2,lat2,dist,az,cmdin(4)
       CHARACTER*30 ifile,ofile
-      INTEGER c,p,input
-      LOGICAL ex
+      INTEGER c,p,input,i
+      LOGICAL ex,debug
 
 C----
 C Parse command line and read options
 C----
-      call gcmdln(ifile,ofile,c,cmdin,p)
+      call gcmdln(ifile,ofile,c,cmdin,p,debug)
 
 C----
 C Check inputs are valid
 C----
+      if (debug) then
+          write(0,*) 'Checking input values'
+          write(0,*) 'Command line flag: ',c
+          write(0,*) 'Input file: ',trim(ifile)
+          write(0,*) 'Output file: ',trim(ofile)
+      endif
       if (c.eq.1) goto 103
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input lon1 lat1 lon2 lat2 file ',
@@ -29,35 +35,70 @@ C----
           write(*,*) '!! Error: No output file specified'
           call usage('!! Use -o OFILE to specify dist az output file')
       endif
+      if (debug) then
+          write(0,*) 'Inputs look fine'
+      endif
 
   103 if (c.eq.1) then
+          if (debug) then
+              write(0,*) 'Using command line inputs: ',(cmdin(i),i=1,4)
+          endif
           lon1 = cmdin(1)
           lat1 = cmdin(2)
           lon2 = cmdin(3)
           lat2 = cmdin(4)
           call ddistaz(dist,az,lon1,lat1,lon2,lat2)
+          if (debug) then
+              write(0,*) 'ddistaz produces dist=',dist,' az=',az
+          endif
           dist = dist*radius
           az = az*r2d
+          if (debug) then
+              write(0,*) 'converted to dist=',dist,' az=',az
+          endif
           write (*,8889) dist,az
       else
           if (ifile.eq.'stdin') then
+              if (debug) then
+                  write(0,*) 'Using standard input'
+              endif
               input = 5
           else
+              if (debug) then
+                  write(0,*) 'Using input from file'
+              endif
               input = 11
               open (unit=input,file=ifile,status='old')
           endif
-          if (p.eq.0) open (unit=12,file=ofile,status='unknown')
+          if (p.eq.0) then
+              if (debug) then
+                  write(0,*) 'Using standard input'
+              endif
+              open (unit=12,file=ofile,status='unknown')
+          endif
   101     read (input,*,err=991,end=102) lon1,lat1,lon2,lat2
+              if (debug) then
+                  write(0,*) 'Read line: ',lon1,lat1,lon2,lat2
+              endif
               if (dabs(lat1).gt.90.0d0.or.dabs(lat2).gt.90.0d0) then
                   call errmes('!! Error: latitude is greater than 90')
               endif
               call ddistaz(dist,az,lon1,lat1,lon2,lat2)
+              if (debug) then
+                  write(0,*) 'ddistaz calculates dist=',dist,' az=',az
+              endif
               dist = dist*radius
               az = az*r2d
+                  if (debug) then
+              write(0,*) 'converted to dist=',dist,' az=',az
+              endif
               if (p.eq.0) then
                   write (12,9999) dist,az
               else
                   write (*,9999) dist,az
+              endif
+              if (debug) then
+                  write(0,*)
               endif
               goto 101
   102     continue
@@ -84,13 +125,15 @@ C======================================================================C
 
 C----------------------------------------------------------------------C
 
-      SUBROUTINE gcmdln(ifile,ofile,c,cmdin,p)
+      SUBROUTINE gcmdln(ifile,ofile,c,cmdin,p,debug)
       IMPLICIT NONE
       CHARACTER*30 ifile,ofile,tag
       INTEGER i,narg,c,p
       REAL*8 cmdin(4)
+      LOGICAL debug
       ifile = 'none'
       ofile = 'none'
+      debug = .false.
       c = 0
       p = 1
       narg = iargc()
@@ -120,6 +163,8 @@ C----------------------------------------------------------------------C
               i = i + 1
               call getarg(i,tag)
               read(tag,'(BN,F12.0)') cmdin(4)
+          elseif (trim(tag).eq.'-debug') then
+              debug = .true.
           elseif (tag(1:2).eq.'-p') then
               p = 1
           elseif (tag(1:2).eq.'-s') then
@@ -131,6 +176,10 @@ C----------------------------------------------------------------------C
           endif
           goto 901
   902 continue
+      if (debug) then
+          write(0,*) 'Debugging output turned on in gcmdln'
+          write(0,*) 'Leaving gcmdln'
+      endif
       RETURN
       END
 
