@@ -1,205 +1,159 @@
 program main
-!----
-! Invert displacement observations for fault slip, assuming slip in an elastic half-space.
-! Currently computes Green's functions from equations of Okada (1992). fltinv can also
-! minimize shear stresses resolved onto faults.
-!
-! Inversion options:
-!     - Linear least squares
-!     - Simulated annealing
-!     - Neighborhood algorithm
-!----
-use command_line
-use arrays
-use io
 implicit none
 
-!----
-! Parse command line and check inputs
-!----
-call gcmdln()
-call check_inputs()
+call initialize_fltinv_variables()
+call get_command_line()
 
-!----
-! Read control files
-!----
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'Reading inversion parameters from files'
-    write(stderr,*)
-endif
-! Read fault geometries: faults(nfaults,7)
-call read_faults()
-! Read displacement observations: displacements(ndisplacements,6)
-call read_displacements()
-! Read pre-stresses: prestresses(nfaults,6)
-call read_prestresses()
-! Read half-space elastic parameters
-call read_halfspace()
-! Read rake angle(s): rakes(nfaults)
-call read_rakes()
-! Read smoothing file: smoothing_pointers(nsmooth,3), smoothing_array(nneighbors_total)
-call read_smoothing()
-! Read slip constraint file: slip_constraints(nfaults,2), is_this_fault_constrained(nfaults,2)
-call read_slip_constraints()
+call read_fltinv_inputs()
 
-!----
-! Post-read checks
-!----
-! If coordinates are specified as geographic, convert to Cartesian
-if (geographic.eq.1) then
-    call geo2xy(nfaults,faults)
-    call geo2xy(ndisplacements,displacements)
-endif
+call calc_greens_functions()
 
-call check_problem_parameters()
-if (verbosity.ge.1) then
-    write(stderr,'("***** Congrats: everything is read in and appears to be in order *****")')
-    write(stderr,*)
-endif
+call run_inversion()
+call write_solution()
 
-!----
-! Compute Green's functions
-!----
-! Displacement Green's functions
-call calc_disp_gfs()
-! Shear stress Green's functions
-call calc_stress_gfs()
+end program main
 
-!----
-! Run inversion
-!----
-if (inversion_mode.eq.'linear') then
-    if (verbosity.ge.1) then
-        write(stderr,'(A)') 'Performing linear least squares inversion'
-    endif
-    call lsqr_invert()
-else
-    call usage('!! Error: inversion mode '//trim(inversion_mode)//' is not available')
-endif
+!==================================================================================================!
 
-!----
-! Print misfit to standard output if requested
-!----
-!      if (misfit.eq.1) then
-!          if (vrb.ge.1) then
-!              write(0,'("COMPUTING MISFIT, PER YOUR REQUEST")')
-!          endif
-!          tot = 0.0d0
-!          do 905 i = 1,nobs
-!              pre(i,1) = 0.0d0
-!              pre(i,2) = 0.0d0
-!              pre(i,3) = 0.0d0
-!              ! predicted displacement vector at each displacement site
-!              do 906 j = 1,nflt
-!                  pre(i,1) = pre(i,1) + gf(i,j,1)*soln(j,1)
-!     1                                             + gf(i,j,4)*soln(j,2)
-!                  pre(i,2) = pre(i,2) + gf(i,j,2)*soln(j,1)
-!     1                                             + gf(i,j,5)*soln(j,2)
-!                  pre(i,3) = pre(i,3) + gf(i,j,3)*soln(j,1)
-!     1                                             + gf(i,j,6)*soln(j,2)
-!  906         continue
-!  905     continue
-!          ! total misfit, squared
-!          do 907 i = 1,nobs
-!              tot = tot + (pre(i,1)-obs(i,4))*(pre(i,1)-obs(i,4))
-!     1                   + (pre(i,2)-obs(i,5))*(pre(i,2)-obs(i,5))
-!     2                   + (pre(i,3)-obs(i,6))*(pre(i,3)-obs(i,6))
-!  907     continue
-!          ! total model length, squared
-!          pre(1,1) = 0.0d0
-!          do 908 i = 1,nflt
-!              pre(1,1) = pre(1,1) + soln(i,1)*soln(i,1)
-!     1                   + soln(i,2)*soln(i,2)
-!  908     continue
-!          write(*,1010) dsqrt(tot),dsqrt(pre(1,1))
-!      endif
-! 1010 format(1PE14.6,1PE14.6)
+subroutine initialize_fltinv_variables()
+use io_module, only: verbosity, initialize_program_data
+use variable_module, only: output_file, displacement, disp_components, prestress, &
+                           fault, slip_constraint, rake_constraint, &
+                           gf_type, gf_disp, gf_stress, &
+                           inversion_mode, damping_constant, smoothing_constant, smoothing, &
+                           coord_type, halfspace
+use lsqr_module, only: lsqr_mode, stress_weight
+use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
+                         temp_start, temp_minimum, cooling_factor
+implicit none
 
+! Initialize program behavior variables
+output_file = 'stdout'
+inversion_mode = 'lsqr'
+gf_type = 'okada_rect'
+coord_type = 'cartesian'
+disp_components = '123'
 
+! Initialize regularization variables
+damping_constant = -1.0d0
+smoothing_constant = -1.0d0
 
-!----
-! Write output nicely
-!----
-call write_output()
+! Initialize derived data variable values
+call initialize_program_data(fault)
+call initialize_program_data(displacement)
+call initialize_program_data(prestress)
+call initialize_program_data(gf_disp)
+call initialize_program_data(gf_stress)
+call initialize_program_data(slip_constraint)
+call initialize_program_data(rake_constraint)
+call initialize_program_data(smoothing)
 
+! Same type of derived data variable, but not always used
+call initialize_program_data(halfspace)
+
+! Pretty obvious, but initialize program verbosity variable
+verbosity = 0
+
+! Initialize least-squares variables
+lsqr_mode = 'gels'
+stress_weight = 1.0d-9
+
+! Initialize annealing variables
+anneal_init_mode = 'mean'
+anneal_log_file = 'none'
+max_iteration = 1000
+reset_iteration = 1000000
+temp_start = 2.0d0
+temp_minimum = 0.00d0
+cooling_factor = 0.98d0
+
+return
 end
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine gcmdln()
-!----
-! Parse the command line
-!----
-use command_line
-use io
+subroutine get_command_line()
+use io_module, only: stderr, verbosity
+use variable_module, only: output_file, displacement, disp_components, prestress, &
+                           fault, slip_constraint, rake_constraint, &
+                           gf_type, gf_disp, gf_stress, &
+                           inversion_mode, damping_constant, smoothing_constant, smoothing, &
+                           coord_type, halfspace
+use lsqr_module, only: lsqr_mode, stress_weight
+use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
+                         temp_start, temp_minimum, cooling_factor
 implicit none
 ! Local variables
 integer :: i, narg
 character(len=256) :: tag
 integer :: char_index
 
-output_file = 'stdout'
-fault_file = 'none'
-displacement_file = 'none'
-prestress_file = 'none'
-halfspace_file = 'none'
-smoothing_file = 'none'
-inversion_mode = 'linear'
-slip_constraint_file = 'none'
-damping_constant = -1.0d0
-smoothing_constant = -1.0d0
-geographic = 0
-disp_comp = '123'
-rake_file = 'none'
-verbosity = 0
-
 narg = command_argument_count()
-if (narg.eq.0) call usage('')
+if (narg.eq.0) call print_usage('')
+
 i = 1
 do while (i.le.narg)
+
     call get_command_argument(i,tag)
-    if (trim(tag).eq.'-f'.or.trim(tag).eq.'--faults') then
-        i = i + 1
-        call get_command_argument(i,fault_file)
-    elseif (trim(tag).eq.'-o'.or.trim(tag).eq.'--output') then
+
+    ! Output options
+    if (trim(tag).eq.'-o') then
         i = i + 1
         call get_command_argument(i,output_file)
-    elseif (trim(tag).eq.'-d'.or.trim(tag).eq.'--displacements') then
+
+    ! Input options
+    elseif (trim(tag).eq.'-disp') then
         i = i + 1
-        call get_command_argument(i,displacement_file)
-    elseif (trim(tag).eq.'-s'.or.trim(tag).eq.'--prestresses') then
+        call get_command_argument(i,displacement%file)
+    elseif (trim(tag).eq.'-disp:components') then
         i = i + 1
-        call get_command_argument(i,prestress_file)
-    elseif (trim(tag).eq.'-h'.or.trim(tag).eq.'--halfspace') then
+        call get_command_argument(i,tag)
+        read(tag,*) disp_components
+    elseif (trim(tag).eq.'-prests') then
         i = i + 1
-        call get_command_argument(i,halfspace_file)
-    elseif (trim(tag).eq.'-m'.or.trim(tag).eq.'--mode') then
+        call get_command_argument(i,prestress%file)
+    elseif (trim(tag).eq.'-flt') then
+        i = i + 1
+        call get_command_argument(i,fault%file)
+    elseif (trim(tag).eq.'-flt:rake') then
+        i = i + 1
+        call get_command_argument(i,rake_constraint%file)
+    elseif (trim(tag).eq.'-flt:slip') then
+        i = i + 1
+        call get_command_argument(i,slip_constraint%file)
+
+    ! Green's functions options
+    elseif (trim(tag).eq.'-gf:model') then
+        i = i + 1
+        call get_command_argument(i,gf_type)
+    elseif (trim(tag).eq.'-gf:disp') then
+        i = i + 1
+        call get_command_argument(i,gf_disp%file)
+    elseif (trim(tag).eq.'-gf:stress') then
+        i = i + 1
+        call get_command_argument(i,gf_stress%file)
+
+    ! Inversion options
+    elseif (trim(tag).eq.'-mode') then
         i = i + 1
         call get_command_argument(i,inversion_mode)
-    elseif (trim(tag).eq.'--damping') then
+    elseif (trim(tag).eq.'-damp') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) damping_constant
-    elseif (trim(tag).eq.'--smoothing') then
+    elseif (trim(tag).eq.'-smooth') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) smoothing_constant
         i = i + 1
-        call get_command_argument(i,smoothing_file)
-    elseif (trim(tag).eq.'--geographic') then
-        geographic = 1
-    elseif (trim(tag).eq.'--disp_comp') then
+        call get_command_argument(i,smoothing%file)
+
+    ! Miscellaneous options
+    elseif (trim(tag).eq.'-geo') then
+        coord_type = 'geographic'
+    elseif (trim(tag).eq.'-haf') then
         i = i + 1
-        call get_command_argument(i,tag)
-        read(tag,*) disp_comp
-    elseif (trim(tag).eq.'--rake') then
-        i = i + 1
-        call get_command_argument(i,rake_file)
-    elseif (trim(tag).eq.'--slip_constraint') then
-        i = i + 1
-        call get_command_argument(i,slip_constraint_file)
-    elseif (trim(tag).eq.'-v'.or.trim(tag).eq.'--verbose') then
-        verbosity = 1
+        call get_command_argument(i,halfspace%file)
         i = i + 1
         if (i.gt.narg) then
             return
@@ -207,13 +161,56 @@ do while (i.le.narg)
             call get_command_argument(i,tag)
             char_index = index(tag,'-')
             if (char_index.eq.0) then
-                read(tag,'(BN,I10)') verbosity
+                call get_command_argument(i,halfspace%flag)
             else
                 i = i - 1
             endif
         endif
+    elseif (trim(tag).eq.'-v') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) verbosity
+
+    ! Least squares options
+    elseif (trim(tag).eq.'-lsqr:mode') then
+        i = i + 1
+        call get_command_argument(i,lsqr_mode)
+    elseif (trim(tag).eq.'-lsqr:stress_weight') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) stress_weight
+
+    ! Simulated annealing options
+    elseif (trim(tag).eq.'-anneal:init_mode') then
+        i = i + 1
+        call get_command_argument(i,anneal_init_mode)
+    elseif (trim(tag).eq.'-anneal:it_max') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) max_iteration
+    elseif (trim(tag).eq.'-anneal:it_reset') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) reset_iteration
+    elseif (trim(tag).eq.'-anneal:log_file') then
+        i = i + 1
+        call get_command_argument(i,anneal_log_file)
+    elseif (trim(tag).eq.'-anneal:temp_0') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) temp_start
+    elseif (trim(tag).eq.'-anneal:temp_min') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) temp_minimum
+    elseif (trim(tag).eq.'-anneal:cool') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) cooling_factor
+
+    ! No option
     else
-        call usage('!! Error: No option '//trim(tag))
+        call print_usage('!! Error: No option '//trim(tag))
     endif
     i = i + 1
 enddo
@@ -223,57 +220,102 @@ if (verbosity.ge.1) then
 endif
 if (verbosity.ge.2) then
     write(stderr,'("Parsed command line inputs")')
-    write(stderr,'("    output_file:        ",A)') trim(output_file)
-    write(stderr,'("    fault_file:         ",A)') trim(fault_file)
-    write(stderr,'("    displacement_file:  ",A)') trim(displacement_file)
-    write(stderr,'("    prestress_file:     ",A)') trim(prestress_file)
-    write(stderr,'("    halfspace_file:     ",A)') trim(halfspace_file)
-    write(stderr,'("    smoothing_file:     ",A)') trim(smoothing_file)
-    write(stderr,'("    inversion_mode:     ",A)') trim(inversion_mode)
-    write(stderr,'("    damping constant:   ",F20.8)') damping_constant
-    write(stderr,'("    smoothing constant: ",F20.8)') smoothing_constant
-    write(stderr,'("    geographic flag:    ",I20)') geographic
-    write(stderr,'("    disp component:     ",A)') disp_comp
-    write(stderr,'("    slip constraint:    ",A)') slip_constraint_file
-    write(stderr,'("    rake file:          ",A)') trim(rake_file)
+    write(stderr,'("    output_file:            ",A)') trim(output_file)
     write(stderr,*)
+    write(stderr,'("    displacement%file:      ",A)') trim(displacement%file)
+    write(stderr,'("    disp_components:        ",A)') trim(disp_components)
+    write(stderr,'("    prestress%file:         ",A)') trim(prestress%file)
+    write(stderr,'("    fault%file:             ",A)') trim(fault%file)
+    write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
+    write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
+    write(stderr,*)
+    write(stderr,'("    gf_type:                ",A)') trim(gf_type)
+    write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
+    write(stderr,'("    gf_stress%file:         ",A)') trim(gf_stress%file)
+    write(stderr,*)
+    write(stderr,'("    inversion_mode:         ",A)') trim(inversion_mode)
+    write(stderr,'("    damping_constant:       ",1PE14.6)') damping_constant
+    write(stderr,'("    smoothing_constant:     ",1PE14.6)') smoothing_constant
+    write(stderr,'("    smoothing_file:         ",A)') trim(smoothing%file)
+    write(stderr,*)
+    write(stderr,'("    coord_type:             ",A)') trim(coord_type)
+    write(stderr,'("    halfspace%file:         ",A)') trim(halfspace%file)
+    write(stderr,'("    halfspace%flag:         ",A)') trim(halfspace%flag)
+    write(stderr,*)
+    write(stderr,'("    lsqr_mode:              ",A)') trim(lsqr_mode)
+    write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
+    write(stderr,*)
+    write(stderr,'("    anneal_init_mode:       ",A)') trim(anneal_init_mode)
+    write(stderr,'("    max_iteration:          ",I14)') max_iteration
+    write(stderr,'("    reset_iteration:        ",I14)') reset_iteration
+    write(stderr,'("    temp_start:             ",1PE14.6)') temp_start
+    write(stderr,'("    temp_minimum:           ",1PE14.6)') temp_minimum
+    write(stderr,'("    anneal_log_file:        ",A)') trim(anneal_log_file)
+    write(stderr,'("    cooling_factor:         ",1PE14.6)') cooling_factor
 endif
 if (verbosity.ge.1) then
     write(stderr,*)
 endif
 
 return
-end
+end subroutine get_command_line
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine usage(string)
+subroutine print_usage(string)
 !----
 ! Print program usage statement and exit
 !----
-use io
+use io_module, only: stderr
 implicit none
 character(len=*) :: string
 integer :: string_length
 if (string.ne.'') then
     string_length = len(string)
-    write(stderr,*) trim(string)
-    write(stderr,*)
+    write(stderr,'(A)') trim(string)
+    write(stderr,'(A)')
 endif
-write(stderr,*) 'Usage: fltinv ...options...'
+write(stderr,'(A)') 'Usage: fltinv ...options...'
+write(stderr,'(A)')
+write(stderr,'(A)') 'Output Options'
+write(stderr,'(A)') '-o OUTPUT_FILE               Output file'
 write(stderr,*)
-write(stderr,*) '-o|--output OUTPUT_FILE'
-write(stderr,*) '-m|--mode MODE'
-write(stderr,*) '-f|--faults FAULT_FILE'
-write(stderr,*) '-d|--displacements DISP_FILE'
-write(stderr,*) '-s|--prestresses PRESTS_FILE'
-write(stderr,*) '-h|--halfspace HAFSPC_FILE'
-write(stderr,*) '--damping DAMP'
-write(stderr,*) '--smoothing SMOOTH SMOOTH_FILE'
-write(stderr,*) '--geographic'
-write(stderr,*) '--disp_comp [1][2][3]'
-write(stderr,*) '--rake RAKE'
-write(stderr,*) '--slip_constraint CONST_FILE'
-write(stderr,*) '-v|--verbose VRB_LEVEL'
+write(stderr,'(A)') 'Input Options'
+write(stderr,'(A)') '-disp DISP_FILE              Input displacements'
+write(stderr,'(A)') '-disp:components COMPNTS     Specify displacement components'
+write(stderr,'(A)') '-prests PRESTS_FILE          Input pre-stresses'
+write(stderr,'(A)') '-flt FAULT_FILE              Input faults'
+write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
+write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
+write(stderr,*)
+write(stderr,'(A)') 'Greens Functions Options'
+write(stderr,'(A)') '-gf:model MODEL              Greens functions calculation model'
+write(stderr,'(A)') '-gf:disp_file GF_DSP_FILE    Pre-computed displacement Greens'
+write(stderr,'(A)') '-gf:sts_file GF_STS_FILE     Pre-computed stress Greens functions'
+write(stderr,*)
+write(stderr,'(A)') 'Inversion Options'
+write(stderr,'(A)') '-mode INVERSION_MODE         Inversion mode'
+write(stderr,'(A)') '-damp DAMP                   Damping regularization'
+write(stderr,'(A)') '-smooth SMOOTH SMOOTH_FILE   Smoothing regularization'
+write(stderr,*)
+write(stderr,'(A)') 'Miscellaneous Options'
+write(stderr,'(A)') '-geo                         Treat input coordinates as geographic'
+write(stderr,'(A)') '-haf HALFSPACE_FILE [FLAG]   Elastic half-space parameters'
+write(stderr,'(A)') '-v LEVEL                     Program verbosity'
+write(stderr,*)
+write(stderr,'(A)') 'Least-Squares Options'
+write(stderr,'(A)') '-lsqr:mode MODE              Solver algorithm'
+write(stderr,*)
+write(stderr,'(A)') 'Simulated Annealing Options'
+write(stderr,'(A)') '-anneal:init_mode MODE       Mode to initialize solution'
+write(stderr,'(A)') '-anneal:it_max IMAX          Maximum number of iterations'
+write(stderr,'(A)') '-anneal:it_reset IRESET      Reset search every IRESET iterations'
+write(stderr,'(A)') '-anneal:log_file LOG_FILE    Log annealing progress'
+write(stderr,'(A)') '-anneal:temp_0 START_TEMP    Starting temperature'
+write(stderr,'(A)') '-anneal:temp_min MIN_TEMP    Minimum temperature'
+write(stderr,'(A)') '-anneal:cool COOL_FACT       Cooling factor'
+write(stderr,*)
+write(stderr,'(A)') 'See man page for details'
+write(stderr,*)
 stop
-end
+end subroutine print_usage
