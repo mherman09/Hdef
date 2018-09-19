@@ -40,6 +40,8 @@
       return
       END
 
+!----------------------------------------------------------------------C
+
       FUNCTION ran2(idum)
       INTEGER idum,IM1,IM2,IMM1,IA1,IA2,IQ1,IQ2,IR1,IR2,NTAB,NDIV
       REAL ran2,AM,EPS,RNMX
@@ -73,6 +75,8 @@
       ran2=min(AM*iy,RNMX)
       return
       END
+
+!----------------------------------------------------------------------C
 
       FUNCTION ran3(idum)
       INTEGER idum
@@ -126,7 +130,7 @@
       IMPLICIT none
       REAL x1,x2,y1,y2,w,ran2
       INTEGER idum
-  101 x1 = 2.0e0*ran2(idum) - 1.0e0 
+  101 x1 = 2.0e0*ran2(idum) - 1.0e0
       x2 = 2.0e0*ran2(idum) - 1.0e0
       w  = x1*x1 + x2*x2
       if (w.ge.1.0e0) goto 101
