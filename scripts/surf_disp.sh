@@ -31,8 +31,8 @@ DISP_THR="0.05" # meters
 
 function USAGE() {
 echo
-echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME] [-gps GPS_FILE] [-vecscale SCALE] [-veclbl LENGTH]"
-echo "    SRC_TYPE    Either MT (moment tensor), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
+echo "Usage: surf_disp.sh SRC_TYPE SRC_FILE [-Rw/e/s/n] [-seg] [-Tvmin/vmax/dv] [-getscript] [-novector] [-o FILENAME] [-gps GPS_FILE] [-vecscale SCALE] [-veclbl LENGTH] [-emprel EMPREL]"
+echo "    SRC_TYPE    Either MT (moment tensor), FLT (fault format), FFM (finite fault model), or FSP (SRCMOD format finite fault model)"
 echo "    SRC_FILE        Name of input file"
 echo "                      MT:  EVLO EVLA EVDP STR DIP RAK MAG"
 echo "                      FFM: finite fault model in static subfault format"
@@ -45,9 +45,11 @@ echo "    -Tvmin/vmax/dv  Define vertical color bar limits"
 echo "    -getscript      Copy surf_disp.sh to working directory"
 echo "    -novector       Do not plot horizontal vectors"
 echo "    -o FILENAME     Define basename for output file (will produce FILENAME.ps and FILENAME.pdf)"
-echo "    -gps GPS_FILE    Compare synthetic and observed displacements (GPS_FILE format: lon lat edisp ndisp zdisp)"
+echo "    -gps GPS_FILE   Compare synthetic and observed displacements (GPS_FILE format: lon lat edisp ndisp zdisp)"
+echo "    -gpssta STAFILE Compare synthetic and observed displacements (GPS_FILE format: lon lat edisp ndisp zdisp)"
 echo "    -vecscale SCALE  Scale vectors by SCALE inches (default tries to define a best scale)"
 echo "    -veclbl LENGTH   Vector in legend has length LENGTH (default tries to define best length)"
+echo "    -emprel EMPREL   Empirical relation to turn moment tensor into rect source (see man o92util"
 echo
 exit
 }
@@ -60,9 +62,9 @@ fi
 SRC_TYPE="$1"
 SRC_FILE="$2"
 # Check that source type is correct
-if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" -a $SRC_TYPE != "FSP" ]
+if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" -a $SRC_TYPE != "FSP" -a $SRC_TYPE != "FLT" ]
 then
-    echo "!! Error: source type must be FFM, FSP, or MT"
+    echo "!! Error: source type must be FFM, FSP, MT, or FLT"
     USAGE
 fi
 # Check that input file exists
@@ -79,8 +81,10 @@ GETSCRIPT="N"
 PLOT_VECT="Y"
 OFILE="surf_disp"
 GPS_FILE=""
+GPS_STA_FILE=""
 VEC_SCALE=""
 DISP_LBL=""
+EMPREL="WC"
 NN="100" # Background vertical displacement grid is (NN x NN) points
 NN_SAMP="20" # Horizontal vectors grid is (NN_SAMP x NN_SAMP) points
 shift;shift
@@ -94,10 +98,12 @@ do
         -getscript) GETSCRIPT="Y" ;;
         -o) shift;OFILE="$1" ;;
         -gps) shift;GPS_FILE="$1" ;;
+        -gpssta) shift;GPS_STA_FILE="$1" ;;
         -vecscale) shift;VEC_SCALE="$1" ;;
         -veclbl) shift;DISP_LBL="$1" ;;
         -nvert)shift;NN="$1";;
         -nvec)shift;NN_SAMP="$1";;
+        -emprel)shift;EMPREL="$1";;
         *) echo "!! Error: no option \"$1\""; USAGE;;
     esac
     shift
@@ -187,9 +193,17 @@ elif [ $SRC_TYPE == "FSP" ]
 then
     # Copy FSP to new file name
     cp $SRC_FILE ./fsp.dat
-else
+elif [ $SRC_TYPE == "MT" ]
+then
     # Copy MT to new file name
     cp $SRC_FILE ./mt.dat
+elif [ $SRC_TYPE == "FLT" ]
+then
+    # Copy FLT to new file name
+    cp $SRC_FILE ./flt.dat
+else
+    echo "!! Error: no input source type named $SRC_TYPE"
+    USAGE
 fi
 
 # Elastic half-space properties
@@ -211,8 +225,12 @@ then
     elif [ $SRC_TYPE == "FSP" ]
     then
         o92util -fsp fsp.dat -auto h $Z $D -haf haf.dat -disp disp.out > auto.dat
-    else
-        o92util -mag mt.dat -auto h $Z $D -haf haf.dat -disp disp.out -gmt rect.out > auto.dat
+    elif [ $SRC_TYPE == "MT" ]
+    then
+        o92util -mag mt.dat -auto h $Z $D -haf haf.dat -disp disp.out > auto.dat
+    elif [ $SRC_TYPE == "FLT" ]
+    then
+        o92util -flt flt.dat -auto h $Z $D -haf haf.dat -disp disp.out > auto.dat
     fi
     rm autosta.dat
     W=`grep " W: " auto.dat | awk '{print $2}'`
@@ -287,9 +305,17 @@ elif [ $SRC_TYPE == "FSP" ]
 then
     o92util -fsp fsp.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
     o92util -fsp fsp.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
+elif [ $SRC_TYPE == "MT" ]
+then
+    o92util -mag mt.dat -sta sta.dat -haf haf.dat -disp disp.out -prog -empirical ${EMPREL}p
+    o92util -mag mt.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog -empirical $EMPREL -gmt rect.out
+elif [ $SRC_TYPE == "FLT" ]
+then
+    o92util -flt flt.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
+    o92util -flt flt.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog -gmt rect.out
 else
-    o92util -mag mt.dat -sta sta.dat -haf haf.dat -disp disp.out -prog
-    o92util -mag mt.dat -sta sta_samp.dat -haf haf.dat -disp disp_samp.out -prog
+    echo !! Error: no source type named $SRC_TYPE
+    USAGE
 fi
 
 # Extract maximum vertical displacements and determine scale parameters for gridding
@@ -410,8 +436,10 @@ then
         }' disp_samp.out |\
             gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
     else
-        # Color verticval motions same as background synthetic verticals
-        awk '{print $1,$2,$5}' $GPS_FILE | gmt psxy $PROJ $LIMS -Sc0.1i -W0.5p -Cvert.cpt -K -O >> $PSFILE
+        # Color vertical motions same as background synthetic verticals
+        awk '{print $1,$2,$5}' $GPS_FILE | gmt psxy $PROJ $LIMS -Sc0.06i -W0.5p -Cvert.cpt -K -O >> $PSFILE
+        awk '{if(NF==6)print $1,$2,"4,0 LM",$6}' $GPS_FILE |\
+            gmt pstext $PROJ $LIMS -F+f+j -D0.04i/0 -K -O >> $PSFILE
         # Plot horizontal GPS displacements in black
         awk '{print $1,$2,atan2($3,$4)/0.01745,'"$VEC_SCALE"'*sqrt($3*$3+$4*$4)}' $GPS_FILE |\
             gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE
@@ -419,6 +447,10 @@ then
         awk '{print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)}' disp_samp.out |\
             gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,orange -K -O >> $PSFILE
     fi
+fi
+if [ "$GPS_STA_FILE" != "" ]
+then
+    gmt psxy $GPS_STA_FILE $PROJ $LIMS -Sc0.06i -Ggreen -W0.5p -K -O >> $PSFILE
 fi
 
 
