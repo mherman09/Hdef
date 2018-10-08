@@ -5,6 +5,7 @@
       PARAMETER (pi=4.0d0*datan(1.0d0),r2d=1.8d2/pi,radius=6371.0d0)
       REAL*8 lon1,lat1,lon2,lat2,dist,az,cmdin(4)
       CHARACTER*30 ifile,ofile
+      CHARACTER*256 iline
       INTEGER c,p,input,i
       LOGICAL ex,debug
 
@@ -76,11 +77,13 @@ C----
               endif
               open (unit=12,file=ofile,status='unknown')
           endif
-  101     read (input,*,err=991,end=102) lon1,lat1,lon2,lat2
+  101     read (input,'(A)',err=991,end=102) iline
+              read (iline,*,err=991,end=991) lon1,lat1,lon2,lat2
               if (debug) then
                   write(0,*) 'Read line: ',lon1,lat1,lon2,lat2
               endif
               if (dabs(lat1).gt.90.0d0.or.dabs(lat2).gt.90.0d0) then
+                  write(0,*) 'Offending line: ',trim(iline)
                   call errmes('!! Error: latitude is greater than 90')
               endif
               call ddistaz(dist,az,lon1,lat1,lon2,lat2)
@@ -106,7 +109,8 @@ C----
       endif
 
       goto 1000
-  991 call errmes('!! Error: problem with reading input (lon1 lat1 '//
+  991 write(0,*) 'Offending line: ',trim(iline)
+      call errmes('!! Error: problem with reading input (lon1 lat1 '//
      1                                                     'lon2 lat2)')
  8889 format(2F20.8)
  9999 format(2F20.8)
