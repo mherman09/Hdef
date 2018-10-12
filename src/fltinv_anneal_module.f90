@@ -53,7 +53,7 @@ contains
 
     subroutine initialize_annealing()
     use io_module, only: stderr, verbosity
-    use variable_module, only: fault, slip_constraint, rake_constraint
+    use variable_module, only: inversion_mode, fault, slip_constraint, rake_constraint
     implicit none
     ! Local variables
     integer :: i
@@ -81,71 +81,79 @@ contains
         endif
     endif
 
-    ! Make sure rake_constraint%array is defined (bounds for rake angle values)
-    if (rake_constraint%file.eq.'none') then
-        call print_usage('!! Error: a rake constraint file is required for simulated annealing')
-    else
-        if (rake_constraint%nrecords.eq.1) then
-            tmparray = rake_constraint%array
-            deallocate(rake_constraint%array)
-            allocate(rake_constraint%array(fault%nrecords,2))
-            do i = 1,fault%nrecords
-                rake_constraint%array(i,1) = tmparray(1,1)
-                rake_constraint%array(i,2) = tmparray(1,2)
-            enddo
+    if (inversion_mode.eq.'anneal') then
+        ! Make sure rake_constraint%array is defined (bounds for rake angle values)
+        if (rake_constraint%file.eq.'none') then
+            call print_usage('!! Error: a rake constraint file is required for simulated annealing')
+        else
+            if (rake_constraint%nrecords.eq.1) then
+                tmparray = rake_constraint%array
+                deallocate(rake_constraint%array)
+                allocate(rake_constraint%array(fault%nrecords,2))
+                do i = 1,fault%nrecords
+                    rake_constraint%array(i,1) = tmparray(1,1)
+                    rake_constraint%array(i,2) = tmparray(1,2)
+                enddo
+            endif
         endif
     endif
 
     ! Initialize the random number generator
     idum = -timeseed()
 
-    ! Allocate memory to the fault slip and rake arrays
-    allocate(slip_0(fault%nrecords))
-    allocate(slip_new(fault%nrecords))
-    allocate(slip_best(fault%nrecords))
-    allocate(dslip(fault%nrecords))
-    allocate(dslip_init(fault%nrecords))
-    allocate(rake_0(fault%nrecords))
-    allocate(rake_new(fault%nrecords))
-    allocate(rake_best(fault%nrecords))
-    allocate(drake(fault%nrecords))
-    allocate(drake_init(fault%nrecords))
+    if (inversion_mode.eq.'anneal') then
+        ! Allocate memory to the fault slip and rake arrays
+        allocate(slip_0(fault%nrecords))
+        allocate(slip_new(fault%nrecords))
+        allocate(slip_best(fault%nrecords))
+        allocate(dslip(fault%nrecords))
+        allocate(dslip_init(fault%nrecords))
+        allocate(rake_0(fault%nrecords))
+        allocate(rake_new(fault%nrecords))
+        allocate(rake_best(fault%nrecords))
+        allocate(drake(fault%nrecords))
+        allocate(drake_init(fault%nrecords))
 
-    ! Initialize the fault slip solution
-    if (anneal_init_mode.eq.'zero') then
-        slip_0 = 0.0d0
-        rake_0 = 0.0d0
-    elseif (anneal_init_mode.eq.'mean') then
+        ! Initialize the fault slip solution
+        if (anneal_init_mode.eq.'zero') then
+            slip_0 = 0.0d0
+            rake_0 = 0.0d0
+        elseif (anneal_init_mode.eq.'mean') then
+            do i = 1,fault%nrecords
+                slip_0(i) = 0.5d0*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
+                                     slip_constraint%array(i,1)
+                rake_0(i) = 0.5d0*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
+                                     rake_constraint%array(i,1)
+            enddo
+        elseif (anneal_init_mode.eq.'rand'.or.anneal_init_mode.eq.'random') then
+            do i = 1,fault%nrecords
+                slip_0(i) = ran2(idum)*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
+                                     slip_constraint%array(i,1)
+                rake_0(i) = ran2(idum)*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
+                                     rake_constraint%array(i,1)
+            enddo
+        ! elseif (anneal_init_mode.eq.'uniform') then
+        !     ! same slip on all faults
+        else
+            call print_usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
+        endif
+
+        ! Set the first model to be the best model initially
+        slip_best = slip_0
+        rake_best = rake_0
+
+        ! Initialize step sizes for slip magnitude and rake angle
         do i = 1,fault%nrecords
-            slip_0(i) = 0.5d0*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
-                                 slip_constraint%array(i,1)
-            rake_0(i) = 0.5d0*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
-                                 rake_constraint%array(i,1)
+            dslip(i) = (slip_constraint%array(i,2)-slip_constraint%array(i,1))/20.0d0
+            drake(i) = (rake_constraint%array(i,2)-rake_constraint%array(i,1))/12.0d0
         enddo
-    elseif (anneal_init_mode.eq.'rand'.or.anneal_init_mode.eq.'random') then
-        do i = 1,fault%nrecords
-            slip_0(i) = ran2(idum)*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
-                                 slip_constraint%array(i,1)
-            rake_0(i) = ran2(idum)*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
-                                 rake_constraint%array(i,1)
-        enddo
-    ! elseif (anneal_init_mode.eq.'uniform') then
-    !     ! same slip on all faults
+        dslip_init = dslip
+        drake_init = drake
+    elseif (inversion_mode.eq.'anneal-psc') then
+        ! Initialize variables
     else
-        call print_usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
+        call print_usage('!! Error: no working inversion mode named '//trim(inversion_mode))
     endif
-
-    ! Set the first model to be the best model initially
-    slip_best = slip_0
-    rake_best = rake_0
-
-    ! Initialize step sizes for slip magnitude and rake angle
-    do i = 1,fault%nrecords
-        dslip(i) = (slip_constraint%array(i,2)-slip_constraint%array(i,1))/20.0d0
-        drake(i) = (rake_constraint%array(i,2)-rake_constraint%array(i,1))/12.0d0
-    enddo
-    dslip_init = dslip
-    drake_init = drake
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'initialize_annealing says: finished'
@@ -159,7 +167,7 @@ contains
 
     subroutine run_annealing_search()
     use io_module, only: stderr, verbosity
-    use variable_module, only: fault, slip_constraint, rake_constraint
+    use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight
     implicit none
     ! Local variables
     integer :: i, j, nflt, last_obj_best
@@ -178,7 +186,7 @@ contains
         slip_ssds(j,1) = slip_0(j)*dcos(rake_0(j)*d2r)
         slip_ssds(j,2) = slip_0(j)*dsin(rake_0(j)*d2r)
     enddo
-    obj_0 = misfit(slip_ssds) + shear_stress(slip_ssds)
+    obj_0 = misfit(slip_ssds) + stress_weight*shear_stress(slip_ssds)
     obj_best = obj_0
     last_obj_best = 0
 
@@ -235,7 +243,7 @@ contains
         enddo
 
         ! Compute misfit for new model, save if the best model
-        obj_new = misfit(slip_ssds) + shear_stress(slip_ssds)
+        obj_new = misfit(slip_ssds) + stress_weight*shear_stress(slip_ssds)
         ! write(0,*) 'misfit:',misfit(slip_ssds),' shear_stress:',shear_stress(slip_ssds)
         if (obj_new.lt.obj_best) then
             slip_best = slip_new
@@ -324,7 +332,7 @@ contains
 
     misfit = 0.0d0
 
-    if (displacement%file.eq.'none') then
+    if (displacement%file.eq.'none'.and.displacement%flag.ne.'misfit') then
         return
     endif
 
@@ -397,5 +405,240 @@ contains
 
     return
     end function shear_stress
+
+!--------------------------------------------------------------------------------------------------!
+
+    subroutine invert_anneal_pseudocoupling()
+    use io_module, only: verbosity, stderr
+    use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip
+    use lsqr_module, only: invert_lsqr
+    implicit none
+    integer :: isFaultLocked(fault%nrecords), randFaultList(fault%nrecords)
+    double precision :: slip_save(fault%nrecords,2)
+    double precision :: fault_slip_0(fault%nrecords,2), fault_slip_best(fault%nrecords,2)
+    integer :: nlocked, nunlocked, nswitchmax
+    double precision :: temp, obj_0, obj_new, obj_best, p_trans
+    integer :: i, j, k, ktmp, vrb_save
+    real, external :: ran2
+    logical :: do_inversion
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'invert_anneal_pseudocoupling says: starting'
+    endif
+
+    ! Initialize random number generator and slip_constraint%array values
+    call initialize_annealing()
+    slip_save = slip_constraint%array
+    slip_constraint%array = 99999.0d0
+
+    ! We do not want to fit displacements with lsqr_invert(), so indicate in file name
+    ! However, we want to calculate misfit during annealing process, so indicate with flag
+    displacement%file = 'none'
+    displacement%flag = 'misfit'
+
+    ! Even though pre-stresses are not being inverted for in this mode, to find pseudo-coupling
+    ! slip in lsqr_invert() we need to activate this data structure.
+    if (prestress%file.eq.'none') then
+        prestress%file = 'zero'
+    endif
+    if (.not.allocated(prestress%array)) then
+        allocate(prestress%array(fault%nrecords,2))
+    endif
+    prestress%array = 0.0d0
+
+    ! Initialize fault list in order
+    do i = 1,fault%nrecords
+        randFaultList(i) = i
+    enddo
+
+    ! Can switch up to this many faults
+    nswitchmax = fault%nrecords/10
+    if (nswitchmax.lt.1) then
+        nswitchmax = 1
+    endif
+    ! write(0,*) 'nswitchmax',nswitchmax
+
+    ! Initialize all faults as freely sliding
+    isFaultLocked = 0
+
+    ! Initialize solution array
+    if (.not.allocated(fault_slip)) then
+        allocate(fault_slip(fault%nrecords,2))
+    endif
+
+    ! Compute initial fault slip solution, save results
+    vrb_save = verbosity
+    if (verbosity.lt.4) then
+        verbosity = 0
+    endif
+    call invert_lsqr()
+    verbosity = vrb_save
+
+    fault_slip_0 = fault_slip
+    fault_slip_best = fault_slip
+    obj_0 = misfit(fault_slip)
+    obj_best = obj_0
+
+    ! Initialize starting temperature
+    if (temp_start.lt.0.0d0) then
+        temp_start = -temp_start
+        temp = temp_start
+    else
+        temp = temp_start*obj_0
+        temp_start = temp
+    endif
+
+    ! Set minimum temperature
+    if (temp_minimum.lt.0.0d0) then
+        temp_minimum = -temp_minimum
+    else
+        temp_minimum = temp_minimum*obj_0
+    endif
+
+    ! Write initial solution to log file
+    if (anneal_log_file.ne.'none') then
+        open(unit=201,file=anneal_log_file,status='unknown')
+        write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',0,'Temperature: ',temp,&
+                                                 'Objective: ',obj_0
+        do j = 1,fault%nrecords
+            write(201,'(1P2E14.6)') fault_slip(j,1),fault_slip(j,2)
+        enddo
+    endif
+
+    ! Run annealing search for distribution of locked patches
+    do i = 1,max_iteration
+
+        if (verbosity.ge.2) then
+            write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: working on iteration',i
+        endif
+
+        ! Randomize fault list by switching each entry with a random entry
+        do j = 1,fault%nrecords
+            k = int(ran2(idum)*fault%nrecords)+1
+            if (k.lt.1) then
+                k = 1
+            elseif (k.gt.fault%nrecords) then
+                k = fault%nrecords
+            endif
+            ktmp = randFaultList(k)
+            randFaultList(k) = randFaultList(j)
+            randFaultList(j) = ktmp
+        enddo
+
+        ! Flip up to 10% of faults from locked->unlocked or vice versa
+        nlocked = 0
+        nunlocked = 0
+        do j = 1,fault%nrecords
+            if (ran2(idum).gt.0.5d0) then
+                if (isFaultLocked(randFaultList(j)).eq.1) then
+                    if (nunlocked.lt.nswitchmax) then
+                        isFaultLocked(randFaultList(j)) = 0
+                    endif
+                    nunlocked = nunlocked + 1
+                else
+                    if (nlocked.lt.nswitchmax) then
+                        isFaultLocked(randFaultList(j)) = 1
+                    endif
+                    nlocked = nlocked + 1
+                endif
+            endif
+        enddo
+        if (verbosity.ge.3) then
+            write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: locked faults are:'
+            do j = 1,fault%nrecords
+                write(stderr,'(A,I6,I6)') 'Fault: ',j,isFaultLocked(j)
+            enddo
+        endif
+
+        ! Slip constraints applied to locked faults
+        do j = 1,fault%nrecords
+            if (isFaultLocked(j).eq.0) then
+                slip_constraint%array(j,1) = 99999.0d0
+                slip_constraint%array(j,2) = 99999.0d0
+            else
+                slip_constraint%array(j,1) = slip_save(j,1)
+                slip_constraint%array(j,2) = slip_save(j,2)
+            endif
+        enddo
+
+        ! Pre-stresses are zero at start of calculation
+        prestress%array = 0.0d0
+
+        ! Calculate other subfault slip
+        do_inversion = .false.
+        do j = 1,fault%nrecords
+            if (slip_constraint%array(j,1).gt.99998.0d0) then
+                do_inversion = .true.
+                exit
+            endif
+        enddo
+        if (do_inversion) then
+            vrb_save = verbosity
+            if (verbosity.lt.4) then
+                verbosity = 0
+            endif
+            call invert_lsqr()
+            verbosity = vrb_save
+        else
+            fault_slip = 0.0d0
+        endif
+
+        ! Calculate misfit
+        obj_new = misfit(fault_slip)
+        if (obj_new.lt.obj_best) then
+            fault_slip_best = fault_slip
+            obj_best = obj_new
+        endif
+
+        ! Compute transition probability
+        !     (obj_new < obj_0) => always transition to better model
+        !     (obj_new > obj_0) => transition with p = exp(-dE/T)
+        p_trans = dexp((obj_0-obj_new)/temp)
+
+        ! If the transition is made because of better fit or chance,
+        ! update the current model (slip_0) with the proposed model (slip_new)
+        if (ran2(idum).lt.p_trans) then
+            fault_slip_0 = fault_slip
+            obj_0 = obj_new
+            if (verbosity.ge.3) then
+                write(stderr,'(A,1P1E14.6)') 'Current solution, misfit=',misfit(fault_slip_0)
+                do j = 1,fault%nrecords
+                    write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
+                enddo
+            endif
+            if (anneal_log_file.ne.'none') then
+                write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
+                                                 'Objective: ',obj_0
+                do j = 1,fault%nrecords
+                    write(201,'(1P2E14.6)') fault_slip_0(j,1),fault_slip_0(j,2)
+                enddo
+            endif
+        endif
+
+        ! Reduce temperature by cooling factor
+        if (temp.lt.temp_minimum) then
+            temp = temp_minimum
+        else
+            temp = temp*cooling_factor
+        endif
+
+        if (mod(i,reset_iteration).eq.0) then
+            temp = temp_start
+            slip_0 = slip_best
+            rake_0 = rake_best
+            obj_0 = obj_best
+            dslip = dslip_init
+            drake = drake_init
+        endif
+    enddo
+    fault_slip = fault_slip_best
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'invert_anneal_pseudocoupling says: finished'
+        write(stderr,*)
+    endif
+
+    return
+    end subroutine invert_anneal_pseudocoupling
 
 end module anneal_module
