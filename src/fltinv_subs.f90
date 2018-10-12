@@ -7,12 +7,13 @@ use variable_module, only: inversion_mode, &
                            displacement, prestress, fault, &
                            gf_type, gf_disp, gf_stress, &
                            smoothing, rake_constraint, slip_constraint, &
-                           halfspace
+                           halfspace, coord_type
 use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
 implicit none
 ! Local variables
 integer :: i
 double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3)
+double precision :: reflon, reflat, dist, az
 
 if (verbosity.ge.1) then
     write(stderr,'(A)') 'read_fltinv_inputs says: starting'
@@ -59,6 +60,26 @@ else
 
     ! Read the fault data
     call read_program_data_file(fault)
+endif
+
+! Make coordinates Cartesian
+if (coord_type.eq.'geographic') then
+    reflon = fault%array(1,1)
+    reflat = fault%array(1,2)
+    do i = 1,fault%nrecords
+        call ddistaz(dist,az,reflon,reflat,fault%array(i,1),fault%array(i,2))
+        dist = dist*6.371d6
+        fault%array(i,1) = dist*dsin(az)
+        fault%array(i,2) = dist*dcos(az)
+    enddo
+    if (displacement%file.ne.'none') then
+        do i = 1,displacement%nrecords
+            call ddistaz(dist,az,reflon,reflat,displacement%array(i,1),displacement%array(i,2))
+            dist = dist*6.371d6
+            displacement%array(i,1) = dist*dsin(az)
+            displacement%array(i,2) = dist*dcos(az)
+        enddo
+    endif
 endif
 
 ! If pre-stresses are defined, calculate the shear stresses on the faults
@@ -132,6 +153,14 @@ if (prestress%file.ne.'none') then
         endif
         allocate(gf_stress%array(gf_stress%nrecords,gf_stress%nfields))
     endif
+endif
+if (inversion_mode.eq.'anneal-psc') then
+    gf_stress%nfields = 2*fault%nrecords
+    gf_stress%nrecords = 2*fault%nrecords
+    if (allocated(gf_stress%array)) then
+        deallocate(gf_stress%array)
+    endif
+    allocate(gf_stress%array(gf_stress%nrecords,gf_stress%nfields))
 endif
 
 !----
@@ -280,7 +309,7 @@ end subroutine read_smoothing_neighbors
 
 subroutine calc_greens_functions()
 use io_module, only: stderr, verbosity
-use variable_module, only: displacement, prestress, gf_type, gf_disp, gf_stress
+use variable_module, only: inversion_mode, displacement, prestress, gf_type, gf_disp, gf_stress
 use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect
 implicit none
 
@@ -301,7 +330,7 @@ if (displacement%file.ne.'none') then
 endif
 
 ! Stress Green's functions
-if (prestress%file.ne.'none') then
+if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
     ! Stress Green's functions need o be calculated
     if (gf_stress%file.eq.'none') then
         if (gf_type.eq.'okada_rect') then
@@ -326,7 +355,7 @@ subroutine run_inversion()
 use io_module, only: stderr, verbosity
 use variable_module, only: inversion_mode
 use lsqr_module, only: invert_lsqr
-use anneal_module, only: invert_anneal
+use anneal_module, only: invert_anneal, invert_anneal_pseudocoupling
 implicit none
 
 if (verbosity.ge.1) then
@@ -337,6 +366,8 @@ if (inversion_mode.eq.'lsqr') then
     call invert_lsqr()
 elseif (inversion_mode.eq.'anneal') then
     call invert_anneal()
+elseif (inversion_mode.eq.'anneal-psc') then
+    call invert_anneal_pseudocoupling()
 else
     call print_usage('!! Error: no inversion mode named '//trim(inversion_mode))
 endif
@@ -353,12 +384,34 @@ end subroutine run_inversion
 
 subroutine write_solution()
 use io_module, only: stdout
-use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint
+use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint, &
+                           disp_misfit_file
+use anneal_module, only: misfit
 implicit none
 ! Local variables
 integer :: i, ounit
-double precision :: slip_mag
+double precision :: slip_mag, tmp_slip_array(fault%nrecords,2)
 
+! Print misfit if specified
+if (disp_misfit_file.ne.'none') then
+    open(unit=81,file=disp_misfit_file,status='unknown')
+
+    ! If rake is constrained, make an array of the correct size to use with misfit function
+    if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none') then
+        do i = 1,fault%nrecords
+            tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
+            tmp_slip_array(i,2) = 0.0d0
+        enddo
+        write(81,*) misfit(tmp_slip_array)
+
+    ! Otherwise, just use the misfit function directly
+    else
+        write(81,*) misfit(fault_slip)
+    endif
+    close(81)
+endif
+
+! Print fault slip solution
 if (output_file.eq.'stdout') then
     ounit = stdout
 else
@@ -391,6 +444,14 @@ do i = 1,fault%nrecords
         else
             write(ounit,5001) fault_slip(i,1), fault_slip(i,2)
         endif
+
+    elseif (inversion_mode.eq.'anneal-psc') then
+        if (slip_mag.lt.1.0d3) then
+            write(ounit,5011) fault_slip(i,1), fault_slip(i,2)
+        else
+            write(ounit,5001) fault_slip(i,1), fault_slip(i,2)
+        endif
+
     else
         call print_usage('!! Error: frankly, I do not know how you got this far using an '//&
                          'inversion mode that does not seem to exist...')
