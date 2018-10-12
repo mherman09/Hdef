@@ -17,12 +17,12 @@ end program main
 
 subroutine initialize_fltinv_variables()
 use io_module, only: verbosity, initialize_program_data
-use variable_module, only: output_file, displacement, disp_components, prestress, &
+use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace
-use lsqr_module, only: lsqr_mode, stress_weight
+                           coord_type, halfspace, disp_misfit_file
+use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
 implicit none
@@ -33,6 +33,7 @@ inversion_mode = 'lsqr'
 gf_type = 'okada_rect'
 coord_type = 'cartesian'
 disp_components = '123'
+disp_misfit_file = 'none'
 
 ! Initialize regularization variables
 damping_constant = -1.0d0
@@ -74,12 +75,12 @@ end
 
 subroutine get_command_line()
 use io_module, only: stderr, verbosity
-use variable_module, only: output_file, displacement, disp_components, prestress, &
+use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace
-use lsqr_module, only: lsqr_mode, stress_weight
+                           coord_type, halfspace, disp_misfit_file
+use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
 implicit none
@@ -96,8 +97,13 @@ do while (i.le.narg)
 
     call get_command_argument(i,tag)
 
+    ! Inversion mode
+    if (trim(tag).eq.'-mode') then
+        i = i + 1
+        call get_command_argument(i,inversion_mode)
+
     ! Output options
-    if (trim(tag).eq.'-o') then
+    elseif (trim(tag).eq.'-o') then
         i = i + 1
         call get_command_argument(i,output_file)
 
@@ -109,9 +115,16 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) disp_components
+    elseif (trim(tag).eq.'-disp:misfit') then
+        i = i + 1
+        call get_command_argument(i,disp_misfit_file)
     elseif (trim(tag).eq.'-prests') then
         i = i + 1
         call get_command_argument(i,prestress%file)
+    elseif (trim(tag).eq.'-prests:weight') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) stress_weight
     elseif (trim(tag).eq.'-flt') then
         i = i + 1
         call get_command_argument(i,fault%file)
@@ -134,9 +147,6 @@ do while (i.le.narg)
         call get_command_argument(i,gf_stress%file)
 
     ! Inversion options
-    elseif (trim(tag).eq.'-mode') then
-        i = i + 1
-        call get_command_argument(i,inversion_mode)
     elseif (trim(tag).eq.'-damp') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -175,10 +185,6 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-lsqr:mode') then
         i = i + 1
         call get_command_argument(i,lsqr_mode)
-    elseif (trim(tag).eq.'-lsqr:stress_weight') then
-        i = i + 1
-        call get_command_argument(i,tag)
-        read(tag,*) stress_weight
 
     ! Simulated annealing options
     elseif (trim(tag).eq.'-anneal:init_mode') then
@@ -220,11 +226,15 @@ if (verbosity.ge.1) then
 endif
 if (verbosity.ge.2) then
     write(stderr,'("Parsed command line inputs")')
+    write(stderr,'("    inversion_mode:         ",A)') trim(inversion_mode)
+    write(stderr,*)
     write(stderr,'("    output_file:            ",A)') trim(output_file)
     write(stderr,*)
     write(stderr,'("    displacement%file:      ",A)') trim(displacement%file)
     write(stderr,'("    disp_components:        ",A)') trim(disp_components)
+    write(stderr,'("    disp_misfit_file:       ",A)') trim(disp_misfit_file)
     write(stderr,'("    prestress%file:         ",A)') trim(prestress%file)
+    write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
     write(stderr,'("    fault%file:             ",A)') trim(fault%file)
     write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
     write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
@@ -233,7 +243,6 @@ if (verbosity.ge.2) then
     write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
     write(stderr,'("    gf_stress%file:         ",A)') trim(gf_stress%file)
     write(stderr,*)
-    write(stderr,'("    inversion_mode:         ",A)') trim(inversion_mode)
     write(stderr,'("    damping_constant:       ",1PE14.6)') damping_constant
     write(stderr,'("    smoothing_constant:     ",1PE14.6)') smoothing_constant
     write(stderr,'("    smoothing_file:         ",A)') trim(smoothing%file)
@@ -243,7 +252,6 @@ if (verbosity.ge.2) then
     write(stderr,'("    halfspace%flag:         ",A)') trim(halfspace%flag)
     write(stderr,*)
     write(stderr,'("    lsqr_mode:              ",A)') trim(lsqr_mode)
-    write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
     write(stderr,*)
     write(stderr,'("    anneal_init_mode:       ",A)') trim(anneal_init_mode)
     write(stderr,'("    max_iteration:          ",I14)') max_iteration
@@ -277,13 +285,17 @@ if (string.ne.'') then
 endif
 write(stderr,'(A)') 'Usage: fltinv ...options...'
 write(stderr,'(A)')
+write(stderr,'(A)') '-mode INVERSION_MODE         Inversion mode'
+write(stderr,*)
 write(stderr,'(A)') 'Output Options'
 write(stderr,'(A)') '-o OUTPUT_FILE               Output file'
 write(stderr,*)
 write(stderr,'(A)') 'Input Options'
 write(stderr,'(A)') '-disp DISP_FILE              Input displacements'
 write(stderr,'(A)') '-disp:components COMPNTS     Specify displacement components'
+write(stderr,'(A)') '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
 write(stderr,'(A)') '-prests PRESTS_FILE          Input pre-stresses'
+write(stderr,'(A)') '-prests:weight WEIGHT        Stress weighting factor'
 write(stderr,'(A)') '-flt FAULT_FILE              Input faults'
 write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
 write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
@@ -294,7 +306,6 @@ write(stderr,'(A)') '-gf:disp_file GF_DSP_FILE    Pre-computed displacement Gree
 write(stderr,'(A)') '-gf:sts_file GF_STS_FILE     Pre-computed stress Greens functions'
 write(stderr,*)
 write(stderr,'(A)') 'Inversion Options'
-write(stderr,'(A)') '-mode INVERSION_MODE         Inversion mode'
 write(stderr,'(A)') '-damp DAMP                   Damping regularization'
 write(stderr,'(A)') '-smooth SMOOTH SMOOTH_FILE   Smoothing regularization'
 write(stderr,*)
