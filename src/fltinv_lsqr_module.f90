@@ -9,7 +9,6 @@ module lsqr_module
     integer :: ptr_damp
     integer :: ptr_smooth
     character(len=8) :: lsqr_mode
-    double precision :: stress_weight
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -219,6 +218,14 @@ contains
         call load_slip_constraints()
     endif
 
+    if (nrows.eq.0) then
+        call print_usage('!! Error: no rows in least-squares matrix')
+    endif
+
+    if (ncols.eq.0) then
+        call print_usage('!! Error: no columns in least-squares matrix')
+    endif
+
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'load_arrays says: finished'
     endif
@@ -350,7 +357,7 @@ contains
 
     subroutine load_prestresses()
     use io_module, only: stderr, verbosity
-    use variable_module, only : fault, prestress, rake_constraint, gf_stress
+    use variable_module, only : fault, prestress, rake_constraint, gf_stress, stress_weight
     implicit none
     ! Local variables
     integer :: i, j, nflt
@@ -493,17 +500,45 @@ contains
     implicit none
     ! Local variables
     integer :: i, j, n, dn, ndsp, nflt, nsmo
+    integer :: cols2delete(ncols), rows2delete(nrows)
+    character(len=256) :: fmt
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') "load_slip_constraints says: starting"
     endif
 
+    if (verbosity.ge.3) then
+        write(stderr,'(A)') 'load_arrays says: arrays before modifying topology'
+        write(stderr,'("A =")')
+        write(fmt,9001) ncols
+        do i = 1,nrows
+            if (i.eq.ptr_disp) write(stderr,'("displacements")')
+            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stderr,'("damping")')
+            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
+            write(0,fmt) (A(i,j),j=1,ncols)
+        enddo
+        write(stderr,*)
+        write(stderr,'("b =")')
+        do i = 1,nrows
+            if (i.eq.ptr_disp) write(stderr,'("displacements")')
+            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stderr,'("damping")')
+            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
+            write(stderr,'(1PE12.4)') b(i,1)
+        enddo
+        write(stderr,*)
+    endif
+    9001 format('(1P',I3,'E12.4)')
+
     nflt = fault%nrecords
     ndsp = displacement%nrecords
     nsmo = smoothing%nrecords
+    rows2delete = 0
+    cols2delete = 0
 
-    ! Move contribution from constrained fault segments to observation side of equation (do not
-    ! renumber yet.....will do that later in subroutine)
+    ! Move contribution from constrained fault segments to observation side of equation
+    ! (do not renumber yet.....will do that later in subroutine)
     do i = 1,nflt
         ! Is the strike-slip (or constant rake) component of this fault constrained?
         if (dabs(slip_constraint%array(i,1)).lt.99998.0d0) then
@@ -519,10 +554,20 @@ contains
 
             ! Move stresses corresponding to this slip component to b vector
             if (prestress%file.ne.'none') then
+                ! Strike-parallel or constant rake-parallel shear tractions
                 do j = 1,nflt
                     b(ptr_stress+j-1,1) = b(ptr_stress+j-1,1) &
                                             - A(ptr_stress+j-1,i)*slip_constraint%array(i,1)
                 enddo
+
+                ! Dip-parallel shear tractions
+                if (rake_constraint%file.eq.'none') then
+                    do j = 1,nflt
+                        b(ptr_stress+nflt+j-1,1) = b(ptr_stress+nflt+j-1,1) &
+                                            - A(ptr_stress+nflt+j-1,i)*slip_constraint%array(i,1)
+                    enddo
+                endif
+                rows2delete(ptr_stress+i-1) = 1
             endif
 
             ! Move smoothing corresponding to this slip component to b vector
@@ -533,8 +578,8 @@ contains
                 enddo
             endif
 
-            ! Indicate this column has been adjusted by making first entry ridiculous
-            A(1,i) = -1.0d10
+            ! Indicate this column has been adjusted by changing cols2delete
+            cols2delete(i) = 1
         endif
 
         ! Is the dip-slip component of this fault constrained?
@@ -554,9 +599,12 @@ contains
             ! Move stresses corresponding to this slip component to b vector
             if (prestress%file.ne.'none') then
                 do j = 1,nflt
+                    b(ptr_stress+j-1,1) = b(ptr_stress+j-1,1) &
+                                            - A(ptr_stress+j-1,i+nflt)*slip_constraint%array(i,2)
                     b(ptr_stress+nflt+j-1,1) = b(ptr_stress+nflt+j-1,1) &
-                                     - A(ptr_stress+nflt+j-1,i)*slip_constraint%array(i,2)
+                                     - A(ptr_stress+nflt+j-1,i+nflt)*slip_constraint%array(i,2)
                 enddo
+                rows2delete(ptr_stress+i+nflt-1) = 1
             endif
 
             ! Move smoothing corresponding to this slip component to b vector
@@ -568,33 +616,56 @@ contains
             endif
 
             ! Indicate this column has been adjusted by making first entry ridiculous
-            A(1,i+nflt) = -1.0d10
+            cols2delete(i+nflt) = 1
         endif
     enddo
 
     ! Renumber columns of arrays
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'load_slip_constraints says: renumbering matrix columns'
+        write(stderr,'(A,I10)') '    ncols=',ncols
     endif
-
-    ! start a counter for number of shifted columns
+    ! Start counters for existing columns and number of shifted columns
+    j = 0
     n = 0
-
     do i = 1,ncols
-        ! For each column, check if this slip value has been fixed
-        if (A(1,i).lt.-1.0d9) then
-            ! If so, shift all columns to the right of selected column down by one entry
-            if (i.lt.ncols) then
-                do j = i,ncols-1
-                    A(:,j) = A(:,j+1)
-                enddo
-                ! Set the last column to 0 so it will not be double-counted
-                A(1,ncols-n) = 0.0d0
-            endif
+        ! If this slip value has not been fixed, then add it to the modified array
+        if (cols2delete(i).eq.0) then
+            j = j + 1
+            A(:,j) = A(:,i)
+        else
             n = n + 1
         endif
     enddo
     ncols = ncols - n
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'load_slip_constraints says: new number of columns:'
+        write(stderr,'(A,I10)') '    ncols=',ncols
+    endif
+
+    ! Renumber rows of arrays
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'load_slip_constraints says: renumbering matrix rows'
+        write(stderr,'(A,I10)') '    nrows=',nrows
+    endif
+    ! Start counters for existing rows and number of shifted rows
+    j = 0
+    n = 0
+    do i = 1,nrows
+        ! If this row is retained, add it to the modified array
+        if (rows2delete(i).eq.0) then
+            j = j + 1
+            A(j,:) = A(i,:)
+            b(j,:) = b(i,:)
+        else
+            n = n + 1
+        endif
+    enddo
+    nrows = nrows - n
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'load_slip_constraints says: new number of rows:'
+        write(stderr,'(A,I10)') '    nrows=',nrows
+    endif
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') "load_slip_constraints says: finished"
@@ -704,12 +775,22 @@ contains
     integer :: nrhs
     integer :: lwork, info
     character(len=1) :: trans
-    double precision :: work(100000)
+    double precision, allocatable :: work(:)
     double precision :: btmp(nrows,1)
+    double precision :: alocal(nrows,ncols), blocal(nrows,1)
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'lsqr_solve_dgels says: starting'
     endif
+
+    ! Use local arrays of correct size for inversion
+    alocal = a(1:nrows,1:ncols)
+    blocal = b(1:nrows,1:1)
+
+    ! Copy displacement vector, b to btmp because it is replaced in dgels
+    do i = 1,nrows
+        btmp(i,1) = blocal(i,1)
+    enddo
 
     nrhs = 1
     trans = 'N'      ! A has form (nrows x ncols), i.e. not transposed
@@ -719,20 +800,21 @@ contains
     ldb = max(m,n)   ! Leading dimension of b;  ldb >= max(1,m,n)
 
     ! Compute optimal workspace for least squares problem
+    if (.not.allocated(work)) then
+        allocate(work(1))
+    endif
     lwork = -1
-    call dgels(trans,m,n,nrhs,A,lda,b,ldb,work,lwork,info)
+    call dgels(trans,m,n,nrhs,Alocal,lda,blocal,ldb,work,lwork,info)
     lwork = int(work(1))
-
-    ! Copy displacement vector, b to btmp because it is replaced in dgels
-    do i = 1,nrows
-        btmp(i,1) = b(i,1)
-    enddo
+    if (verbosity.ge.2) then
+        write(stderr,'(A,I10)') 'lsqr_solve_dgels says: lwork=',lwork
+    endif
+    deallocate(work)
+    allocate(work(lwork))
 
     ! Solve least squares problem for x
-    call dgels(trans,m,n,nrhs,a,lda,btmp,ldb,work,lwork,info)
-    ! do i = 1,nrows
-    !     write(0,*) (A(i,j),j=1,ncols)
-    ! enddo
+    call dgels(trans,m,n,nrhs,alocal,lda,btmp,ldb,work,lwork,info)
+    deallocate(work)
 
     ! Put solution into x
     do i = 1,ncols
