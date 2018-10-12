@@ -128,11 +128,12 @@ contains
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
-    integer :: i, j
+    integer :: i, j, prog
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'calc_gf_stress_okada_rect says: starting'
     endif
+    prog = 0
 
     ! Unit slip for GF computation
     slip = 1.0d0
@@ -144,6 +145,13 @@ contains
 
     ! Shear stress Green's functions for each fault-fault pair
     do i = 1,fault%nrecords
+        if (i.gt.prog) then
+            if (verbosity.ge.2) then
+                write(0,'(A,I3,A)') 'calc_gf_stress_okada_rect says:',100*prog/fault%nrecords,&
+                               '% complete'
+            endif
+            prog = prog + fault%nrecords/100
+        endif
         stlo = fault%array(i,1)
         stla = fault%array(i,2)
         stdp = fault%array(i,3)
