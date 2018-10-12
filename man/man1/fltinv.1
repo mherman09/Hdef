@@ -24,6 +24,32 @@ specifications.
 
 
 .TP
+.BI "-mode " inversion_mode
+Specify the
+.IR inversion_mode :
+.BR lsqr " (default), " anneal ", or " anneal-psc .
+
+.BR lsqr :
+Linear least-squares inversion. Loads Green's functions, damping, and smoothing
+into model matrix, and corresponding constraints into observation vector. Uses
+dgels (LAPACK generalized least squares) or nnls (Non-negative least-squares)
+algorithm to invert for fault slip values.
+
+.BR anneal :
+Simulated annealing inversion. Starts with an initial fault solution, then
+randomly perturbs fault slip and rake values. If objective function
+(sum of RMS misfit, total shear stress, model length, and roughness) decreases,
+keeps new solution. If objective increases, keeps new solution with a probability
+that decreases over the search (associated with the "temperature" of the annealing
+process). For more information, see Sambridge and Mosegaard (2002).
+
+.BR anneal-psc :
+Simulated annealing inversion with pseudo-coupling as defined by Herman et al. (2018).
+Starts with all faults unlocked, then randomly switches subset of faults from unlocked
+to locked or vice versa. Computes partial slip around locked sections using least squares
+and calculates corresponding misfit to displacement observations.
+
+.TP
 .B OUTPUT OPTIONS
 .TP
 .BI "-o " output_file
@@ -34,7 +60,8 @@ prints the solution to standard output. To redirect the solution to a file, use 
 option. The solution has the format:
 .IR "strike-slip dip-slip" ,
 for each fault in the input
-.IR fault_file .
+.IR fault_file ,
+including faults with fixed slip values.
 
 .TP
 .B INPUT OPTIONS
@@ -49,9 +76,14 @@ option.
 
 .TP
 .BI "-disp:components [" 1 ][ 2 ][ 3 ]
-Use only selected displacement components in the inversion. Default is 
+Use only selected displacement components in the inversion. Default is
 .IR 123 .
 Useful when only horizontal or vertical data are available or in 2D problems.
+
+.TP
+.BI "-disp:misfit " misfit_file
+Print RMS misfit to displacements to file
+.IR misfit_file .
 
 .TP
 .BI "-prests " prestress_file
@@ -60,6 +92,10 @@ Pre-stresses on all input faults in the format:
 The shear stresses resolved onto the faults will be minimized - note that
 the pre-stress values can be set to zero to minimize shear stresses without
 external influences. All values are in SI units.
+
+.TP
+.BI "-prests:weight " weight
+Set the weight for the minimizing stress part of the inversion (default: 1e-9)
 
 .TP
 .BI "-flt " fault_file
@@ -83,7 +119,7 @@ faults for the GFs.
 
 .TP
 .BI "-flt:rake " rake_constraint_file
-Constraints on the rake angles. File format and meaning depends on value of 
+Constraints on the rake angles. File format and meaning depends on value of
 .IR inversion_mode :
 
 .BR lsqr :
@@ -102,7 +138,7 @@ must correspond to the faults in
 
 .TP
 .BI "-flt:slip " slip_constraint_file
-Constraints on the slip magnitudes. File format and meaning depends on value of 
+Constraints on the slip magnitudes. File format and meaning depends on value of
 .IR inversion_mode :
 
 .BR lsqr :
@@ -214,12 +250,6 @@ are strike-slip and dip-slip fault sources.
 .B INVERSION OPTIONS
 
 .TP
-.BI "-mode " inversion_mode
-Specify the
-.IR inversion_mode :
-.BR lsqr " (default) or " anneal .
-
-.TP
 .BI "-damping " damping_constant
 Minimize the L1 length of the fault slip solution with a weighting factor of
 .IR damping_constant * damping_constant
@@ -278,10 +308,6 @@ The gels algorithm is from the LAPACK library.
 The nnls algorithm is from Lawson and Hanson (1974), translated into Fortran 90
 by Alan Miller.
 
-.TP
-.BI "-lsqr:stress_weight " weight
-Set the weight for the minimizing stress part of the inversion (default: 1e-9)
-
 
 .TP
 .B SIMULATED ANNEALING OPTIONS
@@ -313,7 +339,7 @@ Set the maximum number of iterations in the simulated annealing search
 
 .TP
 .BI "-anneal:it_reset " reset_iteration
-After each 
+After each
 .I reset_iteration
 steps, the current solution will be set to the best solution and the
 temperature will be set to
@@ -353,4 +379,13 @@ will use the absolute value as the minimum temperature.
 .BI "-anneal:cool " cooling_factor
 Factor to reduce temperature by every iteration (default: 0.98).
 
+
+
+
+.SH REFERENCES
+Herman, M.W., Furlong, K.P., Govers, R. (2018).
+The accumulation of slip deficit in subduction zones in the absence of mechanical
+coupling: Implications for the behavior of megathrust earthquakes.
+
+Sambridge, Mosegaard (2002). Monte Carlo Methods in Geophysical Inverse Problems.
 .RS
