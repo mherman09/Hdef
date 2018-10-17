@@ -67,7 +67,7 @@ including faults with fixed slip values.
 .B INPUT OPTIONS
 .TP
 .BI "-disp " displacement_file
-Displacement observations in the format:
+Three-component displacement observations in the format:
 .IR "x y z ux uy uz" .
 The misfit between these displacements and those produced by modeled fault slip will be minimized.
 All values are in SI units, unless the coordinate type is changed to geographic using the
@@ -84,6 +84,24 @@ Useful when only horizontal or vertical data are available or in 2D problems.
 .BI "-disp:misfit " misfit_file
 Print RMS misfit to displacements to file
 .IR misfit_file .
+
+.TP
+.BI "-los " los_file " (NOT YET OPERATIONAL)"
+Line-of-sight displacement observations in the format:
+.IR "x y z ulos azimuth inclination" .
+.I Azimuth
+is the look direction for the observation, clockwise from north.
+.I Inclination
+is the vertical look direction for the observation, from 0 at the horizon to 90 at vertical.
+The misfit between these displacements and those produced by modeled fault slip will be minimized.
+All values are in SI units, unless the coordinate type is changed to geographic using the
+.B -geo
+option, and angles are in degrees.
+
+.TP
+.BI "-los:weight " weight " (NOT YET OPERATIONAL)"
+Set the weight for the minimizing fit to line-of-sight observations
+part of the inversion (default: 1)
 
 .TP
 .BI "-prests " prestress_file
@@ -124,7 +142,11 @@ Constraints on the rake angles. File format and meaning depends on value of
 
 .BR lsqr :
 .I fixed_rake
-(set fault rake angles to fixed values)
+(set fault rake angles to fixed values;
+if one column, set rakes to that fixed value;
+if two columns, do two-component slip inversion with these rakes instead of 0 and 90 -
+this is useful for constraining rake to one quadrant in conjunction with
+.BR nnls )
 .br
 .BR anneal :
 .I rake_min rake_max
@@ -150,7 +172,7 @@ Constraints on the slip magnitudes. File format and meaning depends on value of
 (defines the range of possible slip magnitudes)
 
 If
-.I rake_constraint_file
+.I slip_constraint_file
 has only one line, use that value for all faults. Otherwise, slip magnitudes in the file
 must correspond to the faults in
 .IR fault_file .
@@ -284,7 +306,7 @@ as geographic coordinates instead of SI units in
 Define the elastic half-space parameters for gf:model
 .B okada_rect
 or
-.BI okada_pt .
+.BR okada_pt .
 By default, this file contains vp (m/s), vs (m/s), and density (kg/m^3).
 At some point, you will be able to specify the elastic parameters in the file
 with the
