@@ -11,9 +11,10 @@ use variable_module, only: inversion_mode, &
 use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
 implicit none
 ! Local variables
-integer :: i
+integer :: i, ios
 double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3)
 double precision :: reflon, reflat, dist, az
+character(len=256) :: line
 
 if (verbosity.ge.1) then
     write(stderr,'(A)') 'read_fltinv_inputs says: starting'
@@ -26,11 +27,11 @@ if (displacement%file.eq.'none'.and.prestress%file.eq.'none') then
     call print_usage('!! Error: No displacement or pre-stress file defined')
 else
     if (displacement%file.ne.'none') then
-        displacement%nfields = 6
+        displacement%nfields = 6 ! x y z ux uy uz
         call read_program_data_file(displacement)
     endif
     if (prestress%file.ne.'none') then
-        prestress%nfields = 6
+        prestress%nfields = 6 ! sxx syy szz sxy sxz syz
         call read_program_data_file(prestress)
     endif
 endif
@@ -184,7 +185,16 @@ endif
 !----
 if (rake_constraint%file.ne.'none') then
     if (inversion_mode.eq.'lsqr') then
-        rake_constraint%nfields = 1
+        ! Check how many rake constraints there are (may want to rotate rakes for nnls inversion, then need two rakes)
+        open(unit=33,file=rake_constraint%file,status="old")
+        read(33,'(A)') line
+        read(line,*,iostat=ios) dist,az
+        if (ios.eq.0) then
+            rake_constraint%nfields = 2
+        else
+            rake_constraint%nfields = 1
+        endif
+        close(33)
     elseif (inversion_mode.eq.'anneal') then
         rake_constraint%nfields = 2
     else
@@ -397,7 +407,8 @@ if (disp_misfit_file.ne.'none') then
     open(unit=81,file=disp_misfit_file,status='unknown')
 
     ! If rake is constrained, make an array of the correct size to use with misfit function
-    if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none') then
+    if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none' &
+                                                           .and.rake_constraint%nfields.eq.1) then
         do i = 1,fault%nrecords
             tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
             tmp_slip_array(i,2) = 0.0d0
@@ -423,7 +434,7 @@ do i = 1,fault%nrecords
     slip_mag = dsqrt(fault_slip(i,1)*fault_slip(i,1)+fault_slip(i,2)*fault_slip(i,2))
 
     if (inversion_mode.eq.'lsqr') then
-        if (rake_constraint%file.eq.'none') then
+        if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
             if (slip_mag.lt.1.0d3) then
                 write(ounit,5011) fault_slip(i,1), fault_slip(i,2)
             else

@@ -319,7 +319,7 @@ contains
     ! Calculate the L2 norm of the difference vector between the displacements produced
     ! by model_array (first column is strike-slip, second column is dip-slip) and input values
     !----
-    use variable_module, only: fault, displacement, gf_disp
+    use variable_module, only: fault, displacement, gf_disp, disp_components
     implicit none
     ! I/O variables
     double precision :: model_array(fault%nrecords,2)
@@ -339,21 +339,74 @@ contains
     do i = 1,ndsp
         disp_pre = 0.0d0
         do j = 1,nflt
-            ss = gf_disp%array(i       ,j     )*model_array(j,1)
-            ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
-            disp_pre(1) = disp_pre(1) + ss + ds
-
-            ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
-            ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
-            disp_pre(2) = disp_pre(2) + ss + ds
-
-            ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
-            ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
-            disp_pre(3) = disp_pre(3) + ss + ds
+            if (disp_components.eq.'123') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+            elseif (disp_components.eq.'12') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+            elseif (disp_components.eq.'13') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+            elseif (disp_components.eq.'23') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+            elseif (disp_components.eq.'1') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+            elseif (disp_components.eq.'2') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+            elseif (disp_components.eq.'3') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(1) + ss + ds
+            endif
         enddo
-        dx = displacement%array(i,4)-disp_pre(1)
-        dy = displacement%array(i,5)-disp_pre(2)
-        dz = displacement%array(i,6)-disp_pre(3)
+        dx = 0.0
+        dy = 0.0
+        dz = 0.0
+        if (disp_components.eq.'123') then
+            dx = displacement%array(i,4)-disp_pre(1)
+            dy = displacement%array(i,5)-disp_pre(2)
+            dz = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'12') then
+            dx = displacement%array(i,4)-disp_pre(1)
+            dy = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'13') then
+            dx = displacement%array(i,4)-disp_pre(1)
+            dz = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'23') then
+            dy = displacement%array(i,5)-disp_pre(2)
+            dz = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'1') then
+            dx = displacement%array(i,4)-disp_pre(1)
+        elseif (disp_components.eq.'2') then
+            dy = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'3') then
+            dz = displacement%array(i,6)-disp_pre(3)
+        endif
         misfit = misfit + dx*dx + dy*dy + dz*dz
     enddo
 

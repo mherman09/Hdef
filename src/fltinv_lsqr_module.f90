@@ -75,7 +75,7 @@ contains
             j = j + 1
         endif
     enddo
-    if (rake_constraint%file.eq.'none') then
+    if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
         do i = 1,fault%nrecords
             if (slip_constraint%file.ne.'none') then
                 if (dabs(slip_constraint%array(i,2)).lt.99998.0d0) then
@@ -122,24 +122,20 @@ contains
     ptr_damp = 0
     ptr_smooth = 0
 
-    ! Row dimensions corresponding to displacement data
+    ! Row dimensions corresponding to three-component displacement data
     if (displacement%file.ne.'none') then
+        ptr_disp = nrows + 1
         nrows = nrows + len_trim(disp_components)*displacement%nrecords
-        ptr_disp = 1
     endif
 
     ! Row dimensions corresponding to pre-stress data
     if (prestress%file.ne.'none') then
-        if (ptr_disp.eq.1) then
-            ptr_stress = nrows + 1
-        else
-            ptr_stress = 1
-        endif
+        ptr_stress = nrows + 1
         nrows = nrows + 2*fault%nrecords
     endif
 
     ! Column dimensions corresponding to fault slip
-    if (rake_constraint%file.eq.'none') then
+    if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
         ncols = 2*fault%nrecords
     else
         ncols = fault%nrecords
@@ -156,7 +152,7 @@ contains
     ! Smooth each slip component separately
     if (smoothing_constant.gt.0.0d0) then
         ptr_smooth = nrows + 1
-        if (rake_constraint%file.eq.'none') then
+        if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
             nrows = nrows + 2*smoothing%nrecords
         else
             nrows = nrows + smoothing%nrecords
@@ -193,7 +189,7 @@ contains
         write(stderr,'(A)') 'load_arrays says: starting'
     endif
 
-    ! Load displacement data
+    ! Load three-component displacement data
     if (displacement%file.ne.'none') then
         call load_displacements()
     endif
@@ -297,7 +293,7 @@ contains
             endif
 
             ! Choose columns to load selected fault slip components
-            if (rake_constraint%file.eq.'none') then
+            if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
                 ! For selected components of displacements, load dip-slip source GFs into model matrix
                 if (disp_components.eq.'123') then
                     A(i       ,j+nflt) = gf_disp%array(i       ,j+nflt) ! dip-slip, x-displacement
@@ -370,7 +366,7 @@ contains
 
     do i = 1,nflt
         do j = 1,nflt
-            if (rake_constraint%file.eq.'none') then
+            if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
                 A(ptr_stress     +i-1,j     ) = stress_weight*gf_stress%array(i     ,j     ) ! ss src -> ss traction
                 A(ptr_stress+nflt+i-1,j     ) = stress_weight*gf_stress%array(i+nflt,j     ) ! ss src -> ds traction
                 A(ptr_stress     +i-1,j+nflt) = stress_weight*gf_stress%array(i     ,j+nflt) ! ds src -> ss traction
@@ -459,7 +455,7 @@ contains
     do i = 1,smoothing%nrecords
         ! Set observation corresponding to smoothing row to zero
         b(ptr_smooth+i-1,1) = 0.0d0
-        if (rake_constraint%file.eq.'none') then
+        if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
             b(ptr_smooth+nsmooth+i-1,1) = 0.0d0
         endif
 
@@ -469,7 +465,7 @@ contains
 
         ! Fault to be smoothed gets weight=nneighbor
         A(ptr_smooth+i-1,ifault) = dble(nneighbor)*smoothing_squared
-        if (rake_constraint%file.eq.'none') then
+        if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
             A(ptr_smooth+nsmooth+i-1,ifault+fault%nrecords) = dble(nneighbor)*smoothing_squared
         endif
 
@@ -477,7 +473,7 @@ contains
         do j = 0,nneighbor-1
             neighbor = smoothing_neighbors(ineighbor+j)
             A(ptr_smooth+i-1,neighbor) = -1.0d0*smoothing_squared
-            if (rake_constraint%file.eq.'none') then
+            if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
                 A(ptr_smooth+nsmooth+i-1,neighbor+fault%nrecords) = -1.0d0*smoothing_squared
             endif
         enddo
@@ -561,7 +557,7 @@ contains
                 enddo
 
                 ! Dip-parallel shear tractions
-                if (rake_constraint%file.eq.'none') then
+                if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
                     do j = 1,nflt
                         b(ptr_stress+nflt+j-1,1) = b(ptr_stress+nflt+j-1,1) &
                                             - A(ptr_stress+nflt+j-1,i)*slip_constraint%array(i,1)
@@ -584,7 +580,7 @@ contains
 
         ! Is the dip-slip component of this fault constrained?
         if (dabs(slip_constraint%array(i,2)).lt.99998.0d0 .and. &
-                                            rake_constraint%file.eq.'none') then
+                            (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2)) then
 
             ! Move displacements corresponding to this slip component to b vector
             if (displacement%file.ne.'none') then
