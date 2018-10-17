@@ -4,8 +4,8 @@ subroutine read_fltinv_inputs()
 !----
 use io_module, only: stderr, verbosity, read_program_data_file
 use variable_module, only: inversion_mode, &
-                           displacement, prestress, fault, &
-                           gf_type, gf_disp, gf_stress, &
+                           displacement, prestress, los, fault, &
+                           gf_type, gf_disp, gf_stress, gf_los, &
                            smoothing, rake_constraint, slip_constraint, &
                            halfspace, coord_type
 use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
@@ -23,7 +23,7 @@ endif
 !----
 ! Either displacement or pre-stress data is required
 !----
-if (displacement%file.eq.'none'.and.prestress%file.eq.'none') then
+if (displacement%file.eq.'none'.and.prestress%file.eq.'none'.and.los%file.eq.'none') then
     call print_usage('!! Error: No displacement or pre-stress file defined')
 else
     if (displacement%file.ne.'none') then
@@ -33,6 +33,10 @@ else
     if (prestress%file.ne.'none') then
         prestress%nfields = 6 ! sxx syy szz sxy sxz syz
         call read_program_data_file(prestress)
+    endif
+    if (los%file.ne.'none') then
+        los%nfields = 6 ! x y z ulos az inc
+        call read_program_data_file(los)
     endif
 endif
 
@@ -79,6 +83,14 @@ if (coord_type.eq.'geographic') then
             dist = dist*6.371d6
             displacement%array(i,1) = dist*dsin(az)
             displacement%array(i,2) = dist*dcos(az)
+        enddo
+    endif
+    if (los%file.ne.'none') then
+        do i = 1,los%nrecords
+            call ddistaz(dist,az,reflon,reflat,los%array(i,1),los%array(i,2))
+            dist = dist*6.371d6
+            los%array(i,1) = dist*dsin(az)
+            los%array(i,2) = dist*dcos(az)
         enddo
     endif
 endif
@@ -162,6 +174,32 @@ if (inversion_mode.eq.'anneal-psc') then
         deallocate(gf_stress%array)
     endif
     allocate(gf_stress%array(gf_stress%nrecords,gf_stress%nfields))
+endif
+
+!----
+! Line-of-sight displacement Green's functions?
+!----
+if (los%file.ne.'none') then
+    ! Assign array for LOS displacement Green's functions maximum possible size to start
+    gf_los%nfields = 2*fault%nrecords
+
+    ! Read pre-computed LOS displacement Green's functions
+    if (gf_los%file.ne.'none') then
+        call read_program_data_file(gf_los)
+        ! Verify that there are the correct number of lines here
+        if (gf_los%nrecords .ne. los%nrecords) then
+            call print_usage('!! Error: number of lines in LOS displacement GF file must be '// &
+                             'ndisplacements (corresponding to one line per displacement DOF)')
+        endif
+
+    ! Allocate memory to calculate Green's functions
+    else
+        gf_los%nrecords = los%nrecords
+        if (allocated(gf_los%array)) then
+            deallocate(gf_los%array)
+        endif
+        allocate(gf_los%array(gf_los%nrecords,gf_los%nfields))
+    endif
 endif
 
 !----
@@ -319,8 +357,9 @@ end subroutine read_smoothing_neighbors
 
 subroutine calc_greens_functions()
 use io_module, only: stderr, verbosity
-use variable_module, only: inversion_mode, displacement, prestress, gf_type, gf_disp, gf_stress
-use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect
+use variable_module, only: inversion_mode, displacement, los, prestress, &
+                           gf_type, gf_disp, gf_stress, gf_los
+use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect
 implicit none
 
 if (verbosity.ge.1) then
@@ -334,7 +373,8 @@ if (displacement%file.ne.'none') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_disp_okada_rect()
         else
-            call print_usage('!! Error: no option to calculate Greens functions called '//trim(gf_type))
+            call print_usage('!! Error: no option to calculate Greens functions called '// &
+                             trim(gf_type))
         endif
     endif
 endif
@@ -346,7 +386,21 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_stress_okada_rect()
         else
-            call print_usage('!! Error: no option to calculate Greens functions called '//trim(gf_type))
+            call print_usage('!! Error: no option to calculate Greens functions called '// &
+                             trim(gf_type))
+        endif
+    endif
+endif
+
+! LOS displacement Green's functions
+if (los%file.ne.'none') then
+    ! LOS displacement Green's functions need to be calculated
+    if (gf_los%file.eq.'none') then
+        if (gf_type.eq.'okada_rect') then
+            call calc_gf_los_okada_rect()
+        else
+            call print_usage('!! Error: no option to calculate Greens functions called '// &
+                              trim(gf_type))
         endif
     endif
 endif

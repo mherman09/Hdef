@@ -16,9 +16,11 @@ use io_module, only: program_data
     type(program_data) :: prestress
     type(program_data) :: gf_disp
     type(program_data) :: gf_stress
+    type(program_data) :: gf_los
     type(program_data) :: slip_constraint
     type(program_data) :: rake_constraint
     type(program_data) :: smoothing
+    type(program_data) :: los
 
     ! Options depending on gf_type
     type(program_data) :: halfspace

@@ -19,9 +19,10 @@ subroutine initialize_fltinv_variables()
 use io_module, only: verbosity, initialize_program_data
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            fault, slip_constraint, rake_constraint, &
-                           gf_type, gf_disp, gf_stress, &
+                           gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace, disp_misfit_file
+                           coord_type, halfspace, disp_misfit_file, &
+                           los
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
@@ -45,9 +46,11 @@ call initialize_program_data(displacement)
 call initialize_program_data(prestress)
 call initialize_program_data(gf_disp)
 call initialize_program_data(gf_stress)
+call initialize_program_data(gf_los)
 call initialize_program_data(slip_constraint)
 call initialize_program_data(rake_constraint)
 call initialize_program_data(smoothing)
+call initialize_program_data(los)
 
 ! Same type of derived data variable, but not always used
 call initialize_program_data(halfspace)
@@ -79,7 +82,8 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace, disp_misfit_file
+                           coord_type, halfspace, disp_misfit_file, &
+                           los
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
@@ -134,6 +138,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-flt:slip') then
         i = i + 1
         call get_command_argument(i,slip_constraint%file)
+    elseif (trim(tag).eq.'-los') then
+        i = i + 1
+        call get_command_argument(i,los%file)
 
     ! Green's functions options
     elseif (trim(tag).eq.'-gf:model') then
@@ -238,6 +245,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    fault%file:             ",A)') trim(fault%file)
     write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
     write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
+    write(stderr,'("    los%file:               ",A)') trim(los%file)
     write(stderr,*)
     write(stderr,'("    gf_type:                ",A)') trim(gf_type)
     write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
@@ -299,6 +307,7 @@ write(stderr,'(A)') '-prests:weight WEIGHT        Stress weighting factor'
 write(stderr,'(A)') '-flt FAULT_FILE              Input faults'
 write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
 write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
+write(stderr,'(A)') '-los LOS_FILE                Input line-of-sight displacements'
 write(stderr,*)
 write(stderr,'(A)') 'Greens Functions Options'
 write(stderr,'(A)') '-gf:model MODEL              Greens functions calculation model'

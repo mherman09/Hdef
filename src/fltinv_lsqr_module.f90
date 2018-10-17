@@ -5,6 +5,7 @@ module lsqr_module
     integer :: nrows
     integer :: ncols
     integer :: ptr_disp
+    integer :: ptr_los
     integer :: ptr_stress
     integer :: ptr_damp
     integer :: ptr_smooth
@@ -103,7 +104,7 @@ contains
 
     subroutine calc_array_dimensions()
     use io_module, only: stderr, verbosity
-    use variable_module, only: displacement, prestress, fault, rake_constraint, &
+    use variable_module, only: displacement, prestress, los, fault, rake_constraint, &
                                 damping_constant, smoothing_constant, smoothing, &
                                 disp_components
     implicit none
@@ -118,6 +119,7 @@ contains
 
     ! Initialize array pointers
     ptr_disp = 0
+    ptr_los = 0
     ptr_stress = 0
     ptr_damp = 0
     ptr_smooth = 0
@@ -126,6 +128,12 @@ contains
     if (displacement%file.ne.'none') then
         ptr_disp = nrows + 1
         nrows = nrows + len_trim(disp_components)*displacement%nrecords
+    endif
+
+    ! Row dimensions corresponding to LOS displacement data
+    if (los%file.ne.'none') then
+        ptr_los = nrows + 1
+        nrows = nrows + los%nrecords
     endif
 
     ! Row dimensions corresponding to pre-stress data
@@ -165,6 +173,7 @@ contains
         write(stderr,'(A,I8)') 'nrows:      ', nrows
         write(stderr,'(A,I8)') 'ncolumns:   ', ncols
         write(stderr,'(A,I8)') 'ptr_disp:   ', ptr_disp
+        write(stderr,'(A,I8)') 'ptr_los:    ', ptr_los
         write(stderr,'(A,I8)') 'ptr_stress: ', ptr_stress
         write(stderr,'(A,I8)') 'ptr_damp:   ', ptr_damp
         write(stderr,'(A,I8)') 'ptr_smooth: ', ptr_smooth
@@ -178,7 +187,7 @@ contains
 
     subroutine load_arrays()
     use io_module, only: stderr, verbosity
-    use variable_module, only: displacement, prestress, &
+    use variable_module, only: displacement, los, prestress, &
                                 slip_constraint, damping_constant, smoothing_constant
     implicit none
     ! Local variables
@@ -192,6 +201,11 @@ contains
     ! Load three-component displacement data
     if (displacement%file.ne.'none') then
         call load_displacements()
+    endif
+
+    ! Load LOS displacement data
+    if (los%file.ne.'none') then
+        call load_los()
     endif
 
     ! Load pre-stress data
@@ -230,6 +244,7 @@ contains
         write(fmt,9001) ncols
         do i = 1,nrows
             if (i.eq.ptr_disp) write(stderr,'("displacements")')
+            if (i.eq.ptr_los) write(stderr,'("LOS displacements")')
             if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
             if (i.eq.ptr_damp) write(stderr,'("damping")')
             if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
@@ -239,6 +254,7 @@ contains
         write(stderr,'("b =")')
         do i = 1,nrows
             if (i.eq.ptr_disp) write(stderr,'("displacements")')
+            if (i.eq.ptr_los) write(stderr,'("LOS displacements")')
             if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
             if (i.eq.ptr_damp) write(stderr,'("damping")')
             if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
@@ -348,6 +364,43 @@ contains
 
     return
     end subroutine load_displacements
+
+!--------------------------------------------------------------------------------------------------!
+
+    subroutine load_los()
+    use io_module, only: stderr, verbosity
+    use variable_module, only: los, fault, gf_los, rake_constraint
+    implicit none
+    integer :: i, j, ndsp, nflt
+    !
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'load_los says: starting'
+    endif
+
+    ndsp = los%nrecords
+    nflt = fault%nrecords
+    do i = 1,ndsp
+        do j = 1,nflt
+            ! Load strike-slip (or constant rake) source GFs into model matrix
+            A(ptr_los+i-1,j) = gf_los%array(i,j) ! strike-slip displacement
+
+            ! Load dip-slip source GFs into model matrix
+            if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
+                A(ptr_los+i-1,j+nflt) = gf_los%array(i,j+nflt) ! dip-slip displacement
+            endif
+        enddo
+
+        ! Load observed displacements into constraint vector
+        b(ptr_los+i-1,1) = los%array(i,4) ! observed LOS displacement
+    enddo
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'load_los says: finished'
+        write(stderr,*)
+    endif
+
+    return
+    end subroutine load_los
 
 !--------------------------------------------------------------------------------------------------!
 
