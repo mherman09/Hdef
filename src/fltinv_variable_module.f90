@@ -30,4 +30,5 @@ use io_module, only: program_data
     double precision :: stress_weight
     double precision, allocatable :: fault_slip(:,:)
     character(len=256) :: disp_misfit_file
+    double precision :: los_weight
 end module variable_module

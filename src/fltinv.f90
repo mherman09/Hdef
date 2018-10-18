@@ -22,7 +22,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, &
-                           los
+                           los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
@@ -61,6 +61,7 @@ verbosity = 0
 ! Initialize least-squares variables
 lsqr_mode = 'gels'
 stress_weight = 1.0d-9
+los_weight = 1.0d0
 
 ! Initialize annealing variables
 anneal_init_mode = 'mean'
@@ -83,7 +84,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, &
-                           los
+                           los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor
@@ -141,6 +142,10 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-los') then
         i = i + 1
         call get_command_argument(i,los%file)
+    elseif (trim(tag).eq.'-los:weight') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) los_weight
 
     ! Green's functions options
     elseif (trim(tag).eq.'-gf:model') then
@@ -246,6 +251,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
     write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
     write(stderr,'("    los%file:               ",A)') trim(los%file)
+    write(stderr,'("    los_weight:             ",1PE14.6)') los_weight
     write(stderr,*)
     write(stderr,'("    gf_type:                ",A)') trim(gf_type)
     write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
@@ -308,6 +314,7 @@ write(stderr,'(A)') '-flt FAULT_FILE              Input faults'
 write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
 write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
 write(stderr,'(A)') '-los LOS_FILE                Input line-of-sight displacements'
+write(stderr,'(A)') '-los:weight LOS_WEIGHT       LOS observation weighting factor'
 write(stderr,*)
 write(stderr,'(A)') 'Greens Functions Options'
 write(stderr,'(A)') '-gf:model MODEL              Greens functions calculation model'

@@ -369,7 +369,7 @@ contains
 
     subroutine load_los()
     use io_module, only: stderr, verbosity
-    use variable_module, only: los, fault, gf_los, rake_constraint
+    use variable_module, only: los, fault, gf_los, rake_constraint, los_weight
     implicit none
     integer :: i, j, ndsp, nflt
     !
@@ -382,16 +382,16 @@ contains
     do i = 1,ndsp
         do j = 1,nflt
             ! Load strike-slip (or constant rake) source GFs into model matrix
-            A(ptr_los+i-1,j) = gf_los%array(i,j) ! strike-slip displacement
+            A(ptr_los+i-1,j) = los_weight*gf_los%array(i,j) ! strike-slip displacement
 
             ! Load dip-slip source GFs into model matrix
             if (rake_constraint%file.eq.'none'.or.rake_constraint%nfields.eq.2) then
-                A(ptr_los+i-1,j+nflt) = gf_los%array(i,j+nflt) ! dip-slip displacement
+                A(ptr_los+i-1,j+nflt) = los_weight*gf_los%array(i,j+nflt) ! dip-slip displacement
             endif
         enddo
 
         ! Load observed displacements into constraint vector
-        b(ptr_los+i-1,1) = los%array(i,4) ! observed LOS displacement
+        b(ptr_los+i-1,1) = los_weight*los%array(i,4) ! observed LOS displacement
     enddo
 
     if (verbosity.ge.2) then
