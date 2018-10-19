@@ -450,13 +450,13 @@ subroutine write_solution()
 use io_module, only: stdout
 use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint, &
                            disp_misfit_file
-use anneal_module, only: misfit
+use anneal_module, only: disp_misfit_l2norm
 implicit none
 ! Local variables
 integer :: i, ounit
 double precision :: slip_mag, tmp_slip_array(fault%nrecords,2)
 
-! Print misfit if specified
+! Print RMS misfit if specified
 if (disp_misfit_file.ne.'none') then
     open(unit=81,file=disp_misfit_file,status='unknown')
 
@@ -467,11 +467,11 @@ if (disp_misfit_file.ne.'none') then
             tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
             tmp_slip_array(i,2) = 0.0d0
         enddo
-        write(81,*) misfit(tmp_slip_array)
+        write(81,*) disp_misfit_l2norm(tmp_slip_array)/dsqrt(dble(fault%nrecords))
 
     ! Otherwise, just use the misfit function directly
     else
-        write(81,*) misfit(fault_slip)
+        write(81,*) disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
     endif
     close(81)
 endif
