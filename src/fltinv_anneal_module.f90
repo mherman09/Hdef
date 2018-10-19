@@ -181,12 +181,13 @@ contains
 
     nflt = fault%nrecords
 
-    ! Calculate misfit of initial model
+    ! Calculate objective function of initial model
     do j = 1,nflt
         slip_ssds(j,1) = slip_0(j)*dcos(rake_0(j)*d2r)
         slip_ssds(j,2) = slip_0(j)*dsin(rake_0(j)*d2r)
     enddo
-    obj_0 = misfit(slip_ssds) + stress_weight*shear_stress(slip_ssds)
+    obj_0 = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
+                stress_weight*shear_stress(slip_ssds)
     obj_best = obj_0
     last_obj_best = 0
 
@@ -242,9 +243,9 @@ contains
             slip_ssds(j,2) = slip_new(j)*dsin(rake_new(j)*d2r)
         enddo
 
-        ! Compute misfit for new model, save if the best model
-        obj_new = misfit(slip_ssds) + stress_weight*shear_stress(slip_ssds)
-        ! write(0,*) 'misfit:',misfit(slip_ssds),' shear_stress:',shear_stress(slip_ssds)
+        ! Compute objective function for new model, save if the best model
+        obj_new = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
+                      stress_weight*shear_stress(slip_ssds)
         if (obj_new.lt.obj_best) then
             slip_best = slip_new
             rake_best = rake_new
@@ -314,7 +315,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------!
 
-    double precision function misfit(model_array)
+    double precision function disp_misfit_l2norm(model_array)
     !----
     ! Calculate the L2 norm of the difference vector between the displacements produced
     ! by model_array (first column is strike-slip, second column is dip-slip) and input values
@@ -330,7 +331,7 @@ contains
     nflt = fault%nrecords
     ndsp = displacement%nrecords
 
-    misfit = 0.0d0
+    disp_misfit_l2norm = 0.0d0
 
     if (displacement%file.eq.'none'.and.displacement%flag.ne.'misfit') then
         return
@@ -407,13 +408,13 @@ contains
         elseif (disp_components.eq.'3') then
             dz = displacement%array(i,6)-disp_pre(3)
         endif
-        misfit = misfit + dx*dx + dy*dy + dz*dz
+        disp_misfit_l2norm = disp_misfit_l2norm + dx*dx + dy*dy + dz*dz
     enddo
 
-    misfit = dsqrt(misfit)
+    disp_misfit_l2norm = dsqrt(disp_misfit_l2norm)
 
     return
-    end function misfit
+    end function disp_misfit_l2norm
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -529,7 +530,7 @@ contains
 
     fault_slip_0 = fault_slip
     fault_slip_best = fault_slip
-    obj_0 = misfit(fault_slip)
+    obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
     obj_best = obj_0
 
     ! Initialize starting temperature
@@ -636,8 +637,8 @@ contains
             fault_slip = 0.0d0
         endif
 
-        ! Calculate misfit
-        obj_new = misfit(fault_slip)
+        ! Calculate RMS misfit
+        obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
         if (obj_new.lt.obj_best) then
             fault_slip_best = fault_slip
             obj_best = obj_new
@@ -654,7 +655,8 @@ contains
             fault_slip_0 = fault_slip
             obj_0 = obj_new
             if (verbosity.ge.3) then
-                write(stderr,'(A,1P1E14.6)') 'Current solution, misfit=',misfit(fault_slip_0)
+                write(stderr,'(A,1P1E14.6)') 'Current solution, RMSmisfit=', &
+                                        disp_misfit_l2norm(fault_slip_0)/dsqrt(dble(fault%nrecords))
                 do j = 1,fault%nrecords
                     write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
                 enddo
