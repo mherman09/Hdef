@@ -10,16 +10,18 @@ C----
       REAL*8 uLOS,stlo,stla,stdp,uN,uE,uZ
       REAL*8 az,incl,cosaz,cosinc,sinaz,sininc
       CHARACTER*40 ifile,ofile
+      CHARACTER*256 azincfile
       LOGICAL ex
       INTEGER uin,uout
 
 C----
 C Parse command line
 C----
-      call gcmdln(az,incl,ifile,ofile)
-      if (az.lt.-1000.0d0.or.incl.lt.-1000.0d0) then
+      call gcmdln(az,incl,ifile,ofile,azincfile)
+      if ((az.lt.-1000.0d0.or.incl.lt.-1000.0d0)
+     1                                .and.azincfile.eq.'none') then
           write(*,*) '!! Error: azimuth or inclination are undefined'
-          call usage('!! Use -a AZ or -i INCL')
+          call usage('!! Use -a AZ, -i INCL, or -azinc FILE')
       endif
       if (ifile.eq.'none') then
           write(*,*) '!! Error: Input displacement vector file ',
@@ -33,14 +35,6 @@ C----
           write(*,*) '!! Error: No output file specified'
           call usage('!! Use -o OFILE to specify LOS output file')
       endif
-      cosaz = dcos(az*d2r)
-      sinaz = dsin(az*d2r)
-      cosinc = dcos(incl*d2r)
-      sininc = dsin(incl*d2r)
-      !print *,'AZ',az
-      !print *,'INCL',incl
-      !print *,'IFILE ',ifile 
-      !print *,'OFILE ',ofile
 
 C----
 C Control files
@@ -61,7 +55,30 @@ C----
 C----
 C Convert NEZ to LOS
 C----
+      cosaz = 0.0d0
+      sinaz = 0.0d0
+      cosinc = 0.0d0
+      sininc = 0.0d0
+      if (azincfile.ne.'none') then
+          open(unit=11,file=azincfile,status='old')
+      else
+          cosaz = dcos(az*d2r)
+          sinaz = dsin(az*d2r)
+          cosinc = dcos(incl*d2r)
+          sininc = dsin(incl*d2r)
+      endif
+      !print *,'AZ',az
+      !print *,'INCL',incl
+      !print *,'IFILE ',ifile 
+      !print *,'OFILE ',ofile
    11 read (uin,*,end=12) stlo,stla,stdp,uE,uN,uZ
+          if (azincfile.ne.'none') then
+              read(11,*) az,incl
+              cosaz = dcos(az*d2r)
+              sinaz = dsin(az*d2r)
+              cosinc = dcos(incl*d2r)
+              sininc = dsin(incl*d2r)
+          endif
           uLOS = uN*cosaz*cosinc
      1             + uE*sinaz*cosinc
      2                 - uZ*sininc
@@ -76,15 +93,17 @@ C----
 
 C======================================================================C
 
-      SUBROUTINE gcmdln(az,incl,ifile,ofile)
+      SUBROUTINE gcmdln(az,incl,ifile,ofile,azincfile)
       IMPLICIT none
       REAL*8 az,incl
       CHARACTER*40 tag,ifile,ofile
+      CHARACTER*256 azincfile
       INTEGER i,narg
       az = -99999.0d0
       incl = -99999.0d0
       ifile = 'stdin'
       ofile = 'stdout'
+      azincfile = 'none'
       narg = iargc()
       if (narg.eq.0) then
           call usage('')
@@ -93,14 +112,17 @@ C======================================================================C
    11 i = i + 1
       if (i.gt.narg) goto 12
           call getarg(i,tag)
-          if (tag(1:2).eq.'-a') then
+          if (trim(tag).eq.'-a') then
               i = i + 1
               call getarg(i,tag)
               read (tag,'(BN,F12.0)') az
-          elseif (tag(1:2).eq.'-i') then
+          elseif (trim(tag).eq.'-i') then
               i = i + 1
               call getarg(i,tag)
               read (tag,'(BN,F12.0)') incl
+          elseif (trim(tag).eq.'-azinc') then
+              i = i + 1
+              call getarg(i,azincfile)
           elseif (tag(1:2).eq.'-f') then
               i = i + 1
               call getarg(i,ifile)
@@ -127,12 +149,15 @@ C----------------------------------------------------------------------C
           write(*,*)
       endif
       write(*,*)
-     1 'Usage: vec2los -a AZ -i INC [-f IFILE] [-o OFILE] [-h]'
+     1 'Usage: vec2los -a AZ -i INC | -azinc file [-f IFILE] ',
+     2                 '[-o OFILE] [-h]'
       write(*,*)
       write(*,*)
      1 '-a AZ     Look azimuth (CW from N)'
       write(*,*)
      1 '-i INC    Look inclination (from horizontal=0 to vertical=90)'
+      write(*,*)
+     1 '-azinc FILE Azimuth and inclination in a file'
       write(*,*)
      1 '-f IFILE  Input vector displacement file (default: stdin)',
      2            ' (stlo stla stdp uE uN uZ)'
