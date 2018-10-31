@@ -253,8 +253,17 @@ endif
 if (slip_constraint%file.ne.'none') then
     slip_constraint%nfields = 2
     call read_program_data_file(slip_constraint)
-    if (slip_constraint%nrecords.ne.fault%nrecords) then
-        call print_usage('!! Error: number of slip constraints does not match number of faults')
+    if (slip_constraint%nrecords.ne.1.and.slip_constraint%nrecords.ne.fault%nrecords) then
+        call print_usage('!! Error: number of slip constraints must be 1 or number of faults')
+    endif
+    if (slip_constraint%nrecords.eq.1) then
+        dist = slip_constraint%array(1,1)
+        az = slip_constraint%array(1,2)
+        deallocate(slip_constraint%array)
+        allocate(slip_constraint%array(fault%nrecords,slip_constraint%nfields))
+        slip_constraint%nrecords = fault%nrecords
+        slip_constraint%array(:,1) = dist
+        slip_constraint%array(:,2) = az
     endif
 endif
 
@@ -449,8 +458,8 @@ end subroutine run_inversion
 subroutine write_solution()
 use io_module, only: stdout
 use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint, &
-                           disp_misfit_file
-use anneal_module, only: disp_misfit_l2norm
+                           disp_misfit_file, los_misfit_file
+use anneal_module, only: disp_misfit_l2norm, los_misfit_l2norm
 implicit none
 ! Local variables
 integer :: i, ounit
@@ -472,6 +481,26 @@ if (disp_misfit_file.ne.'none') then
     ! Otherwise, just use the misfit function directly
     else
         write(81,*) disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
+    endif
+    close(81)
+endif
+
+! Line-of-sight RMS misfit
+if (los_misfit_file.ne.'none') then
+    open(unit=81,file=los_misfit_file,status='unknown')
+
+    ! If rake is constrained, make an array of the correct size to use with misfit function
+    if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none' &
+                                                           .and.rake_constraint%nfields.eq.1) then
+        do i = 1,fault%nrecords
+            tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
+            tmp_slip_array(i,2) = 0.0d0
+        enddo
+        write(81,*) los_misfit_l2norm(tmp_slip_array)/dsqrt(dble(fault%nrecords))
+
+    ! Otherwise, just use the misfit function directly
+    else
+        write(81,*) los_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
     endif
     close(81)
 endif

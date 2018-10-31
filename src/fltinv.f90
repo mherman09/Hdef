@@ -21,7 +21,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace, disp_misfit_file, &
+                           coord_type, halfspace, disp_misfit_file, los_misfit_file, &
                            los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
@@ -35,6 +35,7 @@ gf_type = 'okada_rect'
 coord_type = 'cartesian'
 disp_components = '123'
 disp_misfit_file = 'none'
+los_misfit_file = 'none'
 
 ! Initialize regularization variables
 damping_constant = -1.0d0
@@ -83,7 +84,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
-                           coord_type, halfspace, disp_misfit_file, &
+                           coord_type, halfspace, disp_misfit_file, los_misfit_file, &
                            los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
@@ -123,6 +124,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-disp:misfit') then
         i = i + 1
         call get_command_argument(i,disp_misfit_file)
+    elseif (trim(tag).eq.'-los:misfit') then
+        i = i + 1
+        call get_command_argument(i,los_misfit_file)
     elseif (trim(tag).eq.'-prests') then
         i = i + 1
         call get_command_argument(i,prestress%file)
@@ -252,6 +256,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
     write(stderr,'("    los%file:               ",A)') trim(los%file)
     write(stderr,'("    los_weight:             ",1PE14.6)') los_weight
+    write(stderr,'("    los_misfit_file:        ",A)') trim(los_misfit_file)
     write(stderr,*)
     write(stderr,'("    gf_type:                ",A)') trim(gf_type)
     write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
@@ -315,6 +320,7 @@ write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
 write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
 write(stderr,'(A)') '-los LOS_FILE                Input line-of-sight displacements'
 write(stderr,'(A)') '-los:weight LOS_WEIGHT       LOS observation weighting factor'
+write(stderr,'(A)') '-los:misfit MISFIT_FILE      Output RMS misfit to LOS displacements'
 write(stderr,*)
 write(stderr,'(A)') 'Greens Functions Options'
 write(stderr,'(A)') '-gf:model MODEL              Greens functions calculation model'

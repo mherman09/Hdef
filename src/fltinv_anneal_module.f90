@@ -167,7 +167,8 @@ contains
 
     subroutine run_annealing_search()
     use io_module, only: stderr, verbosity
-    use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight
+    use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight, &
+                               los_weight
     implicit none
     ! Local variables
     integer :: i, j, nflt, last_obj_best
@@ -187,6 +188,7 @@ contains
         slip_ssds(j,2) = slip_0(j)*dsin(rake_0(j)*d2r)
     enddo
     obj_0 = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
+                los_weight*los_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
                 stress_weight*shear_stress(slip_ssds)
     obj_best = obj_0
     last_obj_best = 0
@@ -245,6 +247,7 @@ contains
 
         ! Compute objective function for new model, save if the best model
         obj_new = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
+                      los_weight*los_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
                       stress_weight*shear_stress(slip_ssds)
         if (obj_new.lt.obj_best) then
             slip_best = slip_new
@@ -415,6 +418,47 @@ contains
 
     return
     end function disp_misfit_l2norm
+
+!--------------------------------------------------------------------------------------------------!
+
+    double precision function los_misfit_l2norm(model_array)
+    !----
+    ! Calculate the L2 norm of the difference vector between the displacements produced
+    ! by model_array (first column is strike-slip, second column is dip-slip) and input values
+    !----
+    use variable_module, only: fault, los, gf_los
+    implicit none
+    ! I/O variables
+    double precision :: model_array(fault%nrecords,2)
+    ! Local variables
+    integer :: i, j, nflt, nlos
+    double precision :: los_pre, ss, ds, dlos
+
+    nflt = fault%nrecords
+    nlos = los%nrecords
+
+    los_misfit_l2norm = 0.0d0
+
+    if (los%file.eq.'none') then
+        return
+    endif
+
+    do i = 1,nlos
+        los_pre = 0.0d0
+        do j = 1,nflt
+            ss = gf_los%array(i       ,j     )*model_array(j,1)
+            ds = gf_los%array(i       ,j+nflt)*model_array(j,2)
+            los_pre = los_pre + ss + ds
+        enddo
+        dlos = 0.0
+        dlos = los%array(i,4)-los_pre
+        los_misfit_l2norm = los_misfit_l2norm + dlos*dlos
+    enddo
+
+    los_misfit_l2norm = dsqrt(los_misfit_l2norm)
+
+    return
+    end function los_misfit_l2norm
 
 !--------------------------------------------------------------------------------------------------!
 

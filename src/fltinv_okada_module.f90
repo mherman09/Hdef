@@ -348,8 +348,20 @@ contains
             gf_los%array(i,j) = &
                          ux*sin(lookaz)*cos(lookinc) + uy*cos(lookaz)*cos(lookinc) - uz*sin(lookinc)
 
-            ! Dip-slip Green's function
-            rak  = 90.0d0
+            ! Check for rake constraints; if none, calculate dip-slip GFs
+            if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr' &
+                    .and.rake_constraint%nfields.eq.2) then
+                if (rake_constraint%nrecords.eq.1) then
+                    rak = rake_constraint%array(1,2)
+                elseif (rake_constraint%nrecords.eq.fault%nrecords) then
+                    rak = rake_constraint%array(j,2)
+                else
+                    call print_usage('!! Error: incorrect number of rake constraints')
+                endif
+            else
+                rak = 90.0d0
+            endif
+
             call o92rect(uxp,uyp,uz,x,y,stdp,evdp,dip,rak,wid,len,slip,vp,vs,dens)
             ! Rotate back to original x-y coordinates
             theta = datan2(uyp,uxp)
