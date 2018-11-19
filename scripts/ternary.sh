@@ -6,12 +6,12 @@
 function usage() {
     echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j DX] [-a PSFILE] [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y]"
     echo "    -f IFILE             Input file (fth fss fno [mag [val]])"
-    echo "    -c CPT               Color palette file (color by val)"
-    echo "    -s SCALE             Symbol scale factor (default: 0.002)"
-    echo "    -j DX                Jitter symbols randomly by up to DX"
+    echo "    -c CPT               Color palette file (color by val in fifth column)"
+    echo "    -s SCALE             Symbol scale factor (default: 0.002 in)"
+    echo "    -j DX                Jitter symbols randomly by up to DX in (default: none)"
     echo "    -a PSFILE            Add ternary diagram to an existing PostScript file"
-    echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left"
-    echo "    -t FONTSZ            Define font size"
+    echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left (default: 1,1,5 in)"
+    echo "    -t FONTSZ            Define font size (default: scaled with WID)"
     echo "    --shift_ss X,Y       Move labels on ternary diagram (alternatively, _th, _no)"
     echo
     echo " NOTE: all units are inches"
