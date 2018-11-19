@@ -25,7 +25,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
-                         temp_start, temp_minimum, cooling_factor
+                         temp_start, temp_minimum, cooling_factor, anneal_verbosity
 implicit none
 
 ! Initialize program behavior variables
@@ -72,6 +72,7 @@ reset_iteration = 1000000
 temp_start = 2.0d0
 temp_minimum = 0.00d0
 cooling_factor = 0.98d0
+anneal_verbosity = 0
 
 return
 end
@@ -88,7 +89,8 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
-                         temp_start, temp_minimum, cooling_factor
+                         temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
+                         anneal_control_file
 implicit none
 ! Local variables
 integer :: i, narg
@@ -206,29 +208,41 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-anneal:init_mode') then
         i = i + 1
         call get_command_argument(i,anneal_init_mode)
-    elseif (trim(tag).eq.'-anneal:it_max') then
+    elseif (trim(tag).eq.'-anneal:max_iteration' .or. &
+                               trim(tag).eq.'-anneal:it_max') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) max_iteration
-    elseif (trim(tag).eq.'-anneal:it_reset') then
+    elseif (trim(tag).eq.'-anneal:reset_iteration' .or. &
+                             trim(tag).eq.'-anneal:it_reset') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) reset_iteration
     elseif (trim(tag).eq.'-anneal:log_file') then
         i = i + 1
         call get_command_argument(i,anneal_log_file)
-    elseif (trim(tag).eq.'-anneal:temp_0') then
+    elseif (trim(tag).eq.'-anneal:temp_start' .or. &
+                            trim(tag).eq.'-anneal:temp_0') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) temp_start
-    elseif (trim(tag).eq.'-anneal:temp_min') then
+    elseif (trim(tag).eq.'-anneal:temp_minimum' .or. &
+                          trim(tag).eq.'-anneal:temp_min') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) temp_minimum
-    elseif (trim(tag).eq.'-anneal:cool') then
+    elseif (trim(tag).eq.'-anneal:cooling_factor' .or. &
+                                trim(tag).eq.'-anneal:cool') then
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) cooling_factor
+    elseif (trim(tag).eq.'-anneal:verbosity') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) anneal_verbosity
+    elseif (trim(tag).eq.'-anneal:control_file') then
+        i = i + 1
+        call get_command_argument(i,anneal_control_file)
 
     ! No option
     else
@@ -279,6 +293,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    temp_minimum:           ",1PE14.6)') temp_minimum
     write(stderr,'("    anneal_log_file:        ",A)') trim(anneal_log_file)
     write(stderr,'("    cooling_factor:         ",1PE14.6)') cooling_factor
+    write(stderr,'("    anneal_verbosity:       ",I14)') anneal_verbosity
 endif
 if (verbosity.ge.1) then
     write(stderr,*)
@@ -341,12 +356,13 @@ write(stderr,'(A)') '-lsqr:mode MODE              Solver algorithm'
 write(stderr,*)
 write(stderr,'(A)') 'Simulated Annealing Options'
 write(stderr,'(A)') '-anneal:init_mode MODE       Mode to initialize solution'
-write(stderr,'(A)') '-anneal:it_max IMAX          Maximum number of iterations'
+write(stderr,'(A)') '-anneal:max_iteration IMAX   Maximum number of iterations'
 write(stderr,'(A)') '-anneal:it_reset IRESET      Reset search every IRESET iterations'
 write(stderr,'(A)') '-anneal:log_file LOG_FILE    Log annealing progress'
 write(stderr,'(A)') '-anneal:temp_0 START_TEMP    Starting temperature'
 write(stderr,'(A)') '-anneal:temp_min MIN_TEMP    Minimum temperature'
 write(stderr,'(A)') '-anneal:cool COOL_FACT       Cooling factor'
+write(stderr,'(A)') '-anneal:verbosity LEVEL      Messages for annealing progress'
 write(stderr,*)
 write(stderr,'(A)') 'See man page for details'
 write(stderr,*)

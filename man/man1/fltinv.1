@@ -360,12 +360,12 @@ and
 .br
 
 .TP
-.BI "-anneal:it_max " max_iteration
+.BI "-anneal:max_iteration " max_iteration
 Set the maximum number of iterations in the simulated annealing search
 (default: 1000).
 
 .TP
-.BI "-anneal:it_reset " reset_iteration
+.BI "-anneal:reset_iteration " reset_iteration
 After each
 .I reset_iteration
 steps, the current solution will be set to the best solution and the
@@ -379,7 +379,7 @@ Keep a log of current solutions in
 .IR anneal_log_file .
 
 .TP
-.BI "-anneal:temp_0 " temp_start
+.BI "-anneal:temp_start " temp_start
 Starting temperature for annealing process (default: 2).
 Positive
 .I temp_start
@@ -392,7 +392,7 @@ High temperatures lead to all solutions being accepted, i.e., a random search.
 Low temperatures lead to only better solutions being accepted, i.e. a gradient search.
 
 .TP
-.BI "-anneal:temp_min " temp_minimum
+.BI "-anneal:temp_minimum " temp_minimum
 Minimum temperature for annealing process (default: 0).
 Positive
 .I temp_minimum
@@ -403,7 +403,7 @@ Negative
 will use the absolute value as the minimum temperature.
 
 .TP
-.BI "-anneal:cool " cooling_factor
+.BI "-anneal:cooling_factor " cooling_factor
 Factor to reduce temperature by every iteration (default: 0.98).
 
 
