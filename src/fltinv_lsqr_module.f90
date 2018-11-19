@@ -50,7 +50,7 @@ contains
         allocate(x(ncols,1))
     endif
 
-    if (lsqr_mode.eq.'gels') then
+    if (lsqr_mode.eq.'gels'.or.lsqr_mode.eq.'dgels') then
         call solve_lsqr_dgels()
     elseif (lsqr_mode.eq.'nnls') then
         call solve_lsqr_nnls()

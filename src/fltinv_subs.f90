@@ -93,6 +93,29 @@ if (coord_type.eq.'geographic') then
             los%array(i,2) = dist*dcos(az)
         enddo
     endif
+else
+    if (displacement%file.ne.'none') then
+        do i = 1,fault%nrecords
+            dist = (displacement%array(1,1)-fault%array(i,1))**2 + &
+                       (displacement%array(1,2)-fault%array(i,2))**2
+            if (dsqrt(dist).le.10.0d0) then
+                write(0,'(A)') '!! Warning: very small distance found'
+                write(0,'(A)') '!! Did you mean to use -geo?'
+                exit
+            endif
+        enddo
+    endif
+    if (los%file.ne.'none') then
+        do i = 1,fault%nrecords
+            dist = (los%array(1,1)-fault%array(i,1))**2 + &
+                       (los%array(1,2)-fault%array(i,2))**2
+            if (dsqrt(dist).le.10.0d0) then
+                write(0,'(A)') '!! Warning: very small distance found'
+                write(0,'(A)') '!! Did you mean to use -geo?'
+                exit
+            endif
+        enddo
+    endif
 endif
 
 ! If pre-stresses are defined, calculate the shear stresses on the faults
