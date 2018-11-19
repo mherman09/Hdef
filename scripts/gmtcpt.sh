@@ -60,6 +60,36 @@ function usage () {
         echo
         echo "    Gnuplot color palettes"
         echo "    gnuplot2 (yellow -> orange -> pink -> purple -> blue)"
+        echo
+        echo "    Use colortool from Hdef package to make nice topo CPT"
+        echo "    Hdef_topo_bold,ZMIN,ZMAX"
+        echo
+        echo "    # Custom 1: Bold colors"
+        echo "    colortool -hue 300,180 -chroma 50,0 -lightness 5,100 -gmt -T-7000/0/1 > topo_new.cpt"
+        echo "    colortool -hue 150,60 -chroma 50,0 -lightness 25,100 -gmt -T0/5000/1 >> topo_new.cpt"
+        echo "    tail -1 topo_new.cpt | awk '{print "F",$2}' >> topo_new.cpt"
+        echo "    head -1 topo_new.cpt | awk '{print "B",$2}' >> topo_new.cpt"
+        echo
+        echo "    # Custom 2: Faded colors"
+        echo "    colortool -hue 300,180 -chroma 25,0 -lightness 50,90 -gmt -T-7000/0/1 > topo_new.cpt"
+        echo "    colortool -hue 150,60 -chroma 20,0 -lightness 65,90 -gmt -T0/5000/1 >> topo_new.cpt"
+        echo "    tail -1 topo_new.cpt | awk '{print "F",$2}' >> topo_new.cpt"
+        echo "    head -1 topo_new.cpt | awk '{print "B",$2}' >> topo_new.cpt"
+        echo
+        echo "    # Custom 3: Faded ocean, bolder land"
+        echo "    colortool -hue 300,270 -chroma 30,20 -lightness 60,95 -gmt -T-7000/0/1 > topo_new.cpt"
+        echo "    colortool -hue 150,100 -chroma 35,15 -lightness 50,90 -gmt -T0/5000/1 >> topo_new.cpt"
+        echo "    tail -1 topo_new.cpt | awk '{print "F",$2}' >> topo_new.cpt"
+        echo "    head -1 topo_new.cpt | awk '{print "B",$2}' >> topo_new.cpt"
+        echo
+        echo "    Use colortool from Hdef package to make nice fault slip CPT"
+        echo "    # Color palette: white -> light blue -> light green -> yellow"
+        echo "    colortool -hue 210,60 -lightness 100,70 -chroma 30,100 -gmt -T0.0/0.5/0.01 > slip.cpt"
+        echo "    # Color palette: yellow -> orange -> red -> purple"
+        echo "    colortool -hue 60,0   -lightness 70,40 -chroma 100,60 -gmt -T0.5/1.0/0.01 >> slip.cpt"
+        echo "    tail -1 slip.cpt | awk '{print "F",$2}' >> slip.cpt"
+        echo "    head -1 slip.cpt | awk '{print "B",$2}' >> slip.cpt"
+        echo "    echo "N white" >> slip.cpt"
     fi
     exit 1
 }
@@ -107,7 +137,7 @@ PSFILE=""
 while [ "$1" != "" ]
 do
     case $1 in
-        -c)shift;CPT=$1;;
+        -c)shift;CPT_FULL_OPT=$1;CPT=`echo $1 | awk -F, '{print $1}'`;;
         -o)shift;OFILE=$1;;
         -p)shift;PSFILE=$1;;
         -l)usage --list;;
@@ -1004,6 +1034,22 @@ then
              }
          }'`
     FORMAT="STANDARD"
+elif [ $CPT == "Hdef_topo_bold" ]
+then
+    ZMIN=`echo $CPT_FULL_OPT | awk -F, '{print $2}'`
+    ZMAX=`echo $CPT_FULL_OPT | awk -F, '{print $3}'`
+    OKAY=`echo $ZMIN $ZMAX |\
+        awk '{
+            if($1>0){print "ZMIN must be <=0"}
+            else if($2<0){print "ZMAX must be >=0"}
+            else {print "OKAY"}
+        }'`
+    if [ "$OKAY" != "OKAY" ]; then echo $OKAY; exit 1; fi
+    colortool -hue 300,180 -chroma 50,0 -lightness 5,100 -gmt -T$ZMIN/0/1 > $OFILE
+    colortool -hue 150,60 -chroma 50,0 -lightness 25,100 -gmt -T0/$ZMAX/1 >> $OFILE
+    tail -1 $OFILE | awk '{print "F",$2}' >> $OFILE
+    head -1 $OFILE | awk '{print "B",$2}' >> $OFILE
+    exit
 else
     echo "No color option named \"$CPT\""
     exit 1
