@@ -7,6 +7,8 @@ module anneal_module
     double precision :: temp_start                ! >0: mult by initial obj value; <0: use absolute value
     double precision :: temp_minimum              ! >0: mult by initial obj value; <0: use absolute value
     double precision :: cooling_factor            ! every iteration, temp->temp*cooling_factor
+    integer :: anneal_verbosity
+    character(len=256) :: anneal_control_file     ! define annealing parameters in file instead of cmdln
 
     integer :: idum
     double precision :: temp
@@ -168,7 +170,7 @@ contains
     subroutine run_annealing_search()
     use io_module, only: stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight, &
-                               los_weight
+                               los_weight, smoothing_constant
     implicit none
     ! Local variables
     integer :: i, j, nflt, last_obj_best
@@ -189,7 +191,8 @@ contains
     enddo
     obj_0 = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
                 los_weight*los_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
-                stress_weight*shear_stress(slip_ssds)
+                stress_weight*shear_stress(slip_ssds) + &
+                smoothing_constant*roughness(slip_ssds)
     obj_best = obj_0
     last_obj_best = 0
 
@@ -221,6 +224,9 @@ contains
     ! Run simulated annealing search
     do i = 1,max_iteration
 
+        if (mod(i,max_iteration/10).eq.0.and.anneal_verbosity.eq.1) then
+            write(0,*) 'Annealing progress: ',i,' of ',max_iteration,' iterations'
+        endif
         ! Propose a new model (slip_new) that is a neighbor of the current model (slip_0)
         do j = 1,nflt
             slip_new(j) = slip_0(j) + (ran2(idum)-0.5d0)*dslip(j)
@@ -248,7 +254,8 @@ contains
         ! Compute objective function for new model, save if the best model
         obj_new = disp_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
                       los_weight*los_misfit_l2norm(slip_ssds)/dsqrt(dble(fault%nrecords)) + &
-                      stress_weight*shear_stress(slip_ssds)
+                      stress_weight*shear_stress(slip_ssds) + &
+                      smoothing_constant*roughness(slip_ssds)
         if (obj_new.lt.obj_best) then
             slip_best = slip_new
             rake_best = rake_new
@@ -267,13 +274,13 @@ contains
             slip_0 = slip_new
             rake_0 = rake_new
             obj_0 = obj_new
-            if (anneal_log_file.ne.'none') then
-                write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
-                                                 'Objective: ',obj_0
-                do j = 1,nflt
-                    write(201,'(1PE14.6,0PF10.2)') slip_0(j),rake_0(j)
-                enddo
-            endif
+        endif
+        if (anneal_log_file.ne.'none') then
+            write(201,'(A,I8,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
+                                             'Objective: ',obj_0
+            do j = 1,nflt
+                write(201,'(1PE14.6,0PF10.2)') slip_0(j),rake_0(j)
+            enddo
         endif
 
         ! Reduce temperature by cooling factor
@@ -316,7 +323,19 @@ contains
     return
     end subroutine run_annealing_search
 
-!--------------------------------------------------------------------------------------------------!
+! !--------------------------------------------------------------------------------------------------!
+!
+!     subroutine mcmc()
+!     implicit none
+!     do i = 1,1000
+!         ! Propose a new model
+!         ! Accept with probability
+!         p = dexp(-0.5d0*misfit_vector*covariance_vector*misfit_vector)
+!     enddo
+!     return
+!     end subroutine mcmc
+!
+! !--------------------------------------------------------------------------------------------------!
 
     double precision function disp_misfit_l2norm(model_array)
     !----
@@ -503,6 +522,46 @@ contains
 
     return
     end function shear_stress
+
+!--------------------------------------------------------------------------------------------------!
+
+    double precision function roughness(model_array)
+    !----
+    ! Calculate the Laplacian roughness of the model based on the linking files provided
+    !----
+    use variable_module, only : smoothing, smoothing_constant, smoothing_neighbors, fault
+    implicit none
+    ! I/O variables
+    double precision :: model_array(fault%nrecords,2)
+    ! Local variables
+    integer :: i, j, ifault, nneighbor, ineighbor, neighbor
+    double precision :: ss_rough, ds_rough
+
+    roughness = 0.0d0
+    if (smoothing_constant.lt.0.0d0) then
+        return
+    endif
+
+    do i = 1,smoothing%nrecords
+        ifault = smoothing%intarray(i,1)
+        nneighbor = smoothing%intarray(i,2)
+        ineighbor = smoothing%intarray(i,3)
+
+        ! Fault to be smoothed gets weight=nneighbor
+        ss_rough = dble(nneighbor)*model_array(ifault,1)
+        ds_rough = dble(nneighbor)*model_array(ifault,2)
+
+        ! Each neighboring fault gets weight of -1
+        do j = 0,nneighbor-1
+            neighbor = smoothing_neighbors(ineighbor+j)
+            ss_rough = ss_rough - model_array(neighbor,1)
+            ds_rough = ds_rough - model_array(neighbor,2)
+        enddo
+
+        roughness = roughness + dabs(ss_rough) + dabs(ds_rough)
+    enddo
+
+    end function roughness
 
 !--------------------------------------------------------------------------------------------------!
 
