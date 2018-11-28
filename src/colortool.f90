@@ -94,9 +94,17 @@ do i = 1,ncolors
     else
         c = lim1 + (lim2-lim1)*(i-1)/ncolors
         if (gmtfile.ne.'print') then
-            write(uout,1003) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            if (dabs(c).lt.1e8.and.dabs(c+(lim2-lim1)/ncolors).lt.1e8) then
+                write(uout,1003) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            else
+                write(uout,1004) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            endif
         else
-            write(uout,1003) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            if (dabs(c).lt.1e8.and.dabs(c+(lim2-lim1)/ncolors).lt.1e8) then
+                write(uout,1003) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            else
+                write(uout,1004) c,trim(rgbstring),c+(lim2-lim1)/ncolors,trim(rgbstring)
+            endif
         endif
     endif
     ! Set background and foreground colors
@@ -109,6 +117,7 @@ do i = 1,ncolors
     endif
 enddo
 1003 format(2(F20.6,X,A30))
+1004 format(2(1PG20.6,X,A30))
 
 if (gmtfile.ne.'none'.and.saturate.eq.1) then
     write(uout,'(A)') 'B '//trim(background)
