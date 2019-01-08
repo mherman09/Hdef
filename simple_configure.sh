@@ -231,7 +231,8 @@ fits: \\
       \$(BIN)/fltinv
 
 seis: \\
-      \$(BIN)/mtutil
+      \$(BIN)/mtutil \\
+      \$(BIN)/readGCMT
 
 scripts: \\
       \$(BIN)/coul_hor.sh \\
@@ -291,6 +292,9 @@ FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.
 	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit src/polyfit.f src/lsqsubs.f \$(LAPACK)
 \$(BIN)/polyfit_special: src/polyfit_special.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/polyfit_special src/polyfit_special.f \$(LAPACK)
+\$(BIN)/readGCMT: src/readGCMT.f90 src/geomsubs.f
+	\$(FC) \$(FFLAG) -o \$(BIN)/readGCMT src/readGCMT.f90 src/geomsubs.f
+	rm io.mod event_data.mod
 \$(BIN)/readkik: src/readkik.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/readkik src/readkik.f
 \$(BIN)/sphfinrot: src/sphfinrot.f90
@@ -344,6 +348,7 @@ clean:
 	-rm \$(BIN)/platemotion
 	-rm \$(BIN)/polyfit
 	-rm \$(BIN)/polyfit_special
+	-rm \$(BIN)/readGCMT
 	-rm \$(BIN)/readkik
 	-rm \$(BIN)/sphfinrot
 	-rm \$(BIN)/stereo_project
