@@ -243,50 +243,50 @@ C----------------------------------------------------------------------C
       INTEGER lstr
       CHARACTER str*(*)
       if (str.ne.' ') then
-          write(*,*) trim(str)
-          write(*,*)
+          write(0,*) trim(str)
+          write(0,*)
       endif
-      write(*,*)
+      write(0,*)
      1 'Usage: mtutil -opt INPUT -opt [OFILE]'
-      write(*,*)
+      write(0,*)
      1 '    I/O options:'
-      write(*,*)
+      write(0,*)
      1 '    -sdr      Strike, dip, and rake angles'
-      write(*,*)
+      write(0,*)
      1 '    -mij      Moment tensor components (mrr mtt mpp mrt mrp ',
      2                                          'mtp; GCMT definition)'
-      write(*,*)
+      write(0,*)
      1 '    -pnt      P, N, T axes (x,y,z,mag)'
-      write(*,*)
+      write(0,*)
      1 '    -mag      Magnitude'
-      write(*,*)
+      write(0,*)
      1 '    -mom      Seismic moment (Nm)'
-      write(*,*)
-      write(*,*)
+      write(0,*)
+      write(0,*)
      1 '    Output only options:'
-      write(*,*)
+      write(0,*)
      1 '    -ternary  fth fss fno'
-      write(*,*)
+      write(0,*)
      1 '    -dcp      double couple percentage'
-      write(*,*)
+      write(0,*)
      1 '    -sv       slip vector (az plunge)'
-      write(*,*)
-      write(*,*)
+      write(0,*)
+      write(0,*)
      1 '    INPUT format:'
-      write(*,*)
+      write(0,*)
      1 '        file name: read from file INPUT'
-      write(*,*)
+      write(0,*)
      1 '        comma delimited list: read from command line'
-      write(*,*)
+      write(0,*)
      1 '        "stdin": read from standard input'
-      write(*,*)
-      write(*,*)
+      write(0,*)
+      write(0,*)
      1 '    OUTPUT format:'
-      write(*,*)
+      write(0,*)
      1 '        file name: write to file OUTPUT'
-      write(*,*)
+      write(0,*)
      1 '        undefined: print to standard output'
-      write(*,*)
+      write(0,*)
       STOP
       END
 
