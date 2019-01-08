@@ -201,6 +201,15 @@ keepEvent = 1
 
 ! Geographic test
 if (geoMode.eq.'rect') then
+    if (lonMin.lt.0.0d0) then
+        lonMin = lonMin + 360.0d0
+    endif
+    if (lonMax.lt.0.0d0) then
+        lonMax = lonMax + 360.0d0
+    endif
+    if (centroidLon.lt.0.0d0) then
+        centroidLon = centroidLon + 360.0d0
+    endif
     if (lonMin.le.centroidLon.and.centroidLon.le.lonMax .and. &
         latMin.le.centroidLat.and.centroidLat.le.latMax) then
         keepEvent = 1
