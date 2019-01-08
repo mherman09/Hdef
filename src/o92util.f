@@ -422,13 +422,17 @@ C----------------------------------------------------------------------C
       IMPLICIT none
       REAL*8 sta(3)
       CHARACTER*40 staf
+      CHARACTER*256 iline
       INTEGER i,nsta,chk,xy,ios
       chk = 0
       open(unit=18,file=staf,status='old')
       do 181 i = 1,nsta
-          read(18,*,err=999,end=999,iostat=ios) sta(1),sta(2),sta(3)
+          read(18,'(A)') iline
+          read(iline,*,err=999,end=999,iostat=ios) sta(1),sta(2),sta(3)
   999     if (ios.ne.0) then
-              call usage('!! Error in reading station coordinates')
+              write(0,*) 'Offending line: ',trim(iline)
+              call usage('!! Error in reading station coordinates '//
+     1                       '(should be stlo stla stdp)')
           endif
           if ((dabs(sta(1)).gt.360.or.dabs(sta(2)).gt.90).and.
      1                                                xy.ne.1) then
