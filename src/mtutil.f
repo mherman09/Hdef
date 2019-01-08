@@ -256,7 +256,8 @@ C----------------------------------------------------------------------C
      1 '    -mij      Moment tensor components (mrr mtt mpp mrt mrp ',
      2                                          'mtp; GCMT definition)'
       write(0,*)
-     1 '    -pnt      P, N, T axes (x,y,z,mag)'
+     1 '    -pnt      P, N, T axes (px,py,pz,nx,ny,nz,tx,ty,tz,',
+     2                              'pmag,nmag,tmag)'
       write(0,*)
      1 '    -mag      Magnitude'
       write(0,*)
