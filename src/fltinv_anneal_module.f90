@@ -284,7 +284,7 @@ contains
         endif
 
         ! Reduce temperature by cooling factor
-        if (temp.lt.temp_minimum) then
+        if (temp.le.temp_minimum) then
             temp = temp_minimum
         else
             temp = temp*cooling_factor
