@@ -451,8 +451,28 @@ C----
       INTEGER info,lwork
       REAL*8 a(lda,n),w(n),work(lwmax),m(6)
       REAL*8 p(3),o(3),t(3)
+
+C There seems to be some confusion in my mind as to the definitions of r, t, and p
+
+C In Jost and Herrmann (1989), Equation A2.1:
+C     mrr = mzz
+C     mtt = mxx
+C     mpp = myy
+C     mrt = mxz
+C     mrp = -myz
+C     mtp = -mxy
+C i.e., r=-z=up, p=y=east, t=-x=south
+C In Ekstrom et al. (2012), Table 1, they have the same transformation.
+
+C I think of x=east, y=north, and z=up. In this Cartesian system:
+C     mrr = mzz
+C     mtt = myy
+C     mpp = mxx
+C     mrt = -myz
+C     mrp = mxz
+C     mtp = -mxy
+
 C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
-C Moment tensor components (r=z, t=e, p=n):
       read(line,*) m(1),m(2),m(3),m(4),m(5),m(6)
       a(3,3) =  m(1)     ! mrr =  mzz
       a(2,2) =  m(2)     ! mtt =  myy

@@ -22,21 +22,54 @@ See Jost and Herrmann (1989) for more details.
 .SH OPTIONS
 .TP
 .B INPUTS
+
 .TP
 .BI "-sdr [" input_file | strike , dip , rake ]
 .IR Strike ", " dip ", and " rake
 as defined by Aki and Richards (2002).
+.I Strike
+is in degrees clockwise from north,
+.I dip
+is in degrees down from horizontal, and
+.I rake
+is in degrees counter-clockwise from the strike-parallel direction along the fault plane.
+
 .TP
 .BI "-mij [" input_file | mrr , mtt , mpp , mrt , mrp , mtp ]
-Moment tensor components as typically published by the Global CMT project, where
+Moment tensor components as published by the Global CMT project
+(Gilbert and Dziewonski, 1975; Ekstrom et al., 2012), where
 .I r
-is the radial (vertical) direction,
+is the radial (unit vector corresponds to vertical) direction,
 .I t
-is co-latitude, corresponding to south, and
+is co-latitude (unit vector corresponds to south), and
 .I p
-is longitude, corresponding to east. This follows the convention in Gilbert and Dziewonski (1975),
-which is used in the GCMT project. In e=x, n=y, z coordinates:
-.IR mzz , myy , mxx , -myz , mxz , -mxy
+is longitude (unit vector corresponds to east).
+
+In
+.BR mtutil ,
+x=east, y=north, and z=up, so:
+.br
+.IR mrr " = mzz"
+.br
+.IR mtt " = myy"
+.br
+.IR mpp " = mxx"
+.br
+.IR mrt " = -myz"
+.br
+.IR mrp " = mxz"
+.br
+.IR mtp " = -mxy"
+
+IMPORTANT NOTE #1: Ekstrom et al. (2012) define a different Cartesian coordinate system,
+where x=north, y=east, and z=down. Some moment tensor solutions are reported in this
+system (e.g., NIED F-net solutions from Japan).
+
+IMPORTANT NOTE #2: Moment tensors behave similarly to stress tensors. You can use
+.B mtutil
+to compute the eigenvectors and eigenvalues of stress tensors using -mij and -pnt,
+remembering to account for the coordinate transformation.
+
 .TP
 .BI "-pnt [" input_file | px , py , pz , nx , ny , nz , tx , ty , tz , pmag , nmag , tmag ]
 Moment tensor eigenvectors and eigenvalues, also referred to as P (maximum compression), N
@@ -45,15 +78,18 @@ Moment tensor eigenvectors and eigenvalues, also referred to as P (maximum compr
 is typically negative and
 .I tmag
 is typically positive.
+
 .TP
 .BI "-mag [" input_file | magnitude ]
 Moment
-.IR magnitude "=2/3*log10(" moment ")-6.0"
+.IR magnitude " = 2/3*log10(" moment ")-6.0"
+
 .TP
 .BI "-mom [" input_file | moment ]
 Seismic
 .I moment
 in N*m.
+
 .TP
 .B OUTPUTS
 .TP
@@ -78,7 +114,7 @@ Moment tensor eigenvectors (normalized to length=1) and eigenvalues:
 .TP
 .BI "-mag [" output_file ]
 Moment
-.IR magnitude "=2/3*log10(" moment ")-6.0"
+.IR magnitude " = 2/3*log10(" moment ")-6.0"
 .TP
 .BI "-mom [" output_file ]
 Seismic
@@ -99,7 +135,7 @@ Slip vector
 .I azimuth
 and
 .I plunge
-(horizontal=0, vertical=90)
+in degrees (horizontal=0, vertical=90)
 
 .SH REFERENCES
 .TP
