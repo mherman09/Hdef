@@ -4,15 +4,17 @@
 #	USAGE STATEMENT
 #####
 function usage() {
-    echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j DX] [-a PSFILE] [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y]"
-    echo "    -f IFILE             Input file (fth fss fno [mag [val]])"
-    echo "    -c CPT               Color palette file (color by val in fifth column)"
-    echo "    -s SCALE             Symbol scale factor (default: 0.002 in)"
-    echo "    -j DX                Jitter symbols randomly by up to DX in (default: none)"
-    echo "    -a PSFILE            Add ternary diagram to an existing PostScript file"
-    echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left (default: 1,1,5 in)"
-    echo "    -t FONTSZ            Define font size (default: scaled with WID)"
-    echo "    --shift_ss X,Y       Move labels on ternary diagram (alternatively, _th, _no)"
+    echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j DX] [-a PSFILE]" 1>&2
+    echo "    [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y] [--adjust_proj FRAC]" 1>&2
+    echo "    -f IFILE             Input file (fth fss fno [mag [val]])" 1>&2
+    echo "    -c CPT               Color palette file (color by val in fifth column)" 1>&2
+    echo "    -s SCALE             Symbol scale factor (default: 0.002 in)" 1>&2
+    echo "    -j DX                Jitter symbols randomly by up to DX in (default: none)" 1>&2
+    echo "    -a PSFILE            Add ternary diagram to an existing PostScript file" 1>&2
+    echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left (default: 1,1,5 in)" 1>&2
+    echo "    -t FONTSZ            Define font size (default: scaled with WID)" 1>&2
+    echo "    --shift_ss X,Y       Move labels on ternary diagram (alternatively, _th, _no)" 1>&2
+    echo "    --adjust_proj FRAC   Define fraction for combined projection (0-1; default:0)" 1>&2
     echo
     echo " NOTE: all units are inches"
     exit
@@ -29,25 +31,28 @@ FONTSZ=""
 SS_SHFT="0,0"
 TH_SHFT="0,0"
 NO_SHFT="0,0"
+FRAC_SIMPLE="0"
 if [ $# -eq 0 ]; then usage; fi
 while [ "$1" != "" ]; do
     case $1 in
-        -f)shift;IFILE=$1;;
-        -s)shift;SCALE=$1;;
-        -c)shift;CPT=$1;;
-        -j)shift;JITTER=$1;;
-        -a)shift;APPEND=$1;;
-        -x)shift;ALTER=$1;;
-        -t)shift;FONTSZ=$1;;
-        --shift_ss)shift;SS_SHFT="$1";;
-        --shift_th)shift;TH_SHFT="$1";;
-        --shift_no)shift;NO_SHFT="$1";;
-        -h)usage;;
-         *)echo No option $1;usage
+        -f) shift;IFILE=$1;;
+        -s) shift;SCALE=$1;;
+        -c) shift;CPT=$1;;
+        -j) shift;JITTER=$1;;
+        -a) shift;APPEND=$1;;
+        -x) shift;ALTER=$1;;
+        -t) shift;FONTSZ=$1;;
+        --shift_ss) shift;SS_SHFT="$1";;
+        --shift_th) shift;TH_SHFT="$1";;
+        --shift_no) shift;NO_SHFT="$1";;
+        --adjust_proj) shift;FRAC_SIMPLE="$1";;
+        -h) usage;;
+         *) echo No option $1;usage
     esac
     shift
 done
 if [ -z $SCALE ];then echo Did not define scale, setting to 0.002;SCALE="0.002";fi
+FRAC_SIMPLE=`echo $FRAC_SIMPLE | awk '{if($1<0){print 0}else if($1>1){print 1}else{print $1}}'`
 
 #####
 #	CHECK FOR INPUT FILE AND FORMAT
@@ -139,6 +144,7 @@ do
         awk 'BEGIN{
             aref = '"$AREF"'
             hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
         }{
             tdipr = $1
             bdipr = $2
@@ -147,6 +153,10 @@ do
             denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
             h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
             v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
             print h,v
         }' |\
         gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
@@ -176,6 +186,7 @@ do
         awk 'BEGIN{
             aref = '"$AREF"'
             hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
         }{
             tdipr = $1
             bdipr = $2
@@ -184,6 +195,10 @@ do
             denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
             h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
             v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
             print h,v
         }' |\
         gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
@@ -213,6 +228,7 @@ do
         awk 'BEGIN{
             aref = '"$AREF"'
             hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
         }{
             tdipr = $1
             bdipr = $2
@@ -221,6 +237,10 @@ do
             denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
             h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
             v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
             print h,v
         }' |\
         gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
@@ -257,6 +277,7 @@ TIME=`date "+%s"`
 awk 'BEGIN{
     aref = '"$AREF"'
     hgt  = '"$HEIGHT"'
+    frac = '"$FRAC_SIMPLE"'
     scl  = '"$SCALE"'
     jitter = '"$JITTER"'
     srand('"$TIME"')
@@ -271,6 +292,10 @@ awk 'BEGIN{
     denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
     h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
     v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+    hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+    vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+    h = frac*hs + (1-frac)*h
+    v = frac*vs + (1-frac)*v
     if (jitter>0) {
         h = h + (rand()-0.5)*0.02
         v = v + (rand()-0.5)*0.02
