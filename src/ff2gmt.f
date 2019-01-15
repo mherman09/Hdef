@@ -5,7 +5,7 @@ C----
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
-      CHARACTER*40 ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
+      CHARACTER*512 ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
       LOGICAL ex
       INTEGER i,nflt,FMAX,cf,itype
       PARAMETER (FMAX=1500)
@@ -114,7 +114,7 @@ C======================================================================c
       IMPLICIT none
       REAL*8 pi,d2r
       PARAMETER (pi=4.0d0*datan(1.0d0),d2r=pi/180.0d0)
-      CHARACTER*40 cfile
+      CHARACTER*512 cfile
       INTEGER i,nflt,FMAX,cf,nseg
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),str(FMAX),dip(FMAX),
@@ -389,7 +389,7 @@ C----
 C Read shear dislocations from FFM in standard subfault format.
 C----
       IMPLICIT NONE
-      CHARACTER*40 ffmfile,du,dxc,dyc
+      CHARACTER*512 ffmfile,du,dxc,dyc
       INTEGER nflt,FMAX
       PARAMETER (FMAX=1500)
       REAL*8 evlo(FMAX),evla(FMAX),evdp(FMAX),str(FMAX),dip(FMAX),
@@ -434,7 +434,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE readfsp(fspf,evlo,evla,evdp,str,dip,rak,dx,dy,slip,
      1                   trup,hylo,hyla,seg,nseg,nflt)
       IMPLICIT none
-      CHARACTER*40 fspf
+      CHARACTER*512 fspf
       CHARACTER*10 segc
       CHARACTER*200 line
       INTEGER i,nflt,FMAX
@@ -490,7 +490,7 @@ C----------------------------------------------------------------------c
       SUBROUTINE gcmdln(ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile,
      1                  time,cf,itype)
       IMPLICIT none
-      CHARACTER*40 tag,ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
+      CHARACTER*512 tag,ifile,sfile,tfile,zfile,cfile,nfile,efile,dfile
       INTEGER narg,i,cf,itype
       REAL*8 time
       ifile = 'none'
