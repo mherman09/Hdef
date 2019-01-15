@@ -1,4 +1,4 @@
-Hdef version 2018.03.01
+Hdef version 2019.01.01
 
 The primary purpose for this suite of codes is the forward calculation of
 displacements, strains, and stresses in an elastic half-space (hence,
@@ -64,10 +64,8 @@ Alphabetical list of programs in Hdef (*requires LAPACK; ^use with caution: depr
 	o92util                compute displacement, stress, strain from fault source
 	perturb                randomly vary values
 	platemotion            compute velocity for plate pair or Euler pole
-	^pole2vel              compute velocity for Euler pole (superceded by platemotion)
 	*polyfit               fit data series with a polynomial function
 	^*polyfit_special      fit data series with a polynomial function (windowed)
-	^pt2fin                convert point source to finite source (superceded by eqempirical)
 	readkik                read strong motion in KiK-net format
 	simplify_ffm.sh        remove slip less than threshold value from FFM
 	sphfinrot              make finite rotation on sphere
@@ -77,4 +75,3 @@ Alphabetical list of programs in Hdef (*requires LAPACK; ^use with caution: depr
 	utm2geo                convert UTM to geographic coordinates
 	vec2los                project vector onto line of sight
 	wraplos                wrap input value onto rotations around frequency
-

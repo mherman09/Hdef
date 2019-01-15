@@ -1,14 +1,24 @@
 PREREQUISITES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - Fortran compiler
 	- I work with gfortran; the codes also work compiled with ifort
+	- Gfortran can be installed with most package managers (Fink, Homebrew, MacPorts, APT, etc.)
+	- You can also find gfortran at https://gcc.gnu.org/wiki/GFortran
 - LAPACK
 	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions)
 	- The LAPACK 3.7.1 source code is included in the ext/ directory
 	- A lot of Hdef can still be compiled without LAPACK if preferred
 	- Make sure that LAPACK is installed with the same compiler as Hdef
+	- Installing LAPACK is fairly easy on most systems:
+		1. Unzip the LAPACK package. Change into the LAPACK directory.
+		2. Copy make.inc.example to make.inc.
+		3. Edit the Makefile so that the line "lib: blaslib variants lapacklib tmglib" is uncommented.
+		4. Type "make".
+	- NOTE: You may see the following error when compiling: "recipe for target lapack_testing failed"
+	  You may disregard this, or if you really want to run the tests, you can dive into OS memory
+	  management and type "ulimit -s unlimited" before running "make".
 
-COMPILING DIRECTIONS
+COMPILING HDEF DIRECTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 I did not think too hard about other users installing the software, so this process is a little
 haphazard. Sorry. The simplest option that should work for most people is to run the shell script
@@ -27,4 +37,3 @@ designated directory with:
 make
 
 Contact matthew.w.herman@gmail.com for questions.
-
