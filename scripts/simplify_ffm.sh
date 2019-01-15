@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ $# -ne 2 ]
 then
@@ -16,4 +16,3 @@ awk '{
         print $0
     }
 }' $FFM
-

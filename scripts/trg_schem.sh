@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #####
 #       USAGE STATEMENT
@@ -140,5 +140,3 @@ then
 fi
 
 exit
-
-

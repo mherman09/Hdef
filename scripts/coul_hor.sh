@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ###############################################################################
 # Script for computing and plotting Coulomb stress changes on a horizontal
@@ -66,7 +66,7 @@ echo "    -Rw/e/s/n    Define map limits (optional)"
 echo "    -Ts/d/r      Define target fault strike/dip/rake (optional)"
 echo "    -Zdep        Define target fault depth (optional)"
 echo "    -seg         Draw each fault segment (default draws as one segment)"
-echo 
+echo
 exit
 }
 # Check for minimum number of required arguments
@@ -217,7 +217,7 @@ then
     S=`grep " S: " auto.dat | awk '{print $2}'`
     N=`grep " N: " auto.dat | awk '{print $2}'`
     echo "Starting map limits: $W $E $S $N"
-    
+
     # Determine if map has decent aspect ratio and correct as necessary
     # Mercator projection x and y lengths
     X=`echo $W $E | awk '{print $2-$1}'`
@@ -420,4 +420,3 @@ echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
 #####
 ps2pdf $PSFILE
 rm no_green_mwh.cpt
-

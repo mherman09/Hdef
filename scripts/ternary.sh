@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #####
 #	USAGE STATEMENT
@@ -316,6 +316,3 @@ then
     ps2pdf $PSFILE
     rm $PSFILE
 fi
-
-
-
