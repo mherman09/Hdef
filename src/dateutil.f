@@ -83,6 +83,7 @@ C----------------------------------------------------------------------C
       SUBROUTINE rdarg(arg,ifmt,opt,long)
       IMPLICIT none
       CHARACTER*240 arg,arg1,arg2
+      INTEGER ios
       INTEGER opt,long,ifmt
       INTEGER yr1,mo1,yr2,mo2
       REAL*8 dy1,dy2,ndy
@@ -90,26 +91,31 @@ C----------------------------------------------------------------------C
       COMMON /DVARS/ yr1,mo1,yr2,mo2,dy1,dy2,ndy
       !print *,'IFMT',ifmt
       if (ifmt.eq.1) then
-          read(arg,*) arg1,arg2
-          read(arg1(1:4),*) yr1
-          read(arg1(5:6),*) mo1
-          read(arg1(7:8),*) dy1
+          read(arg,*,err=9001,iostat=ios) arg1,arg2
+          read(arg1(1:4),*,err=9001,iostat=ios) yr1
+          read(arg1(5:6),*,err=9001,iostat=ios) mo1
+          read(arg1(7:8),*,err=9001,iostat=ios) dy1
           if (long.eq.1) then
-              read(arg1(9:10),*) hr1
-              read(arg1(11:12),*) mn1
-              read(arg1(13:14),*) sc1
+              read(arg1(9:10),*,err=9001,iostat=ios) hr1
+              read(arg1(11:12),*,err=9001,iostat=ios) mn1
+              read(arg1(13:14),*,err=9001,iostat=ios) sc1
           endif
           if (opt.eq.1.or.opt.eq.3) then
-              read(arg2(1:4),*) yr2
-              read(arg2(5:6),*) mo2
-              read(arg2(7:8),*) dy2
+              read(arg2(1:4),*,err=9001,iostat=ios) yr2
+              read(arg2(5:6),*,err=9001,iostat=ios) mo2
+              read(arg2(7:8),*,err=9001,iostat=ios) dy2
               if (long.eq.1) then
-                  read(arg2(9:10),*) hr2
-                  read(arg2(11:12),*) mn2
-                  read(arg2(13:14),*) sc2
+                  read(arg2(9:10),*,err=9001,iostat=ios) hr2
+                  read(arg2(11:12),*,err=9001,iostat=ios) mn2
+                  read(arg2(13:14),*,err=9001,iostat=ios) sc2
               endif
           else
-              read(arg2,*) ndy
+              read(arg2,*,err=9001,iostat=ios) ndy
+          endif
+ 9001     if (ios.ne.0) then
+              write(0,*) '!! Offending line: ',trim(arg)
+              call usage('!! Error reading date1 date2|nday'//
+     1         ' with date format YYYYMMDD[HHMMSS]')
           endif
       elseif (ifmt.eq.2) then
           if (long.eq.0.and.opt.eq.1.or.opt.eq.3) then
@@ -123,26 +129,31 @@ C----------------------------------------------------------------------C
               read(arg,*,end=2001) yr1,mo1,dy1,hr1,mn1,sc1,ndy
           endif
       elseif (ifmt.eq.3) then
-          read(arg,*) arg1,arg2
-          read(arg1(1:4),*) yr1
-          read(arg1(6:7),*) mo1
-          read(arg1(9:10),*) dy1
+          read(arg,*,err=9002,iostat=ios) arg1,arg2
+          read(arg1(1:4),*,err=9002,iostat=ios) yr1
+          read(arg1(6:7),*,err=9002,iostat=ios) mo1
+          read(arg1(9:10),*,err=9002,iostat=ios) dy1
           if (long.eq.1) then
-              read(arg1(12:13),*) hr1
-              read(arg1(15:16),*) mn1
-              read(arg1(18:19),*) sc1
+              read(arg1(12:13),*,err=9002,iostat=ios) hr1
+              read(arg1(15:16),*,err=9002,iostat=ios) mn1
+              read(arg1(18:19),*,err=9002,iostat=ios) sc1
           endif
           if (opt.eq.1.or.opt.eq.3) then
-              read(arg2(1:4),*) yr2
-              read(arg2(6:7),*) mo2
-              read(arg2(9:10),*) dy2    
+              read(arg2(1:4),*,err=9002,iostat=ios) yr2
+              read(arg2(6:7),*,err=9002,iostat=ios) mo2
+              read(arg2(9:10),*,err=9002,iostat=ios) dy2    
               if (long.eq.1) then
-                  read(arg2(12:13),*) hr2
-                  read(arg2(15:16),*) mn2
-                  read(arg2(18:19),*) sc2
+                  read(arg2(12:13),*,err=9002,iostat=ios) hr2
+                  read(arg2(15:16),*,err=9002,iostat=ios) mn2
+                  read(arg2(18:19),*,err=9002,iostat=ios) sc2
               endif
           else
-              read(arg2,*) ndy
+              read(arg2,*,err=9002,iostat=ios) ndy
+          endif
+ 9002     if (ios.ne.0) then
+              write(0,*) '!! Offending line: ',trim(arg)
+              call usage('!! Error reading date1 date2|nday'//
+     1         ' with date format YYYY-MM-DDT[HH:MM:SS]')
           endif
       endif
       if (opt.eq.1.or.opt.eq.3.and.long.eq.1) then
@@ -404,48 +415,48 @@ C----------------------------------------------------------------------C
       CHARACTER str*(*)
       if (str.ne.' ') then
           lstr = len(str)
-          write(*,*) str(1:lstr)
-          write(*,*)
+          write(0,*) str(1:lstr)
+          write(0,*)
       endif
-      write(*,*)
+      write(0,*)
      1 'Usage: dateutil -f IFILE -o OFILE -nday|-date ',
      2               '[-c DATE1 DATE2|NDAY] [-long] [-p] [-h]'
-      write(*,*)
-      write(*,*)
+      write(0,*)
+      write(0,*)
      1 '-f IFILE             Input date file (format depends on -nday|',
      1                                    '-date and -long)'
-      write(*,*)
+      write(0,*)
      1 '-o OFILE             Output file (depends on -nday|-date and ',
      2                                            '-long)'
-      write(*,*)
+      write(0,*)
      1 '-nday                Compute number of days (IFILE format: ',
      2                                  'DATE1 DATE2)'
-      write(*,*)
+      write(0,*)
      1 '-date                Compute calendar date (IFILE format: ',
      2                                      'DATE NDAY)'
-      write(*,*)
+      write(0,*)
      1 '-c DATE1 DATE2|NDAY  Input dates and days on command line ',
      2                        '(overrides -f and -o)'
-      write(*,*)
+      write(0,*)
      1 '-long                Read/write all dates as ',
      2                      'YYYYMMDDHHMMSS instead of YYYYMMDD'
-      write (*,*)
+      write(0,*)
      1 '-p                   Print results to standard output ',
      2                                  '(overrides -o)'
-      write (*,*)
+      write(0,*)
      1 '-h                   Online help (this message)'
-      write(*,*)
-      write(*,*)
+      write(0,*)
+      write(0,*)
      1 '  dateutil recognizes three DATE formats:'
-      write(*,*)
+      write(0,*)
      1 '    YYYY MM HH [HH MM SS]'
-      write(*,*)
+      write(0,*)
      1 '    YYYYMMHH[HHMMSS]'
-      write(*,*)
+      write(0,*)
      1 '    YYYY-MM-HHT[HH:MM:SS]'
-      write(*,*)
+      write(0,*)
      1 '  NDAY format: real number (to allow fractions of a ',
      2                                        'day)'
-      write(*,*)
+      write(0,*)
       STOP
       END
