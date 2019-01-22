@@ -126,6 +126,12 @@ else
                 EXIST=`ls $LAPACK_LIB_DIR/libreflapack.a 2>&1 | awk '{if(/No such file or directory/){print "N";exit}else{print "Y";exit}}'`
                 LIB2=reflapack
             fi
+            if [ "$EXIST" == "N" -a "$LIB" == "refblas" ]
+            then
+                echo "LAPACK library \"refblas\" does not exist; looking for library \"blas\""
+                EXIST=`ls $LAPACK_LIB_DIR/libblas.a 2>&1 | awk '{if(/No such file or directory/){print "N";exit}else{print "Y";exit}}'`
+                LIB2=blas
+            fi
             if [ "$EXIST" == "N" ]
             then
                 echo !! Error: LAPACK library \"$LIB2\" is not in $LAPACK_LIB_DIR
