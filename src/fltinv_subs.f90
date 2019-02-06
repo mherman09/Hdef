@@ -65,6 +65,25 @@ else
 
     ! Read the fault data
     call read_program_data_file(fault)
+
+    ! Check that fault depth, dimensions/area seem roughly right
+    if (maxval(fault%array(:,3)).lt.1000.0d0) then
+        write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
+        write(0,'(A)') '!! Make sure depth units are meters, positive down'
+    endif
+    write(0,*) gf_type
+    if (gf_type.eq.'okada_rect') then
+        if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
+            write(0,'(A)') '!! Warning: fault dimensions all less than 100 m'
+            write(0,'(A)') '!! Make sure units are meters, not kilometers'
+        endif
+    endif
+    if (gf_type.eq.'okada_pt') then
+        if (maxval(fault%array(:,6)).lt.10000.0d0) then
+            write(0,'(A)') '!! Warning: fault areas all less than 100 m x 100 m'
+            write(0,'(A)') '!! Make sure units are square meters, not square kilometers'
+        endif
+    endif
 endif
 
 ! Make coordinates Cartesian
@@ -391,7 +410,8 @@ subroutine calc_greens_functions()
 use io_module, only: stderr, verbosity
 use variable_module, only: inversion_mode, displacement, los, prestress, &
                            gf_type, gf_disp, gf_stress, gf_los
-use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect
+use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect,&
+                        calc_gf_disp_okada_pt, calc_gf_stress_okada_pt, calc_gf_los_okada_pt
 implicit none
 
 if (verbosity.ge.1) then
@@ -404,6 +424,8 @@ if (displacement%file.ne.'none') then
     if (gf_disp%file.eq.'none') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_disp_okada_rect()
+        elseif (gf_type.eq.'okada_pt') then
+            call calc_gf_disp_okada_pt()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
@@ -417,6 +439,8 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
     if (gf_stress%file.eq.'none') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_stress_okada_rect()
+        elseif (gf_type.eq.'okada_pt') then
+            call calc_gf_stress_okada_pt()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
@@ -430,6 +454,8 @@ if (los%file.ne.'none') then
     if (gf_los%file.eq.'none') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_los_okada_rect()
+        elseif (gf_type.eq.'okada_pt') then
+            call calc_gf_los_okada_pt()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                               trim(gf_type))
