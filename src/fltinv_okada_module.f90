@@ -32,6 +32,14 @@ contains
         stlo = displacement%array(i,1)
         stla = displacement%array(i,2)
         stdp = displacement%array(i,3)
+        if (verbosity.ge.1) then
+            write(0,'(A1,A,I3,A)',advance='no') achar(13), &
+                'calc_gf_disp_okada_rect progress: ',100*i/displacement%nrecords,'%'
+            if (i.eq.displacement%nrecords) then
+                write(0,*)
+            endif
+        endif
+
         do j = 1,fault%nrecords
             evlo = fault%array(j,1)
             evla = fault%array(j,2)
@@ -158,12 +166,12 @@ contains
 
     ! Shear stress Green's functions for each fault-fault pair
     do i = 1,fault%nrecords
-        if (i.gt.prog) then
-            if (verbosity.ge.2) then
-                write(0,'(A,I3,A)') 'calc_gf_stress_okada_rect says:',100*prog/fault%nrecords,&
-                               '% complete'
+        if (verbosity.ge.1) then
+            write(0,'(A1,A,I3,A)',advance='no') achar(13), &
+                'calc_gf_stress_okada_rect progress: ',100*i/fault%nrecords,'%'
+            if (i.eq.fault%nrecords) then
+                write(0,*)
             endif
-            prog = prog + fault%nrecords/100
         endif
         stlo = fault%array(i,1)
         stla = fault%array(i,2)
