@@ -274,14 +274,14 @@ test: \\
 FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_variable_module.f90 \
                  src/fltinv_elast_module.f90 \
-                 src/fltinv_okada_module.f90 \
+                 src/fltinv_gf_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/tri_disloc_module.f90 src/pnpoly.f
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK)
 	rm *.o *.mod
 \$(BIN)/grid: src/grid.f

@@ -57,6 +57,8 @@ else
         fault%nfields = 7
     elseif (gf_type.eq.'okada_pt') then
         fault%nfields = 6
+    elseif (gf_type.eq.'triangle') then
+        fault%nfields = 9
 
     ! Need to have Green's functions for an inversion
     else
@@ -71,7 +73,6 @@ else
         write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
         write(0,'(A)') '!! Make sure depth units are meters, positive down'
     endif
-    write(0,*) gf_type
     if (gf_type.eq.'okada_rect') then
         if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
             write(0,'(A)') '!! Warning: fault dimensions all less than 100 m'
@@ -82,6 +83,16 @@ else
         if (maxval(fault%array(:,6)).lt.10000.0d0) then
             write(0,'(A)') '!! Warning: fault areas all less than 100 m x 100 m'
             write(0,'(A)') '!! Make sure units are square meters, not square kilometers'
+        endif
+    endif
+    if (gf_type.eq.'triangle') then
+        if (maxval(fault%array(:,6)).lt.1000.0d0) then
+            write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
+            write(0,'(A)') '!! Make sure depth units are meters, positive down'
+        endif
+        if (maxval(fault%array(:,9)).lt.1000.0d0) then
+            write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
+            write(0,'(A)') '!! Make sure depth units are meters, positive down'
         endif
     endif
 endif
@@ -95,6 +106,16 @@ if (coord_type.eq.'geographic') then
         dist = dist*6.371d6
         fault%array(i,1) = dist*dsin(az)
         fault%array(i,2) = dist*dcos(az)
+        if (gf_type.eq.'triangle') then
+            call ddistaz(dist,az,reflon,reflat,fault%array(i,4),fault%array(i,5))
+            dist = dist*6.371d6
+            fault%array(i,4) = dist*dsin(az)
+            fault%array(i,5) = dist*dcos(az)
+            call ddistaz(dist,az,reflon,reflat,fault%array(i,7),fault%array(i,8))
+            dist = dist*6.371d6
+            fault%array(i,7) = dist*dsin(az)
+            fault%array(i,8) = dist*dcos(az)
+        endif
     enddo
     if (displacement%file.ne.'none') then
         do i = 1,displacement%nrecords
@@ -312,7 +333,7 @@ endif
 !----
 ! Read half-space data or use hard-coded default values
 !----
-if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt') then
+if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt'.or.gf_type.eq.'triangle') then
     if (halfspace%file.ne.'none') then
         if (halfspace%flag.eq.'velodens') then
             halfspace%nfields = 3
@@ -410,8 +431,9 @@ subroutine calc_greens_functions()
 use io_module, only: stderr, verbosity
 use variable_module, only: inversion_mode, displacement, los, prestress, &
                            gf_type, gf_disp, gf_stress, gf_los
-use okada_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect,&
-                        calc_gf_disp_okada_pt, calc_gf_stress_okada_pt, calc_gf_los_okada_pt
+use gf_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect, &
+                     calc_gf_disp_okada_pt,   calc_gf_stress_okada_pt,   calc_gf_los_okada_pt, &
+                     calc_gf_disp_tri,        calc_gf_stress_tri,        calc_gf_los_tri
 implicit none
 
 if (verbosity.ge.1) then
@@ -420,17 +442,21 @@ endif
 
 ! Displacement Green's functions
 if (displacement%file.ne.'none') then
+
     ! Displacement Green's functions need to be calculated
     if (gf_disp%file.eq.'none') then
         if (gf_type.eq.'okada_rect') then
             call calc_gf_disp_okada_rect()
         elseif (gf_type.eq.'okada_pt') then
             call calc_gf_disp_okada_pt()
+        elseif (gf_type.eq.'triangle') then
+            call calc_gf_disp_tri()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
         endif
     endif
+
 endif
 
 ! Stress Green's functions
@@ -441,6 +467,8 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
             call calc_gf_stress_okada_rect()
         elseif (gf_type.eq.'okada_pt') then
             call calc_gf_stress_okada_pt()
+        elseif (gf_type.eq.'triangle') then
+            call calc_gf_stress_tri()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
@@ -456,6 +484,8 @@ if (los%file.ne.'none') then
             call calc_gf_los_okada_rect()
         elseif (gf_type.eq.'okada_pt') then
             call calc_gf_los_okada_pt()
+        elseif (gf_type.eq.'triangle') then
+            call calc_gf_los_tri()
         else
             call print_usage('!! Error: no option to calculate Greens functions called '// &
                               trim(gf_type))

@@ -112,9 +112,14 @@ Print RMS misfit to line-of-sight displacements to file
 .BI "-prests " prestress_file
 Pre-stresses on all input faults in the format:
 .IR "sxx syy szz sxy sxz syz" .
-The shear stresses resolved onto the faults will be minimized - note that
+The shear stresses resolved onto the faults will be minimized. Note that
 the pre-stress values can be set to zero to minimize shear stresses without
-external influences. All values are in SI units.
+external influences; this is particularly useful in combination with fixing
+the fault slip values to provide a source of stress. In the case where only pre-stress values
+are provided (plus optional fixed-slip faults) without kinematic
+observations, the matrix equation is solved directly using the
+LAPACK routine dgesv instead of with a least-squares approach, because the system
+of equations is properly determined and well behaved. All values are in SI units.
 
 .TP
 .BI "-prests:weight " weight
@@ -131,6 +136,9 @@ Green's function calculation model type, specified using option
 .br
 .BR okada_pt :
 .I x y z str dip area
+.br
+.BR triangle :
+.I x1 y1 z1 x2 y2 z2 x3 y3 z3
 
 The
 .I fault_file
@@ -174,7 +182,9 @@ Constraints on the slip magnitudes. File format and meaning depends on value of
 .br
 .BR anneal :
 .I slip_min slip_max
-(defines the range of possible slip magnitudes)
+.br
+.BR anneal-psc :
+.I strike_slip dip_slip (set slip magnitude for fixed faults)
 
 If
 .I slip_constraint_file
@@ -190,7 +200,7 @@ must correspond to the faults in
 .TP
 .BI "-gf:model " model
 Model to be used to calculate Green's functions:
-.BR okada_rect " (default) or " okada_pt .
+.BR okada_rect " (default), " okada_pt ", or " triangle .
 
 .TP
 .BI "-gf:disp_file " gf_disp_file
@@ -309,9 +319,9 @@ as geographic coordinates instead of SI units in
 .TP
 .BI "-haf " "halfspace_file [flag]"
 Define the elastic half-space parameters for gf:model
-.B okada_rect
-or
-.BR okada_pt .
+.BR okada_rect ,
+.BR okada_pt ", or"
+.BR triangle .
 By default, this file contains vp (m/s), vs (m/s), and density (kg/m^3).
 At some point, you will be able to specify the elastic parameters in the file
 with the
@@ -413,6 +423,8 @@ Factor to reduce temperature by every iteration (default: 0.98).
 Herman, M.W., Furlong, K.P., Govers, R. (2018).
 The accumulation of slip deficit in subduction zones in the absence of mechanical
 coupling: Implications for the behavior of megathrust earthquakes.
+
+Lawson, C.L., Hanson, R.J. (1995). Solving Least Squares Problems. SIAM.
 
 Sambridge, Mosegaard (2002). Monte Carlo Methods in Geophysical Inverse Problems.
 .RS

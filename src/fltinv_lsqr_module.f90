@@ -20,7 +20,9 @@ contains
     ! Invert displacements and pre-stresses for fault slip using a linear least squares approach
     !----
     use io_module, only : stderr, verbosity
-    use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip
+    use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip, &
+                               prestress, displacement, los
+    use variable_module, only: inversion_mode
     implicit none
     ! Local variables
     integer :: i, j
@@ -50,13 +52,20 @@ contains
         allocate(x(ncols,1))
     endif
 
-    if (lsqr_mode.eq.'gels'.or.lsqr_mode.eq.'dgels') then
+    if (inversion_mode.eq.'anneal-psc'.or. &
+           (prestress%file.ne.'none'.and.displacement%file.eq.'none'.and.los%file.eq.'none')) then
+        ! In solving for slip around a locked patch (pseudo-coupling), the system is
+        ! ?properly determined? so we can use direct inversion methods rather than linear least squares.
+        write(0,'(A)') 'invert_lsqr is using direct solver instead of least-squares solver'
+        call solve_dgesv()
+    elseif (lsqr_mode.eq.'gels'.or.lsqr_mode.eq.'dgels') then
         call solve_lsqr_dgels()
     elseif (lsqr_mode.eq.'nnls') then
         call solve_lsqr_nnls()
     else
         call print_usage('!! Error: no lsqr_mode named '//trim(lsqr_mode))
     endif
+
 
     ! Load solution into fault_slip array
     if (.not.allocated(fault_slip)) then
@@ -242,6 +251,7 @@ contains
     if (verbosity.ge.3) then
         write(stderr,'("A =")')
         write(fmt,9001) ncols
+    9001 format('(1P',I6,'E12.4)')
         do i = 1,nrows
             if (i.eq.ptr_disp) write(stderr,'("displacements")')
             if (i.eq.ptr_los) write(stderr,'("LOS displacements")')
@@ -261,7 +271,6 @@ contains
             write(stderr,'(1PE12.4)') b(i,1)
         enddo
     endif
-    9001 format('(1P',I3,'E12.4)')
     if (verbosity.ge.2) then
         write(stderr,*)
     endif
@@ -560,6 +569,7 @@ contains
         write(stderr,'(A)') 'load_arrays says: arrays before modifying topology'
         write(stderr,'("A =")')
         write(fmt,9001) ncols
+    9001 format('(1P',I6,'E12.4)')
         do i = 1,nrows
             if (i.eq.ptr_disp) write(stderr,'("displacements")')
             if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
@@ -578,7 +588,6 @@ contains
         enddo
         write(stderr,*)
     endif
-    9001 format('(1P',I3,'E12.4)')
 
     nflt = fault%nrecords
     ndsp = displacement%nrecords
@@ -925,6 +934,56 @@ contains
 
     return
     end subroutine solve_lsqr_nnls
+
+!--------------------------------------------------------------------------------------------------!
+
+    subroutine solve_dgesv()
+    !----
+    ! Solve Ax = b for x using LU decomposition and partial pivoting (LAPACK routine GESV).
+    !----
+    use io_module, only : stderr, verbosity
+    implicit none
+    ! Local variables
+    integer :: i, n, nrhs, lda, ipiv(nrows), ldb, info
+    double precision :: alocal(nrows,ncols), blocal(nrows,1)
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'solve_dgesv says: starting'
+    endif
+    if (nrows.ne.ncols) then
+        call print_usage('!! Error in subroutine solve_dgesv: nrows not equal to ncols')
+    endif
+
+    ! Use local arrays of correct size for inversion
+    alocal = a(1:nrows,1:ncols)
+    blocal = b(1:nrows,1:1)
+
+    n = nrows        ! Number of linear equations
+    nrhs = 1         ! Number of right hand sides
+    lda = n          ! Leading dimension of A;  lda >= max(1,n)
+    ldb = n          ! Leading dimension of b;  ldb >= max(1,n)
+
+    ! Solve for x (put into blocal)
+    call dgesv(n, nrhs, alocal, lda, ipiv, blocal, ldb, info)
+
+    ! Put actual solution into x
+    do i = 1,ncols
+        x(i,1) = blocal(i,1)
+    enddo
+
+    if (verbosity.ge.3) then
+        write(stderr,'("x =")')
+        do i = 1,ncols
+            write(stderr,'(1PE12.4)') x(i,1)
+        enddo
+    endif
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'solve_dgesv says: finished'
+        write(stderr,*)
+    endif
+
+    return
+    end subroutine solve_dgesv
 
 !--------------------------------------------------------------------------------------------------!
 

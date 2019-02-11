@@ -3218,4 +3218,38 @@ e23_termB3b = 1.0d0/2.0d0*(e23_termB3b_1+e23_termB3b_2)
 return
 end function
 
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+subroutine tri_center(center,p1,p2,p3)
+implicit none
+double precision :: center(3), p1(3), p2(3), p3(3)
+center(1) = (p1(1)+p2(1)+p3(1))/3.0d0
+center(2) = (p1(2)+p2(2)+p3(2))/3.0d0
+center(3) = (p1(3)+p2(3)+p3(3))/3.0d0
+return
+end
+
+subroutine tri_geometry(normal,strike,updip,p1,p2,p3)
+implicit none
+double precision :: normal(3), strike(3), updip(3), p1(3), p2(3), p3(3), magnitude
+! Normal vector
+normal(1) = (p2(2)-p1(2))*(p3(3)-p1(3)) - (p2(3)-p1(3))*(p3(2)-p1(2))
+normal(2) = (p2(3)-p1(3))*(p3(1)-p1(1)) - (p2(1)-p1(1))*(p3(3)-p1(3))
+normal(3) = (p2(1)-p1(1))*(p3(2)-p1(2)) - (p2(2)-p1(2))*(p3(1)-p1(1))
+magnitude = normal(1)*normal(1)+normal(2)*normal(2)+normal(3)*normal(3)
+magnitude = dsqrt(magnitude)
+normal = normal/magnitude
+! Strike-parallel vector
+strike(1) = -dsin(datan2(normal(2),normal(1)))
+strike(2) = dcos(datan2(normal(2),normal(1)))
+strike(3) = 0.0d0
+! Vector pointing up-dip
+updip(1) = normal(2)*strike(3) - normal(3)*strike(2)
+updip(2) = normal(3)*strike(1) - normal(1)*strike(3)
+updip(3) = normal(1)*strike(2) - normal(2)*strike(1)
+return
+end
+
 end module
