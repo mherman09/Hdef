@@ -1040,16 +1040,36 @@ end function
 function e11_termB1a()
 implicit none
 double precision :: e11_termB1a
-e11_termB1a = 1.0d0/8.0d0*((2-2*nu)*(2*y2/y1**2/(1+y2**2/y1**2)-y2/z1**2*cosb/(1+y2**2/z1**2)&
-+(y2/R*sinb/(y1*z1+y2**2*cosb)*y1-y2*R*sinb/(y1*z1+y2**2*cosb)**2*&
-(2*y1*cosb-y3*sinb))/(1+y2**2*R2*sinb**2/(y1*z1+y2**2*cosb)**2)-y2/z1bar**2*cosb/&
-(1+y2**2/z1bar**2)+(y2/Rbar*sinb/(y1*z1bar+y2**2*cosb)*y1-y2*Rbar*sinb/(y1*z1bar+&
-y2**2*cosb)**2*(2*y1*cosb+y3bar*sinb))/(1+y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2))&
--y2*(1/R/(R-y3)+1/Rbar/(Rbar+y3bar))-y1*y2*(-1/R3/(R-y3)*y1-1/R2/(R-y3)**2*y1-&
-1/R3bar/(Rbar+y3bar)*y1-1/R2bar/(Rbar+y3bar)**2*y1)-y2*cosb*&
-((1/R*sinb*y1-1)/R/(R-z3)-(R*sinb-y1)/R3/(R-z3)*y1-(R*sinb-y1)/R/(R-z3)**2*&
-(1/R*y1-sinb)+(1/Rbar*sinb*y1-1)/Rbar/(Rbar+z3bar)-(Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*&
-y1-(Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1/Rbar*y1-sinb)))/pi/(1-nu)
+e11_termB1a = 1.0d0/8.0d0*( &
+    (2.0d0-2.0d0*nu)*( &
+        2.0d0*y2/y1**2/(1.0d0+y2**2/y1**2) - &
+        y2/z1**2*cosb/(1.0d0+y2**2/z1**2) + &
+        ( &
+            y2/R*sinb/(y1*z1+y2**2*cosb)*y1 - &
+            y2*R*sinb/(y1*z1+y2**2*cosb)**2*(2*y1*cosb-y3*sinb) &
+        )/(1.0d0+y2**2*R2*sinb**2/(y1*z1+y2**2*cosb)**2) - &
+        y2/z1bar**2*cosb/(1.0d0+y2**2/z1bar**2) + &
+        ( &
+            y2/Rbar*sinb/(y1*z1bar+y2**2*cosb)*y1 - &
+            y2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*(2.0d0*y1*cosb+y3bar*sinb) &
+        )/(1.0d0+y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2) &
+    ) - &
+    y2*(1.0d0/R/(R-y3)+1.0d0/Rbar/(Rbar+y3bar)) - &
+    y1*y2*( &
+        -1.0d0/R3/(R-y3)*y1 - &
+        1.0d0/R2/(R-y3)**2*y1 - &
+        1.0d0/R3bar/(Rbar+y3bar)*y1 - &
+        1.0d0/R2bar/(Rbar+y3bar)**2*y1 &
+    ) - &
+    y2*cosb*( &
+        (1.0d0/R*sinb*y1-1.0d0)/R/(R-z3) - &
+        (R*sinb-y1)/R3/(R-z3)*y1 - &
+        (R*sinb-y1)/R/(R-z3)**2*(1.0d0/R*y1-sinb) + &
+        (1.0d0/Rbar*sinb*y1-1.0d0)/Rbar/(Rbar+z3bar) - &
+        (Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*y1 - &
+        (Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1.0d0/Rbar*y1-sinb) &
+    ) &
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1058,8 +1078,8 @@ implicit none
 double precision :: e11_termB1b
 e11_termB1b = 1.0d0/4.0d0*( &
     (-2.0d0+2.0d0*nu)*(1.0d0-2.0d0*nu)*( &
-        y2/y1**2/(1+y2**2/y1**2) - &
-        y2/z1bar**2*cosb/(1+y2**2/z1bar**2) + &
+        y2/y1**2/(1.0d0+y2**2/y1**2) - &
+        y2/z1bar**2*cosb/(1.0d0+y2**2/z1bar**2) + &
         (y2/Rbar*sinb/(y1*z1bar+y2**2*cosb)*y1 - &
         y2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*(2.0d0*y1*cosb+y3bar*sinb)) &
          /(1.0d0+y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2) &
@@ -1110,7 +1130,7 @@ e11_termB1b = 1.0d0/4.0d0*( &
         cosb/(Rbar+z3bar)*( &
             1.0d0/Rbar*cosb*y1*((1.0d0-2.0d0*nu)*cosb-a/Rbar)*cotb + &
             (Rbar*cosb+y3bar)*a/R3bar*y1*cotb + &
-            (2.0d0-2.0d0*nu)*(1/Rbar*sinb*y1-1.0d0)*cosb &
+            (2.0d0-2.0d0*nu)*(1.0d0/Rbar*sinb*y1-1.0d0)*cosb &
         )+2.0d0*a*y3bar*cosb*cotb/R4bar*y1 &
     ) &
 )/pi/(1.0d0-nu)
@@ -1121,52 +1141,105 @@ function e11_termB2a()
 implicit none
 double precision :: e11_termB2a
 e11_termB2a = 1.0d0/8.0d0*( &
-    (-1+2*nu)*( &
-        1/R*y1/(R-y3) + &
-        1/Rbar*y1/(Rbar+y3bar) - &
-        cosb*((1/R*y1-sinb)/(R-z3)+(1/Rbar*y1-sinb)/(Rbar-y1*sinb+y3bar*cosb)) &
+    (-1.0d0+2.0d0*nu)*( &
+        1.0d0/R*y1/(R-y3) + &
+        1.0d0/Rbar*y1/(Rbar+y3bar) - &
+        cosb*((1.0d0/R*y1-sinb)/(R-z3)+(1.0d0/Rbar*y1-sinb)/(Rbar+z3bar)) &
     ) + &
-    2*y1*(1/R/(R-y3)+1/Rbar/(Rbar+y3bar)) + &
+    2.0d0*y1*(1.0d0/R/(R-y3)+1.0d0/Rbar/(Rbar+y3bar)) + &
     y1**2*( &
-        -1/R3/(R-y3)*y1 - &
-        1/R2/(R-y3)**2*y1 - &
-        1/R3bar/(Rbar+y3bar)*y1 - &
-        1/(y1**2+y2**2+y3bar**2)/(Rbar+y3bar)**2*y1 &
+        -1.0d0/R3/(R-y3)*y1 - &
+        1.0d0/R2/(R-y3)**2*y1 - &
+        1.0d0/R3bar/(Rbar+y3bar)*y1 - &
+        1.0d0/(y1**2+y2**2+y3bar**2)/(Rbar+y3bar)**2*y1 &
     ) + &
     cosb*(R*sinb-y1)/R/(R-z3) + &
-    z1*(1/R*sinb*y1-1)/R/(R-z3) - &
+    z1*(1.0d0/R*sinb*y1-1.0d0)/R/(R-z3) - &
     z1*(R*sinb-y1)/R3/(R-z3)*y1 - &
-    z1*(R*sinb-y1)/R/(R-z3)**2*(1/R*y1-sinb) + &
-    cosb*(Rbar*sinb-y1)/Rbar/(Rbar-y1*sinb+y3bar*cosb) + &
-    z1bar*(1/Rbar*sinb*y1-1)/Rbar/(Rbar-y1*sinb+y3bar*cosb) - &
-    z1bar*(Rbar*sinb-y1)/R3bar/(Rbar-y1*sinb+y3bar*cosb)*y1 - &
-    z1bar*(Rbar*sinb-y1)/Rbar/(Rbar-y1*sinb+y3bar*cosb)**2*(1/Rbar*y1-sinb) &
-)/pi/(1-nu)
+    z1*(R*sinb-y1)/R/(R-z3)**2*(1.0d0/R*y1-sinb) + &
+    cosb*(Rbar*sinb-y1)/Rbar/(Rbar+z3bar) + &
+    z1bar*(1.0d0/Rbar*sinb*y1-1.0d0)/Rbar/(Rbar+z3bar) - &
+    z1bar*(Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*y1 - &
+    z1bar*(Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1.0d0/Rbar*y1-sinb) &
+)/pi/(1.0d0-nu)
 return
 end function
 
 function e11_termB2b()
 implicit none
 double precision :: e11_termB2b
-e11_termB2b = 1.0d0/4.0d0*((1-2*nu)*(((2-2*nu)*cotb**2+nu)/Rbar*y1/(Rbar+y3bar)-&
-((2-2*nu)*cotb**2+1)*cosb*(1/Rbar*y1-sinb)/(Rbar+z3bar))-(1-2*nu)/(Rbar+y3bar)**2*&
-((-1+2*nu)*y1*cotb+nu*y3bar-a+a*y1*cotb/Rbar+y1**2/(Rbar+y3bar)*(nu+a/Rbar))/Rbar*y1+&
-(1-2*nu)/(Rbar+y3bar)*((-1+2*nu)*cotb+a*cotb/Rbar-a*y1**2*cotb/R3bar+2*y1/(Rbar+y3bar)*&
-(nu+a/Rbar)-y1**3/(Rbar+y3bar)**2*(nu+a/Rbar)/Rbar-y1**3/(Rbar+y3bar)*a/R3bar)+(1-2*nu)*cotb/&
-(Rbar+z3bar)**2*(z1bar*cosb-a*(Rbar*sinb-y1)/Rbar/cosb)*(1/Rbar*y1-sinb)-(1-2*nu)*cotb/&
-(Rbar+z3bar)*(cosb**2-a*(1/Rbar*sinb*y1-1)/Rbar/cosb+a*(Rbar*sinb-y1)/R3bar/cosb*y1)-&
-a*(y3+a)*cotb/R3bar+3*a*y1**2*(y3+a)*cotb/R5bar-(y3+a)/(Rbar+y3bar)**2*(2*nu+1/Rbar*((1-2*nu)*&
-y1*cotb+a)-y1**2/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar)-a*y1**2/R3bar)/Rbar*y1+(y3+a)/(Rbar+y3bar)*&
-(-1/R3bar*((1-2*nu)*y1*cotb+a)*y1+1/Rbar*(1-2*nu)*cotb-2*y1/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar)+&
-y1**3/R3bar/(Rbar+y3bar)*(2*nu+a/Rbar)+y1**3/R2bar/(Rbar+y3bar)**2*(2*nu+a/Rbar)+y1**3/R4bar/&
-(Rbar+y3bar)*a-2*a/R3bar*y1+3*a*y1**3/R5bar)-(y3+a)*cotb/(Rbar+z3bar)**2*(-cosb*sinb+a*y1*&
-y3bar/R3bar/cosb+(Rbar*sinb-y1)/Rbar*((2-2*nu)*cosb-(Rbar*cosb+y3+2*a)/(Rbar+z3bar)*&
-(1+a/Rbar/cosb)))*(1/Rbar*y1-sinb)+(y3+a)*cotb/(Rbar+z3bar)*(a*y3bar/R3bar/cosb-3*a*y1**2*&
-y3bar/R5bar/cosb+(1/Rbar*sinb*y1-1)/Rbar*((2-2*nu)*cosb-(Rbar*cosb+y3+2*a)/(Rbar+z3bar)*&
-(1+a/Rbar/cosb))-(Rbar*sinb-y1)/R3bar*((2-2*nu)*cosb-(Rbar*cosb+y3+2*a)/(Rbar+z3bar)*&
-(1+a/Rbar/cosb))*y1+(Rbar*sinb-y1)/Rbar*(-1/Rbar*cosb*y1/(Rbar+z3bar)*(1+a/Rbar/cosb)+&
-(Rbar*cosb+y3+2*a)/(Rbar+z3bar)**2*(1+a/Rbar/cosb)*(1/Rbar*y1-sinb)+(Rbar*cosb+y3+2*a)/&
-(Rbar+z3bar)*a/R3bar/cosb*y1)))/pi/(1-nu)
+e11_termB2b = 1.0d0/4.0d0*( &
+    (1.0d0-2.0d0*nu)*( &
+        ((2.0d0-2.0d0*nu)*cotb**2+nu)/Rbar*y1/(Rbar+y3bar) - &
+        ((2.0d0-2.0d0*nu)*cotb**2+1.0d0)*cosb*(1.0d0/Rbar*y1-sinb)/(Rbar+z3bar) &
+    ) - &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)**2*( &
+        (-1.0d0+2.0d0*nu)*y1*cotb + &
+        nu*y3bar - &
+        a + &
+        a*y1*cotb/Rbar + &
+        y1**2/(Rbar+y3bar)*(nu+a/Rbar) &
+    )/Rbar*y1 + &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)*( &
+        (-1.0d0+2.0d0*nu)*cotb + &
+        a*cotb/Rbar - &
+        a*y1**2*cotb/R3bar + &
+        2.0d0*y1/(Rbar+y3bar)*(nu+a/Rbar) - &
+        y1**3/(Rbar+y3bar)**2*(nu+a/Rbar)/Rbar - &
+        y1**3/(Rbar+y3bar)*a/R3bar &
+     ) + &
+    (1.0d0-2.0d0*nu)*cotb/(Rbar+z3bar)**2*( &
+        z1bar*cosb - &
+        a*(Rbar*sinb-y1)/Rbar/cosb &
+    )*(1.0d0/Rbar*y1-sinb) - &
+    (1.0d0-2.0d0*nu)*cotb/(Rbar+z3bar)*( &
+        cosb**2 - &
+        a*(1.0d0/Rbar*sinb*y1-1.0d0)/Rbar/cosb + &
+        a*(Rbar*sinb-y1)/R3bar/cosb*y1 &
+    ) - &
+    a*(y3+a)*cotb/R3bar + &
+    3.0d0*a*y1**2*(y3+a)*cotb/R5bar - &
+    (y3+a)/(Rbar+y3bar)**2*( &
+        2.0d0*nu + &
+        1.0d0/Rbar*((1.0d0-2.0d0*nu)*y1*cotb+a) - &
+        y1**2/Rbar/(Rbar+y3bar)*(2.0d0*nu+a/Rbar) - &
+        a*y1**2/R3bar &
+    )/Rbar*y1 + &
+    (y3+a)/(Rbar+y3bar)*( &
+        -1.0d0/R3bar*((1.0d0-2.0d0*nu)*y1*cotb+a)*y1 + &
+        1.0d0/Rbar*(1.0d0-2.0d0*nu)*cotb - &
+        2.0d0*y1/Rbar/(Rbar+y3bar)*(2.0d0*nu+a/Rbar) + &
+        y1**3/R3bar/(Rbar+y3bar)*(2.0d0*nu+a/Rbar) + &
+        y1**3/R2bar/(Rbar+y3bar)**2*(2.0d0*nu+a/Rbar) + &
+        y1**3/R4bar/(Rbar+y3bar)*a - &
+        2.0d0*a/R3bar*y1 + &
+        3.0d0*a*y1**3/R5bar &
+    ) - &
+    (y3+a)*cotb/(Rbar+z3bar)**2*( &
+        -cosb*sinb + &
+        a*y1*y3bar/R3bar/cosb + &
+        (Rbar*sinb-y1)/Rbar*( &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
+        ) &
+    )*(1.0d0/Rbar*y1-sinb) + &
+    (y3+a)*cotb/(Rbar+z3bar)*( &
+        a*y3bar/R3bar/cosb - &
+        3.0d0*a*y1**2*y3bar/R5bar/cosb + &
+        (1.0d0/Rbar*sinb*y1-1.0d0)/Rbar*( &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
+        ) - &
+        (Rbar*sinb-y1)/R3bar*( &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
+        )*y1+(Rbar*sinb-y1)/Rbar*( &
+            -1.0d0/Rbar*cosb*y1/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(1.0d0+a/Rbar/cosb)*(1.0d0/Rbar*y1-sinb) + &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*a/R3bar/cosb*y1 &
+        ) &
+    ) &
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1174,13 +1247,13 @@ function e11_termB3a()
 implicit none
 double precision :: e11_termB3a
 e11_termB3a = 1.0d0/8.0d0*y2*sinb*( &
-    (1/R*sinb*y1-1)/R/(R-z3) - &
+    (1.0d0/R*sinb*y1-1.0d0)/R/(R-z3) - &
     (R*sinb-y1)/R3/(R-z3)*y1 - &
-    (R*sinb-y1)/R/(R-z3)**2*(1/R*y1-sinb) + &
-    (1/Rbar*sinb*y1-1)/Rbar/(Rbar+z3bar) - &
+    (R*sinb-y1)/R/(R-z3)**2*(1.0d0/R*y1-sinb) + &
+    (1.0d0/Rbar*sinb*y1-1.0d0)/Rbar/(Rbar+z3bar) - &
     (Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*y1 - &
-    (Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1/Rbar*y1-sinb) &
-)/pi/(1-nu)
+    (Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1.0d0/Rbar*y1-sinb) &
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1188,14 +1261,14 @@ function e11_termB3b()
 implicit none
 double precision :: e11_termB3b
 e11_termB3b = 1.0d0/4.0d0*( &
-    (1-2*nu)*( &
-        -y2/(Rbar+y3bar)**2*(1+a/Rbar)/Rbar*y1 - &
+    (1.0d0-2.0d0*nu)*( &
+        -y2/(Rbar+y3bar)**2*(1.0d0+a/Rbar)/Rbar*y1 - &
         y2/(Rbar+y3bar)*a/R3bar*y1 + &
-        y2*cosb/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1/Rbar*y1-sinb) + &
+        y2*cosb/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1.0d0/Rbar*y1-sinb) + &
         y2*cosb/(Rbar+z3bar)*a/R3bar*y1 &
     ) + &
     y2*(y3+a)/R3bar*(a/(y1**2+y2**2+y3bar**2)+1/(Rbar+y3bar))*y1 - &
-    y2*(y3+a)/Rbar*(-2*a/R4bar*y1-1/(Rbar+y3bar)**2/Rbar*y1) - &
+    y2*(y3+a)/Rbar*(-2.0d0*a/R4bar*y1-1.0d0/(Rbar+y3bar)**2/Rbar*y1) - &
     y2*(y3+a)*cosb/R3bar/(Rbar+z3bar)*( &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*(cosb+a/Rbar) + &
         a*y3bar/(y1**2+y2**2+y3bar**2) &
@@ -1203,14 +1276,14 @@ e11_termB3b = 1.0d0/4.0d0*( &
     y2*(y3+a)*cosb/Rbar/(Rbar+z3bar)**2*( &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*(cosb+a/Rbar) + &
         a*y3bar/(y1**2+y2**2+y3bar**2) &
-    )*(1/Rbar*y1-sinb) + &
+    )*(1.0d0/Rbar*y1-sinb) + &
     y2*(y3+a)*cosb/Rbar/(Rbar+z3bar)*( &
-        1/Rbar*cosb*y1/(Rbar+z3bar)*(cosb+a/Rbar) - &
-        (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1/Rbar*y1-sinb) - &
+        1.0d0/Rbar*cosb*y1/(Rbar+z3bar)*(cosb+a/Rbar) - &
+        (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1.0d0/Rbar*y1-sinb) - &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*a/R3bar*y1 - &
-        2*a*y3bar/R4bar*y1 &
+        2.0d0*a*y3bar/R4bar*y1 &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1218,29 +1291,29 @@ function e22_termB1a()
 implicit none
 double precision :: e22_termB1a
 e22_termB1a = 1.0d0/8.0d0*( &
-    (1-2*nu)*( &
-        1/R*y2/(R-y3) + &
-        1/Rbar*y2/(Rbar+y3bar) - &
-        cosb*(1/R*y2/(R-z3)+1/Rbar*y2/(Rbar+z3bar)) &
+    (1.0d0-2.0d0*nu)*( &
+        1.0d0/R*y2/(R-y3) + &
+        1.0d0/Rbar*y2/(Rbar+y3bar) - &
+        cosb*(1.0d0/R*y2/(R-z3)+1.0d0/Rbar*y2/(Rbar+z3bar)) &
     ) - &
-    2*y2*( &
-        1/R/(R-y3) + &
-        1/Rbar/(Rbar+y3bar) - &
-        cosb*(1/R/(R-z3)+1/Rbar/(Rbar+z3bar)) &
+    2.0d0*y2*( &
+        1.0d0/R/(R-y3) + &
+        1.0d0/Rbar/(Rbar+y3bar) - &
+        cosb*(1.0d0/R/(R-z3)+1.0d0/Rbar/(Rbar+z3bar)) &
     ) - &
     y2**2*( &
-        -1/R3/(R-y3)*y2 - &
-        1/R2/(R-y3)**2*y2 - &
-        1/R3bar/(Rbar+y3bar)*y2 - &
-        1/R2bar/(Rbar+y3bar)**2*y2 - &
+        -1.0d0/R3/(R-y3)*y2 - &
+        1.0d0/R2/(R-y3)**2*y2 - &
+        1.0d0/R3bar/(Rbar+y3bar)*y2 - &
+        1.0d0/R2bar/(Rbar+y3bar)**2*y2 - &
         cosb*( &
-            -1/R3/(R-z3)*y2 - &
-            1/R2/(R-z3)**2*y2 - &
-            1/R3bar/(Rbar+z3bar)*y2 - &
-            1/R2bar/(Rbar+z3bar)**2*y2 &
+            -1.0d0/R3/(R-z3)*y2 - &
+            1.0d0/R2/(R-z3)**2*y2 - &
+            1.0d0/R3bar/(Rbar+z3bar)*y2 - &
+            1.0d0/R2bar/(Rbar+z3bar)**2*y2 &
         ) &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1248,64 +1321,64 @@ function e22_termB1b()
 implicit none
 double precision :: e22_termB1b
 e22_termB1b = 1.0d0/4.0d0*( &
-    (1-2*nu)*( &
-        ((2-2*nu)*cotb**2-nu)/Rbar*y2/(Rbar+y3bar) - &
-        ((2-2*nu)*cotb**2+1-2*nu)*cosb/Rbar*y2/(Rbar+z3bar) &
+    (1.0d0-2.0d0*nu)*( &
+        ((2.0d0-2.0d0*nu)*cotb**2-nu)/Rbar*y2/(Rbar+y3bar) - &
+        ((2.0d0-2.0d0*nu)*cotb**2+1-2.0d0*nu)*cosb/Rbar*y2/(Rbar+z3bar) &
     ) + &
-    (1-2*nu)/(Rbar+y3bar)**2*( &
-        y1*cotb*(1-2*nu-a/Rbar)+nu*y3bar - &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)**2*( &
+        y1*cotb*(1.0d0-2.0d0*nu-a/Rbar)+nu*y3bar - &
         a+y2**2/(Rbar+y3bar)*(nu+a/Rbar) &
     )/Rbar*y2 - &
-    (1-2*nu)/(Rbar+y3bar)*( &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)*( &
         a*y1*cotb/R3bar*y2 + &
-        2*y2/(Rbar+y3bar)*(nu+a/Rbar) - &
+        2.0d0*y2/(Rbar+y3bar)*(nu+a/Rbar) - &
         y2**3/(Rbar+y3bar)**2*(nu+a/Rbar)/Rbar - &
         y2**3/(Rbar+y3bar)*a/R3bar &
     ) + &
-    (1-2*nu)*z1bar*cotb/(Rbar+z3bar)**2*(cosb+a/Rbar)/Rbar*y2 + &
-    (1-2*nu)*z1bar*cotb/(Rbar+z3bar)*a/R3bar*y2 + &
-    3*a*y2*(y3+a)*cotb/R5bar*y1 - &
+    (1.0d0-2.0d0*nu)*z1bar*cotb/(Rbar+z3bar)**2*(cosb+a/Rbar)/Rbar*y2 + &
+    (1.0d0-2.0d0*nu)*z1bar*cotb/(Rbar+z3bar)*a/R3bar*y2 + &
+    3.0d0*a*y2*(y3+a)*cotb/R5bar*y1 - &
     (y3+a)/(Rbar+y3bar)**2*( &
-        -2*nu+1/Rbar*((1-2*nu)*y1*cotb-a) + &
+        -2.0d0*nu+1/Rbar*((1.0d0-2.0d0*nu)*y1*cotb-a) + &
         y2**2/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar) + &
         a*y2**2/R3bar &
     )/Rbar*y2 + &
     (y3+a)/(Rbar+y3bar)*( &
-        -1/R3bar*((1-2*nu)*y1*cotb-a)*y2 + &
-        2*y2/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar) - &
+        -1/R3bar*((1.0d0-2.0d0*nu)*y1*cotb-a)*y2 + &
+        2.0d0*y2/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar) - &
         y2**3/R3bar/(Rbar+y3bar)*(2*nu+a/Rbar) - &
         y2**3/R2bar/(Rbar+y3bar)**2*(2*nu+a/Rbar) - &
         y2**3/R4bar/(Rbar+y3bar)*a + &
-        2*a/R3bar*y2 - &
-        3*a*y2**3/R5bar &
+        2.0d0*a/R3bar*y2 - &
+        3.0d0*a*y2**3/R5bar &
     ) - &
     (y3+a)/(Rbar+z3bar)**2*( &
         cosb**2 - &
-        1/Rbar*((1-2*nu)*z1bar*cotb+a*cosb) + &
+        1.0d0/Rbar*((1.0d0-2.0d0*nu)*z1bar*cotb+a*cosb) + &
         a*y3bar*z1bar*cotb/R3bar - &
-        1/Rbar/(Rbar+z3bar)*( &
+        1.0d0/Rbar/(Rbar+z3bar)*( &
             y2**2*cosb**2 - &
             a*z1bar*cotb/Rbar*(Rbar*cosb+y3bar) &
         ) &
     )/Rbar*y2 + &
     (y3+a)/(Rbar+z3bar)*( &
-        1/R3bar*((1-2*nu)*z1bar*cotb+a*cosb)*y2 - &
-        3*a*y3bar*z1bar*cotb/R5bar*y2 + &
-        1/R3bar/(Rbar+z3bar)*( &
+        1.0d0/R3bar*((1.0d0-2.0d0*nu)*z1bar*cotb+a*cosb)*y2 - &
+        3.0d0*a*y3bar*z1bar*cotb/R5bar*y2 + &
+        1.0d0/R3bar/(Rbar+z3bar)*( &
             y2**2*cosb**2 - &
             a*z1bar*cotb/Rbar*(Rbar*cosb+y3bar) &
         )*y2 + &
-        1/R2bar/(Rbar+z3bar)**2*( &
+        1.0d0/R2bar/(Rbar+z3bar)**2*( &
             y2**2*cosb**2 - &
             a*z1bar*cotb/Rbar*(Rbar*cosb+y3bar) &
         )*y2 - &
-        1/Rbar/(Rbar+z3bar)*( &
-            2*y2*cosb**2 + &
+        1.0d0/Rbar/(Rbar+z3bar)*( &
+            2.0d0*y2*cosb**2 + &
             a*z1bar*cotb/R3bar*(Rbar*cosb+y3bar)*y2 - &
             a*z1bar*cotb/R2bar*cosb*y2 &
         ) &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1313,29 +1386,29 @@ function e22_termB2a()
 implicit none
 double precision :: e22_termB2a
 e22_termB2a = 1.0d0/8.0d0*( &
-    (2-2*nu)*( &
-        -2/y1/(1+y2**2/y1**2) + &
-        1/z1/(1+y2**2/z1**2) + &
+    (2.0d0-2.0d0*nu)*( &
+        -2/y1/(1.0d0+y2**2/y1**2) + &
+        1.0d0/z1/(1.0d0+y2**2/z1**2) + &
         (R*sinb/(y1*z1+y2**2*cosb) + &
         y2**2/R*sinb/(y1*z1+y2**2*cosb) - &
-        2*y2**2*R*sinb/(y1*z1+y2**2*cosb)**2*cosb)/( &
+        2.0d0*y2**2*R*sinb/(y1*z1+y2**2*cosb)**2*cosb)/( &
             1 + &
             y2**2*R2*sinb**2/(y1*z1+y2**2*cosb)**2 &
         ) + &
-        1/z1bar/(1+y2**2/z1bar**2) + &
+        1.0d0/z1bar/(1.0d0+y2**2/z1bar**2) + &
         (Rbar*sinb/(y1*z1bar+y2**2*cosb) + &
         y2**2/Rbar*sinb/(y1*z1bar+y2**2*cosb) - &
-        2*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb)/( &
+        2.0d0*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb)/( &
             1 + &
             y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2 &
         ) &
     ) + &
-    y1*(1/R/(R-y3)+1/Rbar/(Rbar+y3bar)) + &
+    y1*(1.0d0/R/(R-y3)+1/Rbar/(Rbar+y3bar)) + &
     y1*y2*( &
         -1/R3/(R-y3)*y2 - &
-        1/R2/(R-y3)**2*y2 - &
-        1/R3bar/(Rbar+y3bar)*y2 - &
-        1/R2bar/(Rbar+y3bar)**2*y2 &
+        1.0d0/R2/(R-y3)**2*y2 - &
+        1.0d0/R3bar/(Rbar+y3bar)*y2 - &
+        1.0d0/R2bar/(Rbar+y3bar)**2*y2 &
     ) - &
     z1/R/(R-z3) - &
     z1bar/Rbar/(Rbar+z3bar) - &
@@ -1345,7 +1418,7 @@ e22_termB2a = 1.0d0/8.0d0*( &
         z1bar/R3bar/(Rbar+z3bar)*y2 - &
         z1bar/R2bar/(Rbar+z3bar)**2*y2 &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1353,77 +1426,77 @@ function e22_termB2b()
 implicit none
 double precision :: e22_termB2b
 e22_termB2b = 1.0/4.0*( &
-    (2-2*nu)*(1-2*nu)*( &
-        -1/y1/(1+y2**2/y1**2) + &
-        1/z1bar/(1+y2**2/z1bar**2) + &
+    (2.0d0-2.0d0*nu)*(1.0d0-2.0d0*nu)*( &
+        -1/y1/(1.0d0+y2**2/y1**2) + &
+        1.0d0/z1bar/(1.0d0+y2**2/z1bar**2) + &
         ( &
             Rbar*sinb/(y1*z1bar+y2**2*cosb) + &
             y2**2/Rbar*sinb/(y1*z1bar+y2**2*cosb) - &
-            2*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb &
+            2.0d0*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb &
         )/( &
             1 + &
             y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2 &
         ) &
     )*cotb**2 + &
-    (1-2*nu)/(Rbar+y3bar)*( &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)*( &
         (-1+2*nu+a/Rbar)*cotb + &
         y1/(Rbar+y3bar)*(nu+a/Rbar) &
     ) - &
-    (1-2*nu)*y2**2/(Rbar+y3bar)**2*( &
+    (1.0d0-2.0d0*nu)*y2**2/(Rbar+y3bar)**2*( &
         (-1+2*nu+a/Rbar)*cotb + &
         y1/(Rbar+y3bar)*(nu+a/Rbar))/Rbar + &
-    (1-2*nu)*y2/(Rbar+y3bar)*( &
+    (1.0d0-2.0d0*nu)*y2/(Rbar+y3bar)*( &
         -a/R3bar*y2*cotb - &
         y1/(Rbar+y3bar)**2*(nu+a/Rbar)/Rbar*y2 - &
         y2/(Rbar+y3bar)*a/R3bar*y1 &
     ) - &
-    (1-2*nu)*cotb/(Rbar+z3bar)*(1+a/Rbar/cosb) + &
-    (1-2*nu)*y2**2*cotb/(Rbar+z3bar)**2*(1+a/Rbar/cosb)/Rbar + &
-    (1-2*nu)*y2**2*cotb/(Rbar+z3bar)*a/R3bar/cosb - &
+    (1.0d0-2.0d0*nu)*cotb/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
+    (1.0d0-2.0d0*nu)*y2**2*cotb/(Rbar+z3bar)**2*(1.0d0+a/Rbar/cosb)/Rbar + &
+    (1.0d0-2.0d0*nu)*y2**2*cotb/(Rbar+z3bar)*a/R3bar/cosb - &
     a*(y3+a)*cotb/R3bar + &
-    3*a*y2**2*(y3+a)*cotb/R5bar + &
+    3.0d0*a*y2**2*(y3+a)*cotb/R5bar + &
     (y3+a)/Rbar/(Rbar+y3bar)*( &
-        (1-2*nu)*cotb - &
-        2*nu*y1/(Rbar+y3bar) - &
-        a*y1/Rbar*(1/Rbar+1/(Rbar+y3bar)) &
+        (1.0d0-2.0d0*nu)*cotb - &
+        2.0d0*nu*y1/(Rbar+y3bar) - &
+        a*y1/Rbar*(1.0d0/Rbar+1/(Rbar+y3bar)) &
     ) - &
     y2**2*(y3+a)/R3bar/(Rbar+y3bar)*( &
-        (1-2*nu)*cotb - &
-        2*nu*y1/(Rbar+y3bar) - &
-        a*y1/Rbar*(1/Rbar+1/(Rbar+y3bar)) &
+        (1.0d0-2.0d0*nu)*cotb - &
+        2.0d0*nu*y1/(Rbar+y3bar) - &
+        a*y1/Rbar*(1.0d0/Rbar+1/(Rbar+y3bar)) &
     ) - &
     y2**2*(y3+a)/R2bar/(Rbar+y3bar)**2*( &
-        (1-2*nu)*cotb - &
-        2*nu*y1/(Rbar+y3bar) - &
-        a*y1/Rbar*(1/Rbar+1/(Rbar+y3bar)) &
+        (1.0d0-2.0d0*nu)*cotb - &
+        2.0d0*nu*y1/(Rbar+y3bar) - &
+        a*y1/Rbar*(1.0d0/Rbar+1/(Rbar+y3bar)) &
     ) + &
     y2*(y3+a)/Rbar/(Rbar+y3bar)*( &
-        2*nu*y1/(Rbar+y3bar)**2/Rbar*y2 + &
-        a*y1/R3bar*(1/Rbar+1/(Rbar+y3bar))*y2 - &
+        2.0d0*nu*y1/(Rbar+y3bar)**2/Rbar*y2 + &
+        a*y1/R3bar*(1.0d0/Rbar+1/(Rbar+y3bar))*y2 - &
         a*y1/Rbar*(-1/R3bar*y2-1/(Rbar+y3bar)**2/Rbar*y2) &
     ) + &
     (y3+a)*cotb/Rbar/(Rbar+z3bar)*( &
-        (-2+2*nu)*cosb + &
-        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) + &
+        (-2.0d0+2*nu)*cosb + &
+        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
         a*y3bar/R2bar/cosb &
     ) - &
     y2**2*(y3+a)*cotb/R3bar/(Rbar+z3bar)*( &
-        (-2+2*nu)*cosb + &
-        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) + &
+        (-2.0d0+2*nu)*cosb + &
+        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
         a*y3bar/R2bar/cosb &
     ) - &
     y2**2*(y3+a)*cotb/R2bar/(Rbar+z3bar)**2*( &
-        (-2+2*nu)*cosb + &
-        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) + &
+        (-2.0d0+2*nu)*cosb + &
+        (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
         a*y3bar/R2bar/cosb &
     ) + &
     y2*(y3+a)*cotb/Rbar/(Rbar+z3bar)*( &
-        1/Rbar*cosb*y2/(Rbar+z3bar)*(1+a/Rbar/cosb) - &
-        (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(1+a/Rbar/cosb)/Rbar*y2 - &
+        1.0d0/Rbar*cosb*y2/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) - &
+        (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(1.0d0+a/Rbar/cosb)/Rbar*y2 - &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*a/R3bar/cosb*y2 - &
-        2*a*y3bar/R4bar/cosb*y2 &
+        2.0d0*a*y3bar/R4bar/cosb*y2 &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1431,15 +1504,15 @@ function e22_termB3a()
 implicit none
 double precision :: e22_termB3a
 e22_termB3a = 1.0d0/8.0d0*( &
-    (1-2*nu)*sinb*(1/R*y2/(R-z3)+1/Rbar*y2/(Rbar+z3bar)) - &
-    2*y2*sinb*(1/R/(R-z3)+1/Rbar/(Rbar+z3bar)) - &
+    (1.0d0-2.0d0*nu)*sinb*(1.0d0/R*y2/(R-z3)+1/Rbar*y2/(Rbar+z3bar)) - &
+    2.0d0*y2*sinb*(1.0d0/R/(R-z3)+1/Rbar/(Rbar+z3bar)) - &
     y2**2*sinb*( &
         -1/R3/(R-z3)*y2 - &
-        1/R2/(R-z3)**2*y2 - &
-        1/R3bar/(Rbar+z3bar)*y2 - &
-    1/R2bar/(Rbar+z3bar)**2*y2 &
+        1.0d0/R2/(R-z3)**2*y2 - &
+        1.0d0/R3bar/(Rbar+z3bar)*y2 - &
+    1.0d0/R2bar/(Rbar+z3bar)**2*y2 &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1447,36 +1520,36 @@ function e22_termB3b()
 implicit none
 double precision :: e22_termB3b
 e22_termB3b = 1.0d0/4.0d0*( &
-    (1-2*nu)*( &
+    (1.0d0-2.0d0*nu)*( &
         -sinb/Rbar*y2/(Rbar+z3bar) + &
-        y2/(Rbar+y3bar)**2*(1+a/Rbar)/Rbar*y1 + &
+        y2/(Rbar+y3bar)**2*(1.0d0+a/Rbar)/Rbar*y1 + &
         y2/(Rbar+y3bar)*a/R3bar*y1 - &
         z1bar/(Rbar+z3bar)**2*(cosb+a/Rbar)/Rbar*y2 - &
         z1bar/(Rbar+z3bar)*a/R3bar*y2 &
     ) - &
     y2*(y3+a)/R3bar*(a/R2bar+1/(Rbar+y3bar))*y1 + &
-    y1*(y3+a)/Rbar*(-2*a/R4bar*y2-1/(Rbar+y3bar)**2/Rbar*y2) + &
+    y1*(y3+a)/Rbar*(-2.0d0*a/R4bar*y2-1/(Rbar+y3bar)**2/Rbar*y2) + &
     (y3+a)/(Rbar+z3bar)**2*( &
         sinb*(cosb-a/Rbar) + &
-        z1bar/Rbar*(1+a*y3bar/R2bar) - &
-        1/Rbar/(Rbar+z3bar)*(y2**2*cosb*sinb-a*z1bar/Rbar*(Rbar*cosb+y3bar)) &
+        z1bar/Rbar*(1.0d0+a*y3bar/R2bar) - &
+        1.0d0/Rbar/(Rbar+z3bar)*(y2**2*cosb*sinb-a*z1bar/Rbar*(Rbar*cosb+y3bar)) &
     )/Rbar*y2 - &
     (y3+a)/(Rbar+z3bar)*( &
         sinb*a/R3bar*y2 - &
-        z1bar/R3bar*(1+a*y3bar/R2bar)*y2 - &
-        2*z1bar/R5bar*a*y3bar*y2 + &
-        1/R3bar/(Rbar+z3bar)*(y2**2*cosb*sinb-a*z1bar/Rbar*(Rbar*cosb+y3bar))*y2 + &
-        1/R2bar/(Rbar+z3bar)**2*( &
+        z1bar/R3bar*(1.0d0+a*y3bar/R2bar)*y2 - &
+        2.0d0*z1bar/R5bar*a*y3bar*y2 + &
+        1.0d0/R3bar/(Rbar+z3bar)*(y2**2*cosb*sinb-a*z1bar/Rbar*(Rbar*cosb+y3bar))*y2 + &
+        1.0d0/R2bar/(Rbar+z3bar)**2*( &
             y2**2*cosb*sinb - &
             a*z1bar/Rbar*(Rbar*cosb+y3bar) &
         )*y2 - &
-        1/Rbar/(Rbar+z3bar)*( &
-            2*y2*cosb*sinb + &
+        1.0d0/Rbar/(Rbar+z3bar)*( &
+            2.0d0*y2*cosb*sinb + &
             a*z1bar/R3bar*(Rbar*cosb+y3bar)*y2 - &
             a*z1bar/R2bar*cosb*y2 &
         ) &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 return
 end function
 
@@ -1762,7 +1835,7 @@ e12_termB1a_2 = 1.0d0/4.0d0*( &
         ( &
             Rbar*sinb/(y1*z1bar+y2**2*cosb) + &
                 y2**2/Rbar*sinb/(y1*z1bar+y2**2*cosb) - &
-                2*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb &
+                2.0d0*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb &
          )/(1.0d0+y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2) &
     )*cotb**2 + &
     (1.0d0-2.0d0*nu)/(Rbar+y3bar)*((1.0d0-2.0d0*nu-a/Rbar)*cotb-y1/(Rbar+y3bar)*(nu+a/Rbar)) - &
@@ -1932,15 +2005,15 @@ implicit none
 double precision :: e12_termB2a, e12_termB2a_1, e12_termB2a_2
 e12_termB2a_1 = 1.0d0/8.0d0*( &
     (-1+2*nu)*( &
-        1/R*y2/(R-y3) + &
-        1/Rbar*y2/(Rbar+y3bar) - &
-        cosb*(1/R*y2/(R-z3)+1/Rbar*y2/(Rbar+z3bar)) &
+        1.0d0/R*y2/(R-y3) + &
+        1.0d0/Rbar*y2/(Rbar+y3bar) - &
+        cosb*(1.0d0/R*y2/(R-z3)+1/Rbar*y2/(Rbar+z3bar)) &
     ) + &
     y1**2*( &
         -1/R3/(R-y3)*y2 - &
-        1/R2/(R-y3)**2*y2 - &
-        1/R3bar/(Rbar+y3bar)*y2 - &
-        1/R2bar/(Rbar+y3bar)**2*y2 &
+        1.0d0/R2/(R-y3)**2*y2 - &
+        1.0d0/R3bar/(Rbar+y3bar)*y2 - &
+        1.0d0/R2bar/(Rbar+y3bar)**2*y2 &
     ) + &
     z1/R2*sinb*y2/(R-z3) - &
     z1*(R*sinb-y1)/R3/(R-z3)*y2 - &
@@ -1948,72 +2021,72 @@ e12_termB2a_1 = 1.0d0/8.0d0*( &
     z1bar/R2bar*sinb*y2/(Rbar+z3bar) - &
     z1bar*(Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*y2 - &
     z1bar*(Rbar*sinb-y1)/R2bar/(Rbar+z3bar)**2*y2 &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 
 e12_termB2a_2 = 1.0d0/4.0d0*( &
-    (1-2*nu)*( &
-        ((2-2*nu)*cotb**2+nu)/Rbar*y2/(Rbar+y3bar) - &
-        ((2-2*nu)*cotb**2+1)*cosb/Rbar*y2/(Rbar+z3bar) &
+    (1.0d0-2.0d0*nu)*( &
+        ((2.0d0-2.0d0*nu)*cotb**2+nu)/Rbar*y2/(Rbar+y3bar) - &
+        ((2.0d0-2.0d0*nu)*cotb**2+1.0d0)*cosb/Rbar*y2/(Rbar+z3bar) &
     ) - &
-    (1-2*nu)/(Rbar+y3bar)**2*( &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)**2*( &
         (-1+2*nu)*y1*cotb + &
         nu*y3bar - &
         a + &
         a*y1*cotb/Rbar + &
         y1**2/(Rbar+y3bar)*(nu+a/Rbar) &
     )/Rbar*y2 + &
-    (1-2*nu)/(Rbar+y3bar)*( &
+    (1.0d0-2.0d0*nu)/(Rbar+y3bar)*( &
         -a*y1*cotb/R3bar*y2 - &
         y1**2/(Rbar+y3bar)**2*(nu+a/Rbar)/Rbar*y2 - &
         y1**2/(Rbar+y3bar)*a/R3bar*y2 &
     ) + &
-    (1-2*nu)*cotb/(Rbar+z3bar)**2*( &
+    (1.0d0-2.0d0*nu)*cotb/(Rbar+z3bar)**2*( &
         z1bar*cosb - &
         a*(Rbar*sinb-y1)/Rbar/cosb &
     )/Rbar*y2 - &
-    (1-2*nu)*cotb/(Rbar+z3bar)*( &
+    (1.0d0-2.0d0*nu)*cotb/(Rbar+z3bar)*( &
         -a/R2bar*sinb*y2/cosb + &
         a*(Rbar*sinb-y1)/R3bar/cosb*y2 &
     ) + &
-    3*a*y2*(y3+a)*cotb/R5bar*y1 - &
+    3.0d0*a*y2*(y3+a)*cotb/R5bar*y1 - &
     (y3+a)/(Rbar+y3bar)**2*( &
-        2*nu + &
-        1/Rbar*((1-2*nu)*y1*cotb+a) - &
+        2.0d0*nu + &
+        1.0d0/Rbar*((1.0d0-2.0d0*nu)*y1*cotb+a) - &
         y1**2/Rbar/(Rbar+y3bar)*(2*nu+a/Rbar) - &
         a*y1**2/R3bar &
     )/Rbar*y2 + &
     (y3+a)/(Rbar+y3bar)*( &
-        -1/R3bar*((1-2*nu)*y1*cotb+a)*y2 + &
+        -1/R3bar*((1.0d0-2.0d0*nu)*y1*cotb+a)*y2 + &
         y1**2/R3bar/(Rbar+y3bar)*(2*nu+a/Rbar)*y2 + &
         y1**2/R2bar/(Rbar+y3bar)**2*(2*nu+a/Rbar)*y2 + &
         y1**2/R4bar/(Rbar+y3bar)*a*y2 + &
-        3*a*y1**2/R5bar*y2 &
+        3.0d0*a*y1**2/R5bar*y2 &
     ) - &
     (y3+a)*cotb/(Rbar+z3bar)**2*( &
         -cosb*sinb + &
         a*y1*y3bar/R3bar/cosb + &
         (Rbar*sinb-y1)/Rbar*( &
-            (2-2*nu)*cosb - &
-            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
         ) &
     )/Rbar*y2 + &
     (y3+a)*cotb/(Rbar+z3bar)*( &
         -3*a*y1*y3bar/R5bar/cosb*y2 + &
-        1/R2bar*sinb*y2*( &
-            (2-2*nu)*cosb - &
-            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) &
+        1.0d0/R2bar*sinb*y2*( &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
         ) - &
         (Rbar*sinb-y1)/R3bar*( &
-            (2-2*nu)*cosb - &
-            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1+a/Rbar/cosb) &
+            (2.0d0-2.0d0*nu)*cosb - &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) &
         )*y2 + &
         (Rbar*sinb-y1)/Rbar*( &
-            -1/Rbar*cosb*y2/(Rbar+z3bar)*(1+a/Rbar/cosb) + &
-            (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(1+a/Rbar/cosb)/Rbar*y2 + &
+            -1/Rbar*cosb*y2/(Rbar+z3bar)*(1.0d0+a/Rbar/cosb) + &
+            (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(1.0d0+a/Rbar/cosb)/Rbar*y2 + &
             (Rbar*cosb+y3bar)/(Rbar+z3bar)*a/R3bar/cosb*y2 &
         ) &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 
 e12_termB2a = 1.0d0/2.0d0*(e12_termB2a_1+e12_termB2a_2)
 return
@@ -2236,9 +2309,9 @@ e13_termB1a_1 = 1.0d0/8.0d0*( &
         1.0d0/Rbar/(Rbar+y3bar)**2*(1.0d0/2.0d0/Rbar*(2.0d0*y3+4.0d0*a)+1.0d0) &
     ) - &
     y2*cosb*( &
-        1/R2*sinb*y3/(R-z3) - &
+        1.0d0/R2*sinb*y3/(R-z3) - &
         (R*sinb-y1)/R3/(R-z3)*y3 - &
-        (R*sinb-y1)/R/(R-z3)**2*(1/R*y3-cosb) + &
+        (R*sinb-y1)/R/(R-z3)**2*(1.0d0/R*y3-cosb) + &
         1.0d0/2.0d0/R2bar*sinb*(2*y3+4*a)/(Rbar+z3bar) - &
         1.0d0/2.0d0*(Rbar*sinb-y1)/R3bar/(Rbar+z3bar)*(2*y3+4*a) - &
         (Rbar*sinb-y1)/Rbar/(Rbar+z3bar)**2*(1.0d0/2.0d0/Rbar*(2*y3+4*a)+cosb) &
@@ -2574,7 +2647,7 @@ e13_termB3a_1 = 1.0d0/8.0d0*y2*sinb*( &
 )/pi/(1.0d0-nu)
 
 e13_termB3a_2 = 1.0d0/4.0d0*( &
-    (1-2*nu)*( &
+    (1.0d0-2.0d0*nu)*( &
         -y2/(Rbar+y3bar)**2*(1.0d0+a/Rbar)*(1.0d0/2.0d0/Rbar*(2.0d0*y3+4.0d0*a)+1.0d0) - &
         1.0d0/2.0d0*y2/(Rbar+y3bar)*a/R3bar*(2.0d0*y3+4.0d0*a) + &
         y2*cosb/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1.0d0/2.0d0/Rbar*(2.0d0*y3+4.0d0*a)+cosb) + &
@@ -2649,7 +2722,7 @@ e13_termB3b_2 = 1.0d0/4.0d0*( &
             y2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*(2.0d0*y1*cosb+y3bar*sinb) &
         )/(1.0d0+y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2) &
     ) - &
-    (2.0d0-2.0d0*nu)*y2*sinb/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1/Rbar*y1-sinb) - &
+    (2.0d0-2.0d0*nu)*y2*sinb/(Rbar+z3bar)**2*(cosb+a/Rbar)*(1.0d0/Rbar*y1-sinb) - &
     (2.0d0-2.0d0*nu)*y2*sinb/(Rbar+z3bar)*a/R3bar*y1 - &
     y2*(y3+a)*sinb/R3bar/(Rbar+z3bar)*( &
         1.0d0 + &
@@ -2780,36 +2853,36 @@ function e23_termB1b()
 implicit none
 double precision :: e23_termB1b, e23_termB1b_1, e23_termB1b_2
 e23_termB1b_1 = 1.0d0/8.0d0*( &
-    1/R - &
-    1/Rbar - &
+    1.0d0/R - &
+    1.0d0/Rbar - &
     cosb*((R*cosb-y3)/R/(R-z3)-(Rbar*cosb+y3bar)/Rbar/(Rbar+z3bar)) + &
     y2*( &
         -1/R3*y2 + &
-        1/R3bar*y2 - &
+        1.0d0/R3bar*y2 - &
         cosb*( &
-            1/R2*cosb*y2/(R-z3) - &
+            1.0d0/R2*cosb*y2/(R-z3) - &
             (R*cosb-y3)/R3/(R-z3)*y2 - &
             (R*cosb-y3)/R2/(R-z3)**2*y2 - &
-            1/R2bar*cosb*y2/(Rbar+z3bar) + &
+            1.0d0/R2bar*cosb*y2/(Rbar+z3bar) + &
             (Rbar*cosb+y3bar)/R3bar/(Rbar+z3bar)*y2 + &
             (Rbar*cosb+y3bar)/R2bar/(Rbar+z3bar)**2*y2 &
         ) &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 
 e23_termB1b_2 = 1.0d0/4.0d0*( &
-    (2-2*nu)*( &
-        (1-2*nu)*( &
-            -1/y1/(1+y2**2/y1**2) + &
-            1/z1bar/(1+y2**2/z1bar**2) + &
+    (2.0d0-2.0d0*nu)*( &
+        (1.0d0-2.0d0*nu)*( &
+            -1/y1/(1.0d0+y2**2/y1**2) + &
+            1.0d0/z1bar/(1.0d0+y2**2/z1bar**2) + &
             (Rbar*sinb/(y1*z1bar+y2**2*cosb) + &
             y2**2/Rbar*sinb/(y1*z1bar+y2**2*cosb) - &
-            2*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb)/( &
+            2.0d0*y2**2*Rbar*sinb/(y1*z1bar+y2**2*cosb)**2*cosb)/( &
                 1 + &
                 y2**2*R2bar*sinb**2/(y1*z1bar+y2**2*cosb)**2 &
             ) &
         )*cotb + &
-        1/(Rbar+y3bar)*(2*nu+a/Rbar) - &
+        1.0d0/(Rbar+y3bar)*(2*nu+a/Rbar) - &
         y2**2/(Rbar+y3bar)**2*(2*nu+a/Rbar)/Rbar - &
         y2**2/(Rbar+y3bar)*a/R3bar - &
         cosb/(Rbar+z3bar)*(cosb+a/Rbar) + &
@@ -2818,22 +2891,22 @@ e23_termB1b_2 = 1.0d0/4.0d0*( &
     ) + &
     (y3+a)/Rbar*(2*nu/(Rbar+y3bar)+a/R2bar) - &
     y2**2*(y3+a)/R3bar*(2*nu/(Rbar+y3bar)+a/R2bar) + &
-    y2*(y3+a)/Rbar*(-2*nu/(Rbar+y3bar)**2/Rbar*y2-2*a/R4bar*y2) + &
+    y2*(y3+a)/Rbar*(-2.0d0*nu/(Rbar+y3bar)**2/Rbar*y2-2.0d0*a/R4bar*y2) + &
     (y3+a)*cosb/Rbar/(Rbar+z3bar)*( &
         1 - &
-        2*nu - &
+        2.0d0*nu - &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*(cosb+a/Rbar) - &
         a*y3bar/R2bar &
     ) - &
     y2**2*(y3+a)*cosb/R3bar/(Rbar+z3bar)*( &
         1 - &
-        2*nu - &
+        2.0d0*nu - &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*(cosb+a/Rbar) - &
         a*y3bar/R2bar &
     ) - &
     y2**2*(y3+a)*cosb/R2bar/(Rbar+z3bar)**2*( &
         1 - &
-        2*nu - &
+        2.0d0*nu - &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*(cosb+a/Rbar) - &
         a*y3bar/R2bar &
     ) + &
@@ -2841,9 +2914,9 @@ e23_termB1b_2 = 1.0d0/4.0d0*( &
         -1/Rbar*cosb*y2/(Rbar+z3bar)*(cosb+a/Rbar) + &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)**2*(cosb+a/Rbar)/Rbar*y2 + &
         (Rbar*cosb+y3bar)/(Rbar+z3bar)*a/R3bar*y2 + &
-        2*a*y3bar/R4bar*y2 &
+        2.0d0*a*y3bar/R4bar*y2 &
     ) &
-)/pi/(1-nu)
+)/pi/(1.0d0-nu)
 
 e23_termB1b = 1.0d0/2.0d0*(e23_termB1b_1+e23_termB1b_2)
 return
@@ -3052,7 +3125,7 @@ e23_termB3a_2 = 1.0d0/4.0d0*( &
     )*(1.0d0/2.0d0/Rbar*(2.0d0*y3+4.0d0*a)+cosb) - &
     (y3+a)/(Rbar+z3bar)*( &
         1.0d0/2.0d0*sinb*a/R3bar*(2.0d0*y3+4.0d0*a) + &
-        sinb/Rbar*(1+a*y3bar/R2bar) - &
+        sinb/Rbar*(1.0d0+a*y3bar/R2bar) - &
         1.0d0/2.0d0*z1bar/R3bar*(1.0d0+a*y3bar/R2bar)*(2.0d0*y3+4.0d0*a) + &
         z1bar/Rbar*(a/R2bar-a*y3bar/R4bar*(2.0d0*y3+4.0d0*a)) + &
         1.0d0/2.0d0/R3bar/(Rbar+z3bar)*( &
