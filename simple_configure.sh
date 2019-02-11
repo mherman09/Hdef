@@ -210,7 +210,8 @@ cat >> Makefile << EOF
 defm: \\
       \$(BIN)/o92util \\
       \$(BIN)/vec2los \\
-      \$(BIN)/wraplos
+      \$(BIN)/wraplos \\
+      \$(BIN)/triutil
 
 geom: \\
       \$(BIN)/lola2distaz \\
@@ -273,9 +274,11 @@ FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_okada_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
-FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90
+FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
+              src/tri_disloc_module.f90 src/pnpoly.f
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
 	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)
+	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK)
 	rm *.o *.mod
 \$(BIN)/grid: src/grid.f
@@ -308,6 +311,10 @@ FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.
 	rm sphfinrot*.mod
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/stereo_project src/stereo_project.f90
+\$(BIN)/triutil: src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f
+	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
+	\$(FC) \$(FFLAG) -o \$(BIN)/triutil src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f
+	rm *.o *.mod
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f
 \$(BIN)/vec2los: src/vec2los.f
@@ -358,6 +365,7 @@ clean:
 	-rm \$(BIN)/readkik
 	-rm \$(BIN)/sphfinrot
 	-rm \$(BIN)/stereo_project
+	-rm \$(BIN)/triutil
 	-rm \$(BIN)/utm2geo
 	-rm \$(BIN)/vec2los
 	-rm \$(BIN)/wraplos
