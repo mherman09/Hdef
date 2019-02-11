@@ -254,6 +254,9 @@ scripts: \\
 other: \\
       \$(BIN)/numint
 
+test: \\
+      \$(BIN)/unit_test_tri_disloc
+
 # Rules for Fortran programs
 \$(BIN)/colortool: src/colortool.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/colortool src/colortool.f90 -ffree-form
@@ -339,6 +342,13 @@ FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.
 	cp scripts/ternary.sh \$(BIN)/ternary.sh
 \$(BIN)/trg_schem.sh: scripts/trg_schem.sh
 	cp scripts/trg_schem.sh \$(BIN)/trg_schem.sh
+
+# Rules for program tests
+\$(BIN)/unit_test_tri_disloc: src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90
+	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
+	\$(FC) \$(FFLAG) -o \$(BIN)/unit_test_tri_disloc src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90
+	rm *.o *.mod
+	\$(BIN)/unit_test_tri_disloc
 
 # Clean bin directory
 .PHONY: clean
