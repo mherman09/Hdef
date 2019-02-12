@@ -25,7 +25,7 @@ contains
     use variable_module, only: inversion_mode
     implicit none
     ! Local variables
-    integer :: i, j
+    integer :: i, j, nzeros
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'invert_lsqr says: starting'
@@ -56,8 +56,12 @@ contains
            (prestress%file.ne.'none'.and.displacement%file.eq.'none'.and.los%file.eq.'none')) then
         ! In solving for slip around a locked patch (pseudo-coupling), the system is
         ! ?properly determined? so we can use direct inversion methods rather than linear least squares.
-        write(0,'(A)') 'invert_lsqr is using direct solver instead of least-squares solver'
-        call solve_dgesv()
+        call count_matrix_zeros(nzeros)
+        if (dble(nzeros)/dble(nrows*ncols).gt.0.3d0) then
+            call solve_dgssv() ! Use sparse solver (SuperLU)
+        else
+            call solve_dgesv() ! Use dense solver (LAPACK)
+        endif
     elseif (lsqr_mode.eq.'gels'.or.lsqr_mode.eq.'dgels') then
         call solve_lsqr_dgels()
     elseif (lsqr_mode.eq.'nnls') then
@@ -200,7 +204,7 @@ contains
                                 slip_constraint, damping_constant, smoothing_constant
     implicit none
     ! Local variables
-    integer :: i, j
+    integer :: i, j, nzeros
     character(len=256) :: fmt
 
     if (verbosity.ge.2) then
@@ -270,6 +274,16 @@ contains
             if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
             write(stderr,'(1PE12.4)') b(i,1)
         enddo
+    endif
+    if (verbosity.ge.2) then
+        do i = 1,nrows
+            do j = 1,ncols
+                if (dabs(A(i,j)).lt.1.0d-10) then
+                    nzeros = nzeros + 1
+                endif
+            enddo
+        enddo
+        write(0,*) 'load_arrays says: A matrix has ',nzeros,' zeros out of ',nrows*ncols,' total'
     endif
     if (verbosity.ge.2) then
         write(stderr,*)
@@ -965,6 +979,10 @@ contains
 
     ! Solve for x (put into blocal)
     call dgesv(n, nrhs, alocal, lda, ipiv, blocal, ldb, info)
+    if (info.ne.0) then
+        write(0,*) 'solve_dgesv() says: info returned ',info,' indicating error in dgesv()'
+        call print_usage('exiting program at solve_dgesv()')
+    endif
 
     ! Put actual solution into x
     do i = 1,ncols
@@ -986,5 +1004,115 @@ contains
     end subroutine solve_dgesv
 
 !--------------------------------------------------------------------------------------------------!
+
+    subroutine solve_dgssv()
+    !----
+    ! Solve Ax = b for x using LU decomposition and partial pivoting (SuperLU routine GSSV).
+    !----
+    use io_module, only : stderr, verbosity
+    implicit none
+    ! Local variables
+    integer :: i, j, info, nZero, nNonZero, iopt, nrhs, ldb
+    integer(8) :: factors
+    double precision :: blocal(nrows,1)
+    double precision, allocatable :: matrix_value(:)
+    integer, allocatable :: row_index(:), column_ptr(:)
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'solve_dgssv says: starting'
+    endif
+    if (nrows.ne.ncols) then
+        call print_usage('!! Error in subroutine solve_dgssv: nrows not equal to ncols')
+    endif
+
+    blocal = b(1:nrows,1:1)
+
+    ! Format input for dgssv
+    allocate(column_ptr(ncols+1))
+    nZero = 0
+    nNonZero = 0
+    do j = 1,ncols
+        column_ptr(j) = nNonZero + 1
+        do i = 1,nrows
+            if (dabs(A(i,j)).gt.1.0d-10) then
+                nNonZero = nNonZero + 1
+            else
+                nZero = nZero + 1
+            endif
+        enddo
+    enddo
+    column_ptr(ncols+1) = nNonZero + 1
+
+    allocate(matrix_value(nNonZero))
+    allocate(row_index(nNonZero))
+
+    nNonZero = 0
+    do j = 1,ncols
+        do i = 1,nrows
+            if (dabs(A(i,j)).gt.1.0d-10) then
+                nNonZero = nNonZero + 1
+                matrix_value(nNonZero) = A(i,j)
+                row_index(nNonZero) = i
+            endif
+        enddo
+    enddo
+
+    !
+    nrhs = 1
+    ldb = nrows
+
+    ! Factorize matrix
+    iopt = 1
+    call c_fortran_dgssv(iopt,nrows,nNonZero,nrhs,matrix_value,row_index,column_ptr,blocal,ldb,&
+                       factors,info)
+
+    ! Solve the system with factors
+    iopt = 2
+    call c_fortran_dgssv(iopt,nrows,nNonZero,nrhs,matrix_value,row_index,column_ptr,blocal,ldb,&
+                       factors,info)
+
+    ! Free allocated storage
+    iopt = 3
+    call c_fortran_dgssv(iopt,nrows,nNonZero,nrhs,matrix_value,row_index,column_ptr,blocal,ldb,&
+                       factors,info)
+    if (info.ne.0) then
+        write(0,*) 'solve_dgssv() says: info returned ',info,' indicating error in dgssv()'
+        call print_usage('exiting program at solve_dgssv()')
+    endif
+
+    ! Put actual solution into x
+    do i = 1,ncols
+        x(i,1) = blocal(i,1)
+    enddo
+
+    if (verbosity.ge.2) then
+        write(stderr,'("x =")')
+        do i = 1,ncols
+            write(stderr,'(1PE12.4)') x(i,1)
+        enddo
+    endif
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'solve_dgssv says: finished'
+        write(stderr,*)
+    endif
+
+    return
+    end subroutine solve_dgssv
+
+!--------------------------------------------------------------------------------------------------!
+
+    subroutine count_matrix_zeros(n)
+    implicit none
+    integer :: i, j, n
+    n = 0
+    do i = 1,nrows
+        do j = 1,ncols
+            if (dabs(A(i,j)).lt.1.0d-10) then
+                n = n + 1
+            endif
+        enddo
+    enddo
+    return
+    end subroutine count_matrix_zeros
 
 end module lsqr_module

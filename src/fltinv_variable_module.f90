@@ -28,6 +28,7 @@ use io_module, only: program_data
     ! Other variables
     integer, allocatable :: smoothing_neighbors(:)
     double precision :: stress_weight
+    double precision :: sts_dist
     double precision, allocatable :: fault_slip(:,:)
     character(len=256) :: disp_misfit_file
     character(len=256) :: los_misfit_file
