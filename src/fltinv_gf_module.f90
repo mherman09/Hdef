@@ -926,7 +926,8 @@ contains
 
     subroutine calc_gf_stress_tri()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, fault, rake_constraint, halfspace, gf_stress
+    use variable_module, only: inversion_mode, fault, rake_constraint, halfspace, gf_stress, &
+                               sts_dist
     use elast_module
     use tri_disloc_mod, only: tri_disloc_strain, tri_center, tri_geometry
     implicit none
@@ -935,6 +936,7 @@ contains
     double precision :: shear_modulus, lambda, poisson
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
+    double precision :: dist
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
     integer :: i, j, k, prog
 
@@ -981,6 +983,18 @@ contains
 
             ! Avoid singular solutions with measurement point lying on fault
             call tri_center(evt_coord,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
+
+            dist = dsqrt((sta_coord(1)-evt_coord(1))*(sta_coord(1)-evt_coord(1))+ &
+                    (sta_coord(2)-evt_coord(2))*(sta_coord(2)-evt_coord(2))+ &
+                    (sta_coord(3)-evt_coord(3))*(sta_coord(3)-evt_coord(3)))
+            if (dist.gt.sts_dist) then
+                gf_stress%array(i,j) = 0.0d0
+                gf_stress%array(i,j+fault%nrecords) = 0.0d0
+                gf_stress%array(i+fault%nrecords,j) = 0.0d0
+                gf_stress%array(i+fault%nrecords,j+fault%nrecords) = 0.0d0
+                cycle
+            endif
+
             do k = 1,3
                 if (dabs(evt_coord(k)-sta_coord(k)).lt.1.0d0) then
                     sta_coord(k) = evt_coord(k) + 1.0d0

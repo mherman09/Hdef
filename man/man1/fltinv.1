@@ -126,6 +126,12 @@ of equations is properly determined and well behaved. All values are in SI units
 Set the weight for the minimizing stress part of the inversion (default: 1e-9)
 
 .TP
+.BI "-prests:dist_threshold " dist
+Set shear tractions for fault pairs greater than
+.I dist
+meters apart to zero. Forces the use of the sparse equation solving routine dgssv.
+
+.TP
 .BI "-flt " fault_file
 File containing parameters of faults for inversion. The file format depends on the
 Green's function calculation model type, specified using option

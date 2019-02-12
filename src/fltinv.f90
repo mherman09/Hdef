@@ -18,7 +18,7 @@ end program main
 subroutine initialize_fltinv_variables()
 use io_module, only: verbosity, initialize_program_data
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
-                           fault, slip_constraint, rake_constraint, &
+                           sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
@@ -73,6 +73,7 @@ temp_start = 2.0d0
 temp_minimum = 0.00d0
 cooling_factor = 0.98d0
 anneal_verbosity = 0
+sts_dist = 1.0d10
 
 return
 end
@@ -82,7 +83,7 @@ end
 subroutine get_command_line()
 use io_module, only: stderr, verbosity
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
-                           fault, slip_constraint, rake_constraint, &
+                           sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
@@ -136,6 +137,10 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) stress_weight
+    elseif (trim(tag).eq.'-prests:dist_threshold') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) sts_dist
     elseif (trim(tag).eq.'-flt') then
         i = i + 1
         call get_command_argument(i,fault%file)
@@ -265,6 +270,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    disp_misfit_file:       ",A)') trim(disp_misfit_file)
     write(stderr,'("    prestress%file:         ",A)') trim(prestress%file)
     write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
+    write(stderr,'("    sts_dist:               ",1PE14.6)') sts_dist
     write(stderr,'("    fault%file:             ",A)') trim(fault%file)
     write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
     write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
@@ -330,6 +336,7 @@ write(stderr,'(A)') '-disp:components COMPNTS     Specify displacement component
 write(stderr,'(A)') '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
 write(stderr,'(A)') '-prests PRESTS_FILE          Input pre-stresses'
 write(stderr,'(A)') '-prests:weight WEIGHT        Stress weighting factor'
+write(stderr,'(A)') '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
 write(stderr,'(A)') '-flt FAULT_FILE              Input faults'
 write(stderr,'(A)') '-flt:rake RAKE_FILE          Rake angle constraints'
 write(stderr,'(A)') '-flt:slip SLIP_FILE          Slip magnitude constraints'
