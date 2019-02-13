@@ -1,4 +1,4 @@
-module tri_disloc_mod
+module tri_disloc_module
 !----
 ! Translation of Brendan Meade's Matlab triangular dislocation code into Fortran module
 ! By Matthew Herman, Utrecht University
