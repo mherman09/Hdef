@@ -184,6 +184,7 @@ echo "Type \"make\""
 cat > Makefile << EOF
 ##### Compiler variables #####
 FC = -$FC
+FC = $FC
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 FOPT  = -O1
 FFLAG = \$(FWARN) \$(FOPT)
@@ -255,7 +256,8 @@ other: \\
       \$(BIN)/numint
 
 test: \\
-      test_tri_disloc
+      test_tri_disloc \
+      test_okada92
 
 # Rules for Fortran programs
 \$(BIN)/colortool: src/colortool.f90
@@ -346,10 +348,16 @@ FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.
 # Rules for program tests
 test_tri_disloc: src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -o \$(BIN)/unit_test_tri_disloc src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90
+	\$(FC) \$(FFLAG) -o \$@ \$^
 	rm *.o *.mod
-	\$(BIN)/unit_test_tri_disloc
-	rm \$(BIN)/unit_test_tri_disloc
+	\$@
+	rm \$@
+test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.f
+	\$(FC) \$(FFLAG) -c src/okada92_module.f90
+	\$(FC) \$(FFLAG) -o \$@ \$^
+	rm *.o *.mod
+	\$@
+	rm \$@
 
 # Clean bin directory
 .PHONY: clean
