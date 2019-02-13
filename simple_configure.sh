@@ -281,10 +281,11 @@ FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/tri_disloc_module.f90 src/pnpoly.f
+SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
 	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK)
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU)
 	rm *.o *.mod
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/grid src/grid.f
@@ -316,9 +317,9 @@ FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.
 	rm sphfinrot*.mod
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$(BIN)/stereo_project src/stereo_project.f90
-\$(BIN)/triutil: src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f
+\$(BIN)/triutil: src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -o \$(BIN)/triutil src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f
+	\$(FC) \$(FFLAG) -o \$@ \$^
 	rm *.o *.mod
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$(BIN)/utm2geo src/utm2geo.f src/geomsubs.f

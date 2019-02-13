@@ -20,11 +20,12 @@ if (verbosity.ge.1) then
     write(stderr,'(A)') 'read_fltinv_inputs says: starting'
 endif
 
+
 !----
 ! Either displacement or pre-stress data is required
 !----
 if (displacement%file.eq.'none'.and.prestress%file.eq.'none'.and.los%file.eq.'none') then
-    call print_usage('!! Error: No displacement or pre-stress file defined')
+    call print_usage('!! read_fltinv_inputs: no displacement or pre-stress file defined')
 else
     if (displacement%file.ne.'none') then
         displacement%nfields = 6 ! x y z ux uy uz
@@ -40,11 +41,12 @@ else
     endif
 endif
 
+
 !----
 ! Fault file is required
 !----
 if (fault%file.eq.'none') then
-    call print_usage('!! Error: No fault file defined')
+    call print_usage('!! read_fltinv_inputs: no fault file defined')
 else
     ! If Green's functions are pre-computed, we only need to read the number of lines
     if (gf_disp%file.ne.'none'.and.displacement%file.ne.'none') then
@@ -62,7 +64,8 @@ else
 
     ! Need to have Green's functions for an inversion
     else
-        call print_usage('!! Error: Neither GF computation mode nor precomputed GFs are defined')
+        call print_usage('!! read_fltinv_inputs: neither GF computation mode nor precomputed '//&
+                         'GFs are defined')
     endif
 
     ! Read the fault data
@@ -97,43 +100,8 @@ else
     endif
 endif
 
-! Make coordinates Cartesian
-if (coord_type.eq.'geographic') then
-    reflon = fault%array(1,1)
-    reflat = fault%array(1,2)
-    do i = 1,fault%nrecords
-        call ddistaz(dist,az,reflon,reflat,fault%array(i,1),fault%array(i,2))
-        dist = dist*6.371d6
-        fault%array(i,1) = dist*dsin(az)
-        fault%array(i,2) = dist*dcos(az)
-        if (gf_type.eq.'triangle') then
-            call ddistaz(dist,az,reflon,reflat,fault%array(i,4),fault%array(i,5))
-            dist = dist*6.371d6
-            fault%array(i,4) = dist*dsin(az)
-            fault%array(i,5) = dist*dcos(az)
-            call ddistaz(dist,az,reflon,reflat,fault%array(i,7),fault%array(i,8))
-            dist = dist*6.371d6
-            fault%array(i,7) = dist*dsin(az)
-            fault%array(i,8) = dist*dcos(az)
-        endif
-    enddo
-    if (displacement%file.ne.'none') then
-        do i = 1,displacement%nrecords
-            call ddistaz(dist,az,reflon,reflat,displacement%array(i,1),displacement%array(i,2))
-            dist = dist*6.371d6
-            displacement%array(i,1) = dist*dsin(az)
-            displacement%array(i,2) = dist*dcos(az)
-        enddo
-    endif
-    if (los%file.ne.'none') then
-        do i = 1,los%nrecords
-            call ddistaz(dist,az,reflon,reflat,los%array(i,1),los%array(i,2))
-            dist = dist*6.371d6
-            los%array(i,1) = dist*dsin(az)
-            los%array(i,2) = dist*dcos(az)
-        enddo
-    endif
-else
+! Check that coordinates make sense for input type
+if (coord_type.eq.'cartesian') then
     if (displacement%file.ne.'none') then
         do i = 1,fault%nrecords
             dist = (displacement%array(1,1)-fault%array(i,1))**2 + &
@@ -191,8 +159,8 @@ if (displacement%file.ne.'none') then
         call read_program_data_file(gf_disp)
         ! Verify that there are the correct number of lines here
         if (gf_disp%nrecords .ne. 3*displacement%nrecords) then
-            call print_usage('!! Error: number of lines in displacement GF file must be '// &
-                             '3*ndisplacements (corresponding to one line per displacement DOF)')
+            call print_usage('!! read_fltinv_inputs: number of lines in displacement GF file '// &
+                             'must be 3*ndisplacements (one line per displacement DOF)')
         endif
 
     ! Allocate memory to calculate Green's functions
@@ -217,7 +185,7 @@ if (prestress%file.ne.'none') then
         call read_program_data_file(gf_stress)
         ! Verify that there are the correct number of lines here
         if (gf_stress%nrecords .ne. 2*fault%nrecords) then
-            call print_usage('!! Error: Number of lines in stress GF file must be '//&
+            call print_usage('!! read_fltinv_inputs: Number of lines in stress GF file must be '//&
                              '2*nfaults (one line per fault slip DOF)')
         endif
 
@@ -251,8 +219,8 @@ if (los%file.ne.'none') then
         call read_program_data_file(gf_los)
         ! Verify that there are the correct number of lines here
         if (gf_los%nrecords .ne. los%nrecords) then
-            call print_usage('!! Error: number of lines in LOS displacement GF file must be '// &
-                             'ndisplacements (corresponding to one line per displacement DOF)')
+            call print_usage('!! read_fltinv_inputs: number of lines in LOS displacement GF '// &
+                             'file must be ndisplacements (one line per displacement DOF)')
         endif
 
     ! Allocate memory to calculate Green's functions
@@ -274,7 +242,8 @@ if (smoothing%file.ne.'none') then
     smoothing%nfields = 3
     call read_program_data_file(smoothing)
     if (smoothing%nrecords.gt.fault%nrecords) then
-        call print_usage('!! Error: number of faults to smooth is larger than number of faults')
+        call print_usage('!! read_fltinv_inputs: number of faults to smooth is larger than '//&
+                         'number of faults')
     endif
 
     ! Read the smoothing linking file into a fault neighbors array (smoothing_neighbors)
@@ -299,13 +268,14 @@ if (rake_constraint%file.ne.'none') then
     elseif (inversion_mode.eq.'anneal') then
         rake_constraint%nfields = 2
     else
-        call print_usage('!! Error: I do not know how many fields rake_constraint should '//&
-                         'have for this inversion mode...')
+        call print_usage('!! read_fltinv_inputs: I do not know how many fields rake_constraint '//&
+                         'should have for this inversion mode...')
     endif
     call read_program_data_file(rake_constraint)
     if (rake_constraint%nrecords.ne.1.and.rake_constraint%nrecords.ne.fault%nrecords) then
-        write(0,'(A,I5,A)') '!! Error: found ',rake_constraint%nrecords,' rake constraint records'
-        write(0,'(A,I5,A)') '!! And ',fault%nrecords,' input faults'
+        write(0,'(A,I5,A)') '!! read_fltinv_inputs: found ',rake_constraint%nrecords,' rake '//&
+                            'constraint records'
+        write(0,'(A,I5,A)') '!! and ',fault%nrecords,' input faults'
         call print_usage('!! Number of rake constraints must be 1 or number of faults')
     endif
 endif
@@ -317,7 +287,8 @@ if (slip_constraint%file.ne.'none') then
     slip_constraint%nfields = 2
     call read_program_data_file(slip_constraint)
     if (slip_constraint%nrecords.ne.1.and.slip_constraint%nrecords.ne.fault%nrecords) then
-        call print_usage('!! Error: number of slip constraints must be 1 or number of faults')
+        call print_usage('!! read_fltinv_inputs: number of slip constraints must be 1 or '//&
+                         'number of faults')
     endif
     if (slip_constraint%nrecords.eq.1) then
         dist = slip_constraint%array(1,1)
@@ -340,7 +311,8 @@ if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt'.or.gf_type.eq.'triangle') t
         elseif (halfspace%flag.eq.'lame') then
             halfspace%nfields = 2
         else
-            call print_usage('!! Error: no halfspace read option named '//trim(halfspace%flag))
+            call print_usage('!! read_fltinv_inputs: no halfspace read option named '//&
+                             trim(halfspace%flag))
         endif
         call read_program_data_file(halfspace)
     else

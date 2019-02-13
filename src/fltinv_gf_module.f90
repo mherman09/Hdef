@@ -1,12 +1,16 @@
 module gf_module
 
 !--------------------------------------------------------------------------------------------------!
+
 contains
+
+!--------------------------------------------------------------------------------------------------!
+! RECTANGULAR DISLOCATIONS IN AN ELASTIC HALF-SPACE
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_okada_rect()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, &
+    use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
     implicit none
     ! Local variables
@@ -50,10 +54,15 @@ contains
             len  = fault%array(j,7)
 
             ! Origin is at fault coordinate, x-axis points horizontal up-dip
-            dx = stlo - evlo
-            dy = stla - evla
-            dist = dsqrt(dx*dx+dy*dy)
-            az = datan2(dx,dy)
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
+            endif
             x = dist*( dcos(az-d2r*str))
             y = dist*(-dsin(az-d2r*str))
 
@@ -139,13 +148,14 @@ contains
 
     subroutine calc_gf_stress_okada_rect()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, fault, rake_constraint, halfspace, gf_stress
+    use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
+                               gf_stress
     use elast_module
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
     double precision :: evlo, evla, evdp, str, dip, rak, wid, len
-    double precision :: delx, dely, dist, az, x, y, vp, vs, dens
+    double precision :: dist, az, dx, dy, x, y, vp, vs, dens
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
@@ -189,24 +199,29 @@ contains
             wid  = fault%array(j,6)
             len  = fault%array(j,7)
 
-            ! Avoid singular solutions with measurement point lying on fault
-            if (dabs(evlo-stlo).lt.1.0d0) then
-                stlo = evlo + 1.0d0
+            ! Rotate coordinates to x=along-strike, y=horizontal up-dip
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
             endif
-            if (dabs(evla-stla).lt.1.0d0) then
-                stla = evla + 1.0d0
+             x = dist*( dcos(az-d2r*str))
+             y = dist*(-dsin(az-d2r*str))
+
+            ! Avoid singular solutions with measurement point lying on fault
+            if (dabs(x).lt.1.0d0) then
+                x = x + 1.0d0
+            endif
+            if (dabs(y).lt.1.0d0) then
+                y = y + 1.0d0
             endif
             if (dabs(evdp-stdp).lt.1.0d0) then
                 stdp = evdp + 1.0d0
             endif
-
-            ! Rotate coordinates to x=along-strike, y=horizontal up-dip
-             delx = stlo - evlo
-             dely = stla - evla
-             dist = dsqrt(delx*delx+dely*dely)
-             az   = datan2(delx,dely) ! clockwise from north
-             x = dist*( dcos(az-d2r*str))
-             y = dist*(-dsin(az-d2r*str))
 
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
@@ -286,7 +301,7 @@ contains
 
     subroutine calc_gf_los_okada_rect()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, &
+    use variable_module, only: inversion_mode, coord_type, &
                                los, fault, gf_los, halfspace, rake_constraint
     implicit none
     ! Local variables
@@ -325,12 +340,17 @@ contains
             len  = fault%array(j,7)
 
             ! Origin is at fault coordinate, x-axis points horizontal up-dip
-            dx = stlo - evlo
-            dy = stla - evla
-            dist = dsqrt(dx*dx+dy*dy)
-            az = datan2(dx,dy)
-            x = dist*( dcos(az-d2r*str))
-            y = dist*(-dsin(az-d2r*str))
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
+            endif
+             x = dist*( dcos(az-d2r*str))
+             y = dist*(-dsin(az-d2r*str))
 
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
@@ -402,10 +422,12 @@ contains
     end subroutine calc_gf_los_okada_rect
 
 !--------------------------------------------------------------------------------------------------!
+! POINT DISLOCATIONS IN AN ELASTIC HALF-SPACE
+!--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_okada_pt()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, &
+    use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
     implicit none
     ! Local variables
@@ -440,12 +462,17 @@ contains
             area  = fault%array(j,6)
 
             ! Origin is at fault coordinate, x-axis points horizontal up-dip
-            dx = stlo - evlo
-            dy = stla - evla
-            dist = dsqrt(dx*dx+dy*dy)
-            az = datan2(dx,dy)
-            x = dist*( dcos(az-d2r*str))
-            y = dist*(-dsin(az-d2r*str))
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
+            endif
+             x = dist*( dcos(az-d2r*str))
+             y = dist*(-dsin(az-d2r*str))
 
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
@@ -531,13 +558,14 @@ contains
 
     subroutine calc_gf_stress_okada_pt()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, fault, rake_constraint, halfspace, gf_stress
+    use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
+                               gf_stress
     use elast_module
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
     double precision :: evlo, evla, evdp, str, dip, rak, area
-    double precision :: delx, dely, dist, az, x, y, vp, vs, dens
+    double precision :: dist, az, dx, dy, x, y, vp, vs, dens
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
@@ -580,24 +608,29 @@ contains
             dip  = fault%array(j,5)
             area  = fault%array(j,6)
 
-            ! Avoid singular solutions with measurement point lying on fault
-            if (dabs(evlo-stlo).lt.1.0d0) then
-                stlo = evlo + 1.0d0
+            ! Rotate coordinates to x=along-strike, y=horizontal up-dip
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
             endif
-            if (dabs(evla-stla).lt.1.0d0) then
-                stla = evla + 1.0d0
+             x = dist*( dcos(az-d2r*str))
+             y = dist*(-dsin(az-d2r*str))
+
+            ! Avoid singular solutions with measurement point lying on fault
+            if (dabs(x).lt.1.0d0) then
+                x = x + 1.0d0
+            endif
+            if (dabs(y).lt.1.0d0) then
+                y = y + 1.0d0
             endif
             if (dabs(evdp-stdp).lt.1.0d0) then
                 stdp = evdp + 1.0d0
             endif
-
-            ! Rotate coordinates to x=along-strike, y=horizontal up-dip
-             delx = stlo - evlo
-             dely = stla - evla
-             dist = dsqrt(delx*delx+dely*dely)
-             az   = datan2(delx,dely) ! clockwise from north
-             x = dist*( dcos(az-d2r*str))
-             y = dist*(-dsin(az-d2r*str))
 
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
@@ -679,7 +712,7 @@ contains
 
     subroutine calc_gf_los_okada_pt()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, &
+    use variable_module, only: inversion_mode, coord_type, &
                                los, fault, gf_los, halfspace, rake_constraint
     implicit none
     ! Local variables
@@ -717,12 +750,17 @@ contains
             area  = fault%array(j,6)
 
             ! Origin is at fault coordinate, x-axis points horizontal up-dip
-            dx = stlo - evlo
-            dy = stla - evla
-            dist = dsqrt(dx*dx+dy*dy)
-            az = datan2(dx,dy)
-            x = dist*( dcos(az-d2r*str))
-            y = dist*(-dsin(az-d2r*str))
+            if (coord_type.eq.'geographic') then
+                call ddistaz(dist,az,evlo,evla,stlo,stla)
+                dist = dist*6.371d6
+            else
+                dx = stlo - evlo
+                dy = stla - evla
+                dist = dsqrt(dx*dx+dy*dy)
+                az = datan2(dx,dy)
+            endif
+             x = dist*( dcos(az-d2r*str))
+             y = dist*(-dsin(az-d2r*str))
 
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
@@ -796,17 +834,19 @@ contains
     end subroutine calc_gf_los_okada_pt
 
 !--------------------------------------------------------------------------------------------------!
+! TRIANGLE DISLOCATIONS IN AN ELASTIC HALF-SPACE
+!--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_tri()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, &
+    use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
-    use tri_disloc_mod, only: tri_disloc_disp
+    use tri_disloc_module, only: tri_disloc_disp, tri_center
     implicit none
     ! Local variables
-    integer :: i, j
+    integer :: i, j, iTri
     double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4)
-    double precision :: disp(3)
+    double precision :: sta_coord_new(3), tri_coord_new(3,4), disp(3), center(3), dist, az
     double precision :: lambda, shear_modulus, poisson
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r = pi/180.0d0
 
@@ -850,6 +890,25 @@ contains
             tri_coord(3,3) = fault%array(j,9)
             tri_coord(:,4) = 0.0d0
 
+            if (coord_type.eq.'geographic') then
+                call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
+                call ddistaz(dist,az,center(1),center(2),sta_coord(1),sta_coord(2))
+                dist = dist*6.371d6
+                sta_coord_new(1) = dist*dsin(az)
+                sta_coord_new(2) = dist*dcos(az)
+                sta_coord_new(3) = sta_coord(3)
+                do iTri = 1,3
+                    call ddistaz(dist,az,center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri))
+                    dist = dist*6.371d6
+                    tri_coord_new(1,iTri) = dist*dsin(az)
+                    tri_coord_new(2,iTri) = dist*dcos(az)
+                    tri_coord_new(3,iTri) = tri_coord(3,iTri)
+                enddo
+            else
+                sta_coord_new = sta_coord
+                tri_coord_new = tri_coord
+            endif
+
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
                 if (rake_constraint%nrecords.eq.1) then
@@ -867,7 +926,7 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Strike-slip Green's function
-            call tri_disloc_disp(disp, sta_coord, tri_coord, poisson, slip)
+            call tri_disloc_disp(disp, sta_coord_new, tri_coord_new, poisson, slip)
             gf_disp%array(i,                        j) = disp(1)
             gf_disp%array(i+1*displacement%nrecords,j) = disp(2)
             gf_disp%array(i+2*displacement%nrecords,j) = disp(3)
@@ -890,7 +949,7 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Dip-slip (or second rake) Green's function
-            call tri_disloc_disp(disp, sta_coord, tri_coord, poisson, slip)
+            call tri_disloc_disp(disp, sta_coord_new, tri_coord_new, poisson, slip)
             gf_disp%array(i,                        j+fault%nrecords) = disp(1)
             gf_disp%array(i+1*displacement%nrecords,j+fault%nrecords) = disp(2)
             gf_disp%array(i+2*displacement%nrecords,j+fault%nrecords) = disp(3)
@@ -926,19 +985,20 @@ contains
 
     subroutine calc_gf_stress_tri()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, fault, rake_constraint, halfspace, gf_stress, &
-                               sts_dist
+    use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
+                               gf_stress, sts_dist
     use elast_module
-    use tri_disloc_mod, only: tri_disloc_strain, tri_center, tri_geometry
+    use tri_disloc_module, only: tri_disloc_strain, tri_center, tri_geometry
     implicit none
     ! Local variables
-    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), evt_coord(3)
+    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), evt_coord(3), &
+                        tri_coord_new(3,4), sta_coord_new(3), center(3)
     double precision :: shear_modulus, lambda, poisson
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
-    double precision :: dist
+    double precision :: dist, az
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
-    integer :: i, j, k, prog
+    integer :: i, j, k, prog, iTri
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'calc_gf_stress_tri says: starting'
@@ -981,12 +1041,29 @@ contains
             tri_coord(3,3) = fault%array(j,9)
             tri_coord(:,4) = 0.0d0
 
-            ! Avoid singular solutions with measurement point lying on fault
-            call tri_center(evt_coord,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
+            if (coord_type.eq.'geographic') then
+                call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
+                call ddistaz(dist,az,center(1),center(2),sta_coord(1),sta_coord(2))
+                dist = dist*6.371d6
+                sta_coord_new(1) = dist*dsin(az)
+                sta_coord_new(2) = dist*dcos(az)
+                sta_coord_new(3) = sta_coord(3)
+                do iTri = 1,3
+                    call ddistaz(dist,az,center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri))
+                    dist = dist*6.371d6
+                    tri_coord_new(1,iTri) = dist*dsin(az)
+                    tri_coord_new(2,iTri) = dist*dcos(az)
+                    tri_coord_new(3,iTri) = tri_coord(3,iTri)
+                enddo
+            else
+                sta_coord_new = sta_coord
+                tri_coord_new = tri_coord
+            endif
 
-            dist = dsqrt((sta_coord(1)-evt_coord(1))*(sta_coord(1)-evt_coord(1))+ &
-                    (sta_coord(2)-evt_coord(2))*(sta_coord(2)-evt_coord(2))+ &
-                    (sta_coord(3)-evt_coord(3))*(sta_coord(3)-evt_coord(3)))
+            ! Set resolved tractions to zero if distance is larger than threshold
+            dist = dsqrt(sta_coord_new(1)*sta_coord_new(1)+ &
+                         sta_coord_new(2)*sta_coord_new(2)+ &
+                        (sta_coord_new(3)-center(3))*(sta_coord(3)-center(3)))
             if (dist.gt.sts_dist) then
                 gf_stress%array(i,j) = 0.0d0
                 gf_stress%array(i,j+fault%nrecords) = 0.0d0
@@ -995,9 +1072,10 @@ contains
                 cycle
             endif
 
+            ! Avoid singular solutions with measurement point lying on fault
             do k = 1,3
-                if (dabs(evt_coord(k)-sta_coord(k)).lt.1.0d0) then
-                    sta_coord(k) = evt_coord(k) + 1.0d0
+                if (dabs(evt_coord(k)-sta_coord_new(k)).lt.1.0d0) then
+                    sta_coord_new(k) = evt_coord(k) + 1.0d0
                 endif
             enddo
 
@@ -1018,7 +1096,7 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
-            call tri_disloc_strain(strain, sta_coord, tri_coord, poisson, slip)
+            call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
@@ -1047,7 +1125,7 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
-            call tri_disloc_strain(strain, sta_coord, tri_coord, poisson, slip)
+            call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
