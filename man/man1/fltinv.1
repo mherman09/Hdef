@@ -356,8 +356,14 @@ by Alan Miller.
 .B SIMULATED ANNEALING OPTIONS
 
 .TP
-.BI "-anneal:init_mode " mean | zero | rand
-Set the mode to initialize the slip and rake values of the solution (default: mean):
+.BI "-anneal:init_mode " mean | zero | rand | unlocked | locked | user
+Set the mode to initialize the slip and rake values of the solution for 
+mode
+.B anneal
+(default: mean) or to initialize which faults are locked or
+unlocked for mode
+.BR anneal-psc 
+(default: unlocked):
 
 .BR mean :
 set values to middle of ranges set in
@@ -373,7 +379,20 @@ set values to random within ranges set in
 .I slip_constraint_file
 and
 .I rake_constraint_file
+
 .br
+.BR unlocked :
+set all faults to start out unlocked
+.br
+.BR locked :
+set all faults to start out locked
+.br
+.BR rand :
+randomly set locked faults
+.br
+.B user
+.IR file :
+set locked faults with file containing 0 for unlocked and 1 for locked
 
 .TP
 .BI "-anneal:max_iteration " max_iteration

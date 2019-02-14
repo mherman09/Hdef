@@ -12,8 +12,7 @@ use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_co
 implicit none
 ! Local variables
 integer :: i, ios
-double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3)
-double precision :: reflon, reflat, dist, az
+double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3), dist, az
 character(len=256) :: line
 
 if (verbosity.ge.1) then
@@ -22,7 +21,7 @@ endif
 
 
 !----
-! Either displacement or pre-stress data is required
+! Either displacement/los or pre-stress data is required
 !----
 if (displacement%file.eq.'none'.and.prestress%file.eq.'none'.and.los%file.eq.'none') then
     call print_usage('!! read_fltinv_inputs: no displacement or pre-stress file defined')
@@ -506,8 +505,68 @@ end subroutine run_inversion
 
 !--------------------------------------------------------------------------------------------------!
 
+subroutine free_memory()
+! Deallocate arrays
+
+use io_module, only: stderr, verbosity
+use variable_module, only: displacement, prestress, los, fault, &
+                           gf_disp, gf_stress, gf_los, &
+                           smoothing, smoothing_neighbors, rake_constraint, slip_constraint, &
+                           halfspace
+implicit none
+
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'free_memory says: starting'
+endif
+
+if (allocated(displacement%array)) then
+    deallocate(displacement%array)
+endif
+if (allocated(prestress%array)) then
+    deallocate(prestress%array)
+endif
+if (allocated(los%array)) then
+    deallocate(los%array)
+endif
+if (allocated(fault%array)) then
+    deallocate(fault%array)
+endif
+if (allocated(gf_disp%array)) then
+    deallocate(gf_disp%array)
+endif
+if (allocated(gf_stress%array)) then
+    deallocate(gf_stress%array)
+endif
+if (allocated(gf_los%array)) then
+    deallocate(gf_los%array)
+endif
+if (allocated(smoothing%intarray)) then
+    deallocate(smoothing%intarray)
+endif
+if (allocated(smoothing_neighbors)) then
+    deallocate(smoothing_neighbors)
+endif
+if (allocated(rake_constraint%array)) then
+    deallocate(rake_constraint%array)
+endif
+if (allocated(slip_constraint%array)) then
+    deallocate(slip_constraint%array)
+endif
+if (allocated(halfspace%array)) then
+    deallocate(halfspace%array)
+endif
+
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'free_memory says: finished'
+endif
+
+return
+end subroutine free_memory
+
+!--------------------------------------------------------------------------------------------------!
+
 subroutine write_solution()
-use io_module, only: stdout
+use io_module, only: stdout, stderr, verbosity
 use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint, &
                            disp_misfit_file, los_misfit_file
 use anneal_module, only: disp_misfit_l2norm, los_misfit_l2norm
@@ -516,13 +575,24 @@ implicit none
 integer :: i, ounit
 double precision :: slip_mag, tmp_slip_array(fault%nrecords,2)
 
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'write_solution says: starting'
+endif
+
 ! Print RMS misfit if specified
 if (disp_misfit_file.ne.'none') then
+    if (verbosity.ge.1) then
+        write(stderr,'(A)') 'write_solution says: writing displacement RMS misfit to '// &
+                            trim(disp_misfit_file)
+    endif
+
+    write(0,*) 'write_solution: opening misfit file'
     open(unit=81,file=disp_misfit_file,status='unknown')
 
     ! If rake is constrained, make an array of the correct size to use with misfit function
     if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none' &
                                                            .and.rake_constraint%nfields.eq.1) then
+        write(0,*) 'write_solution: writing misfit for fixed rake'
         do i = 1,fault%nrecords
             tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
             tmp_slip_array(i,2) = 0.0d0
@@ -531,13 +601,21 @@ if (disp_misfit_file.ne.'none') then
 
     ! Otherwise, just use the misfit function directly
     else
+        write(0,*) 'write_solution: writing misfit for free rake'
         write(81,*) disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
     endif
+
+    write(0,*) 'write_solution: closing misfit file'
     close(81)
 endif
 
 ! Line-of-sight RMS misfit
 if (los_misfit_file.ne.'none') then
+    if (verbosity.ge.1) then
+        write(stderr,'(A)') 'write_solution says: writing LOS RMS misfit to '//trim(los_misfit_file)
+    endif
+
+    write(0,*) 'write_solution: opening misfit file'
     open(unit=81,file=los_misfit_file,status='unknown')
 
     ! If rake is constrained, make an array of the correct size to use with misfit function
@@ -553,10 +631,15 @@ if (los_misfit_file.ne.'none') then
     else
         write(81,*) los_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
     endif
+
+    write(0,*) 'write_solution: closing misfit file'
     close(81)
 endif
 
 ! Print fault slip solution
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'write_solution says: writing slip solution to '//trim(output_file)
+endif
 if (output_file.eq.'stdout') then
     ounit = stdout
 else
@@ -607,8 +690,16 @@ enddo
 5012 format(1F14.3)
 5002 format(1P1E14.6)
 
+if (allocated(fault_slip)) then
+    deallocate(fault_slip)
+endif
+
 if (output_file.ne.'stdout') then
     close(ounit)
+endif
+
+if (verbosity.ge.1) then
+    write(stderr,'(A)') 'write_solution says: finished'
 endif
 
 return

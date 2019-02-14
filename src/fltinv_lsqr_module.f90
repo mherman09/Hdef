@@ -1,5 +1,5 @@
 module lsqr_module
-    double precision, allocatable :: A(:,:)
+    double precision, allocatable :: A(:,:), Asave(:,:)
     double precision, allocatable :: b(:,:)
     double precision, allocatable :: x(:,:)
     integer :: nrows
@@ -10,6 +10,7 @@ module lsqr_module
     integer :: ptr_damp
     integer :: ptr_smooth
     character(len=8) :: lsqr_mode
+    logical :: isAsaveLoaded
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -17,7 +18,7 @@ contains
 
     subroutine invert_lsqr()
     !----
-    ! Invert displacements and pre-stresses for fault slip using a linear least squares approach
+    ! Invert displacements and pre-stresses for fault slip using a direct or linear least squares approach
     !----
     use io_module, only : stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip, &
@@ -28,7 +29,7 @@ contains
     integer :: i, j, nzeros
 
     if (verbosity.ge.2) then
-        write(stderr,'(A)') 'invert_lsqr says: starting'
+        write(stderr,'(A)') 'invert_lsqr: starting'
     endif
 
     ! Determine dimensions of model matrix
@@ -44,8 +45,23 @@ contains
     A = 0.0d0
     b = 0.0d0
 
-    ! Load model matrix, A, and constraint vector, b
+    ! In annealing search for pseudo-coupling, it saves substantial effort to only load the full
+    ! A matrix once, so initialize a matrix Asave
+    if (inversion_mode.eq.'anneal-psc') then
+        if (.not.allocated(Asave)) then
+            allocate(Asave(nrows,ncols))
+        endif
+    else
+        isAsaveLoaded = .false.
+    endif
+
+    ! Load model matrix, A (and maybe Asave), and constraint vector, b
     call load_arrays()
+
+    if (nrows.eq.0.and.ncols.eq.0) then
+        write(0,*) 'invert_lsqr: no rows or columns in A matrix'
+        return
+    endif
 
     ! Solve generalized least squares problem
     if (.not.allocated(x)) then
@@ -55,7 +71,7 @@ contains
     if (inversion_mode.eq.'anneal-psc'.or. &
            (prestress%file.ne.'none'.and.displacement%file.eq.'none'.and.los%file.eq.'none')) then
         ! In solving for slip around a locked patch (pseudo-coupling), the system is
-        ! ?properly determined? so we can use direct inversion methods rather than linear least squares.
+        ! properly determined so we can use direct inversion methods rather than linear least squares.
         call count_matrix_zeros(nzeros)
         if (dble(nzeros)/dble(nrows*ncols).gt.0.3d0) then
             call solve_dgssv() ! Use sparse solver (SuperLU)
@@ -103,6 +119,19 @@ contains
                 j = j + 1
             endif
         enddo
+    endif
+
+    ! FREEEEEDDDOOOOOMMMMMMM
+    if (inversion_mode.eq.'lsqr') then
+        if (allocated(A)) then
+            deallocate(A)
+        endif
+        if (allocated(b)) then
+            deallocate(b)
+        endif
+        if (allocated(x)) then
+            deallocate(x)
+        endif
     endif
 
     if (verbosity.ge.2) then
@@ -211,29 +240,41 @@ contains
         write(stderr,'(A)') 'load_arrays says: starting'
     endif
 
-    ! Load three-component displacement data
-    if (displacement%file.ne.'none') then
-        call load_displacements()
-    endif
+    if (.not.isAsaveLoaded) then
 
-    ! Load LOS displacement data
-    if (los%file.ne.'none') then
-        call load_los()
-    endif
+        ! If we have not yet loaded the A matrix, then do it here
 
-    ! Load pre-stress data
-    if (prestress%file.ne.'none') then
-        call load_prestresses()
-    endif
+        ! Load three-component displacement data
+        if (displacement%file.ne.'none') then
+            call load_displacements()
+        endif
 
-    ! Minimize model length
-    if (damping_constant.gt.0.0d0) then
-        call load_damping()
-    endif
+        ! Load LOS displacement data
+        if (los%file.ne.'none') then
+            call load_los()
+        endif
 
-    ! Minimize model smoothness
-    if (smoothing_constant.gt.0.0d0) then
-        call load_smoothing()
+        ! Load pre-stress data
+        if (prestress%file.ne.'none') then
+            call load_prestresses()
+       endif
+
+        ! Minimize model length
+        if (damping_constant.gt.0.0d0) then
+            call load_damping()
+        endif
+
+        ! Minimize model smoothness
+        if (smoothing_constant.gt.0.0d0) then
+            call load_smoothing()
+        endif
+
+        Asave = A
+        isAsaveLoaded = .true.
+
+    else
+        ! If we have already loaded the A matrix and saved it as Asave, copy it to A
+        A = Asave
     endif
 
     ! Apply constraints
@@ -1027,8 +1068,11 @@ contains
 
     blocal = b(1:nrows,1:1)
 
-    ! Format input for dgssv
-    allocate(column_ptr(ncols+1))
+    ! Format input for dgssv in reduced column
+    if (.not.allocated(column_ptr)) then
+        allocate(column_ptr(ncols+1))
+    endif
+
     nZero = 0
     nNonZero = 0
     do j = 1,ncols
@@ -1043,8 +1087,12 @@ contains
     enddo
     column_ptr(ncols+1) = nNonZero + 1
 
-    allocate(matrix_value(nNonZero))
-    allocate(row_index(nNonZero))
+    if (.not.allocated(matrix_value)) then
+        allocate(matrix_value(nNonZero))
+    endif
+    if (.not.allocated(row_index)) then
+        allocate(row_index(nNonZero))
+    endif
 
     nNonZero = 0
     do j = 1,ncols
@@ -1084,6 +1132,17 @@ contains
     do i = 1,ncols
         x(i,1) = blocal(i,1)
     enddo
+
+    ! Free memory
+    if (allocated(column_ptr)) then
+        deallocate(column_ptr)
+    endif
+    if (allocated(matrix_value)) then
+        deallocate(matrix_value)
+    endif
+    if (allocated(row_index)) then
+        deallocate(row_index)
+    endif
 
     if (verbosity.ge.2) then
         write(stderr,'("x =")')

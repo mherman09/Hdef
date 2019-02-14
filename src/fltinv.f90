@@ -11,6 +11,8 @@ call calc_greens_functions()
 call run_inversion()
 call write_solution()
 
+call free_memory()
+
 end program main
 
 !==================================================================================================!
@@ -25,7 +27,8 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            los, los_weight
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
-                         temp_start, temp_minimum, cooling_factor, anneal_verbosity
+                         temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
+                         anneal_init_file
 implicit none
 
 ! Initialize program behavior variables
@@ -74,6 +77,7 @@ temp_minimum = 0.00d0
 cooling_factor = 0.98d0
 anneal_verbosity = 0
 sts_dist = 1.0d10
+anneal_init_file = ''
 
 return
 end
@@ -91,7 +95,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
-                         anneal_control_file
+                         anneal_control_file, anneal_init_file
 implicit none
 ! Local variables
 integer :: i, narg
@@ -110,6 +114,9 @@ do while (i.le.narg)
     if (trim(tag).eq.'-mode') then
         i = i + 1
         call get_command_argument(i,inversion_mode)
+        if (trim(inversion_mode).eq.'anneal-psc') then
+            anneal_init_mode = 'unlocked'
+        endif
 
     ! Output options
     elseif (trim(tag).eq.'-o') then
@@ -213,6 +220,10 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-anneal:init_mode') then
         i = i + 1
         call get_command_argument(i,anneal_init_mode)
+        if (trim(anneal_init_mode).eq.'user') then
+            i = i + 1
+            call get_command_argument(i,anneal_init_file)
+        endif
     elseif (trim(tag).eq.'-anneal:max_iteration' .or. &
                                trim(tag).eq.'-anneal:it_max') then
         i = i + 1
