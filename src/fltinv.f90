@@ -1,3 +1,35 @@
+! module fltinv_module
+!     character(len=256) :: output_file
+!     type(program_data) :: fault
+!     type(program_data) :: displacement
+!     type(program_data) :: los
+!     type(program_data) :: prestress
+!     double precision :: los_weight
+!     double precision :: stress_weight
+! end module fltinv_module
+!
+! program main
+! implicit none
+! call gcmdln()
+! call fltinv_init()
+! call fltinv_gfs()
+! call fltinv_solve()
+! call fltinv_write()
+! call fltinv_cleanup()
+! end program main
+!
+! subroutine gcmdln()
+! implicit none
+! return
+! end subroutine
+! subroutine fltinv_init()
+! subroutine fltinv_gfs()
+! subroutine fltinv_solve()
+! subroutine fltinv_write()
+! subroutine fltinv_cleanup()
+
+
+
 program main
 implicit none
 
