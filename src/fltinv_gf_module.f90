@@ -1074,8 +1074,8 @@ contains
 
             ! Avoid singular solutions with measurement point lying on fault
             do k = 1,3
-                if (dabs(center(k)-sta_coord_new(k)).lt.10.0d0) then
-                    sta_coord_new(k) = center(k) + 10.0d0
+                if (dabs(center(k)-sta_coord_new(k)).lt.1.0d0) then
+                    sta_coord_new(k) = center(k) + 1.0d0
                 endif
             enddo
 
