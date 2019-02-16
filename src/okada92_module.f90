@@ -511,6 +511,7 @@ do i = 1,2
             utmp = chinnery_factor(i,j)*z*uC_ss_rect()
             ! write(0,*) 'uA_ss_rect()',uA_ss_rect()
             ! write(0,*) 'uB_ss_rect()',uB_ss_rect()
+            ! write(0,*) 'uC_ss_rect()',uC_ss_rect()
             u_ss(1) = u_ss(1) + utmp(1)
             u_ss(2) = u_ss(2) + utmp(2)
             u_ss(3) = u_ss(3) - utmp(3)
@@ -561,21 +562,6 @@ enddo
 disp(1) =  Css*u_ss(1)+Cds*u_ds(1)+Cts*u_ts(1)
 disp(2) = (Css*u_ss(2)+Cds*u_ds(2)+Cts*u_ts(2))*cd - (Css*u_ss(3)+Cds*u_ds(3)+Cts*u_ts(3))*sd
 disp(3) = (Css*u_ss(2)+Cds*u_ds(2)+Cts*u_ts(2))*sd + (Css*u_ss(3)+Cds*u_ds(3)+Cts*u_ts(3))*cd
-! ! ! Cross your fingers, knock on wood, or pray to your God. Whatever
-! ! ! works for you.....ALAKAZAM! Displacements at the receiver. Same
-! ! ! as above, +x in strike direction, +y in updip horizontal direction
-! ! !----
-! !       ux = Mss*((u(1,1)+u(1,2)+z*u(1,3)))
-! !      1   + Mds*((u(4,1)+u(4,2)+z*u(4,3)))
-! !       uy = Mss*((u(2,1)+u(2,2)+z*u(2,3))*cd
-! !      1                                  - (u(3,1)+u(3,2)+z*u(3,3))*sd)
-! !      2   + Mds*((u(5,1)+u(5,2)+z*u(5,3))*cd
-! !      3                                  - (u(6,1)+u(6,2)+z*u(6,3))*sd)
-! !       uz = Mss*((u(2,1)+u(2,2)-z*u(2,3))*sd
-! !      1                                  + (u(3,1)+u(3,2)-z*u(3,3))*cd)
-! !      2   + Mds*((u(5,1)+u(5,2)-z*u(5,3))*sd
-! !      3                                  + (u(6,1)+u(6,2)-z*u(6,3))*cd)
-! !   399 continue
 
 ! write(0,*) 'o92_rect_disp: finished'
 
@@ -1428,7 +1414,7 @@ end function
 function uA_ss_rect()
 implicit none
 double precision :: uA_ss_rect(3)
-uA_ss_rect(1) = 0.5d0*TH + CA2*ksi*q
+uA_ss_rect(1) = 0.5d0*TH + CA2*ksi*q*Y11
 uA_ss_rect(2) =            CA2*q/R
 uA_ss_rect(3) = CA1*logRe   - CA2*qq*Y11
 return

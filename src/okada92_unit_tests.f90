@@ -49,6 +49,11 @@ call test_value(xq,2.9019945781100991d0,'pt_src_vars(): xq')
 call test_value(yq,4.3529918671651489d0,'pt_src_vars(): yq')
 call test_value(dq,5.8039891562201982d0,'pt_src_vars(): dq')
 call test_value(pq,6.9427766835248459d0,'pt_src_vars(): pq')
+call test_value(xs,9.9850812030710596d0,'pt_src_vars(): xs')
+call test_value(xt,0.54603421877844882d0,'pt_src_vars(): xt')
+call test_value(ys,14.977621804606589d0,'pt_src_vars(): ys')
+call test_value(yt,0.81905132816767323d0,'pt_src_vars(): yt')
+call test_value(qq,2.1053931328451032d0,'pt_src_vars(): qq')
 call test_value(R,5.3851648071345037d0,'pt_src_vars(): R')
 call test_value(R2,28.999999999999996d0,'pt_src_vars(): R2')
 call test_value(R3,156.16977940690060d0,'pt_src_vars(): R3')
@@ -204,55 +209,49 @@ call test_value(R5,1136.3500305769958d0,'rect_src_vars(): R5')
 ! call test_value(R7,131338.78448120339d0,'rect_src_vars(): R7')
 call test_value(Rd,7.1444643514372110d0,'rect_src_vars(): Rd')
 call test_value(qq,2.1053931328451032d0,'rect_src_vars(): qq')
-write(0,*) 'R:',R
-write(0,*) 'R2:',R2
-write(0,*) 'R3:',R3
-write(0,*) 'R5:',R5
-write(0,*) 'Rd:',Rd
-write(0,*) 'qq:',qq
-! TH = datan(ksi*eta/(q*R))
-! Rk = R + ksi
-! X11 = 1.0d0/(R*Rk)
-! X32 = (2.0d0*R+ksi)/(R3*Rk*Rk)
-! X53 = (8.0d0*R2+9.0d0*R*ksi+3.0d0*ksi*ksi)/(R5*Rk*Rk*Rk)
-! logRk = dlog(R+ksi)
-! Re = R+eta
-! Y11 = 1.0d0/(R*Re)
-! Y32 = (2.0d0*R+eta)/(R3*Re*Re)
-! Y53 = (8.0d0*R2+9.0d0*R*eta+3.0d0*eta*eta)/(R5*Re*Re*Re)
-! logRe = dlog(R+eta)
-! Y0  = Y11 - ksi*ksi*Y32
-! I4 = sd*ksi/(Rd*cd) + 2.0d0*datan((eta*(xxx+q*cd)+xxx*(R+xxx)*sd)/(ksi*(R+xxx)*cd))/(cdcd)
-! I3 = ybar/(cd*Rd) - (logRe-sd*dlog(Rd))/(cdcd)
-! I1 = -ksi*cd/Rd - I4*sd
-! I2 = dlog(Rd) + I3*sd
-! Z32 = sd/R3 - h*Y32
-! Z53 = 3.0d0*sd/R5 - h*Y53
-! Z0  = Z32 - ksi*ksi*Z53
-! D11 = 1.0d0/(R*Rd)
-! K1 =ksi*(D11-Y11*sd)/cd
-! K3 = (q*Y11-ybar*D11)/cd
-! K2 = 1.0d0/R+K3*sd
-! K4 = ksi*Y11*cd-K1*sd
-! J2 = ksi*ybar*D11/Rd
-! J5 = -(dbar+ybar*ybar/Rd)*D11
-! J3 = (K1-J2*sd)/cd
-! J6 = (K3-J5*sd)/cd
-! J1 = J5*cd - J6*sd
-! J4 = -ksi*Y11 - J2*cd + J3*sd
-! E2 = sd/R - ybar*q/R3
-! F2 = dbar/R3 + ksi*ksi*Y32*sd
-! G2 = 2.0d0*X11*sd - ybar*q*X32
-! H2 = dbar*q*X32 + ksi*q*Y32*sd
-! P2 = cd/R3 + q*Y32*sd
-! Q2 = 3.0d0*cbar*dbar/R5 - (z*Y32+Z32+Z0)*sd
-! E3 = cd/R + dbar*q/R3
-! F3 = ybar/R3 + ksi*ksi*Y32*cd
-! G3 = 2.0d0*X11*cd + dbar*q*X32
-! H3 = ybar*q*X32 + ksi*q*Y32*cd
-! P3 = sd/R3 - q*Y32*cd
-! Q3 = 3.0d0*cbar*ybar/R5 + q*Y32 - (z*Y32+Z32+Z0)*cd
+call test_value(TH,0.30910022531517090d0,'rect_src_vars(): TH')
+call test_value(Rk,4.5841569722231199d0,'rect_src_vars(): Rk')
+call test_value(X11,5.3411908204318771d-002,'rect_src_vars(): X11')
+call test_value(X32,6.0549197882804537d-003,'rect_src_vars(): X32')
+call test_value(X53,1.3937426671487758d-003,'rect_src_vars(): X53')
+call test_value(logRk,1.5226062223303141d0,'rect_src_vars(): logRk')
+call test_value(Re,7.8689878853437598d0,'rect_src_vars(): Re')
+call test_value(Y11,3.1115637101260175d-002,'rect_src_vars(): Y11')
+call test_value(Y32,2.8335909219300561d-003,'rect_src_vars(): Y32')
+call test_value(Y53,5.6987957651285224d-004,'rect_src_vars(): Y53')
+call test_value(logRe,2.0629294500096305d0,'rect_src_vars(): logRe')
+call test_value(Y0,3.0407239370777661d-002,'rect_src_vars(): Y0')
+call test_value(I1,-24.464842377362366d0,'rect_src_vars(): I1')
+call test_value(I2,1.2599616181546565d0,'rect_src_vars(): I2')
+call test_value(I3,-0.75170987457349314d0,'rect_src_vars(): I3')
+call test_value(I4,26.009469280193130d0,'rect_src_vars(): I4')
+call test_value(Z32,1.2387401944116128d-002,'rect_src_vars(): Z53')
+call test_value(Z53,2.1980039131027692d-003,'rect_src_vars(): Z32')
+call test_value(Z0,1.1837900965840436d-002,'rect_src_vars(): Z0')
+call test_value(D11,3.4271088684950102d-002,'rect_src_vars(): D11')
+call test_value(K1,7.3562247838898460d-003,'rect_src_vars(): K1')
+call test_value(K2,0.11862078136010840d0,'rect_src_vars(): K2')
+call test_value(K3,-0.13432880842342962d0,'rect_src_vars(): K3')
+call test_value(K4,-1.5915028157424500d-003,'rect_src_vars(): K4')
+call test_value(J1,-3.6668885560592841d-002,'rect_src_vars(): J1')
+call test_value(J2,6.3749960046040766d-003,'rect_src_vars(): J2')
+call test_value(J3,3.9930048199627510d-003,'rect_src_vars(): J3')
+call test_value(J4,-1.3985998433743778d-002,'rect_src_vars(): J4')
+call test_value(J6,-1.1485677136015674d-002,'rect_src_vars(): J6')
+call test_value(E2,0.17347006835163784d0,'rect_src_vars(): E2')
+call test_value(F2,4.5587540534369766d-002,'rect_src_vars(): F2')
+call test_value(G2,7.7029412273117825d-002,'rect_src_vars(): G2')
+call test_value(H2,2.8818645950405460d-002,'rect_src_vars(): H2')
+call test_value(P2,8.8840473466618580d-003,'rect_src_vars(): P2')
+call test_value(Q2,1.9608281698289438d-003,'rect_src_vars(): Q2')
+call test_value(E3,0.14892464696612687d0,'rect_src_vars(): E3')
+call test_value(F3,3.9258435961432761d-002,'rect_src_vars(): F3')
+call test_value(G3,6.3422754458309291d-002,'rect_src_vars(): G3')
+call test_value(H3,2.4055253239807024d-002,'rect_src_vars(): H3')
+call test_value(P3,1.2387401944116128d-002,'rect_src_vars(): P3')
+call test_value(Q3,1.7300629665110766d-002,'rect_src_vars(): Q3')
 write(0,*) 'subroutine rect_src_vars() passed unit test'
+write(0,*)
 
 ! Original Okada derivation have fault origin at its bottom left corner, but I use the fault
 ! center as the coordinates. To compare with Okada (1985), shift fault.
@@ -282,9 +281,6 @@ slip_vec(1) = 0.0d0
 slip_vec(2) = 0.0d0
 slip_vec(3) = 1.0d0
 call o92_rect_disp(disp,sta_coord,evdp,dip,slip_vec,wid,len,lambda,shear_modulus)
-write(0,*) 'disp(1):',disp(1)
-write(0,*) 'disp(2):',disp(2)
-write(0,*) 'disp(3):',disp(3)
 call test_value(disp(1),-2.6599600964428191d-004,'o92_rect_disp(): disp(1)')
 call test_value(disp(2), 1.0564074876983659d-002,'o92_rect_disp(): disp(2)')
 call test_value(disp(3), 3.2141931142207676d-003,'o92_rect_disp(): disp(3)')
@@ -292,7 +288,7 @@ write(0,*) 'subroutine o92_rect_disp() passed tensile-slip unit test'
 write(0,*) 'rectangular source example from Okada (1985) passed unit test'
 write(0,*)
 
-! Example with depth greater than zero, oblique slip
+! Example with point source, station depth greater than zero, oblique slip
 sta_coord(1) = -12.0d0
 sta_coord(2) = 6.2d0
 sta_coord(3) = 13.0d0
@@ -327,22 +323,58 @@ call test_value(strain(3,2),-1.4000925908121080d-005,'o92_pt_strain(): strain(3,
 call test_value(strain(3,3),-1.7420298917986620d-006,'o92_pt_strain(): strain(3,3)')
 write(0,*) 'example with depth>0, oblique slip passed unit test'
 
+! Example with rectangular source, station depth greater than zero, strike slip
+sta_coord(1) = -12.0d0
+sta_coord(2) = 6.2d0
+sta_coord(3) = 13.0d0
+evdp = 7.0d0
+slip_vec(1) = 1.0d0
+slip_vec(2) = 0.0d0
+slip_vec(3) = 0.0d0
+wid=3.2d0
+len=6.5d0
+! Test components of displacement
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+call rect_src_vars(ksi_vec(2),eta_vec(1))
+disp = uA_ss_rect()
+call test_value(disp(1),0.72547327384003113d0,'uA_ss_rect()(1)')
+call test_value(disp(2),-1.5927062399294267d-002,'uA_ss_rect()(2)')
+call test_value(disp(3),0.61666031833564772d0,'uA_ss_rect()(3)')
+disp = uB_ss_rect()
+call test_value(disp(1),-11.993002387482605d0,'uB_ss_rect()(1)')
+call test_value(disp(2),0.11463965563116107d0,'uB_ss_rect()(2)')
+call test_value(disp(3),-0.99745107154736778d0,'uB_ss_rect()(3)')
+disp = uC_ss_rect()
+call test_value(disp(1),-1.4461853668621687d-003,'uC_ss_rect()(1)')
+call test_value(disp(2),5.0207492407645738d-003,'uC_ss_rect()(2)')
+call test_value(disp(3),-2.0079399191054680d-002,'uC_ss_rect()(3)')
+! Test total displacement
+call o92_rect_disp(disp,sta_coord,evdp,dip,slip_vec,wid,len,lambda,shear_modulus)
+call test_value(disp(1),-6.6858712769214453d-003,'o92_rect_disp():')
+call test_value(disp(2),5.6833739558216096d-003,'o92_rect_disp():')
+call test_value(disp(3),-3.8337220569204383d-003,'o92_rect_disp():')
+
 xin = sta_coord(1)
 yin = sta_coord(2)
 stdp = sta_coord(3)
 dipin = dip
-rakin = datan2(moment(2),moment(1))/d2r
-area = 1.0d0
-slip = dsqrt(moment(1)*moment(1)+moment(2)*moment(2))/shear_modulus/area
+! rakin = datan2(moment(2),moment(1))/d2r
+! area = 1.0d0
+! slip = dsqrt(moment(1)*moment(1)+moment(2)*moment(2))/shear_modulus/area
 dens = 1.0d0
 vp = dsqrt((lambda+2.0d0*shear_modulus)/dens)
 vs = dsqrt(shear_modulus/dens)
 ! call o92pt(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,area,slip,vp,vs,dens)
 ! write(0,*) ux,uy,uz
-call o92ptstn(strain,xin,yin,stdp,evdp,dipin,rakin,area,slip,vp,vs,dens)
-write(0,*) strain(1,:)
-write(0,*) strain(2,:)
-write(0,*) strain(3,:)
+! call o92ptstn(strain,xin,yin,stdp,evdp,dipin,rakin,area,slip,vp,vs,dens)
+! write(0,*) strain(1,:)
+! write(0,*) strain(2,:)
+! write(0,*) strain(3,:)
+
+rakin = datan2(slip_vec(2),slip_vec(1))/d2r
+slip = dsqrt(slip_vec(1)*slip_vec(1)+slip_vec(2)*slip_vec(2))
+call o92rect(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
+write(0,*) ux,uy,uz
 
 write(0,*) 'okada92_module unit test passed'
 end
