@@ -991,7 +991,7 @@ contains
     use tri_disloc_module, only: tri_disloc_strain, tri_center, tri_geometry
     implicit none
     ! Local variables
-    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), evt_coord(3), &
+    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), &
                         tri_coord_new(3,4), sta_coord_new(3), center(3)
     double precision :: shear_modulus, lambda, poisson
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
@@ -1074,8 +1074,8 @@ contains
 
             ! Avoid singular solutions with measurement point lying on fault
             do k = 1,3
-                if (dabs(evt_coord(k)-sta_coord_new(k)).lt.1.0d0) then
-                    sta_coord_new(k) = evt_coord(k) + 1.0d0
+                if (dabs(center(k)-sta_coord_new(k)).lt.10.0d0) then
+                    sta_coord_new(k) = center(k) + 10.0d0
                 endif
             enddo
 
