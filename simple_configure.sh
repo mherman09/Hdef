@@ -275,7 +275,7 @@ test: \\
 	\$(FC) \$(FFLAG) -o \$(BIN)/ff2gmt src/ff2gmt.f
 FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_variable_module.f90 \
-                 src/fltinv_elast_module.f90 \
+                 src/elast_module.f90 \
                  src/fltinv_gf_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
