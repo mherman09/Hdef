@@ -398,6 +398,9 @@ do iFlt = 1,nfaults
     disp = disp + disptmp
 enddo
 
+! Output from tri_disloc_disp is positive down, so invert vertical component
+disp(3) = -disp(3)
+
 return
 end subroutine calc_displacement
 
@@ -456,9 +459,25 @@ do iFlt = 1,nfaults
         tri_coord_new = tri_coord*1.0d3
     endif
 
+    ! write(0,*) 'sta_coord:',sta_coord
+    ! write(0,*) 'tri_coord_new(:,1):',tri_coord_new(:,1)
+    ! write(0,*) 'tri_coord_new(:,2):',tri_coord_new(:,2)
+    ! write(0,*) 'tri_coord_new(:,3):',tri_coord_new(:,3)
+    ! write(0,*) 'poisson:',poisson
+    ! write(0,*) 'slip:',slip
     call tri_disloc_strain(straintmp, sta_coord, tri_coord_new, poisson, slip)
     strain = strain + straintmp
 enddo
+
+! write(0,*) 'strain:',strain(1,1),strain(2,2),strain(3,3)
+! write(0,*) 'strain:',strain(1,2),strain(1,3),strain(2,3)
+
+! Output from tri_disloc_disp is positive down, so invert xz and yz strain components
+strain(1,3) = -strain(1,3)
+strain(3,1) = -strain(1,3)
+strain(2,3) = -strain(2,3)
+strain(3,2) = -strain(2,3)
+
 return
 end subroutine calc_strain
 

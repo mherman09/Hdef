@@ -347,7 +347,7 @@ SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 	cp scripts/trg_schem.sh \$(BIN)/trg_schem.sh
 
 # Rules for program tests
-test_tri_disloc: src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90
+test_tri_disloc: src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90 src/geomsubs.f
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
 	rm *.o *.mod
