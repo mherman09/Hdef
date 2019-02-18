@@ -8,7 +8,7 @@ use variable_module, only: inversion_mode, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            smoothing, rake_constraint, slip_constraint, &
                            halfspace, coord_type
-use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
+use elast, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
 use tri_disloc_module, only: tri_geometry, tri_geo2cart
 implicit none
 ! Local variables
@@ -163,8 +163,8 @@ if (prestress%file.ne.'none') then
         call calc_traction_components(traction,nor,str,upd,traction_comp)
         prestress%array(i,1) = traction_comp(2)
         prestress%array(i,2) = traction_comp(3)
-        write(0,*) 'trac_ss:',traction_comp(2)
-        write(0,*) 'trac_ds:',traction_comp(3)
+        ! write(0,*) 'trac_ss:',traction_comp(2)
+        ! write(0,*) 'trac_ds:',traction_comp(3)
     enddo
 endif
 ! stop

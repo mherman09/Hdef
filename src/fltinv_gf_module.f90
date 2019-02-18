@@ -150,7 +150,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
-    use elast_module
+    use elast
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
@@ -572,7 +572,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress
-    use elast_module
+    use elast
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
@@ -1003,7 +1003,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
-    use elast_module
+    use elast
     use tri_disloc_module, only: tri_disloc_strain, tri_center, tri_geometry, tri_geo2cart
     implicit none
     ! Local variables
@@ -1051,12 +1051,12 @@ contains
                               fault%array(i,7:9),'m')
             call tri_geometry(unit_normal,unit_strike,unit_updip,pt1,pt2,pt3)
         endif
-        write(0,*) 'unit_normal:',unit_normal
-        write(0,*) 'unit_strike:',unit_strike
-        write(0,*) 'unit_updip:',unit_updip
+        ! write(0,*) 'unit_normal:',unit_normal
+        ! write(0,*) 'unit_strike:',unit_strike
+        ! write(0,*) 'unit_updip:',unit_updip
 
         do j = 1,fault%nrecords
-            write(0,*) i,j
+            ! write(0,*) i,j
             tri_coord(1,1) = fault%array(j,1)
             tri_coord(2,1) = fault%array(j,2)
             tri_coord(3,1) = fault%array(j,3)
@@ -1123,12 +1123,12 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
-            write(0,*) 'sta_coord:',sta_coord_new
-            write(0,*) 'tri_coord1:',tri_coord_new(:,1)
-            write(0,*) 'tri_coord2:',tri_coord_new(:,2)
-            write(0,*) 'tri_coord3:',tri_coord_new(:,3)
-            write(0,*) 'poisson:',poisson
-            write(0,*) 'slip:',slip
+            ! write(0,*) 'sta_coord:',sta_coord_new
+            ! write(0,*) 'tri_coord1:',tri_coord_new(:,1)
+            ! write(0,*) 'tri_coord2:',tri_coord_new(:,2)
+            ! write(0,*) 'tri_coord3:',tri_coord_new(:,3)
+            ! write(0,*) 'poisson:',poisson
+            ! write(0,*) 'slip:',slip
             call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
             ! Flip some strain components
             strain(1,3) = -strain(1,3)
@@ -1146,8 +1146,8 @@ contains
             ! Load stress Green's functions array
             gf_stress%array(i               ,j               ) = -traction_components(2)
             gf_stress%array(i+fault%nrecords,j               ) = -traction_components(3)
-            write(0,*) 'trac_ss:',-traction_components(2)
-            write(0,*) ' trac_ds:',-traction_components(3)
+            ! write(0,*) 'trac_ss:',-traction_components(2)
+            ! write(0,*) ' trac_ds:',-traction_components(3)
 
             ! Shear stress Green's function produced by dip-slip source
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr' &
@@ -1167,12 +1167,12 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
-            write(0,*) 'sta_coord:',sta_coord_new
-            write(0,*) 'tri_coord1:',tri_coord_new(:,1)
-            write(0,*) 'tri_coord2:',tri_coord_new(:,2)
-            write(0,*) 'tri_coord3:',tri_coord_new(:,3)
-            write(0,*) 'poisson:',poisson
-            write(0,*) 'slip:',slip
+            ! write(0,*) 'sta_coord:',sta_coord_new
+            ! write(0,*) 'tri_coord1:',tri_coord_new(:,1)
+            ! write(0,*) 'tri_coord2:',tri_coord_new(:,2)
+            ! write(0,*) 'tri_coord3:',tri_coord_new(:,3)
+            ! write(0,*) 'poisson:',poisson
+            ! write(0,*) 'slip:',slip
             call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
             strain(1,3) = -strain(1,3)
             strain(3,1) = -strain(1,3)
@@ -1189,8 +1189,8 @@ contains
             ! Load stress Green's functions array
             gf_stress%array(i               ,j+fault%nrecords) = -traction_components(2)
             gf_stress%array(i+fault%nrecords,j+fault%nrecords) = -traction_components(3)
-            write(0,*) 'trac_ss:',-traction_components(2)
-            write(0,*) 'trac_ds:',-traction_components(3)
+            ! write(0,*) 'trac_ss:',-traction_components(2)
+            ! write(0,*) 'trac_ds:',-traction_components(3)
         enddo
     enddo
 

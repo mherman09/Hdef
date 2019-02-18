@@ -3,7 +3,11 @@ module io_module
     integer, parameter :: stdout=6
     integer, parameter :: stderr=0
 
-    integer :: verbosity
+    integer :: verbosity  ! 1=basic progress
+                          ! 2=detailed progress
+                          ! 3=print command line parsing
+                          ! 4=parsed inputs
+                          ! 5=detailed intermediate calculations
 
     type program_data
         character(len=256) :: file
