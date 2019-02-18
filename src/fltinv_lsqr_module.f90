@@ -57,6 +57,16 @@ contains
 
     ! Load model matrix, A (and maybe Asave), and constraint vector, b
     call load_arrays()
+    open(unit=55,file='a.dat',status='unknown')
+    open(unit=56,file='b.dat',status='unknown')
+    do i = 1,nrows
+        write(55,*) (A(i,j),j=1,ncols)
+    enddo
+    do i = 1,nrows
+        write(56,*) b(i,1)
+    enddo
+    close(55)
+    close(56)
 
     if (nrows.eq.0.and.ncols.eq.0) then
         write(0,*) 'invert_lsqr: no rows or columns in A matrix'
@@ -317,9 +327,10 @@ contains
         enddo
     endif
     if (verbosity.ge.2) then
+        nzeros = 0
         do i = 1,nrows
             do j = 1,ncols
-                if (dabs(A(i,j)).lt.1.0d-10) then
+                if (dabs(A(i,j)).lt.1.0d-20) then
                     nzeros = nzeros + 1
                 endif
             enddo

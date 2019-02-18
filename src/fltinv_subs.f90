@@ -9,10 +9,12 @@ use variable_module, only: inversion_mode, &
                            smoothing, rake_constraint, slip_constraint, &
                            halfspace, coord_type
 use elast_module, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
+use tri_disloc_module, only: tri_geometry, tri_geo2cart
 implicit none
 ! Local variables
 integer :: i, ios
-double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3), dist, az
+double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3), dist, az, &
+                    pt1(3), pt2(3), pt3(3)
 character(len=256) :: line
 
 if (verbosity.ge.1) then
@@ -129,7 +131,25 @@ endif
 if (prestress%file.ne.'none') then
     ! Calculate shear stresses from stress tensor
     do i = 1,fault%nrecords
-        call calc_plane_unit_vectors(fault%array(i,4),fault%array(i,5),nor,str,upd)
+        if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt') then
+            call calc_plane_unit_vectors(fault%array(i,4),fault%array(i,5),nor,str,upd)
+        elseif (gf_type.eq.'triangle') then
+            if (coord_type.eq.'cartesian') then
+                call tri_geometry(nor,str,upd,fault%array(i,1:3),fault%array(i,4:6),&
+                                  fault%array(i,7:9))
+            elseif (coord_type.eq.'geographic') then
+                ! Triangle points: lon lat dep(m) to x y z
+                call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
+                                  fault%array(i,7:9),'m')
+                ! write(0,*) 'pt1',pt1
+                ! write(0,*) 'pt2',pt2
+                ! write(0,*) 'pt3',pt3
+                call tri_geometry(nor,str,upd,pt1,pt2,pt3)
+                ! write(0,*) 'nor',nor
+                ! write(0,*) 'str',str
+                ! write(0,*) 'upd',upd
+            endif
+        endif
         stress(1,1) = prestress%array(i,1)
         stress(2,2) = prestress%array(i,2)
         stress(3,3) = prestress%array(i,3)
@@ -143,8 +163,11 @@ if (prestress%file.ne.'none') then
         call calc_traction_components(traction,nor,str,upd,traction_comp)
         prestress%array(i,1) = traction_comp(2)
         prestress%array(i,2) = traction_comp(3)
+        write(0,*) 'trac_ss:',traction_comp(2)
+        write(0,*) 'trac_ds:',traction_comp(3)
     enddo
 endif
+! stop
 
 !----
 ! Displacement Green's functions?
