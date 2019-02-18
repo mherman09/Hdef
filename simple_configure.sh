@@ -279,7 +279,7 @@ FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_gf_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
-FLTINV_SUBS = src/fltinv_subs.f90 src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
+FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/tri_disloc_module.f90 src/pnpoly.f
 SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
