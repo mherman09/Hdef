@@ -468,7 +468,7 @@ implicit none
 double precision :: disp(3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
 ! Local variables
 integer :: i, j
-double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), utmp(3)
+double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), uA(3), uB(3), uC(3)
 
 ! write(0,*) 'o92_rect_disp: starting'
 
@@ -499,7 +499,7 @@ if (isSingular) then
     return
 endif
 
-! Calculate the components of displacement
+! Calculate the components of displacement for z negative
 u_ss = 0.0d0
 u_ds = 0.0d0
 u_ts = 0.0d0
@@ -507,28 +507,28 @@ do i = 1,2
     do j = 1,2
         call rect_src_vars(ksi_vec(i),eta_vec(j))
         if (dabs(Css).gt.1.0d-6) then
-            u_ss = u_ss + chinnery_factor(i,j)*(uA_ss_rect() + uB_ss_rect())
-            utmp = chinnery_factor(i,j)*z*uC_ss_rect()
-            ! write(0,*) 'uA_ss_rect()',uA_ss_rect()
-            ! write(0,*) 'uB_ss_rect()',uB_ss_rect()
-            ! write(0,*) 'uC_ss_rect()',uC_ss_rect()
-            u_ss(1) = u_ss(1) + utmp(1)
-            u_ss(2) = u_ss(2) + utmp(2)
-            u_ss(3) = u_ss(3) - utmp(3)
+            uA = chinnery_factor(i,j)*uA_ss_rect()
+            uB = chinnery_factor(i,j)*uB_ss_rect()
+            uC = chinnery_factor(i,j)*z*uC_ss_rect()
+            u_ss(1) = u_ss(1) + uA(1) + uB(1) + uC(1)
+            u_ss(2) = u_ss(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ss(3) = u_ss(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
         endif
         if (dabs(Cds).gt.1.0d-6) then
-            u_ds = u_ds + chinnery_factor(i,j)*(uA_ds_rect() + uB_ds_rect())
-            utmp = chinnery_factor(i,j)*z*uC_ds_rect()
-            u_ds(1) = u_ds(1) + utmp(1)
-            u_ds(2) = u_ds(2) + utmp(2)
-            u_ds(3) = u_ds(3) - utmp(3)
+            uA = chinnery_factor(i,j)*uA_ds_rect()
+            uB = chinnery_factor(i,j)*uB_ds_rect()
+            uC = chinnery_factor(i,j)*z*uC_ds_rect()
+            u_ds(1) = u_ds(1) + uA(1) + uB(1) + uC(1)
+            u_ds(2) = u_ds(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ds(3) = u_ds(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
         endif
         if (dabs(Cts).gt.1.0d-6) then
-            u_ts = u_ts + chinnery_factor(i,j)*(uA_ts_rect() + uB_ts_rect())
-            utmp = chinnery_factor(i,j)*z*uC_ts_rect()
-            u_ts(1) = u_ts(1) + utmp(1)
-            u_ts(2) = u_ts(2) + utmp(2)
-            u_ts(3) = u_ts(3) - utmp(3)
+            uA = chinnery_factor(i,j)*uA_ts_rect()
+            uB = chinnery_factor(i,j)*uB_ts_rect()
+            uC = chinnery_factor(i,j)*z*uC_ts_rect()
+            u_ts(1) = u_ts(1) + uA(1) + uB(1) + uC(1)
+            u_ts(2) = u_ts(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ts(3) = u_ts(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
         endif
     enddo
 enddo
@@ -543,25 +543,34 @@ if (isSingular) then
     return
 endif
 
-! Displacement components
+! Displacement components for z positive
 do i = 1,2
     do j = 1,2
         call rect_src_vars(ksi_vec(i),eta_vec(j))
         if (dabs(Css).gt.1.0d-6) then
-            u_ss = u_ss - chinnery_factor(i,j)*uA_ss_rect()
+            uA = chinnery_factor(i,j)*uA_ss_rect()
+            u_ss(1) = u_ss(1) - uA(1)
+            u_ss(2) = u_ss(2) - uA(2)*cd + uA(3)*sd
+            u_ss(3) = u_ss(3) - uA(2)*sd - uA(3)*cd
         endif
         if (dabs(Cds).gt.1.0d-6) then
-            u_ds = u_ds - chinnery_factor(i,j)*uA_ds_rect()
+            uA = chinnery_factor(i,j)*uA_ds_rect()
+            u_ds(1) = u_ds(1) - uA(1)
+            u_ds(2) = u_ds(2) - uA(2)*cd + uA(3)*sd
+            u_ds(3) = u_ds(3) - uA(2)*sd - uA(3)*cd
         endif
         if (dabs(Cts).gt.1.0d-6) then
-            u_ts = u_ts - chinnery_factor(i,j)*uA_ts_rect()
+            uA = chinnery_factor(i,j)*uA_ts_rect()
+            u_ts(1) = u_ts(1) - uA(1)
+            u_ts(2) = u_ts(2) - uA(2)*cd + uA(3)*sd
+            u_ts(3) = u_ts(3) - uA(2)*sd - uA(3)*cd
         endif
     enddo
 enddo
 
-disp(1) =  Css*u_ss(1)+Cds*u_ds(1)+Cts*u_ts(1)
-disp(2) = (Css*u_ss(2)+Cds*u_ds(2)+Cts*u_ts(2))*cd - (Css*u_ss(3)+Cds*u_ds(3)+Cts*u_ts(3))*sd
-disp(3) = (Css*u_ss(2)+Cds*u_ds(2)+Cts*u_ts(2))*sd + (Css*u_ss(3)+Cds*u_ds(3)+Cts*u_ts(3))*cd
+disp(1) = Css*u_ss(1) + Cds*u_ds(1) + Cts*u_ts(1)
+disp(2) = Css*u_ss(2) + Cds*u_ds(2) + Cts*u_ts(2)
+disp(3) = Css*u_ss(3) + Cds*u_ds(3) + Cts*u_ts(3)
 
 ! write(0,*) 'o92_rect_disp: finished'
 

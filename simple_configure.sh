@@ -358,6 +358,7 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 	\$(FC) \$(FFLAG) -o \$@ \$^
 	rm *.o *.mod
 	\$@
+	@echo "test_okada92 passed"
 	rm \$@
 
 # Clean bin directory
