@@ -458,6 +458,166 @@ contains
 
 !--------------------------------------------------------------------------------------------------!
 
+    double precision function disp_misfit_chi2(model_array)
+    !----
+    ! Calculate the chi-squared value of the difference vector between the displacements produced
+    ! by model_array (first column is strike-slip, second column is dip-slip) and input values
+    !----
+
+    use variable_module, only: fault, displacement, gf_disp, disp_components, disp_cov_mat
+    implicit none
+
+    ! I/O variables
+    double precision :: model_array(fault%nrecords,2)
+
+    ! Local variables
+    integer :: i, j, nflt, ndsp
+    double precision :: disp_pre(3), ss, ds, ddisp(displacement%nrecords,3)
+    integer :: n, nrhs, lda, ldb, lwork, info
+    integer, allocatable :: ipiv(:)
+    double precision, allocatable :: alocal(:,:), blocal(:,:), work(:)
+
+    ! Initialize chi-squared value as zero
+    disp_misfit_chi2 = 0.0d0
+
+    ! Need a displacement file and the flag indicating you want misfit to calculate misfit
+    if (displacement%file.eq.'none'.and.displacement%flag.ne.'misfit') then
+        return
+    endif
+
+    ! A couple of shorter variables....
+    nflt = fault%nrecords
+    ndsp = displacement%nrecords
+
+
+    do i = 1,ndsp
+
+        ! Compute predicted displacement at each station
+        ! The displacement components to compare depends on which are specified in disp_components
+        disp_pre = 0.0d0
+
+        do j = 1,nflt
+            if (disp_components.eq.'123') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'12') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+
+            elseif (disp_components.eq.'13') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'23') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'1') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+
+            elseif (disp_components.eq.'2') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+
+            elseif (disp_components.eq.'3') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(1) + ss + ds
+            endif
+        enddo
+
+        ! Compute difference between observed and predicted displacements
+        ddisp(i,:) = 0.0d0
+        if (disp_components.eq.'123') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,5)-disp_pre(2)
+            ddisp(i,3) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'12') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'13') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'23') then
+            ddisp(i,1) = displacement%array(i,5)-disp_pre(2)
+            ddisp(i,2) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'1') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+        elseif (disp_components.eq.'2') then
+            ddisp(i,1) = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'3') then
+            ddisp(i,1) = displacement%array(i,6)-disp_pre(3)
+        endif
+    enddo
+
+    ! Use symmetric equation solver to multiply inverse covariance matrix and difference vector
+    n = len_trim(disp_components)*ndsp
+    nrhs = 1
+    lda = n
+    ldb = n
+    allocate(ipiv(n))
+    allocate(alocal(len_trim(disp_components)*ndsp,len_trim(disp_components)*ndsp))
+    allocate(blocal(len_trim(disp_components)*ndsp,1))
+    alocal = disp_cov_mat
+    j = len_trim(disp_components)
+    do i = 1,j
+        blocal(1+(i-1)*ndsp:ndsp+(i-1)*ndsp,1) = ddisp(1:ndsp,i)
+    enddo
+
+    ! Get optimal size of lwork array
+    allocate(work(1))
+    lwork = -1
+    call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+
+    ! Resize lwork array and solve equation so that blocal = inv(cov_mat)*ddisp
+    lwork = int(work(1))
+    deallocate(work)
+    allocate(work(lwork))
+    call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+
+    if (info.gt.0) then
+        write(0,*) 'disp_misfit_chi2: block diagonal matrix is singular in dsysv'
+    endif
+
+    do i = 1,ndsp
+        do j = 1,len_trim(disp_components)
+            disp_misfit_chi2 = disp_misfit_chi2 + ddisp(i,j)*blocal(i+(j-1)*ndsp,1)
+        enddo
+    enddo
+
+    deallocate(work)
+    deallocate(ipiv)
+    deallocate(alocal)
+    deallocate(blocal)
+
+    return
+    end function disp_misfit_chi2
+
+!--------------------------------------------------------------------------------------------------!
+
     double precision function los_misfit_l2norm(model_array)
     !----
     ! Calculate the L2 norm of the difference vector between the displacements produced
@@ -616,13 +776,12 @@ contains
         write(stderr,'(A)') 'invert_anneal_pseudocoupling says: starting'
     endif
 
-    ! Initialize random number generator and slip_constraint%array values
+    ! Initialize solution, random number generator, and slip_constraint%array values
     call initialize_annealing_psc()
+
+    ! To initialize an A matrix that is its largest possible size, solve with all faults unlocked
     slip_save = slip_constraint%array
     slip_constraint%array = 99999.0d0
-
-    ! Initialize all faults as freely sliding
-    isFaultLocked = 0
 
     ! We do not want to fit displacements with lsqr_invert(), so indicate in file name
     ! However, we want to calculate misfit during annealing process, so indicate with flag
@@ -659,6 +818,7 @@ contains
         allocate(fault_slip(fault%nrecords,2))
     endif
 
+    ! Solve for fault slip using largest possible A matrix
     vrb_save = verbosity
     if (verbosity.lt.4) then
         verbosity = 0
@@ -666,9 +826,33 @@ contains
     call invert_lsqr() ! initial solution is in fault_slip array
     verbosity = vrb_save
 
+    ! I do not actually care about that solution as the first one...
+    ! Set locked/unlocked to correct values and solve again
+    do i = 1,fault%nrecords
+        if (isFaultLocked(i).eq.1) then
+            slip_constraint%array(i,:) = slip_save(i,:)
+        else
+            slip_constraint%array(i,:) = 99999.0d0
+        endif
+    enddo
+    prestress%array = 0.0d0
+
+    ! Solve for initial fault slip
+    if (minval(dabs(slip_constraint%array)).gt.99998.0d0) then
+        fault_slip = 0.0d0
+    else
+        vrb_save = verbosity
+        if (verbosity.lt.4) then
+            verbosity = 0
+        endif
+        call invert_lsqr() ! initial solution is in fault_slip array
+        verbosity = vrb_save
+    endif
+
     fault_slip_0 = fault_slip ! save the initial solution
     fault_slip_best = fault_slip
-    obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
+    obj_0 = disp_misfit_chi2(fault_slip) ! chi-squared
+    ! obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
     obj_best = obj_0
 
     ! Set starting temperature
@@ -739,7 +923,7 @@ contains
                     endif
 
                     ! Only count fault as flipped if it is not always unlocked
-                    if (dabs(slip_constraint%array(randFaultList(j),1)).lt.99998.0d0) then
+                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
                         nunlocked = nunlocked + 1
                     endif
 
@@ -751,7 +935,7 @@ contains
                     endif
 
                     ! Only count fault as flipped if it is not always unlocked
-                    if (dabs(slip_constraint%array(randFaultList(j),1)).lt.99998.0d0) then
+                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
                         nlocked = nlocked + 1
                     endif
 
@@ -778,7 +962,7 @@ contains
             endif
         enddo
 
-        ! Pre-stresses are zero at start of calculation
+        ! Pre-stresses are zero at start of calculation (THIS MAY CHANGE TO ADD RESISTIVE TRACTIONS!)
         prestress%array = 0.0d0
 
         ! Calculate other subfault slip
@@ -800,8 +984,9 @@ contains
             fault_slip = 0.0d0
         endif
 
-        ! Calculate RMS misfit
-        obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
+        ! Calculate new objective function
+        obj_new = disp_misfit_chi2(fault_slip) ! chi-squared
+        ! obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
         if (obj_new.lt.obj_best) then
             fault_slip_best = fault_slip
             obj_best = obj_new
@@ -818,8 +1003,7 @@ contains
             fault_slip_0 = fault_slip
             obj_0 = obj_new
             if (verbosity.ge.3) then
-                write(stderr,'(A,1P1E14.6)') 'Current solution, RMSmisfit=', &
-                                        disp_misfit_l2norm(fault_slip_0)/dsqrt(dble(fault%nrecords))
+                write(stderr,'(A,1P1E14.6)') 'Current solution, Objective=', obj_0
                 do j = 1,fault%nrecords
                     write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
                 enddo
@@ -886,7 +1070,7 @@ contains
         write(stderr,'(A)') 'initialize_annealing_psc says: starting'
     endif
 
-    ! Make sure slip_constraint%array is defined (bounds for slip magnitude values)
+    ! Make sure slip_constraint%array is defined (values for locked faults)
     if (slip_constraint%file.eq.'none') then
         call usage('!! initialize_annealing_psc: a slip constraint file is required ')
     else
@@ -905,6 +1089,7 @@ contains
     if (.not.allocated(isFaultLocked)) then
         allocate(isFaultLocked(fault%nrecords))
     endif
+    isFaultLocked = 0
 
     if (trim(anneal_init_mode).eq.'unlocked') then
         isFaultLocked = 0
@@ -920,19 +1105,20 @@ contains
         if (.not.ex) then
             write(0,*) 'initialize_annealing_psc: did not find anneal_init_file named ', &
                        trim(anneal_init_file)
+        else
+            open(unit=63,file=anneal_init_file,status='old')
+            do i = 1,fault%nrecords
+                read(63,*,iostat=ios,err=6301,end=6301) isFaultLocked(i)
+            enddo
+            6301 if (ios.ne.0) then
+                write(0,*) 'initialize_annealing_psc: error reading anneal_init_file'
+            endif
+            close(63)
         endif
-        open(unit=63,file=anneal_init_file,status='old')
-        do i = 1,fault%nrecords
-            read(63,*,iostat=ios,err=6301,end=6301) isFaultLocked(i)
-        enddo
-        6301 if (ios.ne.0) then
-            write(0,*) 'initialize_annealing_psc: error reading anneal_init_file'
-        endif
-        close(63)
 
     elseif (trim(anneal_init_mode).eq.'rand') then
         do i = 1,fault%nrecords
-            if (ran2(idum).gt.0.75d0) then
+            if (ran2(idum).gt.0.50d0) then
                 isFaultLocked(i) = 1
             else
                 isFaultLocked(i) = 0
@@ -942,7 +1128,6 @@ contains
     else
         write(0,*) 'initialize_annealing_psc: did not recognize anneal_init_mode=',anneal_init_mode
         write(0,*) '                          setting anneal_init_mode to unlocked'
-        isFaultLocked = 0
     endif
 
     ! Initialize the random number generator

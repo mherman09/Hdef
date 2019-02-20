@@ -1177,6 +1177,7 @@ if (verbosity.ge.2) then
     write(stderr,'("    displacement%file:      ",A)') trim(displacement%file)
     write(stderr,'("    disp_components:        ",A)') trim(disp_components)
     write(stderr,'("    disp_misfit_file:       ",A)') trim(disp_misfit_file)
+    write(stderr,'("    disp_cov_file:          ",A)') trim(disp_cov_file)
     write(stderr,'("    prestress%file:         ",A)') trim(prestress%file)
     write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
     write(stderr,'("    sts_dist:               ",1PE14.6)') sts_dist
@@ -1243,6 +1244,7 @@ write(stderr,'(A)') 'Input Options'
 write(stderr,'(A)') '-disp DISP_FILE              Input displacements'
 write(stderr,'(A)') '-disp:components COMPNTS     Specify displacement components'
 write(stderr,'(A)') '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
+write(stderr,'(A)') '-disp:cov_file COVAR_FILE    Displacement covariances'
 write(stderr,'(A)') '-prests PRESTS_FILE          Input pre-stresses'
 write(stderr,'(A)') '-prests:weight WEIGHT        Stress weighting factor'
 write(stderr,'(A)') '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
