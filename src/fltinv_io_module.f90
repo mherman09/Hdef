@@ -3,11 +3,13 @@ module io_module
     integer, parameter :: stdout=6
     integer, parameter :: stderr=0
 
-    integer :: verbosity  ! 1=basic progress
-                          ! 2=detailed progress
-                          ! 3=print command line parsing
-                          ! 4=parsed inputs
-                          ! 5=detailed intermediate calculations
+    integer          :: verbosity  ! 0:'none'        ! AT SOME POINT, CHANGE THIS TO A CHARACTER
+                                   ! 1:'basic'
+                                   ! 2:'detail'
+                                   ! 3:'cmdln'
+                                   ! 4:'input'
+                                   ! 5:'output'
+                                   ! 6:'debug'
 
     type program_data
         character(len=256) :: file
@@ -57,15 +59,15 @@ contains
 
     ! Initialize subroutine
     if (verbosity.ge.2) then
-        write(stderr,'(A)') 'read_program_data_file says: starting to read file "'// &
+        write(stderr,'(A)') 'read_program_data_file: starting to read file "'// &
                             trim(val%file)//'"'
     endif
 
     ! Check that a file should be read
     if (val%file.eq.'none') then
         if (verbosity.ge.2) then
-            write(stderr,'(A)') 'read_program_data_file says: user specifies no file to read'
-            write(stderr,'(A)') 'read_program_data_file says: finished'
+            write(stderr,'(A)') 'read_program_data_file: user specifies no file to read'
+            write(stderr,'(A)') 'read_program_data_file: finished'
             write(stderr,*)
         endif
         return
@@ -73,7 +75,8 @@ contains
 
     ! Check that nfields has been specified
     if (val%nfields.le.0) then
-        call print_usage('!! Error: nfields has not been defined')
+        write(stderr,*) 'read_program_data_file: nfields has not been defined'
+        stop
     endif
 
     ! Check that the file exists, then count the number of lines
@@ -90,7 +93,7 @@ contains
             allocate(val%intarray(val%nrecords,val%nfields))
         endif
     else
-        call print_usage('!! Error: no array type named '//trim(val%array_type))
+        write(stderr,*) 'read_program_data_file: no array type named '//trim(val%array_type)
     endif
 
     ! Read the file, in free format
@@ -102,14 +105,14 @@ contains
             read(21,*,iostat=ios) (val%intarray(i,j),j=1,val%nfields)
         endif
         if (ios.ne.0) then
-            call print_usage('!! Error: read error on file '//trim(val%file))
+            write(stderr,*) 'read_program_data_file: read error on file '//trim(val%file)
         endif
     enddo
     close(21)
 
     ! Print finished message
     if (verbosity.ge.2) then
-        write(stderr,'(A)') 'read_program_data_file says: finished reading file "'// &
+        write(stderr,'(A)') 'read_program_data_file: finished reading file "'// &
                             trim(val%file)//'"'
     endif
     if (verbosity.ge.3) then
@@ -146,7 +149,7 @@ contains
     logical :: ex
     inquire(file=file_name,exist=ex)
     if (.not.ex) then
-        call print_usage('!! Error: no file found named '//trim(file_name))
+        write(stderr,*) 'check_file_exists: no file found named '//trim(file_name)
     endif
     return
     end subroutine check_file_exists

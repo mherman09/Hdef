@@ -2,9 +2,9 @@ program main
 implicit none
 
 call initialize_fltinv_variables()
-call get_command_line()
+call gcmdln()
 
-call read_fltinv_inputs()
+call fltinv_readin()
 
 call calc_greens_functions()
 
@@ -17,44 +17,58 @@ end program main
 
 !==================================================================================================!
 
-subroutine read_fltinv_inputs()
+subroutine fltinv_readin()
 !----
-! Read the input files and initialize the inversion parameters
+! Read the input files for fltinv
 !----
+
 use io_module, only: stderr, verbosity, read_program_data_file
 use variable_module, only: inversion_mode, &
                            displacement, prestress, los, fault, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            smoothing, rake_constraint, slip_constraint, &
-                           halfspace, coord_type
+                           halfspace, coord_type, disp_components, disp_cov_file, disp_cov_mat
 use elast, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
 use tri_disloc_module, only: tri_geometry, tri_geo2cart
-implicit none
-! Local variables
-integer :: i, ios
-double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3), dist, az, &
-                    pt1(3), pt2(3), pt3(3)
-character(len=256) :: line
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'read_fltinv_inputs says: starting'
+implicit none
+
+! Local variables
+integer :: i, j, n, m, ios
+double precision :: stress(3,3), nor(3), str(3), upd(3), traction(3), traction_comp(3), dist, az, &
+                    pt1(3), pt2(3), pt3(3), cov
+character(len=256) :: line
+character(len=1) :: nchar, mchar
+
+
+if (verbosity.eq.2) then
+    write(stderr,*) 'fltinv_readin: starting'
 endif
 
 
 !----
-! Either displacement/los or pre-stress data is required
+! Either displacement/los or pre-stress data is required to constrain the fault slip
 !----
-if (displacement%file.eq.'none'.and.prestress%file.eq.'none'.and.los%file.eq.'none') then
-    call print_usage('!! read_fltinv_inputs: no displacement or pre-stress file defined')
+if (displacement%file.eq.'none'.and.los%file.eq.'none'.and.prestress%file.eq.'none') then
+
+    ! No constraints on fault slip provided: exit with error message
+    call usage('fltinv_readin: no displacement, los, or pre-stress file defined')
+
 else
+
+    ! Set number of fields for reading input data in different formats
+    ! and read data from input file.
+
     if (displacement%file.ne.'none') then
         displacement%nfields = 6 ! x y z ux uy uz
         call read_program_data_file(displacement)
     endif
+
     if (prestress%file.ne.'none') then
-        prestress%nfields = 6 ! sxx syy szz sxy sxz syz
+        prestress%nfields = 6 ! sxx syy szz sxy sxz syz (fault locations already defined)
         call read_program_data_file(prestress)
     endif
+
     if (los%file.ne.'none') then
         los%nfields = 6 ! x y z ulos az inc
         call read_program_data_file(los)
@@ -63,18 +77,33 @@ endif
 
 
 !----
-! Fault file is required
+! A fault file is required for information about sub-fault locations and geometries
 !----
 if (fault%file.eq.'none') then
-    call print_usage('!! read_fltinv_inputs: no fault file defined')
+
+    ! No constraints on fault slip provided: exit with error message
+    call usage('fltinv_readin: no fault file defined')
+
 else
-    ! If Green's functions are pre-computed, we only need to read the number of lines
+
+    ! The number of fields we need to read depends on whether we are reading in Green's functions
+    ! or whether we need to calculate them. Providing ANY Green's functions via input file
+    ! overrides the calculation of ALL Green's functions. Explicitly define this behavior here.
+
+    ! If Green's functions are pre-computed (and we are inverting based on the quantity), we only
+    ! need the number of lines from the file
     if (gf_disp%file.ne.'none'.and.displacement%file.ne.'none') then
         fault%nfields = 1
-    elseif(gf_stress%file.ne.'none'.and.prestress%file.ne.'none') then
+        gf_type = 'none'
+    elseif (gf_los%file.ne.'none'.and.los%file.ne.'none') then
         fault%nfields = 1
+        gf_type = 'none'
+    elseif (gf_stress%file.ne.'none'.and.prestress%file.ne.'none') then
+        fault%nfields = 1
+        gf_type = 'none'
 
-    ! If we need to compute Green's functions, the fault file needs to be in the right format
+    ! Otherwise, we need to compute the Green's functions, so the fault file needs to be in the
+    ! format specified by the user.
     elseif (gf_type.eq.'okada_rect') then
         fault%nfields = 7
     elseif (gf_type.eq.'okada_pt') then
@@ -82,69 +111,170 @@ else
     elseif (gf_type.eq.'triangle') then
         fault%nfields = 9
 
-    ! Need to have Green's functions for an inversion
+    ! Need to have Green's functions for an inversion!!!
     else
-        call print_usage('!! read_fltinv_inputs: neither GF computation mode nor precomputed '//&
-                         'GFs are defined')
+        call usage('fltinv_readin: neither GF computation mode (-gf:model) nor precomputed '// &
+                         'GFs (e.g., -gf:disp_file) are defined')
     endif
 
     ! Read the fault data
     call read_program_data_file(fault)
-
-    ! Check that fault depth, dimensions/area seem roughly right
-    if (maxval(fault%array(:,3)).lt.1000.0d0) then
-        write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
-        write(0,'(A)') '!! Make sure depth units are meters, positive down'
-    endif
-    if (gf_type.eq.'okada_rect') then
-        if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
-            write(0,'(A)') '!! Warning: fault dimensions all less than 100 m'
-            write(0,'(A)') '!! Make sure units are meters, not kilometers'
-        endif
-    endif
-    if (gf_type.eq.'okada_pt') then
-        if (maxval(fault%array(:,6)).lt.10000.0d0) then
-            write(0,'(A)') '!! Warning: fault areas all less than 100 m x 100 m'
-            write(0,'(A)') '!! Make sure units are square meters, not square kilometers'
-        endif
-    endif
-    if (gf_type.eq.'triangle') then
-        if (maxval(fault%array(:,6)).lt.1000.0d0) then
-            write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
-            write(0,'(A)') '!! Make sure depth units are meters, positive down'
-        endif
-        if (maxval(fault%array(:,9)).lt.1000.0d0) then
-            write(0,'(A)') '!! Warning: fault depths all less than +1000 m'
-            write(0,'(A)') '!! Make sure depth units are meters, positive down'
-        endif
-    endif
 endif
 
-! Check that coordinates make sense for input type
+
+!----
+! A few simple sanity checks on inputs
+!----
+! Checks on fault depth and dimensions look a little different for each input fault type
+if (gf_type.eq.'okada_rect') then
+
+    ! Depth must be positive down
+    if (minval(fault%array(:,3)).lt.0.0d0) then
+        call usage('fltinv_readin: found fault depth less than zero')
+
+    ! Depth units are meters
+    elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
+        write(stderr,*) '!! Warning: all fault depths are less than +1000 meters'
+    endif
+
+    ! Fault dimensions are in meters
+    if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
+        write(stderr,*) '!! Warning: all fault dimensions are less than 100 meters'
+    endif
+
+
+elseif (gf_type.eq.'okada_pt') then
+
+    ! Depth must be positive down
+    if (minval(fault%array(:,3)).lt.0.0d0) then
+        call usage('fltinv_readin: found fault depth less than zero')
+
+    ! Depth units are meters
+    elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
+        write(stderr,*) '!! Warning: all fault depths are less than +1000 meters'
+    endif
+
+    ! Fault areas are in square meters
+    if (maxval(fault%array(:,6)).lt.10000.0d0) then
+        write(stderr,*) '!! Warning: all fault areas are less than 100x100 square meters'
+    endif
+
+
+elseif (gf_type.eq.'triangle') then
+
+    ! Depth must be positive down
+    if (minval(fault%array(:,3)).lt.0.0d0.or. &
+            maxval(fault%array(:,6)).lt.0.0d0.or. &
+            maxval(fault%array(:,9)).lt.0.0d0) then
+        call usage('fltinv_readin: found triangle vertex depth less than zero')
+    endif
+
+    ! Depth units are meters
+    if (maxval(fault%array(:,3)).lt.1000.0d0.and. &
+            maxval(fault%array(:,6)).lt.1000.0d0.and. &
+            maxval(fault%array(:,9)).lt.1000.0d0) then
+        write(stderr,*) '!! Warning: all fault depths are less than +1000 meters'
+    endif
+
+endif
+
+! Checks on other coordinates depend on coordinate type
 if (coord_type.eq.'cartesian') then
-    if (displacement%file.ne.'none') then
+
+    ! Calculate distances between all faults and first displacement/los input
+    ! In 'cartesian' mode, this value should be typically be 1e1-1e5 meters
+
+    if (displacement%file.ne.'none'.and.gf_type.ne.'none') then
         do i = 1,fault%nrecords
             dist = (displacement%array(1,1)-fault%array(i,1))**2 + &
                        (displacement%array(1,2)-fault%array(i,2))**2
             if (dsqrt(dist).le.10.0d0) then
-                write(0,'(A)') '!! Warning: very small distance found'
-                write(0,'(A)') '!! Did you mean to use -geo?'
+                write(stderr,*) '!! Warning: small fault-disp distance found (want to use -geo?)'
                 exit
             endif
         enddo
     endif
-    if (los%file.ne.'none') then
+
+    if (los%file.ne.'none'.and.gf_type.ne.'none') then
         do i = 1,fault%nrecords
-            dist = (los%array(1,1)-fault%array(i,1))**2 + &
-                       (los%array(1,2)-fault%array(i,2))**2
+            dist = (los%array(1,1)-fault%array(i,1))**2+(los%array(1,2)-fault%array(i,2))**2
             if (dsqrt(dist).le.10.0d0) then
-                write(0,'(A)') '!! Warning: very small distance found'
-                write(0,'(A)') '!! Did you mean to use -geo?'
+                write(stderr,*) '!! Warning: small fault-los distance found (want to use -geo?)'
                 exit
             endif
         enddo
     endif
+
+
+elseif (coord_type.eq.'geographic') then
+    ! I am going to operate under the assumption that if the user specifically indicated to use
+    ! geographic mode, then they used geographic coordinates. At some point I will make a check.
+    ! Okay, FINE, I will not be lazy. Here is your stupid stupidity check.
+
+    ! Displacement coordinates
+    if (displacement%file.ne.'none') then
+        if (maxval(displacement%array(:,1)).gt.360.0d0) then
+            call usage('fltinv_readin: found displacement longitude greater than 360')
+        elseif (maxval(displacement%array(:,1)).lt.-180.0d0) then
+            call usage('fltinv_readin: found displacement longitude less than -180')
+        elseif (maxval(displacement%array(:,2)).gt.90.0d0) then
+            call usage('fltinv_readin: found displacement latitude greater than 90')
+        elseif (maxval(displacement%array(:,2)).lt.-90.0d0) then
+            call usage('fltinv_readin: found displacement latitude less than -90')
+        endif
+    endif
+
+    ! LOS coordinates
+    if (los%file.ne.'none') then
+        if (maxval(los%array(:,1)).gt.360.0d0) then
+            call usage('fltinv_readin: found los longitude greater than 360')
+        elseif (maxval(los%array(:,1)).lt.-180.0d0) then
+            call usage('fltinv_readin: found los longitude less than -180')
+        elseif (maxval(los%array(:,2)).gt.90.0d0) then
+            call usage('fltinv_readin: found los latitude greater than 90')
+        elseif (maxval(los%array(:,2)).lt.-90.0d0) then
+            call usage('fltinv_readin: found los latitude less than -90')
+        endif
+    endif
+
+    ! Fault coordinates
+    if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt') then
+        if (maxval(fault%array(:,1)).gt.360.0d0) then
+            call usage('fltinv_readin: found fault longitude greater than 360')
+        elseif (maxval(fault%array(:,1)).lt.-180.0d0) then
+            call usage('fltinv_readin: found fault longitude less than -180')
+        elseif (maxval(fault%array(:,2)).gt.90.0d0) then
+            call usage('fltinv_readin: found fault latitude greater than 90')
+        elseif (maxval(fault%array(:,2)).lt.-90.0d0) then
+            call usage('fltinv_readin: found fault latitude less than -90')
+        endif
+    elseif (gf_type.eq.'triangle') then
+        if (maxval(fault%array(:,1)).gt.360.0d0.or. &
+                maxval(fault%array(:,4)).gt.360.0d0.or. &
+                maxval(fault%array(:,7)).gt.360.0d0) then
+            call usage('fltinv_readin: found fault longitude greater than 360')
+        elseif (maxval(fault%array(:,1)).lt.-180.0d0.or. &
+                maxval(fault%array(:,4)).lt.-180.0d0.or. &
+                maxval(fault%array(:,7)).lt.-180.0d0) then
+            call usage('fltinv_readin: found fault longitude less than -180')
+        elseif (maxval(fault%array(:,2)).gt.90.0d0.or. &
+                maxval(fault%array(:,5)).gt.90.0d0.or. &
+                maxval(fault%array(:,8)).gt.90.0d0) then
+            call usage('fltinv_readin: found fault latitude greater than 90')
+        elseif (maxval(fault%array(:,2)).lt.-90.0d0.or. &
+                maxval(fault%array(:,5)).lt.-90.0d0.or. &
+                maxval(fault%array(:,8)).lt.-90.0d0) then
+            call usage('fltinv_readin: found fault latitude less than -90')
+        endif
+    endif
+
 endif
+
+
+! MAKE SURE NSTRESS=NFAULT!!
+
+
+
 
 ! If pre-stresses are defined, calculate the shear stresses on the faults
 if (prestress%file.ne.'none') then
@@ -200,7 +330,7 @@ if (displacement%file.ne.'none') then
         call read_program_data_file(gf_disp)
         ! Verify that there are the correct number of lines here
         if (gf_disp%nrecords .ne. 3*displacement%nrecords) then
-            call print_usage('!! read_fltinv_inputs: number of lines in displacement GF file '// &
+            call usage('!! read_fltinv_inputs: number of lines in displacement GF file '// &
                              'must be 3*ndisplacements (one line per displacement DOF)')
         endif
 
@@ -226,7 +356,7 @@ if (prestress%file.ne.'none') then
         call read_program_data_file(gf_stress)
         ! Verify that there are the correct number of lines here
         if (gf_stress%nrecords .ne. 2*fault%nrecords) then
-            call print_usage('!! read_fltinv_inputs: Number of lines in stress GF file must be '//&
+            call usage('!! read_fltinv_inputs: Number of lines in stress GF file must be '//&
                              '2*nfaults (one line per fault slip DOF)')
         endif
 
@@ -260,7 +390,7 @@ if (los%file.ne.'none') then
         call read_program_data_file(gf_los)
         ! Verify that there are the correct number of lines here
         if (gf_los%nrecords .ne. los%nrecords) then
-            call print_usage('!! read_fltinv_inputs: number of lines in LOS displacement GF '// &
+            call usage('!! read_fltinv_inputs: number of lines in LOS displacement GF '// &
                              'file must be ndisplacements (one line per displacement DOF)')
         endif
 
@@ -283,7 +413,7 @@ if (smoothing%file.ne.'none') then
     smoothing%nfields = 3
     call read_program_data_file(smoothing)
     if (smoothing%nrecords.gt.fault%nrecords) then
-        call print_usage('!! read_fltinv_inputs: number of faults to smooth is larger than '//&
+        call usage('!! read_fltinv_inputs: number of faults to smooth is larger than '//&
                          'number of faults')
     endif
 
@@ -309,7 +439,7 @@ if (rake_constraint%file.ne.'none') then
     elseif (inversion_mode.eq.'anneal') then
         rake_constraint%nfields = 2
     else
-        call print_usage('!! read_fltinv_inputs: I do not know how many fields rake_constraint '//&
+        call usage('!! read_fltinv_inputs: I do not know how many fields rake_constraint '//&
                          'should have for this inversion mode...')
     endif
     call read_program_data_file(rake_constraint)
@@ -317,7 +447,7 @@ if (rake_constraint%file.ne.'none') then
         write(0,'(A,I5,A)') '!! read_fltinv_inputs: found ',rake_constraint%nrecords,' rake '//&
                             'constraint records'
         write(0,'(A,I5,A)') '!! and ',fault%nrecords,' input faults'
-        call print_usage('!! Number of rake constraints must be 1 or number of faults')
+        call usage('!! Number of rake constraints must be 1 or number of faults')
     endif
 endif
 
@@ -328,7 +458,7 @@ if (slip_constraint%file.ne.'none') then
     slip_constraint%nfields = 2
     call read_program_data_file(slip_constraint)
     if (slip_constraint%nrecords.ne.1.and.slip_constraint%nrecords.ne.fault%nrecords) then
-        call print_usage('!! read_fltinv_inputs: number of slip constraints must be 1 or '//&
+        call usage('!! read_fltinv_inputs: number of slip constraints must be 1 or '//&
                          'number of faults')
     endif
     if (slip_constraint%nrecords.eq.1) then
@@ -352,8 +482,7 @@ if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt'.or.gf_type.eq.'triangle') t
         elseif (halfspace%flag.eq.'lame') then
             halfspace%nfields = 2
         else
-            call print_usage('!! read_fltinv_inputs: no halfspace read option named '//&
-                             trim(halfspace%flag))
+            call usage('fltinv_readin: no halfspace read option named '//trim(halfspace%flag))
         endif
         call read_program_data_file(halfspace)
     else
@@ -370,13 +499,46 @@ if (gf_type.eq.'okada_rect'.or.gf_type.eq.'okada_pt'.or.gf_type.eq.'triangle') t
     endif
 endif
 
+
+!----
+! Read covariance file
+!----
+if (displacement%file.ne.'none') then
+    ! Covariance matrix has nrows and ncols equal to number of displacements times number of components
+    i = len_trim(disp_components)*displacement%nrecords
+    allocate(disp_cov_mat(i,i))
+
+    ! Initialize it as the identity matrix
+    disp_cov_mat = 0.0d0
+    do i = 1,displacement%nrecords
+        do j = 1,len_trim(disp_components)
+            disp_cov_mat(i+(j-1)*displacement%nrecords,i+(j-1)*displacement%nrecords) = 1.0d0
+        enddo
+    enddo
+
+    ! Read in the covariance values
+    if (disp_cov_file.ne.'none') then
+        open(unit=72,file=disp_cov_file,status='old')
+        do
+            read(72,*,iostat=ios) i,j,nchar,mchar,cov
+            n = index(disp_components,nchar)
+            m = index(disp_components,mchar)
+            disp_cov_mat(i+(n-1)*displacement%nrecords,j+(m-1)*displacement%nrecords) = cov
+            disp_cov_mat(j+(m-1)*displacement%nrecords,i+(n-1)*displacement%nrecords) = cov
+            if (ios.ne.0) then
+                exit
+            endif
+        enddo
+        close(72)
+    endif
+endif
+
 if (verbosity.ge.1) then
-    write(stderr,'(A)') 'read_fltinv_inputs says: finished'
-    write(stderr,*)
+    write(stderr,*) 'fltinv_readin: finished'
 endif
 
 return
-end subroutine read_fltinv_inputs
+end subroutine fltinv_readin
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -465,7 +627,7 @@ if (displacement%file.ne.'none') then
         elseif (gf_type.eq.'triangle') then
             call calc_gf_disp_tri()
         else
-            call print_usage('!! Error: no option to calculate Greens functions called '// &
+            call usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
         endif
     endif
@@ -483,7 +645,7 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
         elseif (gf_type.eq.'triangle') then
             call calc_gf_stress_tri()
         else
-            call print_usage('!! Error: no option to calculate Greens functions called '// &
+            call usage('!! Error: no option to calculate Greens functions called '// &
                              trim(gf_type))
         endif
     endif
@@ -500,7 +662,7 @@ if (los%file.ne.'none') then
         elseif (gf_type.eq.'triangle') then
             call calc_gf_los_tri()
         else
-            call print_usage('!! Error: no option to calculate Greens functions called '// &
+            call usage('!! Error: no option to calculate Greens functions called '// &
                               trim(gf_type))
         endif
     endif
@@ -534,7 +696,7 @@ elseif (inversion_mode.eq.'anneal') then
 elseif (inversion_mode.eq.'anneal-psc') then
     call invert_anneal_pseudocoupling()
 else
-    call print_usage('!! Error: no inversion mode named '//trim(inversion_mode))
+    call usage('!! Error: no inversion mode named '//trim(inversion_mode))
 endif
 
 if (verbosity.ge.1) then
@@ -557,8 +719,8 @@ use variable_module, only: displacement, prestress, los, fault, &
                            halfspace
 implicit none
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'free_memory says: starting'
+if (verbosity.eq.1) then
+    write(stderr,*) 'free_memory: starting'
 endif
 
 if (allocated(displacement%array)) then
@@ -598,8 +760,8 @@ if (allocated(halfspace%array)) then
     deallocate(halfspace%array)
 endif
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'free_memory says: finished'
+if (verbosity.eq.2) then
+    write(stderr,*) 'free_memory says: finished'
 endif
 
 return
@@ -723,7 +885,7 @@ do i = 1,fault%nrecords
         endif
 
     else
-        call print_usage('!! Error: frankly, I do not know how you got this far using an '//&
+        call usage('!! Error: frankly, I do not know how you got this far using an '//&
                          'inversion mode that does not seem to exist...')
     endif
 enddo
@@ -756,7 +918,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
-                           los, los_weight
+                           los, los_weight, disp_cov_file
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
@@ -766,10 +928,11 @@ implicit none
 ! Initialize program behavior variables
 output_file = 'stdout'
 inversion_mode = 'lsqr'
-gf_type = 'okada_rect'
+gf_type = 'none'
 coord_type = 'cartesian'
 disp_components = '123'
 disp_misfit_file = 'none'
+disp_cov_file = 'none'
 los_misfit_file = 'none'
 
 ! Initialize regularization variables
@@ -816,14 +979,14 @@ end
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine get_command_line()
+subroutine gcmdln()
 use io_module, only: stderr, verbosity
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
-                           los, los_weight
+                           los, los_weight, disp_cov_file
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
@@ -835,7 +998,7 @@ character(len=256) :: tag
 integer :: char_index
 
 narg = command_argument_count()
-if (narg.eq.0) call print_usage('')
+if (narg.eq.0) call usage('')
 
 i = 1
 do while (i.le.narg)
@@ -866,6 +1029,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-disp:misfit') then
         i = i + 1
         call get_command_argument(i,disp_misfit_file)
+    elseif (trim(tag).eq.'-disp:cov_file') then
+        i = i + 1
+        call get_command_argument(i,disp_cov_file)
     elseif (trim(tag).eq.'-los:misfit') then
         i = i + 1
         call get_command_argument(i,los_misfit_file)
@@ -994,7 +1160,7 @@ do while (i.le.narg)
 
     ! No option
     else
-        call print_usage('!! Error: No option '//trim(tag))
+        call usage('!! Error: No option '//trim(tag))
     endif
     i = i + 1
 enddo
@@ -1049,11 +1215,11 @@ if (verbosity.ge.1) then
 endif
 
 return
-end subroutine get_command_line
+end subroutine gcmdln
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine print_usage(string)
+subroutine usage(string)
 !----
 ! Print program usage statement and exit
 !----
@@ -1089,7 +1255,8 @@ write(stderr,'(A)') '-los:misfit MISFIT_FILE      Output RMS misfit to LOS displ
 write(stderr,*)
 write(stderr,'(A)') 'Greens Functions Options'
 write(stderr,'(A)') '-gf:model MODEL              Greens functions calculation model'
-write(stderr,'(A)') '-gf:disp_file GF_DSP_FILE    Pre-computed displacement Greens'
+write(stderr,'(A)') '-gf:disp_file GF_DSP_FILE    Pre-computed displacement Greens functions'
+write(stderr,'(A)') '-gf:los_file GF_LOS_FILE     Pre-computed LOS displacement Greens functions'
 write(stderr,'(A)') '-gf:sts_file GF_STS_FILE     Pre-computed stress Greens functions'
 write(stderr,*)
 write(stderr,'(A)') 'Inversion Options'
@@ -1117,4 +1284,4 @@ write(stderr,*)
 write(stderr,'(A)') 'See man page for details'
 write(stderr,*)
 stop
-end subroutine print_usage
+end subroutine usage

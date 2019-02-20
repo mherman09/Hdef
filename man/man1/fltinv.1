@@ -86,6 +86,24 @@ Print RMS misfit to displacements to file
 .IR misfit_file .
 
 .TP
+.BI "-disp:cov_file " covariance_file
+File with displacement covariance data in the format:
+.IR "idisp jdisp icmp jcmp cov" ,
+where
+.I idisp
+and
+.I jdisp
+are the indices of the displacement corresponding to the entries in
+.IR displacement_file ,
+.I icmp
+and
+.I jcmp
+are the components of the displacement,
+and
+.I cov
+is the covariance, in square meters.
+
+.TP
 .BI "-los " los_file
 Line-of-sight displacement observations in the format:
 .IR "x y z ulos azimuth inclination" .

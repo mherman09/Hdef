@@ -73,7 +73,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -99,7 +99,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -242,7 +242,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -268,7 +268,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -371,7 +371,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -396,7 +396,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -493,7 +493,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -520,7 +520,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -651,7 +651,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -678,7 +678,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -781,7 +781,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -807,7 +807,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -928,7 +928,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -953,7 +953,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -1113,7 +1113,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -1157,7 +1157,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -1273,7 +1273,7 @@ contains
     !             elseif (rake_constraint%nrecords.eq.fault%nrecords) then
     !                 rak = rake_constraint%array(j,1)
     !             else
-    !                 call print_usage('!! Error: incorrect number of rake constraints')
+    !                 call usage('!! Error: incorrect number of rake constraints')
     !             endif
     !         else
     !             rak = 0.0d0
@@ -1298,7 +1298,7 @@ contains
     !             elseif (rake_constraint%nrecords.eq.fault%nrecords) then
     !                 rak = rake_constraint%array(j,2)
     !             else
-    !                 call print_usage('!! Error: incorrect number of rake constraints')
+    !                 call usage('!! Error: incorrect number of rake constraints')
     !             endif
     !         else
     !             rak = 90.0d0

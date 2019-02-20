@@ -93,7 +93,7 @@ contains
     elseif (lsqr_mode.eq.'nnls') then
         call solve_lsqr_nnls()
     else
-        call print_usage('!! Error: no lsqr_mode named '//trim(lsqr_mode))
+        call usage('!! Error: no lsqr_mode named '//trim(lsqr_mode))
     endif
 
 
@@ -293,11 +293,11 @@ contains
     endif
 
     if (nrows.eq.0) then
-        call print_usage('!! Error: no rows in least-squares matrix')
+        call usage('!! Error: no rows in least-squares matrix')
     endif
 
     if (ncols.eq.0) then
-        call print_usage('!! Error: no columns in least-squares matrix')
+        call usage('!! Error: no columns in least-squares matrix')
     endif
 
     if (verbosity.ge.2) then
@@ -1017,7 +1017,7 @@ contains
         write(stderr,'(A)') 'solve_dgesv says: starting'
     endif
     if (nrows.ne.ncols) then
-        call print_usage('!! Error in subroutine solve_dgesv: nrows not equal to ncols')
+        call usage('!! Error in subroutine solve_dgesv: nrows not equal to ncols')
     endif
 
     ! Use local arrays of correct size for inversion
@@ -1033,7 +1033,7 @@ contains
     call dgesv(n, nrhs, alocal, lda, ipiv, blocal, ldb, info)
     if (info.ne.0) then
         write(0,*) 'solve_dgesv() says: info returned ',info,' indicating error in dgesv()'
-        call print_usage('exiting program at solve_dgesv()')
+        call usage('exiting program at solve_dgesv()')
     endif
 
     ! Put actual solution into x
@@ -1074,7 +1074,7 @@ contains
         write(stderr,'(A)') 'solve_dgssv says: starting'
     endif
     if (nrows.ne.ncols) then
-        call print_usage('!! Error in subroutine solve_dgssv: nrows not equal to ncols')
+        call usage('!! Error in subroutine solve_dgssv: nrows not equal to ncols')
     endif
 
     blocal = b(1:nrows,1:1)
@@ -1136,7 +1136,7 @@ contains
                        factors,info)
     if (info.ne.0) then
         write(0,*) 'solve_dgssv() says: info returned ',info,' indicating error in dgssv()'
-        call print_usage('exiting program at solve_dgssv()')
+        call usage('exiting program at solve_dgssv()')
     endif
 
     ! Put actual solution into x

@@ -108,7 +108,7 @@ contains
 
     ! Make sure slip_constraint%array is defined (bounds for slip magnitude values)
     if (slip_constraint%file.eq.'none') then
-        call print_usage('!! Error: a slip constraint file is required for simulated annealing')
+        call usage('!! Error: a slip constraint file is required for simulated annealing')
     else
         if (slip_constraint%nrecords.eq.1) then
             tmparray = slip_constraint%array
@@ -123,7 +123,7 @@ contains
 
     ! Make sure rake_constraint%array is defined (bounds for rake angle values)
     if (rake_constraint%file.eq.'none') then
-        call print_usage('!! Error: a rake constraint file is required for simulated annealing')
+        call usage('!! Error: a rake constraint file is required for simulated annealing')
     else
         if (rake_constraint%nrecords.eq.1) then
             tmparray = rake_constraint%array
@@ -172,7 +172,7 @@ contains
     ! elseif (anneal_init_mode.eq.'uniform') then
     !     ! same slip on all faults
     else
-        call print_usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
+        call usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
     endif
 
     ! Set the first model to be the best model initially
@@ -725,19 +725,40 @@ contains
         nlocked = 0
         nunlocked = 0
         do j = 1,fault%nrecords
+
+            ! For all faults...
+
             if (ran2(idum).gt.0.5d0) then
+
+                ! Flip this fault!
                 if (isFaultLocked(randFaultList(j)).eq.1) then
+
+                    ! Locked -> unlocked
                     if (nunlocked.lt.nswitchmax) then
                         isFaultLocked(randFaultList(j)) = 0
                     endif
-                    nunlocked = nunlocked + 1
+
+                    ! Only count fault as flipped if it is not always unlocked
+                    if (dabs(slip_constraint%array(randFaultList(j),1)).lt.99998.0d0) then
+                        nunlocked = nunlocked + 1
+                    endif
+
                 else
+
+                    ! Unlocked -> locked
                     if (nlocked.lt.nswitchmax) then
                         isFaultLocked(randFaultList(j)) = 1
                     endif
-                    nlocked = nlocked + 1
+
+                    ! Only count fault as flipped if it is not always unlocked
+                    if (dabs(slip_constraint%array(randFaultList(j),1)).lt.99998.0d0) then
+                        nlocked = nlocked + 1
+                    endif
+
                 endif
             endif
+
+
         enddo
         if (verbosity.ge.3) then
             write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: locked faults are:'
@@ -867,7 +888,7 @@ contains
 
     ! Make sure slip_constraint%array is defined (bounds for slip magnitude values)
     if (slip_constraint%file.eq.'none') then
-        call print_usage('!! initialize_annealing_psc: a slip constraint file is required ')
+        call usage('!! initialize_annealing_psc: a slip constraint file is required ')
     else
         if (slip_constraint%nrecords.eq.1) then
             tmparray = slip_constraint%array
@@ -912,9 +933,9 @@ contains
     elseif (trim(anneal_init_mode).eq.'rand') then
         do i = 1,fault%nrecords
             if (ran2(idum).gt.0.75d0) then
-                isFaultLocked = 1
+                isFaultLocked(i) = 1
             else
-                isFaultLocked = 0
+                isFaultLocked(i) = 0
             endif
         enddo
 

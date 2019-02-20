@@ -31,6 +31,8 @@ use io_module, only: program_data
     double precision :: sts_dist
     double precision, allocatable :: fault_slip(:,:)
     character(len=256) :: disp_misfit_file
+    character(len=256) :: disp_cov_file
+    double precision, allocatable :: disp_cov_mat(:,:)
     character(len=256) :: los_misfit_file
     double precision :: los_weight
 end module variable_module
