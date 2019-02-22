@@ -446,7 +446,6 @@ clean:
 	-rm \$(BIN)/eventfrequency
 	-rm \$(BIN)/ff2gmt
 	-rm \$(BIN)/fltinv
-	-rm \$(BIN)/fltinv_new
 	-rm \$(BIN)/grid
 	-rm \$(BIN)/lola2distaz
 	-rm \$(BIN)/mtutil
