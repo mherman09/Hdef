@@ -1,6 +1,11 @@
 program main
 implicit none
 
+#ifndef USELAPACK
+    write(0,*) 'fltinv: I do not do much compiled without the LAPACK libraries; exiting'
+    stop
+#endif
+
 call initialize_fltinv_variables()
 call gcmdln()
 

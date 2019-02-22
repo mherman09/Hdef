@@ -82,12 +82,16 @@ contains
            (prestress%file.ne.'none'.and.displacement%file.eq.'none'.and.los%file.eq.'none')) then
         ! In solving for slip around a locked patch (pseudo-coupling), the system is
         ! properly determined so we can use direct inversion methods rather than linear least squares.
+#ifdef USESUPERLU
         call count_matrix_zeros(nzeros)
         if (dble(nzeros)/dble(nrows*ncols).gt.0.3d0) then
             call solve_dgssv() ! Use sparse solver (SuperLU)
         else
+#endif
             call solve_dgesv() ! Use dense solver (LAPACK)
+#ifdef USESUPERLU
         endif
+#endif
     elseif (lsqr_mode.eq.'gels'.or.lsqr_mode.eq.'dgels') then
         call solve_lsqr_dgels()
     elseif (lsqr_mode.eq.'nnls') then
@@ -928,7 +932,9 @@ contains
         allocate(work(1))
     endif
     lwork = -1
+#ifdef USELAPACK
     call dgels(trans,m,n,nrhs,Alocal,lda,blocal,ldb,work,lwork,info)
+#endif
     lwork = int(work(1))
     if (verbosity.ge.2) then
         write(stderr,'(A,I10)') 'lsqr_solve_dgels says: lwork=',lwork
@@ -937,7 +943,9 @@ contains
     allocate(work(lwork))
 
     ! Solve least squares problem for x
+#ifdef USELAPACK
     call dgels(trans,m,n,nrhs,alocal,lda,btmp,ldb,work,lwork,info)
+#endif
     deallocate(work)
 
     ! Put solution into x
@@ -1030,7 +1038,9 @@ contains
     ldb = n          ! Leading dimension of b;  ldb >= max(1,n)
 
     ! Solve for x (put into blocal)
+#ifdef USELAPACK
     call dgesv(n, nrhs, alocal, lda, ipiv, blocal, ldb, info)
+#endif
     if (info.ne.0) then
         write(0,*) 'solve_dgesv() says: info returned ',info,' indicating error in dgesv()'
         call usage('exiting program at solve_dgesv()')
@@ -1056,6 +1066,8 @@ contains
     end subroutine solve_dgesv
 
 !--------------------------------------------------------------------------------------------------!
+
+#ifdef USESUPERLU
 
     subroutine solve_dgssv()
     !----
@@ -1120,6 +1132,7 @@ contains
     nrhs = 1
     ldb = nrows
 
+#ifdef USELAPACK
     ! Factorize matrix
     iopt = 1
     call c_fortran_dgssv(iopt,nrows,nNonZero,nrhs,matrix_value,row_index,column_ptr,blocal,ldb,&
@@ -1138,6 +1151,7 @@ contains
         write(0,*) 'solve_dgssv() says: info returned ',info,' indicating error in dgssv()'
         call usage('exiting program at solve_dgssv()')
     endif
+#endif
 
     ! Put actual solution into x
     do i = 1,ncols
@@ -1168,6 +1182,8 @@ contains
 
     return
     end subroutine solve_dgssv
+#endif
+! #endif SUPERLU
 
 !--------------------------------------------------------------------------------------------------!
 

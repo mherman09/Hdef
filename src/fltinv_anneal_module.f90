@@ -590,13 +590,17 @@ contains
     ! Get optimal size of lwork array
     allocate(work(1))
     lwork = -1
+#ifdef USELAPACK
     call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+#endif
 
     ! Resize lwork array and solve equation so that blocal = inv(cov_mat)*ddisp
     lwork = int(work(1))
     deallocate(work)
     allocate(work(lwork))
+#ifdef USELAPACK
     call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+#endif
 
     if (info.gt.0) then
         write(0,*) 'disp_misfit_chi2: block diagonal matrix is singular in dsysv'
