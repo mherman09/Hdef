@@ -342,7 +342,7 @@ end subroutine calc_deformation
 !--------------------------------------------------------------------------------------------------!
 
 subroutine calc_displacement(disp,x,y,z)
-use tri_disloc_module, only: tri_disloc_disp, tri_center
+use tri_disloc, only: tri_disloc_disp, tri_center
 use triutil_module, only: nfaults, faults, poisson, coord_type
 implicit none
 ! Arguments
@@ -407,7 +407,7 @@ end subroutine calc_displacement
 !--------------------------------------------------------------------------------------------------!
 
 subroutine calc_strain(strain,x,y,z)
-use tri_disloc_module, only: tri_disloc_strain, tri_center
+use tri_disloc, only: tri_disloc_strain, tri_center
 use triutil_module, only: nfaults, faults, poisson, coord_type
 implicit none
 ! Arguments

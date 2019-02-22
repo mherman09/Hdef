@@ -1,4 +1,4 @@
-module tri_disloc_module
+module tri_disloc
 !----
 ! Translation of Brendan Meade's Matlab triangular dislocation code into Fortran module
 ! By Matthew Herman, Utrecht University
@@ -10,6 +10,8 @@ module tri_disloc_module
 ! Geosciences. doi:10.1016/j.cageo.2006.12.003.
 !----
 
+use trig, only: pi, r2d, d2r
+
 ! Angular dislocation inputs
 double precision :: y1, y2, y3, a, b, nu, B1, B2, B3
 
@@ -19,15 +21,11 @@ double precision :: R, R2, R3, R5, Rbar, R2bar, R3bar, R4bar, R5bar
 double precision :: z1, z3, y3bar, z1bar, z3bar
 double precision :: F, Fbar
 
-! Parameters
-double precision, parameter :: pi = datan(1.0d0)*4.0d0
-double precision, parameter :: d2r = pi/180.0d0
-double precision, parameter :: r2d = 180.0d0/pi
+private :: y1, y2, y3, a, b, nu, B1, B2, B3, sinb, cosb, cotb, R, R2, R3, R5, Rbar, R2bar, R3bar, &
+           R4bar, R5bar, z1, z3, y3bar, z1bar, z3bar, F, Fbar
 
 !--------------------------------------------------------------------------------------------------!
-
 contains
-
 !--------------------------------------------------------------------------------------------------!
 
 !**function [U] = CalcTriDisps(sx, sy, sz, x, y, z, pr, ss, ts, ds)

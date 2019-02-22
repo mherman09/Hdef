@@ -230,6 +230,9 @@ FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 FOPT  = -O1
 FFLAG = \$(FWARN) \$(FOPT)
 
+##### Include directory (.o and .mod files) #####
+INCLUDE = include
+
 ##### Executable directory #####
 BIN   = $BIN_DIR
 
@@ -320,13 +323,11 @@ FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
-              src/tri_disloc_module.f90 src/pnpoly.f
-SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
-\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
-	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP)
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP)
-	rm *.o *.mod
+              src/pnpoly.f
+# SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
+\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(INCLUDE)/tri_disloc.mod \$(INCLUDE)/tri_disloc.o
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
 
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
@@ -372,10 +373,8 @@ SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
 
-\$(BIN)/triutil: src/triutil.f90 src/tri_disloc_module.f90 src/pnpoly.f src/geomsubs.f
-	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -o \$@ \$^
-	rm *.o *.mod
+\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.mod
+	\$(FC) \$(FFLAG) -o \$@ src/triutil.f90 src/pnpoly.f src/geomsubs.f -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
 
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
@@ -433,19 +432,24 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 	\$@
 	rm \$@
 
-####################
-##### MODULES ######
-####################
-INCLUDE = include
-modules: trig earth
+################################
+##### MODULES AND OBJECTS ######
+################################
+objects: \\
+    \$(INCLUDE)/trig.o \
+    \$(INCLUDE)/earth.o \
+    \$(INCLUDE)/tri_disloc.o
 
-trig: \$(INCLUDE)/trig.mod \$(INCLUDE)/trig.o
-\$(INCLUDE)/trig.mod \$(INCLUDE)/trig.o: src/trig_module.f90
-        \$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/trig.o src/trig_module.f90
+\$(INCLUDE)/trig.o: src/trig_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/trig.o src/trig_module.f90
 
-earth: include/earth.mod include/earth.o
-include/earth.mod include/earth.o: src/earth_module.f90
-        \$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/earth.o src/earth_module.f90 -I\$(INCLUDE)
+\$(INCLUDE)/earth.o: src/earth_module.f90 \$(INCLUDE)/trig.mod
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/earth.o src/earth_module.f90 -I\$(INCLUDE)
+
+\$(INCLUDE)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE)/trig.mod
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/tri_disloc.o src/tri_disloc_module.f90 -I\$(INCLUDE)
+
+\$(INCLUDE)/%.o: \$(INCLUDE)/%.mod
 
 ####################
 ##### CLEAN UP #####

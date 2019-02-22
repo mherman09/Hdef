@@ -853,7 +853,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
-    use tri_disloc_module, only: tri_disloc_disp, tri_center
+    use tri_disloc, only: tri_disloc_disp, tri_center
     implicit none
     ! Local variables
     integer :: i, j, iTri
@@ -1004,7 +1004,7 @@ contains
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
     use elast
-    use tri_disloc_module, only: tri_disloc_strain, tri_center, tri_geometry, tri_geo2cart
+    use tri_disloc, only: tri_disloc_strain, tri_center, tri_geometry, tri_geo2cart
     implicit none
     ! Local variables
     double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), &

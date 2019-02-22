@@ -34,7 +34,7 @@ use variable_module, only: inversion_mode, &
                            smoothing, rake_constraint, slip_constraint, &
                            halfspace, coord_type, disp_components, disp_cov_file, disp_cov_mat
 use elast, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
-use tri_disloc_module, only: tri_geometry, tri_geo2cart
+use tri_disloc, only: tri_geometry, tri_geo2cart
 
 implicit none
 
