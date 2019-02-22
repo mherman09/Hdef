@@ -21,6 +21,11 @@ C Subroutine readconstr(cfile,xc,yc,ncon)
 C   read in constraints if necessary
 C----
 
+#ifndef USELAPACK
+      write(0,*) 'polyfit: compile with LAPACK to use'
+      stop
+#endif
+
 C----
 C Parse command line
 C----

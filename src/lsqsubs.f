@@ -41,18 +41,22 @@ C----
 C----
 C Determine the optimal workspace size for the solution
 C----
-      lwork = -1 
+      lwork = -1
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       lwork = min(lwmax,int(work(1)))
 
 C----
 C Compute the polynomial coefficients
 C----
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       do 104 i = 1,ord+1
           coeff(i) = b(i,1)
   104 continue
-      
+
       RETURN
       END
 
@@ -60,7 +64,7 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE polylsqconstr(coeff,xobs,yobs,nobs,ord,xconstr,yconstr,
      1                         nconstr)
-C---- 
+C----
 C Compute the best-fitting polynomial through a set of points
 C consisting of nobs ordered pairs (xobs(i),yobs(i)), constrained
 C to pass through nconstr points (xconstr(i),yconstr(i)). The
@@ -95,7 +99,7 @@ C----
 C---
 C Load model matrix (A), constraint matrix (B), observation vector (c),
 C and the constraint RHS vector (d).
-C---  
+C---
       do 101 j = 1,ord+1
           do 102 i = 1,nobs
               a(i,j) = xobs(i)**(j-1)
@@ -115,13 +119,17 @@ C----
 C Determine the optimal workspace size for the solution
 C----
       lwork = -1
+#ifdef USELAPACK
       call dgglse(m,n,p,a,lda,b,ldb,c,d,x,work,lwork,info)
+#endif
       lwork = min(lwmax,int(work(1)))
 
 C----
 C Compute the polynomial coefficients
 C----
+#ifdef USELAPACK
       call dgglse(m,n,p,a,lda,b,ldb,c,d,x,work,lwork,info)
+#endif
       do 301 i = 1,ord+1
           coeff(i) = x(i)
   301 continue
