@@ -434,6 +434,20 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 	rm \$@
 
 ####################
+##### MODULES ######
+####################
+INCLUDE = include
+modules: trig earth
+
+trig: \$(INCLUDE)/trig.mod \$(INCLUDE)/trig.o
+\$(INCLUDE)/trig.mod \$(INCLUDE)/trig.o: src/trig_module.f90
+        \$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/trig.o src/trig_module.f90
+
+earth: include/earth.mod include/earth.o
+include/earth.mod include/earth.o: src/earth_module.f90
+        \$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/earth.o src/earth_module.f90 -I\$(INCLUDE)
+
+####################
 ##### CLEAN UP #####
 ####################
 # Clean bin directory
