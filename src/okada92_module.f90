@@ -36,6 +36,51 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
 
+subroutine halfspace_vars(lambda,mu)
+!----
+! Coefficients in displacement and strain equations, where lambda is the Lame parameter and mu is
+! the shear modulus, both in Pa.
+!----
+implicit none
+double precision :: lambda, mu
+a   = (lambda+mu)/(lambda+2.0d0*mu)
+CA1 = (1.0d0-a)*0.5d0
+CA2 = a*0.5d0
+CB  = (1.0d0-a)/a
+CC  = 1.0d0-a
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine dip_vars(dip)
+!----
+! Trigonometric functions of the fault dip (in degrees) found in the deformation equations.
+!----
+implicit none
+double precision :: dip
+
+! To avoid divide by zero problems, avoid dip of 90 degress
+if (dip.gt.89.99999d0) then
+  dip = 89.99999d0
+endif
+
+sd = dsin(dip*d2r)
+cd = dcos(dip*d2r)
+s2d = dsin(2.0d0*dip*d2r)
+c2d = dcos(2.0d0*dip*d2r)
+cdcd = cd*cd
+sdsd = sd*sd
+cdsd = sd*cd
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!------------------------------------- POINT SOURCE -----------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
 subroutine o92_pt_disp(disp,sta_coord,evdp,dip,moment,lambda,shear_modulus)
 !----
 ! Compute displacement vector at a point in an elastic half-space due to a point source dislocation
@@ -208,6 +253,17 @@ double precision :: dudx_vol(3), dudy_vol(3), dudz_vol(3), u_vol(3)
 
 ! write(0,*) 'o92_pt_partials: starting'
 
+! Initialize partial derivatives
+uxx = 0.0d0
+uyx = 0.0d0
+uzx = 0.0d0
+uxy = 0.0d0
+uyy = 0.0d0
+uzy = 0.0d0
+uxz = 0.0d0
+uyz = 0.0d0
+uzz = 0.0d0
+
 ! Calculate some parameters for fault geometry and elastic half-space
 call dip_vars(dip)
 call halfspace_vars(lambda,shear_modulus)
@@ -321,40 +377,10 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine halfspace_vars(lambda,mu)
-implicit none
-double precision :: lambda, mu
-a   = (lambda+mu)/(lambda+2.0d0*mu)
-CA1 = (1.0d0-a)*0.5d0
-CA2 = a*0.5d0
-CB  = (1.0d0-a)/a
-CC  = 1.0d0-a
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine dip_vars(dip)
-implicit none
-double precision :: dip
-if (dip.gt.89.99999d0) then
-  dip = 89.99999d0
-endif
-sd = dsin(dip*d2r)
-cd = dcos(dip*d2r)
-s2d = dsin(2.0d0*dip*d2r)
-c2d = dcos(2.0d0*dip*d2r)
-cdcd = cd*cd
-sdsd = sd*sd
-cdsd = sd*cd
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
 subroutine pt_src_vars(xin,yin,zin,cin)
 !----
-! Calculate variables from x, y, z (receiver location), and c (source depth), plus fault dip
+! Calculate variables in point source equations from x, y, z (receiver location), and c (source
+! depth), plus fault dip
 !----
 
 implicit none
@@ -447,288 +473,7 @@ return
 end subroutine
 
 !--------------------------------------------------------------------------------------------------!
-
-subroutine o92_rect_disp(disp,sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
-!----
-! Compute displacement vector at a point in an elastic half-space due to a rectangular dislocation
-! Subroutine arguments:
-!     disp(3): output displacement vector (m)
-!     sta_coord(3): input station location(m) relative to center of rectangle;
-!                   x=along-strike, y=hor-up-dip, z=depth
-!     evdp: depth to center of rectangle (m), positive down
-!     dip: source fault dip (degrees)
-!     wid: down-dip width of fault (m)
-!     len: along-strike length of fault (m)
-!     slip(3): strike-slip, dip-slip, tensile-slip (m)
-!     lambda, shear_modulus: half-space parameters (Pa)
-!----
-
-implicit none
-! Arguments
-double precision :: disp(3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
-! Local variables
-integer :: i, j
-double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), uA(3), uB(3), uC(3)
-
-! write(0,*) 'o92_rect_disp: starting'
-
-! Initialize displacements
-disp = 0.0d0
-
-! If station is above surface, exit with warning
-if (sta_coord(3).lt.0.0d0) then
-    write(0,*) 'o92_rect_disp: station depth less than zero; setting displacement to zero'
-    return
-endif
-
-! Calculate some parameters for fault geometry and elastic half-space
-call dip_vars(dip)
-call halfspace_vars(lambda,shear_modulus)
-
-Css = slip(1)/(2.0d0*pi)
-Cds = slip(2)/(2.0d0*pi)
-Cts = slip(3)/(2.0d0*pi)
-
-! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the real source
-call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
-
-! Check for singular solution when observation point lies on fault edge
-call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
-if (isSingular) then
-    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
-    return
-endif
-
-! Calculate the components of displacement for z negative
-u_ss = 0.0d0
-u_ds = 0.0d0
-u_ts = 0.0d0
-do i = 1,2
-    do j = 1,2
-        call rect_src_vars(ksi_vec(i),eta_vec(j))
-        if (dabs(Css).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ss_rect()
-            uB = chinnery_factor(i,j)*uB_ss_rect()
-            uC = chinnery_factor(i,j)*z*uC_ss_rect()
-            u_ss(1) = u_ss(1) + uA(1) + uB(1) + uC(1)
-            u_ss(2) = u_ss(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-            u_ss(3) = u_ss(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
-        endif
-        if (dabs(Cds).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ds_rect()
-            uB = chinnery_factor(i,j)*uB_ds_rect()
-            uC = chinnery_factor(i,j)*z*uC_ds_rect()
-            u_ds(1) = u_ds(1) + uA(1) + uB(1) + uC(1)
-            u_ds(2) = u_ds(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-            u_ds(3) = u_ds(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
-        endif
-        if (dabs(Cts).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ts_rect()
-            uB = chinnery_factor(i,j)*uB_ts_rect()
-            uC = chinnery_factor(i,j)*z*uC_ts_rect()
-            u_ts(1) = u_ts(1) + uA(1) + uB(1) + uC(1)
-            u_ts(2) = u_ts(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-            u_ts(3) = u_ts(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
-        endif
-    enddo
-enddo
-
-! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the opposite depth
-call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
-
-! Check for singular solution when observation point lies on fault edge
-call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
-if (isSingular) then
-    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
-    return
-endif
-
-! Displacement components for z positive
-do i = 1,2
-    do j = 1,2
-        call rect_src_vars(ksi_vec(i),eta_vec(j))
-        if (dabs(Css).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ss_rect()
-            u_ss(1) = u_ss(1) - uA(1)
-            u_ss(2) = u_ss(2) - uA(2)*cd + uA(3)*sd
-            u_ss(3) = u_ss(3) - uA(2)*sd - uA(3)*cd
-        endif
-        if (dabs(Cds).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ds_rect()
-            u_ds(1) = u_ds(1) - uA(1)
-            u_ds(2) = u_ds(2) - uA(2)*cd + uA(3)*sd
-            u_ds(3) = u_ds(3) - uA(2)*sd - uA(3)*cd
-        endif
-        if (dabs(Cts).gt.1.0d-6) then
-            uA = chinnery_factor(i,j)*uA_ts_rect()
-            u_ts(1) = u_ts(1) - uA(1)
-            u_ts(2) = u_ts(2) - uA(2)*cd + uA(3)*sd
-            u_ts(3) = u_ts(3) - uA(2)*sd - uA(3)*cd
-        endif
-    enddo
-enddo
-
-disp(1) = Css*u_ss(1) + Cds*u_ds(1) + Cts*u_ts(1)
-disp(2) = Css*u_ss(2) + Cds*u_ds(2) + Cts*u_ts(2)
-disp(3) = Css*u_ss(3) + Cds*u_ds(3) + Cts*u_ts(3)
-
-! write(0,*) 'o92_rect_disp: finished'
-
-return
-end subroutine o92_rect_disp
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine rect_src_coords(xin,yin,zin,cin,wid,len)
-!----
-! Calculate rotated coordinates p, q, eta, and ksi from x, y, z (station location), c (source depth),
-! fault width and length
-!----
-
-implicit none
-! Arguments
-double precision :: xin, yin, zin, cin, wid, len
-
-! write(0,*) 'rect_src_coords: starting'
-
-! Save passed arguments to module variables
-x = xin
-y = yin
-z = zin
-c = cin
-d =  c - z
-
-p = y*cd + d*sd
-q = y*sd - d*cd
-
-eta_vec(1) = p - 0.5d0*wid
-eta_vec(2) = p + 0.5d0*wid
-ksi_vec(1) = x - 0.5d0*len
-ksi_vec(2) = x + 0.5d0*len
-
-! write(0,*) 'rect_src_coords: finished'
-
-return
-end subroutine rect_src_coords
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine rect_src_vars(ksiin,etain)
-!----
-! Calculate variables from ksi, eta (receiver location relative to fault edge)
-!----
-
-implicit none
-! Arguments
-double precision :: ksiin, etain
-! Local variables
-double precision :: h, xxx
-
-! Save module variables from arguments (other variables already set)
-ksi = ksiin
-eta = etain
-
-! Some more rotated coordinates
-ybar = eta*cd + q*sd
-dbar = eta*sd - q*cd
-cbar = dbar + z
-
-R2 = ksi*ksi + eta*eta + q*q
-R  = dsqrt(R2)
-R3 = R2*R
-R5 = R3*R2
-Rd = R + dbar
-h = q*cd - z
-
-qq = q*q
-
-! Singular case (i) from Okada (1992)
-if (dabs(q).lt.1.0d-6) then
-    TH = 0.0d0
-else
-    TH = datan(ksi*eta/(q*R))
-endif
-
-! Singular case (iii) from Okada (1992)
-if (ksi.lt.0.0d0.and.dabs(R+ksi).lt.1.0d-6) then
-    X11 = 0.0d0
-    X32 = 0.0d0
-    X53 = 0.0d0
-    logRk = -dlog(R-ksi)
-else
-    Rk = R + ksi
-    X11 = 1.0d0/(R*Rk)
-    X32 = (2.0d0*R+ksi)/(R3*Rk*Rk)
-    X53 = (8.0d0*R2+9.0d0*R*ksi+3.0d0*ksi*ksi)/(R5*Rk*Rk*Rk)
-    logRk = dlog(R+ksi)
-endif
-
-! Singular case (iv) from Okada (1992)
-if (eta.lt.0.0d0.and.dabs(R+eta).lt.1.0d-6) then
-    Y11 = 0.0d0
-    Y32 = 0.0d0
-    Y53 = 0.0d0
-    logRe = -dlog(R-eta)
-else
-    Re = R+eta
-    Y11 = 1.0d0/(R*Re)
-    Y32 = (2.0d0*R+eta)/(R3*Re*Re)
-    Y53 = (8.0d0*R2+9.0d0*R*eta+3.0d0*eta*eta)/(R5*Re*Re*Re)
-    logRe = dlog(R+eta)
-endif
-Y0  = Y11 - ksi*ksi*Y32
-
-! Singular case (ii) from Okada (1992)
-if (dabs(ksi).lt.1.0d-6) then
-    I4 = 0.0d0
-else
-    xxx = sqrt(ksi*ksi+q*q)
-    I4 = sd*ksi/(Rd*cd) + 2.0d0*datan((eta*(xxx+q*cd)+xxx*(R+xxx)*sd)/(ksi*(R+xxx)*cd))/(cdcd)
-endif
-I3 = ybar/(cd*Rd) - (logRe-sd*dlog(Rd))/(cdcd)
-I1 = -ksi*cd/Rd - I4*sd
-I2 = dlog(Rd) + I3*sd
-
-Z32 = sd/R3 - h*Y32
-Z53 = 3.0d0*sd/R5 - h*Y53
-Z0  = Z32 - ksi*ksi*Z53
-
-D11 = 1.0d0/(R*Rd)
-
-K1 = ksi*(D11-Y11*sd)/cd
-K3 = (q*Y11-ybar*D11)/cd
-K2 = 1.0d0/R+K3*sd
-K4 = ksi*Y11*cd-K1*sd
-
-J2 = ksi*ybar*D11/Rd
-J5 = -(dbar+ybar*ybar/Rd)*D11
-J3 = (K1-J2*sd)/cd
-J6 = (K3-J5*sd)/cd
-J1 = J5*cd - J6*sd
-J4 = -ksi*Y11 - J2*cd + J3*sd
-
-E2 = sd/R - ybar*q/R3
-F2 = dbar/R3 + ksi*ksi*Y32*sd
-G2 = 2.0d0*X11*sd - ybar*q*X32
-H2 = dbar*q*X32 + ksi*q*Y32*sd
-P2 = cd/R3 + q*Y32*sd
-Q2 = 3.0d0*cbar*dbar/R5 - (z*Y32+Z32+Z0)*sd
-
-E3 = cd/R + dbar*q/R3
-F3 = ybar/R3 + ksi*ksi*Y32*cd
-G3 = 2.0d0*X11*cd + dbar*q*X32
-H3 = ybar*q*X32 + ksi*q*Y32*cd
-P3 = sd/R3 - q*Y32*cd
-Q3 = 3.0d0*cbar*ybar/R5 + q*Y32 - (z*Y32+Z32+Z0)*cd
-
-return
-end subroutine rect_src_vars
-
-
-!--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
 ! COMPONENTS OF DISPLACEMENT FOR A POINT SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!               !
-!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
 function uA_ss()
@@ -840,9 +585,7 @@ return
 end function
 
 !--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
 ! COMPONENTS OF PARTIAL DERIVATIVES FOR A POINT SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!        !
-!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
 function duAdx_ss()
@@ -1180,29 +923,202 @@ duCdz_vol(3) =  CC*3.0d0*d*(2.0d0+C5)/R5
 return
 end function
 
-!
-! !----------------------------------------------------------------------C
-!
-! !      SUBROUTINE FNSTN(strain,x,y,stdp,evdp,dipin,rakin,wid,len,
-! !     1                      slip,vp,vs,dens)
-!       SUBROUTINE o92rectstn(strain,x,y,stdp,evdp,dipin,rakin,wid,len,
-!      1                      slip,vp,vs,dens)
-! !----
-! ! Static elastic strain at a location (internal or surface) due to
-! ! a finite rectangular source shear dislocation in a uniform, isotropic
-! ! halfspace.
-! !
-! ! INPUTS (ALL IN SI UNITS):
-! !   - Geometric Parameters (relative to source location):
-! !         x (along-strike), y (horizontal up-dip), station depth,
-! !         event depth
-! !   - Source parameters:
-! !         fault dip (deg), fault rake (deg), along-dip width, along-
-! !         strike length, slip
-! !   - Physical parameters of half-space:
-! !         vp, vs, density
-! ! OUTPUT: strain at receiver
-! !----
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------- RECTANGULAR SOURCE ---------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+
+subroutine o92_rect_disp(disp,sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+!----
+! Compute displacement vector at a point in an elastic half-space due to a rectangular dislocation
+! Subroutine arguments:
+!     disp(3): output displacement vector (m)
+!     sta_coord(3): input station location(m) relative to center of rectangle;
+!                   x=along-strike, y=hor-up-dip, z=depth
+!     evdp: depth to center of rectangle (m), positive down
+!     dip: source fault dip (degrees)
+!     wid: down-dip width of fault (m)
+!     len: along-strike length of fault (m)
+!     slip(3): strike-slip, dip-slip, tensile-slip (m)
+!     lambda, shear_modulus: half-space parameters (Pa)
+!----
+
+implicit none
+! Arguments
+double precision :: disp(3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
+! Local variables
+integer :: i, j
+double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), uA(3), uB(3), uC(3)
+
+! write(0,*) 'o92_rect_disp: starting'
+
+! Initialize displacements
+disp = 0.0d0
+
+! If station is above surface, exit with warning
+if (sta_coord(3).lt.0.0d0) then
+    write(0,*) 'o92_rect_disp: station depth less than zero; setting displacement to zero'
+    return
+endif
+
+! Calculate some parameters for fault geometry and elastic half-space
+call dip_vars(dip)
+call halfspace_vars(lambda,shear_modulus)
+
+Css = slip(1)/(2.0d0*pi)
+Cds = slip(2)/(2.0d0*pi)
+Cts = slip(3)/(2.0d0*pi)
+
+! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the station
+! at its actual depth below the surface
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+
+! Check for singular solution when observation point lies on fault edge
+call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
+if (isSingular) then
+    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
+    return
+endif
+
+! Calculate the components of displacement for z negative
+u_ss = 0.0d0
+u_ds = 0.0d0
+u_ts = 0.0d0
+do i = 1,2
+    do j = 1,2
+        call rect_src_vars(ksi_vec(i),eta_vec(j))
+        if (dabs(Css).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ss_rect()
+            uB = chinnery_factor(i,j)*uB_ss_rect()
+            uC = chinnery_factor(i,j)*z*uC_ss_rect()
+            u_ss(1) = u_ss(1) + uA(1) + uB(1) + uC(1)
+            u_ss(2) = u_ss(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ss(3) = u_ss(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        endif
+        if (dabs(Cds).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ds_rect()
+            uB = chinnery_factor(i,j)*uB_ds_rect()
+            uC = chinnery_factor(i,j)*z*uC_ds_rect()
+            u_ds(1) = u_ds(1) + uA(1) + uB(1) + uC(1)
+            u_ds(2) = u_ds(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ds(3) = u_ds(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        endif
+        if (dabs(Cts).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ts_rect()
+            uB = chinnery_factor(i,j)*uB_ts_rect()
+            uC = chinnery_factor(i,j)*z*uC_ts_rect()
+            u_ts(1) = u_ts(1) + uA(1) + uB(1) + uC(1)
+            u_ts(2) = u_ts(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            u_ts(3) = u_ts(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        endif
+    enddo
+enddo
+
+! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the station
+! at the opposite depth
+call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
+
+! Check for singular solution when observation point lies on fault edge
+call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
+if (isSingular) then
+    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
+    return
+endif
+
+! Displacement components for z positive
+do i = 1,2
+    do j = 1,2
+        call rect_src_vars(ksi_vec(i),eta_vec(j))
+        if (dabs(Css).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ss_rect()
+            u_ss(1) = u_ss(1) - uA(1)
+            u_ss(2) = u_ss(2) - uA(2)*cd + uA(3)*sd
+            u_ss(3) = u_ss(3) - uA(2)*sd - uA(3)*cd
+        endif
+        if (dabs(Cds).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ds_rect()
+            u_ds(1) = u_ds(1) - uA(1)
+            u_ds(2) = u_ds(2) - uA(2)*cd + uA(3)*sd
+            u_ds(3) = u_ds(3) - uA(2)*sd - uA(3)*cd
+        endif
+        if (dabs(Cts).gt.1.0d-6) then
+            uA = chinnery_factor(i,j)*uA_ts_rect()
+            u_ts(1) = u_ts(1) - uA(1)
+            u_ts(2) = u_ts(2) - uA(2)*cd + uA(3)*sd
+            u_ts(3) = u_ts(3) - uA(2)*sd - uA(3)*cd
+        endif
+    enddo
+enddo
+
+disp(1) = Css*u_ss(1) + Cds*u_ds(1) + Cts*u_ts(1)
+disp(2) = Css*u_ss(2) + Cds*u_ds(2) + Cts*u_ts(2)
+disp(3) = Css*u_ss(3) + Cds*u_ds(3) + Cts*u_ts(3)
+
+! write(0,*) 'o92_rect_disp: finished'
+
+return
+end subroutine o92_rect_disp
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine o92_rect_strain(strain,sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+!----
+! Compute strain tensor at a point in an elastic half-space due to a rectangular dislocation
+! Subroutine arguments:
+!     strain(3,3): output strain tensor
+!     sta_coord(3): input station location(m) relative to center of rectangle;
+!                   x=along-strike, y=hor-up-dip, z=depth
+!     evdp: depth to center of rectangle (m), positive down
+!     dip: source fault dip (degrees)
+!     wid: down-dip width of fault (m)
+!     len: along-strike length of fault (m)
+!     slip(3): strike-slip, dip-slip, tensile-slip (m)
+!     lambda, shear_modulus: half-space parameters (Pa)
+!----
+
+implicit none
+! Arguments
+double precision :: strain(3,3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
+! Local variables
+double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
+
+! Initialize strain tensor
+strain = 0.0d0
+
+! If station is above surface, exit with warning
+if (sta_coord(3).lt.0.0d0) then
+    write(0,*) 'o92_rect_strain: station depth less than zero; setting strain to zero'
+    return
+endif
+
+! Partial derivatives of displacement equations
+call o92_rect_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
+                       sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+
+! Strains
+strain(1,1) = uxx
+strain(1,2) = 1.0d0/2.0d0*(uxy+uyx)
+strain(1,3) = 1.0d0/2.0d0*(uxz+uzx)
+strain(2,1) = strain(1,2)
+strain(2,2) = uyy
+strain(2,3) = 1.0d0/2.0d0*(uyz+uzy)
+strain(3,1) = strain(1,3)
+strain(3,2) = strain(2,3)
+strain(3,3) = uzz
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine o92_rect_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
+                             sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+!----
+! Compute partial derivatives of displacement at a point in an elastic half-space due to a
+! rectangular source dislocation.
+!----
 !       IMPLICIT NONE
 !       REAL*8 eps
 !       PARAMETER (eps=1.0d-4)
@@ -1238,32 +1154,47 @@ end function
 !       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
 !       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
 !       COMMON /TAG/ thru
-!       if (stdp.lt.0.0d0) then
-!           do 415 i = 1,3
-!               do 416 j = 1,3
-!                   strain(i,j) = 0.0d0
-!  416          continue
-!  415      continue
-!           return
-!       endif
-! !----
-! ! Initialize partial derivative components
-! !----
-!       thru = 0
-!       do 402 i = 1,6
-!           u(i) = zro
-!           do 401 j = 1,3
-!               fj(i,j) = zro
-!               fk(i,j) = zro
-!               fl(i,j) = zro
-!   401     continue
-!   402 continue
-! !----
-! ! Source and halfspace constants
-! !----
-!       call dipvar(dipin)
-!       call hafspc(vp,vs,dens)
-!       call moment1(Mss,Mds,slip,rakin)
+
+implicit none
+! Arguments
+double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, &
+                    sta_coord(3), evdp, dip, slip(3), wid, len, lambda, shear_modulus
+! Local variables
+double precision :: Css, Cds, Cts
+
+! Initialize partial derivatives
+uxx = 0.0d0
+uyx = 0.0d0
+uzx = 0.0d0
+uxy = 0.0d0
+uyy = 0.0d0
+uzy = 0.0d0
+uxz = 0.0d0
+uyz = 0.0d0
+uzz = 0.0d0
+
+! Calculate some parameters for fault geometry and elastic half-space
+call dip_vars(dip)
+call halfspace_vars(lambda,shear_modulus)
+
+! Scaling factors
+Css = slip(1)/(2.0d0*pi)
+Cds = slip(2)/(2.0d0*pi)
+Cts = slip(3)/(2.0d0*pi)
+
+! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the station
+! at its actual depth below the surface
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+
+! Check for singular solution when observation point lies on fault edge
+call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
+if (isSingular) then
+    write(0,*) 'o92_rect_strain: solution is singular, setting strains to zero'
+    return
+endif
+
+return
+end subroutine
 ! !----
 ! ! Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
 ! !----
@@ -1385,40 +1316,162 @@ end function
 ! ! with +x in direction of strike, +y updip)
 ! !----
 !   499 continue
-!       strain(1,1) = uxx
-!       strain(2,2) = uyy
-!       strain(3,3) = uzz
-!       strain(1,2) = (uxy+uyx)*0.5d0
-!       strain(1,3) = (uxz+uzx)*0.5d0
-!       strain(2,3) = (uyz+uzy)*0.5d0
-!       strain(2,1) = strain(1,2)
-!       strain(3,1) = strain(1,3)
-!       strain(3,2) = strain(2,3)
-!
-!       RETURN
-!       END
-!
-! !======================================================================C
-! !----------------------------------------------------------------------C
-! !-------------------------- SUBROUTINES -------------------------------C
-! !----------------------------------------------------------------------C
-! !======================================================================C
 
-! !----------------------------------------------------------------------C
-! !------------------- Source Moment Subroutines ------------------------C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
-! ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
-! ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
-! !------------------- Finite Source Subroutines ------------------------C
-! !----------------------------------------------------------------------C
-! !----------------------------------------------------------------------C
+!--------------------------------------------------------------------------------------------------!
+
+subroutine rect_src_coords(xin,yin,zin,cin,wid,len)
+!----
+! Calculate rotated coordinates p, q, eta, and ksi from x, y, z (station location), c (source depth),
+! fault width and length
+!----
+
+implicit none
+! Arguments
+double precision :: xin, yin, zin, cin, wid, len
+
+! write(0,*) 'rect_src_coords: starting'
+
+! Save passed arguments to module variables
+x = xin
+y = yin
+z = zin
+c = cin
+d =  c - z
+
+p = y*cd + d*sd
+q = y*sd - d*cd
+
+eta_vec(1) = p - 0.5d0*wid
+eta_vec(2) = p + 0.5d0*wid
+ksi_vec(1) = x - 0.5d0*len
+ksi_vec(2) = x + 0.5d0*len
+
+! write(0,*) 'rect_src_coords: finished'
+
+return
+end subroutine rect_src_coords
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine rect_src_vars(ksiin,etain)
+!----
+! Calculate variables from ksi, eta (receiver location relative to fault edge)
+!----
+
+implicit none
+! Arguments
+double precision :: ksiin, etain
+! Local variables
+double precision :: h, xxx
+
+! Save module variables from arguments (other variables already set)
+ksi = ksiin
+eta = etain
+
+! Some more rotated coordinates
+ybar = eta*cd + q*sd
+dbar = eta*sd - q*cd
+cbar = dbar + z
+
+R2 = ksi*ksi + eta*eta + q*q
+R  = dsqrt(R2)
+R3 = R2*R
+R5 = R3*R2
+Rd = R + dbar
+h = q*cd - z
+
+qq = q*q
+
+! Singular case (i) from Okada (1992)
+if (dabs(q).lt.1.0d-6) then
+    TH = 0.0d0
+else
+    TH = datan(ksi*eta/(q*R))
+endif
+
+! Singular case (iii) from Okada (1992)
+if (ksi.lt.0.0d0.and.dabs(R+ksi).lt.1.0d-6) then
+    X11 = 0.0d0
+    X32 = 0.0d0
+    X53 = 0.0d0
+    logRk = -dlog(R-ksi)
+else
+    Rk = R + ksi
+    X11 = 1.0d0/(R*Rk)
+    X32 = (2.0d0*R+ksi)/(R3*Rk*Rk)
+    X53 = (8.0d0*R2+9.0d0*R*ksi+3.0d0*ksi*ksi)/(R5*Rk*Rk*Rk)
+    logRk = dlog(R+ksi)
+endif
+
+! Singular case (iv) from Okada (1992)
+if (eta.lt.0.0d0.and.dabs(R+eta).lt.1.0d-6) then
+    Y11 = 0.0d0
+    Y32 = 0.0d0
+    Y53 = 0.0d0
+    logRe = -dlog(R-eta)
+else
+    Re = R+eta
+    Y11 = 1.0d0/(R*Re)
+    Y32 = (2.0d0*R+eta)/(R3*Re*Re)
+    Y53 = (8.0d0*R2+9.0d0*R*eta+3.0d0*eta*eta)/(R5*Re*Re*Re)
+    logRe = dlog(R+eta)
+endif
+Y0  = Y11 - ksi*ksi*Y32
+
+! Singular case (ii) from Okada (1992)
+if (dabs(ksi).lt.1.0d-6) then
+    I4 = 0.0d0
+else
+    xxx = sqrt(ksi*ksi+q*q)
+    I4 = sd*ksi/(Rd*cd) + 2.0d0*datan((eta*(xxx+q*cd)+xxx*(R+xxx)*sd)/(ksi*(R+xxx)*cd))/(cdcd)
+endif
+I3 = ybar/(cd*Rd) - (logRe-sd*dlog(Rd))/(cdcd)
+I1 = -ksi*cd/Rd - I4*sd
+I2 = dlog(Rd) + I3*sd
+
+Z32 = sd/R3 - h*Y32
+Z53 = 3.0d0*sd/R5 - h*Y53
+Z0  = Z32 - ksi*ksi*Z53
+
+D11 = 1.0d0/(R*Rd)
+
+K1 = ksi*(D11-Y11*sd)/cd
+K3 = (q*Y11-ybar*D11)/cd
+K2 = 1.0d0/R+K3*sd
+K4 = ksi*Y11*cd-K1*sd
+
+J2 = ksi*ybar*D11/Rd
+J5 = -(dbar+ybar*ybar/Rd)*D11
+J3 = (K1-J2*sd)/cd
+J6 = (K3-J5*sd)/cd
+J1 = J5*cd - J6*sd
+J4 = -ksi*Y11 - J2*cd + J3*sd
+
+E2 = sd/R - ybar*q/R3
+F2 = dbar/R3 + ksi*ksi*Y32*sd
+G2 = 2.0d0*X11*sd - ybar*q*X32
+H2 = dbar*q*X32 + ksi*q*Y32*sd
+P2 = cd/R3 + q*Y32*sd
+Q2 = 3.0d0*cbar*dbar/R5 - (z*Y32+Z32+Z0)*sd
+
+E3 = cd/R + dbar*q/R3
+F3 = ybar/R3 + ksi*ksi*Y32*cd
+G3 = 2.0d0*X11*cd + dbar*q*X32
+H3 = ybar*q*X32 + ksi*q*Y32*cd
+P3 = sd/R3 - q*Y32*cd
+Q3 = 3.0d0*cbar*ybar/R5 + q*Y32 - (z*Y32+Z32+Z0)*cd
+
+return
+end subroutine rect_src_vars
+
+
+
 !
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+! COMPONENTS OF DISPLACEMENT FOR A RECTANGULAR SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!         !
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
 
 function uA_ss_rect()
 implicit none
@@ -1500,7 +1553,93 @@ uC_ts_rect(2) =  CC*2.0d0*ksi*Y11*sd + dbar*X11 - a*cbar*(X11-qq*X32)
 uC_ts_rect(3) =  CC*(ybar*X11+ksi*Y11*cd) + a*q*(cbar*eta*X32+ksi*Z32)
 return
 end function
-!
+
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+! COMPONENTS OF PARTIAL DERIVATIVES FOR A RECTANGULAR SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!  !
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+function duAdx_ss_rect()
+implicit none
+double precision :: duAdx_ss_rect(3)
+duAdx_ss_rect(1) = -CA1*q*Y11   - CA2*ksi*ksi*q*Y32
+duAdx_ss_rect(2) =              - CA2*ksi*q/R3
+duAdx_ss_rect(3) =  CA1*ksi*Y11 + CA2*ksi*qq*Y32
+return
+end function
+
+function duAdx_ds_rect()
+implicit none
+double precision :: duAdx_ds_rect(3)
+duAdx_ds_rect(1) =              - CA2*ksi*q/R3
+duAdx_ds_rect(2) = -q*Y11*0.5d0 - CA2*eta*q/R3
+duAdx_ds_rect(3) =  CA1/R       + CA2*qq/R3
+return
+end function
+
+function duAdx_ts_rect()
+implicit none
+double precision :: duAdx_ts_rect(3)
+duAdx_ts_rect(1) = -CA1*ksi*Y11 + CA2*ksi*qq*Y32
+duAdx_ts_rect(2) = -CA1/R       + CA2*qq/R3
+duAdx_ts_rect(3) = -CA1*q*Y11   - CA2*qq*q*Y32
+return
+end function
+
+function duBdx_ss_rect()
+implicit none
+double precision :: duBdx_ss_rect(3)
+duBdx_ss_rect(1) =  ksi*ksi*q*Y32     - CB*J1*sd
+duBdx_ss_rect(2) =  ksi*q/R3          - CB*J2*sd
+duBdx_ss_rect(3) = -ksi*qq*Y32       - CB*J3*sd
+return
+end function
+
+function duBdx_ds_rect()
+implicit none
+double precision :: duBdx_ds_rect(3)
+duBdx_ds_rect(1) =  ksi*q/R3          + CB*J4*cdsd
+duBdx_ds_rect(2) =  eta*q/R3 + q*Y11  + CB*J5*cdsd
+duBdx_ds_rect(3) = -qq/R3            + CB*J6*cdsd
+return
+end function
+
+function duBdx_ts_rect()
+implicit none
+double precision :: duBdx_ts_rect(3)
+duBdx_ts_rect(1) = -ksi*qq*Y32      - CB*J4*sdsd
+duBdx_ts_rect(2) = -qq/R3           - CB*J5*sdsd
+duBdx_ts_rect(3) = qq*q*Y32         - CB*J6*sdsd
+return
+end function
+
+function duCdx_ss_rect()
+implicit none
+double precision :: duCdx_ss_rect(3)
+duCdx_ss_rect(1) =  CC*Y0*cd - a*q*Z0
+duCdx_ss_rect(2) = -CC*ksi*(cd/R3+2.0d0*q*Y32*sd) + a*3.0d0*cbar*ksi*q/R5
+duCdx_ss_rect(3) = -CC*ksi*q*Y32*cd + a*ksi*(3.0d0*cbar*eta/R5-z*Y32-Z32-Z0)
+return
+end function
+
+function duCdx_ds_rect()
+implicit none
+double precision :: duCdx_ds_rect(3)
+duCdx_ds_rect(1) = -CC*ksi*cd/R3 + ksi*q*Y32*sd + a*3.0d0*cbar*ksi*q/R5
+duCdx_ds_rect(2) = -CC*ybar/R3 + a*3.0d0*cbar*eta*q/R5
+duCdx_ds_rect(3) = dbar/R3 - Y0*sd + a*cbar*(1.0d0-3.0d0*qq/R2)/R3
+return
+end function
+function duCdx_ts_rect()
+implicit none
+double precision :: duCdx_ts_rect(3)
+duCdx_ts_rect(1) = CC*ksi*sd/R3 + ksi*q*Y32*cd + a*ksi*(3.0d0*cbar*eta/R5 - 2.0d0*Z32 - Z0)
+duCdx_ts_rect(2) =  CC*2.0d0*Y0*sd - dbar/R3 + a*cbar*(1.0d0-3.0d0*qq/R2)/R3
+duCdx_ts_rect(3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
+return
+end function
+
 ! !-------------------
 !
 ! !      SUBROUTINE FNXDER(fx,ksi,eta,q,z)
@@ -1525,39 +1664,8 @@ end function
 !       COMMON /TAG/ thru
 !
 !       if (thru.eq.0) then
-!           fx(1,1) = -CA1*q*Y11   - CA2*ksi*ksi*q*Y32
-!           fx(2,1) =              - CA2*ksi*q/R3
-!           fx(3,1) =  CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-!           fx(4,1) =              - CA2*ksi*q/R3
-!           fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
-!           fx(6,1) =  CA1/R       + CA2*q*q/R3
-! !          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-! !          fx(8,1) = -CA1/R       + CA2*q*q/R3
-! !          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
 !
-!           fx(1,2) =  ksi*ksi*q*Y32     - CB*J1*sd
-!           fx(2,2) =  ksi*q/R3          - CB*J2*sd
-!           fx(3,2) = -ksi*q*q*Y32       - CB*J3*sd
-!           fx(4,2) =  ksi*q/R3          + CB*J4*cdsd
-!           fx(5,2) =  eta*q/R3 + q*Y11  + CB*J5*cdsd
-!           fx(6,2) = -q*q/R3            + CB*J6*cdsd
-! !          fx(7,2) = -ksi*q*q*Y32      - CB*J4*sdsd
-! !          fx(8,2) = -q*q/R3           - CB*J5*sdsd
-! !          fx(9,2) = q*q*q*Y32         - CB*J6*sdsd
 !
-!           fx(1,3) =  CC*Y0*cd - a*q*Z0
-!           fx(2,3) = -CC*ksi*(cd/R3+2.0d0*q*Y32*sd)
-!      1                                           + a*3.0d0*cbar*ksi*q/R5
-!           fx(3,3) = -CC*ksi*q*Y32*cd
-!      1                          + a*ksi*(3.0d0*cbar*eta/R5-z*Y32-Z32-Z0)
-!           fx(4,3) = -CC*ksi*cd/R3 + ksi*q*Y32*sd + a*3.0d0*cbar*ksi*q/R5
-!           fx(5,3) = -CC*ybar/R3 + a*3.0d0*cbar*eta*q/R5
-!           fx(6,3) = dbar/R3 - Y0*sd + a*cbar*(1.0d0-3.0d0*q*q/R2)/R3
-! !          fx(7,3) =  CC*ksi*sd/R3 + ksi*q*Y32*cd
-! !         1                + a*ksi*(3.0d0*cbar*eta/R5 - 2.0d0*Z32 - Z0)
-! !          fx(8,3) =  CC*2.0d0*Y0*sd - dbar/R3
-! !         1                + a*cbar*(1.0d0-3.0d0*q*q/R2)/R3
-! !          fx(9,3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
 !       else
 !           fx(1,1) = -CA1*q*Y11   - CA2*ksi*ksi*q*Y32
 !           fx(2,1) =              - CA2*ksi*q/R3

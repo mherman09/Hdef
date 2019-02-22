@@ -389,8 +389,53 @@ call test_value(disp(1),-1.4891278409154987d-003,'o92_rect_disp(): disp(1) (z>0;
 call test_value(disp(2),-6.6628749834942423d-004,'o92_rect_disp(): disp(2) (z>0; dip-slip)')
 call test_value(disp(3),-2.6808905339339140d-003,'o92_rect_disp(): disp(3) (z>0; dip-slip)')
 write(6,*)
-! write(6,*) disp
 
+!----
+! Time to test rectangular STRAINS! WOOOOOO!
+!----
+slip_vec(1) = 1.0d0
+slip_vec(2) = 0.0d0
+slip_vec(3) = 0.0d0
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+call rect_src_vars(ksi_vec(1),eta_vec(1))
+disp = duAdx_ss_rect()
+call test_value(disp(1), 3.4306426504990750d-004,'duAdx_ss_rect(): (1)')
+call test_value(disp(2),-3.4508486032947076d-004,'duAdx_ss_rect(): (2)')
+call test_value(disp(3),-2.3607160020503188d-003,'duAdx_ss_rect(): (3)')
+disp = duAdx_ds_rect()
+call test_value(disp(1),-3.4508486032947076d-004,'duAdx_ds_rect(): (1)')
+call test_value(disp(2), 9.0562367901465455d-004,'duAdx_ds_rect(): (2)')
+call test_value(disp(3), 6.7897701068703959d-003,'duAdx_ds_rect(): (3)')
+! disp = duAdx_ts_rect()
+! write(0,*) 'duAdx_ts_rect()',disp
+disp = duBdx_ss_rect()
+write(0,*) 'duBdx_ss_rect()',disp
+call test_value(disp(1), 6.9599894428799694d-004,'duBdx_ss_rect(): (1)')
+call test_value(disp(2), 1.9194218761293762d-003,'duBdx_ss_rect(): (2)')
+call test_value(disp(3), 2.0942277171944572d-003,'duBdx_ss_rect(): (3)')
+disp = duBdx_ds_rect()
+write(0,*) 'duBdx_ds_rect()',disp
+call test_value(disp(1), 2.7417691868664293d-003,'duBdx_ds_rect(): (1)')
+call test_value(disp(2),-5.1586589356422364d-003,'duBdx_ds_rect(): (2)')
+call test_value(disp(3),-6.7076617173327598d-004,'duBdx_ds_rect(): (3)')
+! disp = duBdx_ts_rect()
+! write(0,*) 'duBdx_ts_rect()',disp
+disp = duCdx_ss_rect()
+write(0,*) 'duCdx_ss_rect()',disp
+call test_value(disp(1), 4.2126939364670769d-005,'duCdx_ss_rect(): (1)')
+call test_value(disp(2), 1.1209090419535319d-004,'duCdx_ss_rect(): (2)')
+call test_value(disp(3),-3.4475338947556833d-004,'duCdx_ss_rect(): (3)')
+disp = duCdx_ds_rect()
+write(0,*) 'duCdx_ds_rect()',disp
+call test_value(disp(1), 1.6966631277932049d-004,'duCdx_ds_rect(): (1)')
+call test_value(disp(2),-1.4986921869860253d-004,'duCdx_ds_rect(): (2)')
+call test_value(disp(3), 1.1331156239589844d-003,'duCdx_ds_rect(): (3)')
+! disp = duCdx_ts_rect()
+! write(0,*) 'duCdx_ts_rect()',disp
+
+!----
+! Compare with original code results
+!----
 xin = sta_coord(1)
 yin = sta_coord(2)
 stdp = sta_coord(3)
@@ -412,6 +457,7 @@ rakin = datan2(slip_vec(2),slip_vec(1))/d2r
 slip = dsqrt(slip_vec(1)*slip_vec(1)+slip_vec(2)*slip_vec(2))
 call o92rect(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
 ! write(6,*) ux,uy,uz
+call o92rectstn(strain,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
 
 write(6,*) 'okada92_module unit test passed'
 end
