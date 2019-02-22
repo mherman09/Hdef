@@ -316,19 +316,20 @@ other: \\
 \$(BIN)/ff2gmt: src/ff2gmt.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
 
-FLTINV_MODULES = src/fltinv_io_module.f90 \
-                 src/fltinv_variable_module.f90 \
-                 src/fltinv_gf_module.f90 \
-                 src/fltinv_lsqr_module.f90 \
+FLTINV_MODULES = \\
+                 src/fltinv_variable_module.f90 \\
+                 src/fltinv_gf_module.f90 \\
+                 src/fltinv_lsqr_module.f90 \\
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/pnpoly.f
 FLTINV_INCLUDE = \$(INCLUDE)/tri_disloc.o \\
-                 \$(INCLUDE)/elast.o
+                 \$(INCLUDE)/elast.o \\
+                 \$(INCLUDE)/io.o
 # SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(FLTINV_INCLUDE)
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE) \$(FLTINV_INCLUDE)
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE)  \$(FLTINV_INCLUDE)
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE)
+	\$(FC) \$(FFLAG) -o \$@ \$< \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE)  \$(FLTINV_INCLUDE)
 	rm *.o *.mod
 
 \$(BIN)/grid: src/grid.f
@@ -438,10 +439,8 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 ################################
 ##### MODULES AND OBJECTS ######
 ################################
-OBJECT_FILES = \$(INCLUDE)/trig.o \
-               \$(INCLUDE)/earth.o \
-               \$(INCLUDE)/tri_disloc.o \
-               \$(INCLUDE)/elast.o
+\$(INCLUDE)/io.o: src/io_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$<
 
 \$(INCLUDE)/trig.o: src/trig_module.f90
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$<

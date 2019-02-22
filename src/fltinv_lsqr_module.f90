@@ -20,7 +20,7 @@ contains
     !----
     ! Invert displacements and pre-stresses for fault slip using a direct or linear least squares approach
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip, &
                                prestress, displacement, los
     use variable_module, only: inversion_mode
@@ -159,7 +159,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_array_dimensions()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: displacement, prestress, los, fault, rake_constraint, &
                                 damping_constant, smoothing_constant, smoothing, &
                                 disp_components
@@ -242,7 +242,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_arrays()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: displacement, los, prestress, &
                                 slip_constraint, damping_constant, smoothing_constant
     implicit none
@@ -351,7 +351,7 @@ contains
     !--------------------------------------------------------------------------------------------------!
 
     subroutine load_displacements()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: displacement, fault, gf_disp, rake_constraint, disp_components
     implicit none
     integer :: i, j, ndsp, nflt
@@ -447,7 +447,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_los()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: los, fault, gf_los, rake_constraint, los_weight
     implicit none
     integer :: i, j, ndsp, nflt
@@ -484,7 +484,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_prestresses()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only : fault, prestress, rake_constraint, gf_stress, stress_weight
     implicit none
     ! Local variables
@@ -529,7 +529,7 @@ contains
     ! Add equations to model matrix to minimize the length of the solution to Ax = b
     ! with weighting factor damping_constant*damping_constant.
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     use variable_module, only: damping_constant
     implicit none
     ! Local variables
@@ -568,7 +568,7 @@ contains
     ! Add equations to model matrix to minimize the curvature (second derivative)
     ! of the solution to Ax = b with weighting factor smooth.
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     use variable_module, only : smoothing, smoothing_constant, smoothing_neighbors, &
                                 fault, rake_constraint
     implicit none
@@ -621,7 +621,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_slip_constraints()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: displacement, prestress, fault, &
                                 disp_components, slip_constraint, rake_constraint, &
                                 smoothing
@@ -896,7 +896,7 @@ contains
     !----
     ! Solve generalized least squares problem Ax = b for x using generalized least squares.
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     implicit none
     ! Local variables
     integer :: i, m, n, lda, ldb
@@ -973,7 +973,7 @@ contains
     !----
     ! Solve generalized least squares problem Ax = b for x using nonnegative least squares.
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     implicit none
     ! Local variables
     integer :: i, m, n
@@ -1015,7 +1015,7 @@ contains
     !----
     ! Solve Ax = b for x using LU decomposition and partial pivoting (LAPACK routine GESV).
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     implicit none
     ! Local variables
     integer :: i, n, nrhs, lda, ipiv(nrows), ldb, info
@@ -1073,7 +1073,7 @@ contains
     !----
     ! Solve Ax = b for x using LU decomposition and partial pivoting (SuperLU routine GSSV).
     !----
-    use io_module, only : stderr, verbosity
+    use io, only : stderr, verbosity
     implicit none
     ! Local variables
     integer :: i, j, info, nZero, nNonZero, iopt, nrhs, ldb

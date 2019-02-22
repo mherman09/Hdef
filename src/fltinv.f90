@@ -27,12 +27,13 @@ subroutine fltinv_readin()
 ! Read the input files for fltinv
 !----
 
-use io_module, only: stderr, verbosity, read_program_data_file
+use io, only: stderr, verbosity
 use variable_module, only: inversion_mode, &
                            displacement, prestress, los, fault, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            smoothing, rake_constraint, slip_constraint, &
-                           halfspace, coord_type, disp_components, disp_cov_file, disp_cov_mat
+                           halfspace, coord_type, disp_components, disp_cov_file, disp_cov_mat, &
+                           read_program_data_file
 use elast, only: calc_plane_unit_vectors, trac_vector, calc_traction_components
 use tri_disloc, only: tri_geometry, tri_geo2cart
 
@@ -551,7 +552,7 @@ subroutine read_smoothing_neighbors()
 !----
 ! Read in file defining fault neighbors for Laplacian smoothing
 !----
-use io_module, only: verbosity, stderr
+use io, only: verbosity, stderr
 use variable_module, only: smoothing, smoothing_neighbors
 implicit none
 ! Local variables
@@ -608,7 +609,7 @@ end subroutine read_smoothing_neighbors
 !--------------------------------------------------------------------------------------------------!
 
 subroutine calc_greens_functions()
-use io_module, only: stderr, verbosity
+use io, only: stderr, verbosity
 use variable_module, only: inversion_mode, displacement, los, prestress, &
                            gf_type, gf_disp, gf_stress, gf_los
 use gf_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect, &
@@ -684,7 +685,7 @@ end subroutine calc_greens_functions
 !--------------------------------------------------------------------------------------------------!
 
 subroutine run_inversion()
-use io_module, only: stderr, verbosity
+use io, only: stderr, verbosity
 use variable_module, only: inversion_mode
 use lsqr_module, only: invert_lsqr
 use anneal_module, only: invert_anneal, invert_anneal_pseudocoupling
@@ -717,7 +718,7 @@ end subroutine run_inversion
 subroutine free_memory()
 ! Deallocate arrays
 
-use io_module, only: stderr, verbosity
+use io, only: stderr, verbosity
 use variable_module, only: displacement, prestress, los, fault, &
                            gf_disp, gf_stress, gf_los, &
                            smoothing, smoothing_neighbors, rake_constraint, slip_constraint, &
@@ -775,7 +776,7 @@ end subroutine free_memory
 !--------------------------------------------------------------------------------------------------!
 
 subroutine write_solution()
-use io_module, only: stdout, stderr, verbosity
+use io, only: stdout, stderr, verbosity
 use variable_module, only: output_file, inversion_mode, fault, fault_slip, rake_constraint, &
                            disp_misfit_file, los_misfit_file
 use anneal_module, only: disp_misfit_l2norm, los_misfit_l2norm
@@ -917,13 +918,13 @@ end subroutine write_solution
 !-----------------------------------------------------------------------------__________-----------!
 
 subroutine initialize_fltinv_variables()
-use io_module, only: verbosity, initialize_program_data
+use io, only: verbosity
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
-                           los, los_weight, disp_cov_file
+                           los, los_weight, disp_cov_file, initialize_program_data
 use lsqr_module, only: lsqr_mode
 use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
@@ -985,7 +986,7 @@ end
 !--------------------------------------------------------------------------------------------------!
 
 subroutine gcmdln()
-use io_module, only: stderr, verbosity
+use io, only: stderr, verbosity
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
@@ -1229,7 +1230,7 @@ subroutine usage(string)
 !----
 ! Print program usage statement and exit
 !----
-use io_module, only: stderr
+use io, only: stderr
 implicit none
 character(len=*) :: string
 integer :: string_length

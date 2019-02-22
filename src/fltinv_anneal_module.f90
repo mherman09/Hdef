@@ -26,7 +26,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine invert_anneal()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: fault_slip, fault
     implicit none
     ! Local variables
@@ -92,7 +92,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine initialize_annealing()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint
     implicit none
     ! Local variables
@@ -198,7 +198,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine run_annealing_search()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight, &
                                los_weight, smoothing_constant
     implicit none
@@ -763,7 +763,7 @@ contains
 
 
     subroutine invert_anneal_pseudocoupling()
-    use io_module, only: verbosity, stderr
+    use io, only: verbosity, stderr
     use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip
     use lsqr_module, only: invert_lsqr, A, b, x, isAsaveLoaded
     implicit none
@@ -1059,7 +1059,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine initialize_annealing_psc()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: fault, slip_constraint
     implicit none
     ! Local variables

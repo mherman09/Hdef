@@ -9,7 +9,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_okada_rect()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
     implicit none
@@ -147,7 +147,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_stress_okada_rect()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
     use elast
@@ -312,7 +312,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_los_okada_rect()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                los, fault, gf_los, halfspace, rake_constraint
     implicit none
@@ -438,7 +438,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_okada_pt()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
     implicit none
@@ -569,7 +569,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_stress_okada_pt()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress
     use elast
@@ -723,7 +723,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_los_okada_pt()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                los, fault, gf_los, halfspace, rake_constraint
     implicit none
@@ -850,7 +850,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_disp_tri()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
     use tri_disloc, only: tri_disloc_disp, tri_center
@@ -1000,7 +1000,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_stress_tri()
-    use io_module, only: stderr, verbosity
+    use io, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
     use elast
@@ -1219,7 +1219,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_gf_los_tri()
-    ! use io_module, only: stderr, verbosity
+    ! use io, only: stderr, verbosity
     ! use variable_module, only: inversion_mode, &
     !                            los, fault, gf_los, halfspace, rake_constraint
     implicit none
