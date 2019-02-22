@@ -1,5 +1,5 @@
 program main
-use tri_disloc_module
+use tri_disloc
 implicit none
 double precision :: disp(3), strain(3,3), tri_coord(3,4), sta_coord(3), slip(3)
 

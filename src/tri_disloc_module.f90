@@ -21,8 +21,8 @@ double precision :: R, R2, R3, R5, Rbar, R2bar, R3bar, R4bar, R5bar
 double precision :: z1, z3, y3bar, z1bar, z3bar
 double precision :: F, Fbar
 
-private :: y1, y2, y3, a, b, nu, B1, B2, B3, sinb, cosb, cotb, R, R2, R3, R5, Rbar, R2bar, R3bar, &
-           R4bar, R5bar, z1, z3, y3bar, z1bar, z3bar, F, Fbar
+! private :: y1, y2, y3, a, b, nu, B1, B2, B3, sinb, cosb, cotb, R, R2, R3, R5, Rbar, R2bar, R3bar, &
+!            R4bar, R5bar, z1, z3, y3bar, z1bar, z3bar, F, Fbar
 
 !--------------------------------------------------------------------------------------------------!
 contains

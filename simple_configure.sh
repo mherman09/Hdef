@@ -212,7 +212,7 @@ echo "##########################################################################
 echo "##########                           INSTALL THE CODES!                                   ##########"
 echo "####################################################################################################"
 echo "You used the options: -f=${FC} -l=${LAPACK_LIB_DIR} -b=${BIN_DIR}"
-echo "Type \"make\""
+echo "Type \"make\" to install codes"
 
 if [ "$LAPACK_LIB_DIR" != "" ]
 then
@@ -328,6 +328,7 @@ FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(INCLUDE)/tri_disloc.mod \$(INCLUDE)/tri_disloc.o
 	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
+	rm *.o *.mod
 
 \$(BIN)/grid: src/grid.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
@@ -373,8 +374,9 @@ FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
 
-\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.mod
-	\$(FC) \$(FFLAG) -o \$@ src/triutil.f90 src/pnpoly.f src/geomsubs.f -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
+\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
+	rm triutil_module.mod
 
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
@@ -419,12 +421,11 @@ test: \\
       test_tri_disloc \
       test_okada92
 
-test_tri_disloc: src/tri_disloc_module.f90 src/pnpoly.f src/tri_disloc_unit_tests.f90 src/geomsubs.f
-	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -o \$@ \$^
-	rm *.o *.mod
+test_tri_disloc: src/tri_disloc_unit_tests.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
 	\$@
 	rm \$@
+
 test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.f
 	\$(FC) \$(FFLAG) -c src/okada92_module.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
@@ -435,18 +436,17 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 ################################
 ##### MODULES AND OBJECTS ######
 ################################
-objects: \\
-    \$(INCLUDE)/trig.o \
-    \$(INCLUDE)/earth.o \
-    \$(INCLUDE)/tri_disloc.o
+OBJECT_FILES = \$(INCLUDE)/trig.o \
+               \$(INCLUDE)/earth.o \
+               \$(INCLUDE)/tri_disloc.o
 
 \$(INCLUDE)/trig.o: src/trig_module.f90
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/trig.o src/trig_module.f90
 
-\$(INCLUDE)/earth.o: src/earth_module.f90 \$(INCLUDE)/trig.mod
+\$(INCLUDE)/earth.o: src/earth_module.f90 \$(INCLUDE)/trig.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/earth.o src/earth_module.f90 -I\$(INCLUDE)
 
-\$(INCLUDE)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE)/trig.mod
+\$(INCLUDE)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE)/trig.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/tri_disloc.o src/tri_disloc_module.f90 -I\$(INCLUDE)
 
 \$(INCLUDE)/%.o: \$(INCLUDE)/%.mod
@@ -457,39 +457,8 @@ objects: \\
 # Clean bin directory
 .PHONY: clean
 clean:
-	-rm \$(BIN)/colortool
-	-rm \$(BIN)/dateutil
-	-rm \$(BIN)/distaz2lola
-	-rm \$(BIN)/eqempirical
-	-rm \$(BIN)/eventfrequency
-	-rm \$(BIN)/ff2gmt
-	-rm \$(BIN)/fltinv
-	-rm \$(BIN)/grid
-	-rm \$(BIN)/lola2distaz
-	-rm \$(BIN)/mtutil
-	-rm \$(BIN)/multifit
-	-rm \$(BIN)/numint
-	-rm \$(BIN)/o92util
-	-rm \$(BIN)/perturb
-	-rm \$(BIN)/platemotion
-	-rm \$(BIN)/polyfit
-	-rm \$(BIN)/polyfit_special
-	-rm \$(BIN)/readGCMT
-	-rm \$(BIN)/readkik
-	-rm \$(BIN)/sphfinrot
-	-rm \$(BIN)/stereo_project
-	-rm \$(BIN)/triutil
-	-rm \$(BIN)/utm2geo
-	-rm \$(BIN)/vec2los
-	-rm \$(BIN)/wraplos
-	-rm \$(BIN)/coul_dip.sh
-	-rm \$(BIN)/coul_hor.sh
-	-rm \$(BIN)/coul_xsec.sh
-	-rm \$(BIN)/gmtcpt.sh
-	-rm \$(BIN)/simplify_ffm.sh
-	-rm \$(BIN)/surf_disp.sh
-	-rm \$(BIN)/ternary.sh
-	-rm \$(BIN)/trg_schem.sh
+	-rm \$(BIN)/*
+	-rm \$(INCLUDE)/*
 
 
 EOF
