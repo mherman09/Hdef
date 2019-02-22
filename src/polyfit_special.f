@@ -10,6 +10,11 @@
       REAL*8 twind(TMAX,3)
       CHARACTER*1 ttype
 
+#ifndef USELAPACK
+      write(0,*) 'polyfit_special: compile with LAPACK to use'
+      stop
+#endif
+
 C      call gcmdln(ifile,wfile)
 C      call readwin(wfile,twind,nwind,ttype)
 C
@@ -132,9 +137,13 @@ C----
           b(i,1) = ts(i,2)
   103 continue
       lwork = -1
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       lwork = min(lwmax,int(work(1)))
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       do 104 i = 1,2
           print *,b(i,1)
   104 continue
@@ -148,9 +157,13 @@ C
           b(i,1) = ts(i,3)
   105 continue
       lwork = -1
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       lwork = min(lwmax,int(work(1)))
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,b,ldb,work,lwork,info)
+#endif
       do 106 i = 1,2
           print *,b(i,1)
   106 continue
