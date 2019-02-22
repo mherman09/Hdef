@@ -17,6 +17,11 @@ C Observation variables
       !REAL*8 afreq,period
       !INTEGER dimx,dimy,m,n
 
+#ifndef USELAPACK
+      write(0,*) 'multifit: compile with LAPACK to use'
+      stop
+#endif
+
 C----
 C Parse command line
 C----
@@ -233,7 +238,9 @@ C----
       ldb = max(m,n)  ! Leading dimension of b  ldb >= max(1,m,n)
 C Compute optimal workspace
       lwork = -1
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,A,lda,b,ldb,work,lwork,info)
+#endif
       lwork = int(work(1))
       !print *,'LWORK',lwork
 C Copy observation vector, b to btmp (replaced in dgels)
@@ -241,7 +248,9 @@ C Copy observation vector, b to btmp (replaced in dgels)
           btmp(i,1) = b(i,1)
   441 continue
 C Compute parameter array
+#ifdef USELAPACK
       call dgels(trans,m,n,nrhs,a,lda,btmp,ldb,work,lwork,info)
+#endif
       do 442 i = 1,npar
           x(i,1) = btmp(i,1)
   442 continue
@@ -318,4 +327,3 @@ C----------------------------------------------------------------------C
      1 '    -exp         Fit an exponential'
       STOP
       END
-

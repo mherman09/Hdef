@@ -1,4 +1,4 @@
-module tri_disloc_module
+module tri_disloc
 !----
 ! Translation of Brendan Meade's Matlab triangular dislocation code into Fortran module
 ! By Matthew Herman, Utrecht University
@@ -10,6 +10,8 @@ module tri_disloc_module
 ! Geosciences. doi:10.1016/j.cageo.2006.12.003.
 !----
 
+use trig, only: pi, r2d, d2r
+
 ! Angular dislocation inputs
 double precision :: y1, y2, y3, a, b, nu, B1, B2, B3
 
@@ -19,19 +21,28 @@ double precision :: R, R2, R3, R5, Rbar, R2bar, R3bar, R4bar, R5bar
 double precision :: z1, z3, y3bar, z1bar, z3bar
 double precision :: F, Fbar
 
-! Parameters
-double precision, parameter :: pi = datan(1.0d0)*4.0d0
-double precision, parameter :: d2r = pi/180.0d0
-double precision, parameter :: r2d = 180.0d0/pi
+! private :: y1, y2, y3, a, b, nu, B1, B2, B3, sinb, cosb, cotb, R, R2, R3, R5, Rbar, R2bar, R3bar, &
+!            R4bar, R5bar, z1, z3, y3bar, z1bar, z3bar, F, Fbar
 
 !--------------------------------------------------------------------------------------------------!
-
 contains
-
 !--------------------------------------------------------------------------------------------------!
 
 !**function [U] = CalcTriDisps(sx, sy, sz, x, y, z, pr, ss, ts, ds)
 subroutine tri_disloc_disp(disp, sta_coord, tri_coord, poisson, slip)
+
+!----
+! Arguments
+! sta_coord(3): station coordinates (formerly sx, sy, sz)
+! tri_coord(3,3): triangle coordinates (formerly x, y, z)
+! poisson: Poisson's ratio (formerly pr)
+! slip(3): strike-slip, dip-slip, tensile-slip (formerly ss, ds, ts)
+! disp(3): displacements (formerly U)
+! IMPORTANT NOTES:
+!   - Input strike-slip is positive RIGHT-LATERAL (Aki & Richards convention is positive left-lateral)
+!   - Input dip-slip is positive NORMAL (Aki & Richards convention is positive THRUST)
+!   - Output vertical displacement is positive down
+!----
 
 !**% CalcTriDisps.m
 !**%
@@ -85,14 +96,6 @@ subroutine tri_disloc_disp(disp, sta_coord, tri_coord, poisson, slip)
 
 implicit none
 
-!----
-! Arguments
-! sta_coord(3): station coordinates (formerly sx, sy, sz)
-! tri_coord(3,3): triangle coordinates (formerly x, y, z)
-! poisson: Poisson's ratio (formerly pr)
-! slip(3): strike-slip, dip-slip, tensile-slip (formerly ss, ds, ts)
-! disp(3): displacements (formerly U)
-!----
 double precision :: disp(3), sta_coord(3), tri_coord(3,4), poisson, slip(3)
 
 ! Local variables
@@ -327,6 +330,19 @@ end subroutine
 !**function [S] = CalcTriStrains(sx, sy, sz, x, y, z, pr, ss, ts, ds)
 subroutine tri_disloc_strain(strain_output, sta_coord, tri_coord, poisson, slip)
 
+!----
+! Arguments
+! sta_coord(3): station coordinates (formerly sx, sy, sz)
+! tri_coord(3,3): triangle coordinates (formerly x, y, z)
+! poisson: Poisson's ratio (formerly pr)
+! slip(3): strike-slip, dip-slip, tensile-slip (formerly ss, ds, ts)
+! strain(3,3): strains (formerly S)
+! IMPORTANT NOTES:
+!   - Input strike-slip is positive RIGHT-LATERAL (Aki & Richards convention is positive left-lateral)
+!   - Input dip-slip is positive NORMAL (Aki & Richards convention is positive THRUST)
+!   - Output vertical displacement is positive down, so xz and yz are also opposite signs
+!----
+
 !**% CalcTriStrains.m
 !**%
 !**% Calculates strains due to slip on a triangular dislocation in an
@@ -381,14 +397,6 @@ subroutine tri_disloc_strain(strain_output, sta_coord, tri_coord, poisson, slip)
 
 implicit none
 
-!----
-! Arguments
-! sta_coord(3): station coordinates (formerly sx, sy, sz)
-! tri_coord(3,3): triangle coordinates (formerly x, y, z)
-! poisson: Poisson's ratio (formerly pr)
-! slip(3): strike-slip, dip-slip, tensile-slip (formerly ss, ds, ts)
-! strain(3,3): strains (formerly S)
-!----
 double precision :: strain_output(3,3), sta_coord(3), tri_coord(3,4), poisson, slip(3)
 
 ! Local variables
@@ -3231,9 +3239,25 @@ center(3) = (p1(3)+p2(3)+p3(3))/3.0d0
 return
 end
 
-subroutine tri_geometry(normal,strike,updip,p1,p2,p3)
+subroutine tri_geometry(normal,strike,updip,p1in,p2in,p3in)
+!----
+! Calculate the triangle normal vector, strike-parallel vector, and up-dip vector
+! Assumes depths of points are positive down, but vectors have positive z up
+!----
+
 implicit none
-double precision :: normal(3), strike(3), updip(3), p1(3), p2(3), p3(3), magnitude
+! Arguments
+double precision :: normal(3), strike(3), updip(3), p1in(3), p2in(3), p3in(3)
+! Local variables
+double precision :: p1(3), p2(3), p3(3), magnitude
+
+p1 = p1in
+p2 = p2in
+p3 = p3in
+p1(3) = -p1(3)
+p2(3) = -p2(3)
+p3(3) = -p3(3)
+
 ! Normal vector
 normal(1) = (p2(2)-p1(2))*(p3(3)-p1(3)) - (p2(3)-p1(3))*(p3(2)-p1(2))
 normal(2) = (p2(3)-p1(3))*(p3(1)-p1(1)) - (p2(1)-p1(1))*(p3(3)-p1(3))
@@ -3241,15 +3265,66 @@ normal(3) = (p2(1)-p1(1))*(p3(2)-p1(2)) - (p2(2)-p1(2))*(p3(1)-p1(1))
 magnitude = normal(1)*normal(1)+normal(2)*normal(2)+normal(3)*normal(3)
 magnitude = dsqrt(magnitude)
 normal = normal/magnitude
+! Normal must point upward
+if (normal(3).lt.0.0d0) then
+    normal = -normal
+endif
+
 ! Strike-parallel vector
 strike(1) = -dsin(datan2(normal(2),normal(1)))
 strike(2) = dcos(datan2(normal(2),normal(1)))
 strike(3) = 0.0d0
+
 ! Vector pointing up-dip
 updip(1) = normal(2)*strike(3) - normal(3)*strike(2)
 updip(2) = normal(3)*strike(1) - normal(1)*strike(3)
 updip(3) = normal(1)*strike(2) - normal(2)*strike(1)
+
+! write(0,*) 'tri_geometry: normal',normal
+! write(0,*) 'tri_geometry: strike',strike
+! write(0,*) 'tri_geometry: updip',updip
+
 return
-end
+end subroutine
+
+subroutine tri_geo2cart(pt1,pt2,pt3,pt1_in,pt2_in,pt3_in,depthUnits)
+implicit none
+! Arguments
+double precision :: pt1(3),pt2(3),pt3(3),pt1_in(3),pt2_in(3),pt3_in(3)
+character(len=*) :: depthUnits
+! Local variables
+double precision :: center(3), dist, az, radius
+
+radius = 0.0d0
+if (trim(depthUnits).eq.'m') then
+    radius = 6.371d6
+elseif (trim(depthUnits).eq.'km') then
+    radius = 6.371d3
+else
+    write(0,*) 'tri_geo2cart: no depth unit named ',trim(depthUnits)
+endif
+
+call tri_center(center,pt1_in,pt2_in,pt3_in)
+
+call ddistaz(dist,az,center(1),center(2),pt1_in(1),pt1_in(2))
+dist = dist*radius
+pt1(1) = dist*dsin(az)
+pt1(2) = dist*dcos(az)
+pt1(3) = pt1_in(3)
+
+call ddistaz(dist,az,center(1),center(2),pt2_in(1),pt2_in(2))
+dist = dist*radius
+pt2(1) = dist*dsin(az)
+pt2(2) = dist*dcos(az)
+pt2(3) = pt2_in(3)
+
+call ddistaz(dist,az,center(1),center(2),pt3_in(1),pt3_in(2))
+dist = dist*radius
+pt3(1) = dist*dsin(az)
+pt3(2) = dist*dcos(az)
+pt3(3) = pt3_in(3)
+
+return
+end subroutine
 
 end module

@@ -326,12 +326,17 @@ C moment tensor source.
 C----
       IMPLICIT none
       CHARACTER*180 line,soln
+#ifdef USELAPACK
       INTEGER n,lda,lwmax
       PARAMETER (n=3,lda=n,lwmax=250)
       INTEGER info,lwork
       REAL*8 a(lda,n),w(n),work(lwmax),m(6)
       REAL*8 p(3),t(3),slip(3),normal(3),str,dip,rak,str2,dip2,rak2
       INTEGER i
+#endif
+
+#ifdef USELAPACK
+
 C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
 C Moment tensor components (r=z, t=e, p=n):
       read(line,*) m(1),m(2),m(3),m(4),m(5),m(6)
@@ -344,12 +349,14 @@ C Moment tensor components (r=z, t=e, p=n):
       a(3,1) =  m(5)
       a(1,2) = -m(6)     ! mtp = -mxy
       a(1,2) = -m(6)
+
 C Query the optimal workspace
       lwork = -1
       call dsyev('Vectors','Upper',n,a,lda,w,work,lwork,info)
       lwork = min(lwmax,int(work(1)))
 C Solve eigenproblem
       call dsyev('Vectors','Upper',n,a,lda,w,work,lwork,info)
+
 C Compute best-fitting focal mechanism
       do 103 i = 1,3
           p(i) = a(i,1)
@@ -361,6 +368,15 @@ C Compute best-fitting focal mechanism
       call sdr2sdr(line,soln)
       read(soln,*) str2,dip2,rak2
       write(soln,1001) str,dip,rak,str2,dip2,rak2
+
+#else
+
+      write(0,*) 'mij2sdr: mtutil not compiled with LAPACK libraries;',
+     1           ' returning with zeros'
+      write(soln,1001) 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+#endif
+
  1001 format(6F6.0)
       RETURN
       END
@@ -446,11 +462,14 @@ C Compute P, N, and T vectors from a moment tensor input
 C----
       IMPLICIT none
       CHARACTER*180 line,soln
+#ifdef USELAPACK
       INTEGER n,lda,lwmax
       PARAMETER (n=3,lda=n,lwmax=250)
       INTEGER info,lwork
-      REAL*8 a(lda,n),w(n),work(lwmax),m(6)
+      REAL*8 a(lda,n),w(n),work(lwmax)
+      REAL*8 m(6)
       REAL*8 p(3),o(3),t(3)
+#endif
 
 C There seems to be some confusion in my mind as to the definitions of r, t, and p
 
@@ -472,6 +491,8 @@ C     mrt = -myz
 C     mrp = mxz
 C     mtp = -mxy
 
+#ifdef USELAPACK
+
 C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
       read(line,*) m(1),m(2),m(3),m(4),m(5),m(6)
       a(3,3) =  m(1)     ! mrr =  mzz
@@ -483,12 +504,15 @@ C Get input moment tensor (mrr, mtt, mpp, mrt, mrp, mtp; r=z, t=s, p=e)
       a(3,1) =  m(5)
       a(1,2) = -m(6)     ! mtp = -mxy
       a(1,2) = -m(6)
+
 C Query the optimal workspace
       lwork = -1
       call dsyev('Vectors','Upper',n,a,lda,w,work,lwork,info)
       lwork = min(lwmax,int(work(1)))
 C Solve eigenproblem
       call dsyev('Vectors','Upper',n,a,lda,w,work,lwork,info)
+
+
       p(1) = a(1,1)
       p(2) = a(2,1)
       p(3) = a(3,1)
@@ -498,9 +522,20 @@ C Solve eigenproblem
       t(1) = a(1,3)
       t(2) = a(2,3)
       t(3) = a(3,3)
+
 C Write P, N, and T vectors
       write(soln,1001) p(1),p(2),p(3),o(1),o(2),o(3),t(1),t(2),t(3),
      1                 w(1),w(2),w(3)
+
+#else
+
+      write(0,*) 'mij2pnt: mtutil not compiled with LAPACK libraries;',
+     1           ' returning with zeros'
+      write(soln,1001) 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+     1                 0.0, 0.0, 0.0
+
+#endif
+
  1001 format(9F7.3,3(1P1E14.6))
       RETURN
       END
@@ -589,7 +624,7 @@ C----------------------------------------------------------------------C
      1             pnt(2,1),pnt(2,2),pnt(2,3),
      2             pnt(3,1),pnt(3,2),pnt(3,3),
      3             eig(1),eig(2),eig(3)
-      mxx = eig(1)*pnt(1,1)*pnt(1,1) + eig(2)*pnt(2,1)*pnt(2,1) + 
+      mxx = eig(1)*pnt(1,1)*pnt(1,1) + eig(2)*pnt(2,1)*pnt(2,1) +
      1                                          eig(3)*pnt(3,1)*pnt(3,1)
       myy = eig(1)*pnt(1,2)*pnt(1,2) + eig(2)*pnt(2,2)*pnt(2,2) +
      1                                          eig(3)*pnt(3,2)*pnt(3,2)

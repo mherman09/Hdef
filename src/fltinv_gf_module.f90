@@ -73,7 +73,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -99,7 +99,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -149,8 +149,8 @@ contains
     subroutine calc_gf_stress_okada_rect()
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
-                               gf_stress
-    use elast_module
+                               gf_stress, sts_dist
+    use elast
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
@@ -223,6 +223,18 @@ contains
                 stdp = evdp + 1.0d0
             endif
 
+            ! Set resolved tractions to zero if distance is larger than threshold
+            dist = dsqrt(x*x+ &
+                         y*y+ &
+                        (stdp-evdp)*(stdp-evdp))
+            if (dist.gt.sts_dist) then
+                gf_stress%array(i,j) = 0.0d0
+                gf_stress%array(i,j+fault%nrecords) = 0.0d0
+                gf_stress%array(i+fault%nrecords,j) = 0.0d0
+                gf_stress%array(i+fault%nrecords,j+fault%nrecords) = 0.0d0
+                cycle
+            endif
+
             ! Check for rake constraints; if none, calculate strike-slip GFs
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr') then
                 if (rake_constraint%nrecords.eq.1) then
@@ -230,7 +242,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -241,7 +253,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -256,7 +268,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -266,7 +278,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -359,7 +371,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -384,7 +396,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -481,7 +493,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -508,7 +520,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_disp_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -560,7 +572,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress
-    use elast_module
+    use elast
     implicit none
     ! Local variables
     double precision :: slip, stlo, stla, stdp, sta_str, sta_dip
@@ -639,7 +651,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -651,7 +663,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -666,7 +678,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_stress_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -677,7 +689,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -769,7 +781,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -795,7 +807,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
+                    call usage('!! calc_gf_los_okada_pt: incorrect number of rake '// &
                                      'constraints')
                 endif
             else
@@ -841,7 +853,7 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, &
                                displacement, fault, gf_disp, halfspace, rake_constraint
-    use tri_disloc_module, only: tri_disloc_disp, tri_center
+    use tri_disloc, only: tri_disloc_disp, tri_center
     implicit none
     ! Local variables
     integer :: i, j, iTri
@@ -863,7 +875,7 @@ contains
     ! Half-space array contains vp, vs, density
     shear_modulus = halfspace%array(1,2)*halfspace%array(1,2)*halfspace%array(1,3)
     lambda = halfspace%array(1,1)*halfspace%array(1,1)*halfspace%array(1,3) - 2.0d0*shear_modulus
-    poisson = lambda/(lambda+2.0d0*shear_modulus)
+    poisson = lambda/2.0d0/(lambda+shear_modulus)
 
     ! Displacement Green's function for each fault-station pair
     do i = 1,displacement%nrecords
@@ -916,7 +928,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -927,6 +939,8 @@ contains
 
             ! Strike-slip Green's function
             call tri_disloc_disp(disp, sta_coord_new, tri_coord_new, poisson, slip)
+            ! Flip z-component
+            disp(3) = -disp(3)
             gf_disp%array(i,                        j) = disp(1)
             gf_disp%array(i+1*displacement%nrecords,j) = disp(2)
             gf_disp%array(i+2*displacement%nrecords,j) = disp(3)
@@ -939,7 +953,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -950,6 +964,8 @@ contains
 
             ! Dip-slip (or second rake) Green's function
             call tri_disloc_disp(disp, sta_coord_new, tri_coord_new, poisson, slip)
+            ! Flip z-component
+            disp(3) = -disp(3)
             gf_disp%array(i,                        j+fault%nrecords) = disp(1)
             gf_disp%array(i+1*displacement%nrecords,j+fault%nrecords) = disp(2)
             gf_disp%array(i+2*displacement%nrecords,j+fault%nrecords) = disp(3)
@@ -987,16 +1003,16 @@ contains
     use io_module, only: stderr, verbosity
     use variable_module, only: inversion_mode, coord_type, fault, rake_constraint, halfspace, &
                                gf_stress, sts_dist
-    use elast_module
-    use tri_disloc_module, only: tri_disloc_strain, tri_center, tri_geometry
+    use elast
+    use tri_disloc, only: tri_disloc_strain, tri_center, tri_geometry, tri_geo2cart
     implicit none
     ! Local variables
-    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), evt_coord(3), &
+    double precision :: slip(3), slip_magnitude, rak, sta_coord(3), tri_coord(3,4), &
                         tri_coord_new(3,4), sta_coord_new(3), center(3)
     double precision :: shear_modulus, lambda, poisson
     double precision :: unit_normal(3), unit_strike(3), unit_updip(3)
     double precision :: strain(3,3), stress(3,3), traction(3), traction_components(3)
-    double precision :: dist, az
+    double precision :: dist, az, pt1(3), pt2(3), pt3(3)
     double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
     integer :: i, j, k, prog, iTri
 
@@ -1014,7 +1030,7 @@ contains
     ! Half-space array contains vp, vs, density
     shear_modulus = halfspace%array(1,2)*halfspace%array(1,2)*halfspace%array(1,3)
     lambda = halfspace%array(1,1)*halfspace%array(1,1)*halfspace%array(1,3) - 2.0d0*shear_modulus
-    poisson = lambda/(lambda+2.0d0*shear_modulus)
+    poisson = lambda/2.0d0/(lambda+shear_modulus)
 
     ! Shear stress Green's functions for each fault-fault pair
     do i = 1,fault%nrecords
@@ -1026,10 +1042,21 @@ contains
             endif
         endif
         call tri_center(sta_coord,fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
-        call tri_geometry(unit_normal,unit_strike,unit_updip,&
-                          fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
+        if (coord_type.eq.'cartesian') then
+            call tri_geometry(unit_normal,unit_strike,unit_updip,&
+                              fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
+        elseif (coord_type.eq.'geographic') then
+            ! Triangle points: lon lat dep(m) to x y z
+            call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
+                              fault%array(i,7:9),'m')
+            call tri_geometry(unit_normal,unit_strike,unit_updip,pt1,pt2,pt3)
+        endif
+        ! write(0,*) 'unit_normal:',unit_normal
+        ! write(0,*) 'unit_strike:',unit_strike
+        ! write(0,*) 'unit_updip:',unit_updip
 
         do j = 1,fault%nrecords
+            ! write(0,*) i,j
             tri_coord(1,1) = fault%array(j,1)
             tri_coord(2,1) = fault%array(j,2)
             tri_coord(3,1) = fault%array(j,3)
@@ -1074,8 +1101,8 @@ contains
 
             ! Avoid singular solutions with measurement point lying on fault
             do k = 1,3
-                if (dabs(evt_coord(k)-sta_coord_new(k)).lt.1.0d0) then
-                    sta_coord_new(k) = evt_coord(k) + 1.0d0
+                if (dabs(center(k)-sta_coord_new(k)).lt.1.0d-3) then
+                    sta_coord_new(k) = center(k) + 1.0d-3
                 endif
             enddo
 
@@ -1086,7 +1113,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,1)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 0.0d0
@@ -1096,16 +1123,31 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
+            ! write(0,*) 'sta_coord:',sta_coord_new
+            ! write(0,*) 'tri_coord1:',tri_coord_new(:,1)
+            ! write(0,*) 'tri_coord2:',tri_coord_new(:,2)
+            ! write(0,*) 'tri_coord3:',tri_coord_new(:,3)
+            ! write(0,*) 'poisson:',poisson
+            ! write(0,*) 'slip:',slip
             call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
+            ! Flip some strain components
+            strain(1,3) = -strain(1,3)
+            strain(3,1) = -strain(1,3)
+            strain(2,3) = -strain(2,3)
+            strain(3,2) = -strain(2,3)
+            ! write(0,*) strain(1,1),strain(2,2),strain(3,3)
+            ! write(0,*) strain(1,2),strain(1,3),strain(2,3)
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
             gf_stress%array(i               ,j               ) = -traction_components(2)
             gf_stress%array(i+fault%nrecords,j               ) = -traction_components(3)
+            ! write(0,*) 'trac_ss:',-traction_components(2)
+            ! write(0,*) ' trac_ds:',-traction_components(3)
 
             ! Shear stress Green's function produced by dip-slip source
             if (rake_constraint%file.ne.'none'.and.inversion_mode.eq.'lsqr' &
@@ -1115,7 +1157,7 @@ contains
                 elseif (rake_constraint%nrecords.eq.fault%nrecords) then
                     rak = rake_constraint%array(j,2)
                 else
-                    call print_usage('!! Error: incorrect number of rake constraints')
+                    call usage('!! Error: incorrect number of rake constraints')
                 endif
             else
                 rak = 90.0d0
@@ -1125,16 +1167,30 @@ contains
             slip(3) = 0.0d0                           ! tensile slip
 
             ! Shear stress Green's function produced by strike-slip or fixed-rake source
+            ! write(0,*) 'sta_coord:',sta_coord_new
+            ! write(0,*) 'tri_coord1:',tri_coord_new(:,1)
+            ! write(0,*) 'tri_coord2:',tri_coord_new(:,2)
+            ! write(0,*) 'tri_coord3:',tri_coord_new(:,3)
+            ! write(0,*) 'poisson:',poisson
+            ! write(0,*) 'slip:',slip
             call tri_disloc_strain(strain, sta_coord_new, tri_coord_new, poisson, slip)
+            strain(1,3) = -strain(1,3)
+            strain(3,1) = -strain(1,3)
+            strain(2,3) = -strain(2,3)
+            strain(3,2) = -strain(2,3)
+            ! write(0,*) strain(1,1),strain(2,2),strain(3,3)
+            ! write(0,*) strain(1,2),strain(1,3),strain(2,3)
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
             gf_stress%array(i               ,j+fault%nrecords) = -traction_components(2)
             gf_stress%array(i+fault%nrecords,j+fault%nrecords) = -traction_components(3)
+            ! write(0,*) 'trac_ss:',-traction_components(2)
+            ! write(0,*) 'trac_ds:',-traction_components(3)
         enddo
     enddo
 
@@ -1217,7 +1273,7 @@ contains
     !             elseif (rake_constraint%nrecords.eq.fault%nrecords) then
     !                 rak = rake_constraint%array(j,1)
     !             else
-    !                 call print_usage('!! Error: incorrect number of rake constraints')
+    !                 call usage('!! Error: incorrect number of rake constraints')
     !             endif
     !         else
     !             rak = 0.0d0
@@ -1242,7 +1298,7 @@ contains
     !             elseif (rake_constraint%nrecords.eq.fault%nrecords) then
     !                 rak = rake_constraint%array(j,2)
     !             else
-    !                 call print_usage('!! Error: incorrect number of rake constraints')
+    !                 call usage('!! Error: incorrect number of rake constraints')
     !             endif
     !         else
     !             rak = 90.0d0

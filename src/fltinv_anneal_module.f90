@@ -1,6 +1,6 @@
 module anneal_module
     ! Control options
-    character(len=8) :: anneal_init_mode          ! zero, mean, uniform, random
+    character(len=8) :: anneal_init_mode          ! zero, mean, uniform, random, user
     character(len=256) :: anneal_log_file         ! file logging annealing progress
     integer :: max_iteration                      ! maximum number of steps
     integer :: reset_iteration                    ! step to reset current solution to best, temp to temp_start
@@ -9,11 +9,17 @@ module anneal_module
     double precision :: cooling_factor            ! every iteration, temp->temp*cooling_factor
     integer :: anneal_verbosity
     character(len=256) :: anneal_control_file     ! define annealing parameters in file instead of cmdln
+    character(len=256) :: anneal_init_file
 
     integer :: idum
     double precision :: temp
+
+    ! Normal annealing variables
     double precision, allocatable :: slip_0(:), slip_new(:), slip_best(:), dslip(:), dslip_init(:)
     double precision, allocatable :: rake_0(:), rake_new(:), rake_best(:), drake(:), drake_init(:)
+
+    ! Annealing for pseudo-coupling variables
+    integer, allocatable :: isFaultLocked(:)
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -35,6 +41,38 @@ contains
 
     call run_annealing_search()
 
+    ! Free up annealing array memory
+    if (allocated(slip_0)) then
+        deallocate(slip_0)
+    endif
+    if (allocated(slip_new)) then
+        deallocate(slip_new)
+    endif
+    if (allocated(slip_best)) then
+        deallocate(slip_best)
+    endif
+    if (allocated(dslip)) then
+        deallocate(dslip)
+    endif
+    if (allocated(dslip_init)) then
+        deallocate(dslip_init)
+    endif
+    if (allocated(rake_0)) then
+        deallocate(rake_0)
+    endif
+    if (allocated(rake_new)) then
+        deallocate(rake_new)
+    endif
+    if (allocated(rake_best)) then
+        deallocate(rake_best)
+    endif
+    if (allocated(drake)) then
+        deallocate(drake)
+    endif
+    if (allocated(drake_init)) then
+        deallocate(drake_init)
+    endif
+
     if (.not.allocated(fault_slip)) then
         allocate(fault_slip(fault%nrecords,2))
     endif
@@ -55,7 +93,7 @@ contains
 
     subroutine initialize_annealing()
     use io_module, only: stderr, verbosity
-    use variable_module, only: inversion_mode, fault, slip_constraint, rake_constraint
+    use variable_module, only: fault, slip_constraint, rake_constraint
     implicit none
     ! Local variables
     integer :: i
@@ -70,7 +108,7 @@ contains
 
     ! Make sure slip_constraint%array is defined (bounds for slip magnitude values)
     if (slip_constraint%file.eq.'none') then
-        call print_usage('!! Error: a slip constraint file is required for simulated annealing')
+        call usage('!! Error: a slip constraint file is required for simulated annealing')
     else
         if (slip_constraint%nrecords.eq.1) then
             tmparray = slip_constraint%array
@@ -83,79 +121,71 @@ contains
         endif
     endif
 
-    if (inversion_mode.eq.'anneal') then
-        ! Make sure rake_constraint%array is defined (bounds for rake angle values)
-        if (rake_constraint%file.eq.'none') then
-            call print_usage('!! Error: a rake constraint file is required for simulated annealing')
-        else
-            if (rake_constraint%nrecords.eq.1) then
-                tmparray = rake_constraint%array
-                deallocate(rake_constraint%array)
-                allocate(rake_constraint%array(fault%nrecords,2))
-                do i = 1,fault%nrecords
-                    rake_constraint%array(i,1) = tmparray(1,1)
-                    rake_constraint%array(i,2) = tmparray(1,2)
-                enddo
-            endif
+    ! Make sure rake_constraint%array is defined (bounds for rake angle values)
+    if (rake_constraint%file.eq.'none') then
+        call usage('!! Error: a rake constraint file is required for simulated annealing')
+    else
+        if (rake_constraint%nrecords.eq.1) then
+            tmparray = rake_constraint%array
+            deallocate(rake_constraint%array)
+            allocate(rake_constraint%array(fault%nrecords,2))
+            do i = 1,fault%nrecords
+                rake_constraint%array(i,1) = tmparray(1,1)
+                rake_constraint%array(i,2) = tmparray(1,2)
+            enddo
         endif
     endif
 
     ! Initialize the random number generator
     idum = -timeseed()
 
-    if (inversion_mode.eq.'anneal') then
-        ! Allocate memory to the fault slip and rake arrays
-        allocate(slip_0(fault%nrecords))
-        allocate(slip_new(fault%nrecords))
-        allocate(slip_best(fault%nrecords))
-        allocate(dslip(fault%nrecords))
-        allocate(dslip_init(fault%nrecords))
-        allocate(rake_0(fault%nrecords))
-        allocate(rake_new(fault%nrecords))
-        allocate(rake_best(fault%nrecords))
-        allocate(drake(fault%nrecords))
-        allocate(drake_init(fault%nrecords))
+    ! Allocate memory to the fault slip and rake arrays
+    allocate(slip_0(fault%nrecords))
+    allocate(slip_new(fault%nrecords))
+    allocate(slip_best(fault%nrecords))
+    allocate(dslip(fault%nrecords))
+    allocate(dslip_init(fault%nrecords))
+    allocate(rake_0(fault%nrecords))
+    allocate(rake_new(fault%nrecords))
+    allocate(rake_best(fault%nrecords))
+    allocate(drake(fault%nrecords))
+    allocate(drake_init(fault%nrecords))
 
-        ! Initialize the fault slip solution
-        if (anneal_init_mode.eq.'zero') then
-            slip_0 = 0.0d0
-            rake_0 = 0.0d0
-        elseif (anneal_init_mode.eq.'mean') then
-            do i = 1,fault%nrecords
-                slip_0(i) = 0.5d0*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
-                                     slip_constraint%array(i,1)
-                rake_0(i) = 0.5d0*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
-                                     rake_constraint%array(i,1)
-            enddo
-        elseif (anneal_init_mode.eq.'rand'.or.anneal_init_mode.eq.'random') then
-            do i = 1,fault%nrecords
-                slip_0(i) = ran2(idum)*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
-                                     slip_constraint%array(i,1)
-                rake_0(i) = ran2(idum)*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
-                                     rake_constraint%array(i,1)
-            enddo
-        ! elseif (anneal_init_mode.eq.'uniform') then
-        !     ! same slip on all faults
-        else
-            call print_usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
-        endif
-
-        ! Set the first model to be the best model initially
-        slip_best = slip_0
-        rake_best = rake_0
-
-        ! Initialize step sizes for slip magnitude and rake angle
+    ! Initialize the fault slip solution
+    if (anneal_init_mode.eq.'zero') then
+        slip_0 = 0.0d0
+        rake_0 = 0.0d0
+    elseif (anneal_init_mode.eq.'mean') then
         do i = 1,fault%nrecords
-            dslip(i) = (slip_constraint%array(i,2)-slip_constraint%array(i,1))/20.0d0
-            drake(i) = (rake_constraint%array(i,2)-rake_constraint%array(i,1))/12.0d0
+            slip_0(i) = 0.5d0*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
+                                 slip_constraint%array(i,1)
+            rake_0(i) = 0.5d0*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
+                                 rake_constraint%array(i,1)
         enddo
-        dslip_init = dslip
-        drake_init = drake
-    elseif (inversion_mode.eq.'anneal-psc') then
-        ! Initialize variables
+    elseif (anneal_init_mode.eq.'rand'.or.anneal_init_mode.eq.'random') then
+        do i = 1,fault%nrecords
+            slip_0(i) = ran2(idum)*(slip_constraint%array(i,2)-slip_constraint%array(i,1)) + &
+                                 slip_constraint%array(i,1)
+            rake_0(i) = ran2(idum)*(rake_constraint%array(i,2)-rake_constraint%array(i,1)) + &
+                                 rake_constraint%array(i,1)
+        enddo
+    ! elseif (anneal_init_mode.eq.'uniform') then
+    !     ! same slip on all faults
     else
-        call print_usage('!! Error: no working inversion mode named '//trim(inversion_mode))
+        call usage('!! Error: no annealing mode named '//trim(anneal_init_mode))
     endif
+
+    ! Set the first model to be the best model initially
+    slip_best = slip_0
+    rake_best = rake_0
+
+    ! Initialize step sizes for slip magnitude and rake angle
+    do i = 1,fault%nrecords
+        dslip(i) = (slip_constraint%array(i,2)-slip_constraint%array(i,1))/20.0d0
+        drake(i) = (rake_constraint%array(i,2)-rake_constraint%array(i,1))/12.0d0
+    enddo
+    dslip_init = dslip
+    drake_init = drake
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'initialize_annealing says: finished'
@@ -323,19 +353,7 @@ contains
     return
     end subroutine run_annealing_search
 
-! !--------------------------------------------------------------------------------------------------!
-!
-!     subroutine mcmc()
-!     implicit none
-!     do i = 1,1000
-!         ! Propose a new model
-!         ! Accept with probability
-!         p = dexp(-0.5d0*misfit_vector*covariance_vector*misfit_vector)
-!     enddo
-!     return
-!     end subroutine mcmc
-!
-! !--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
 
     double precision function disp_misfit_l2norm(model_array)
     !----
@@ -437,6 +455,170 @@ contains
 
     return
     end function disp_misfit_l2norm
+
+!--------------------------------------------------------------------------------------------------!
+
+    double precision function disp_misfit_chi2(model_array)
+    !----
+    ! Calculate the chi-squared value of the difference vector between the displacements produced
+    ! by model_array (first column is strike-slip, second column is dip-slip) and input values
+    !----
+
+    use variable_module, only: fault, displacement, gf_disp, disp_components, disp_cov_mat
+    implicit none
+
+    ! I/O variables
+    double precision :: model_array(fault%nrecords,2)
+
+    ! Local variables
+    integer :: i, j, nflt, ndsp
+    double precision :: disp_pre(3), ss, ds, ddisp(displacement%nrecords,3)
+    integer :: n, nrhs, lda, ldb, lwork, info
+    integer, allocatable :: ipiv(:)
+    double precision, allocatable :: alocal(:,:), blocal(:,:), work(:)
+
+    ! Initialize chi-squared value as zero
+    disp_misfit_chi2 = 0.0d0
+
+    ! Need a displacement file and the flag indicating you want misfit to calculate misfit
+    if (displacement%file.eq.'none'.and.displacement%flag.ne.'misfit') then
+        return
+    endif
+
+    ! A couple of shorter variables....
+    nflt = fault%nrecords
+    ndsp = displacement%nrecords
+
+
+    do i = 1,ndsp
+
+        ! Compute predicted displacement at each station
+        ! The displacement components to compare depends on which are specified in disp_components
+        disp_pre = 0.0d0
+
+        do j = 1,nflt
+            if (disp_components.eq.'123') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'12') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+
+            elseif (disp_components.eq.'13') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'23') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+                ss = gf_disp%array(i+2*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+2*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(3) + ss + ds
+
+            elseif (disp_components.eq.'1') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(1) = disp_pre(1) + ss + ds
+
+            elseif (disp_components.eq.'2') then
+                ss = gf_disp%array(i+1*ndsp,j     )*model_array(j,1)
+                ds = gf_disp%array(i+1*ndsp,j+nflt)*model_array(j,2)
+                disp_pre(2) = disp_pre(2) + ss + ds
+
+            elseif (disp_components.eq.'3') then
+                ss = gf_disp%array(i       ,j     )*model_array(j,1)
+                ds = gf_disp%array(i       ,j+nflt)*model_array(j,2)
+                disp_pre(3) = disp_pre(1) + ss + ds
+            endif
+        enddo
+
+        ! Compute difference between observed and predicted displacements
+        ddisp(i,:) = 0.0d0
+        if (disp_components.eq.'123') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,5)-disp_pre(2)
+            ddisp(i,3) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'12') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'13') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+            ddisp(i,2) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'23') then
+            ddisp(i,1) = displacement%array(i,5)-disp_pre(2)
+            ddisp(i,2) = displacement%array(i,6)-disp_pre(3)
+        elseif (disp_components.eq.'1') then
+            ddisp(i,1) = displacement%array(i,4)-disp_pre(1)
+        elseif (disp_components.eq.'2') then
+            ddisp(i,1) = displacement%array(i,5)-disp_pre(2)
+        elseif (disp_components.eq.'3') then
+            ddisp(i,1) = displacement%array(i,6)-disp_pre(3)
+        endif
+    enddo
+
+    ! Use symmetric equation solver to multiply inverse covariance matrix and difference vector
+    n = len_trim(disp_components)*ndsp
+    nrhs = 1
+    lda = n
+    ldb = n
+    allocate(ipiv(n))
+    allocate(alocal(len_trim(disp_components)*ndsp,len_trim(disp_components)*ndsp))
+    allocate(blocal(len_trim(disp_components)*ndsp,1))
+    alocal = disp_cov_mat
+    j = len_trim(disp_components)
+    do i = 1,j
+        blocal(1+(i-1)*ndsp:ndsp+(i-1)*ndsp,1) = ddisp(1:ndsp,i)
+    enddo
+
+    ! Get optimal size of lwork array
+    allocate(work(1))
+    lwork = -1
+#ifdef USELAPACK
+    call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+#endif
+
+    ! Resize lwork array and solve equation so that blocal = inv(cov_mat)*ddisp
+    lwork = int(work(1))
+    deallocate(work)
+    allocate(work(lwork))
+#ifdef USELAPACK
+    call dsysv('Lower',n,nrhs,alocal,lda,ipiv,blocal,ldb,work,lwork,info)
+#endif
+
+    if (info.gt.0) then
+        write(0,*) 'disp_misfit_chi2: block diagonal matrix is singular in dsysv'
+    endif
+
+    do i = 1,ndsp
+        do j = 1,len_trim(disp_components)
+            disp_misfit_chi2 = disp_misfit_chi2 + ddisp(i,j)*blocal(i+(j-1)*ndsp,1)
+        enddo
+    enddo
+
+    deallocate(work)
+    deallocate(ipiv)
+    deallocate(alocal)
+    deallocate(blocal)
+
+    return
+    end function disp_misfit_chi2
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -565,12 +747,27 @@ contains
 
 !--------------------------------------------------------------------------------------------------!
 
+
+
+
+
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+
+
+
+
     subroutine invert_anneal_pseudocoupling()
     use io_module, only: verbosity, stderr
     use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip
-    use lsqr_module, only: invert_lsqr
+    use lsqr_module, only: invert_lsqr, A, b, x, isAsaveLoaded
     implicit none
-    integer :: isFaultLocked(fault%nrecords), randFaultList(fault%nrecords)
+    integer :: randFaultList(fault%nrecords)
     double precision :: slip_save(fault%nrecords,2)
     double precision :: fault_slip_0(fault%nrecords,2), fault_slip_best(fault%nrecords,2)
     integer :: nlocked, nunlocked, nswitchmax
@@ -583,8 +780,10 @@ contains
         write(stderr,'(A)') 'invert_anneal_pseudocoupling says: starting'
     endif
 
-    ! Initialize random number generator and slip_constraint%array values
-    call initialize_annealing()
+    ! Initialize solution, random number generator, and slip_constraint%array values
+    call initialize_annealing_psc()
+
+    ! To initialize an A matrix that is its largest possible size, solve with all faults unlocked
     slip_save = slip_constraint%array
     slip_constraint%array = 99999.0d0
 
@@ -603,40 +802,64 @@ contains
     endif
     prestress%array = 0.0d0
 
+    ! Speed up loading of A matrix by saving it as Asave. Indicate it has not been loaded yet.
+    isAsaveLoaded = .false.
+
     ! Initialize fault list in order
     do i = 1,fault%nrecords
         randFaultList(i) = i
     enddo
 
-    ! Can switch up to this many faults
+    ! Can switch up to this many faults in every iteration
     nswitchmax = fault%nrecords/10
     if (nswitchmax.lt.1) then
         nswitchmax = 1
     endif
     ! write(0,*) 'nswitchmax',nswitchmax
 
-    ! Initialize all faults as freely sliding
-    isFaultLocked = 0
-
-    ! Initialize solution array
+    ! Initialize solution array, compute initial solution, and save results
     if (.not.allocated(fault_slip)) then
         allocate(fault_slip(fault%nrecords,2))
     endif
 
-    ! Compute initial fault slip solution, save results
+    ! Solve for fault slip using largest possible A matrix
     vrb_save = verbosity
     if (verbosity.lt.4) then
         verbosity = 0
     endif
-    call invert_lsqr()
+    call invert_lsqr() ! initial solution is in fault_slip array
     verbosity = vrb_save
 
-    fault_slip_0 = fault_slip
+    ! I do not actually care about that solution as the first one...
+    ! Set locked/unlocked to correct values and solve again
+    do i = 1,fault%nrecords
+        if (isFaultLocked(i).eq.1) then
+            slip_constraint%array(i,:) = slip_save(i,:)
+        else
+            slip_constraint%array(i,:) = 99999.0d0
+        endif
+    enddo
+    prestress%array = 0.0d0
+
+    ! Solve for initial fault slip
+    if (minval(dabs(slip_constraint%array)).gt.99998.0d0) then
+        fault_slip = 0.0d0
+    else
+        vrb_save = verbosity
+        if (verbosity.lt.4) then
+            verbosity = 0
+        endif
+        call invert_lsqr() ! initial solution is in fault_slip array
+        verbosity = vrb_save
+    endif
+
+    fault_slip_0 = fault_slip ! save the initial solution
     fault_slip_best = fault_slip
-    obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
+    obj_0 = disp_misfit_chi2(fault_slip) ! chi-squared
+    ! obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
     obj_best = obj_0
 
-    ! Initialize starting temperature
+    ! Set starting temperature
     if (temp_start.lt.0.0d0) then
         temp_start = -temp_start
         temp = temp_start
@@ -665,8 +888,12 @@ contains
     ! Run annealing search for distribution of locked patches
     do i = 1,max_iteration
 
-        if (verbosity.ge.2) then
-            write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: working on iteration',i
+        if (verbosity.ge.1) then
+            write(0,'(A1,A,I5,A,I5)',advance='no') achar(13), &
+                'invert_anneal_pseudocoupling: iteration ',i,' of ',max_iteration
+            if (i.eq.max_iteration) then
+                write(0,*)
+            endif
         endif
 
         ! Randomize fault list by switching each entry with a random entry
@@ -686,19 +913,40 @@ contains
         nlocked = 0
         nunlocked = 0
         do j = 1,fault%nrecords
+
+            ! For all faults...
+
             if (ran2(idum).gt.0.5d0) then
+
+                ! Flip this fault!
                 if (isFaultLocked(randFaultList(j)).eq.1) then
+
+                    ! Locked -> unlocked
                     if (nunlocked.lt.nswitchmax) then
                         isFaultLocked(randFaultList(j)) = 0
                     endif
-                    nunlocked = nunlocked + 1
+
+                    ! Only count fault as flipped if it is not always unlocked
+                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
+                        nunlocked = nunlocked + 1
+                    endif
+
                 else
+
+                    ! Unlocked -> locked
                     if (nlocked.lt.nswitchmax) then
                         isFaultLocked(randFaultList(j)) = 1
                     endif
-                    nlocked = nlocked + 1
+
+                    ! Only count fault as flipped if it is not always unlocked
+                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
+                        nlocked = nlocked + 1
+                    endif
+
                 endif
             endif
+
+
         enddo
         if (verbosity.ge.3) then
             write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: locked faults are:'
@@ -718,7 +966,7 @@ contains
             endif
         enddo
 
-        ! Pre-stresses are zero at start of calculation
+        ! Pre-stresses are zero at start of calculation (THIS MAY CHANGE TO ADD RESISTIVE TRACTIONS!)
         prestress%array = 0.0d0
 
         ! Calculate other subfault slip
@@ -740,8 +988,9 @@ contains
             fault_slip = 0.0d0
         endif
 
-        ! Calculate RMS misfit
-        obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
+        ! Calculate new objective function
+        obj_new = disp_misfit_chi2(fault_slip) ! chi-squared
+        ! obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
         if (obj_new.lt.obj_best) then
             fault_slip_best = fault_slip
             obj_best = obj_new
@@ -758,8 +1007,7 @@ contains
             fault_slip_0 = fault_slip
             obj_0 = obj_new
             if (verbosity.ge.3) then
-                write(stderr,'(A,1P1E14.6)') 'Current solution, RMSmisfit=', &
-                                        disp_misfit_l2norm(fault_slip_0)/dsqrt(dble(fault%nrecords))
+                write(stderr,'(A,1P1E14.6)') 'Current solution, Objective=', obj_0
                 do j = 1,fault%nrecords
                     write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
                 enddo
@@ -782,14 +1030,23 @@ contains
 
         if (mod(i,reset_iteration).eq.0) then
             temp = temp_start
-            slip_0 = slip_best
-            rake_0 = rake_best
-            obj_0 = obj_best
-            dslip = dslip_init
-            drake = drake_init
         endif
     enddo
     fault_slip = fault_slip_best
+
+    ! Free memory from least squares module variables
+    if (allocated(A)) then
+        deallocate(A)
+    endif
+    if (allocated(b)) then
+        deallocate(b)
+    endif
+    if (allocated(x)) then
+        deallocate(x)
+    endif
+    if (allocated(isFaultLocked)) then
+        deallocate(isFaultLocked)
+    endif
 
     if (verbosity.ge.2) then
         write(stderr,'(A)') 'invert_anneal_pseudocoupling says: finished'
@@ -798,5 +1055,94 @@ contains
 
     return
     end subroutine invert_anneal_pseudocoupling
+
+!--------------------------------------------------------------------------------------------------!
+
+    subroutine initialize_annealing_psc()
+    use io_module, only: stderr, verbosity
+    use variable_module, only: fault, slip_constraint
+    implicit none
+    ! Local variables
+    integer :: i, ios
+    double precision :: tmparray(1,2)
+    logical :: ex
+    ! External variables
+    integer, external :: timeseed
+    real, external :: ran2
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'initialize_annealing_psc says: starting'
+    endif
+
+    ! Make sure slip_constraint%array is defined (values for locked faults)
+    if (slip_constraint%file.eq.'none') then
+        call usage('!! initialize_annealing_psc: a slip constraint file is required ')
+    else
+        if (slip_constraint%nrecords.eq.1) then
+            tmparray = slip_constraint%array
+            deallocate(slip_constraint%array)
+            allocate(slip_constraint%array(fault%nrecords,2))
+            do i = 1,fault%nrecords
+                slip_constraint%array(i,1) = tmparray(1,1)
+                slip_constraint%array(i,2) = tmparray(1,2)
+            enddo
+        endif
+    endif
+
+    ! Initialize locked faults
+    if (.not.allocated(isFaultLocked)) then
+        allocate(isFaultLocked(fault%nrecords))
+    endif
+    isFaultLocked = 0
+
+    if (trim(anneal_init_mode).eq.'unlocked') then
+        isFaultLocked = 0
+
+    elseif (trim(anneal_init_mode).eq.'locked') then
+        isFaultLocked = 1
+
+    elseif (trim(anneal_init_mode).eq.'user') then
+        if (trim(anneal_init_file).eq.'') then
+            write(0,*) 'initialize_annealing_psc: no anneal_init_file defined'
+        endif
+        inquire(file=anneal_init_file,exist=ex)
+        if (.not.ex) then
+            write(0,*) 'initialize_annealing_psc: did not find anneal_init_file named ', &
+                       trim(anneal_init_file)
+        else
+            open(unit=63,file=anneal_init_file,status='old')
+            do i = 1,fault%nrecords
+                read(63,*,iostat=ios,err=6301,end=6301) isFaultLocked(i)
+            enddo
+            6301 if (ios.ne.0) then
+                write(0,*) 'initialize_annealing_psc: error reading anneal_init_file'
+            endif
+            close(63)
+        endif
+
+    elseif (trim(anneal_init_mode).eq.'rand') then
+        do i = 1,fault%nrecords
+            if (ran2(idum).gt.0.50d0) then
+                isFaultLocked(i) = 1
+            else
+                isFaultLocked(i) = 0
+            endif
+        enddo
+
+    else
+        write(0,*) 'initialize_annealing_psc: did not recognize anneal_init_mode=',anneal_init_mode
+        write(0,*) '                          setting anneal_init_mode to unlocked'
+    endif
+
+    ! Initialize the random number generator
+    idum = -timeseed()
+
+    if (verbosity.ge.2) then
+        write(stderr,'(A)') 'initialize_annealing_psc says: finished'
+        write(stderr,*)
+    endif
+
+    return
+    end subroutine initialize_annealing_psc
 
 end module anneal_module

@@ -1,24 +1,43 @@
-module elast_module
+module elast
 !--------------------------------------------------------------------------------------------------!
 contains
 !--------------------------------------------------------------------------------------------------!
 
-    subroutine calc_traction(stress,normal,traction)
-    implicit none
-    ! I/O variables
-    double precision :: stress(3,3), normal(3), traction(3)
-    ! Local variables
-    integer :: i, j
+function trac_vector(stress_tensor,normal_vec)
+!----
+! Compute the traction vector resolved onto a plane from the stress tensor and normal vector to
+! the plane.
+!----
 
-    do i = 1,3
-        traction(i) = 0.0d0
-        do j = 1,3
-            traction(i) = traction(i) + stress(i,j)*normal(j)
-        enddo
-    enddo
+implicit none
 
+! I/O variables
+double precision :: stress_tensor(3,3), normal_vec(3), trac_vector(3)
+
+! Local variables
+integer :: i, j
+double precision :: magnitude
+
+! Initialize traction
+trac_vector = 0.0d0
+
+! Normalize the normal vector
+magnitude = normal_vec(1)*normal_vec(1) + normal_vec(2)*normal_vec(2) + normal_vec(3)*normal_vec(3)
+if (magnitude.lt.1.0d-8) then
+    write(0,*) 'traction: normal vector magnitude is zero, setting traction to zero'
     return
-    end subroutine calc_traction
+endif
+normal_vec = normal_vec/magnitude
+
+! traction_vector = stress_tensor*normal_vector
+do i = 1,3
+    do j = 1,3
+        trac_vector(i) = trac_vector(i) + stress_tensor(i,j)*normal_vec(j)
+    enddo
+enddo
+
+return
+end function trac_vector
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -163,4 +182,4 @@ contains
     return
     end
 
-end module elast_module
+end module elast
