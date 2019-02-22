@@ -125,7 +125,7 @@ fi
 if [ -z "$LAPACK_LIB_DIR" ]
 then
     echo "Installing software without LAPACK dependencies"
-    LAPACK_OPTION=""
+    LAPACK_CPP_OPTION=""
 else
     # Make sure the directory exists and has the correct libraries in it
     LAPACK_LIB_DIR_CONTENTS=`ls $LAPACK_LIB_DIR 2>&1`
@@ -177,7 +177,7 @@ else
         done
     fi
     echo "Test complete! Using LAPACK libraries in directory: $LAPACK_LIB_DIR"
-    LAPACK_OPTION="-DUSELAPACK"
+    LAPACK_CPP_OPTION="-DUSELAPACK"
 fi
 echo
 
@@ -211,8 +211,13 @@ echo
 echo "####################################################################################################"
 echo "##########                           INSTALL THE CODES!                                   ##########"
 echo "####################################################################################################"
+echo "You used the options: -f=${FC} -l=${LAPACK_LIB_DIR} -b=${BIN_DIR}"
 echo "Type \"make\""
 
+if [ "$LAPACK_LIB_DIR" != "" ]
+then
+    LAPACK_LIB_DIR="-L${LAPACK_LIB_DIR}"
+fi
 
 #####
 #	Generating makefile
@@ -229,10 +234,10 @@ FFLAG = \$(FWARN) \$(FOPT)
 BIN   = $BIN_DIR
 
 ##### External libraries #####
-LAPACK_LIB_DIR = -L$LAPACK_LIB_DIR
+LAPACK_LIB_DIR = $LAPACK_LIB_DIR
 LAPACK_LIB     = $LAPACK_LIB_LIST
 LAPACK         = \$(LAPACK_LIB_DIR) \$(LAPACK_LIB)
-CPP_LAPACK     = $LAPACK_OPTION
+CPP_LAPACK     = $LAPACK_CPP_OPTION
 
 CPP = \$(CPP_LAPACK) -cpp
 
@@ -319,7 +324,7 @@ FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
 SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS)
 	\$(FC) \$(FFLAG) -c src/tri_disloc_module.f90
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK)  \$(CPP)
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP)
 	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP)
 	rm *.o *.mod
 
