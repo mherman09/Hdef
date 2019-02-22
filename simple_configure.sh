@@ -318,16 +318,17 @@ other: \\
 
 FLTINV_MODULES = src/fltinv_io_module.f90 \
                  src/fltinv_variable_module.f90 \
-                 src/elast_module.f90 \
                  src/fltinv_gf_module.f90 \
                  src/fltinv_lsqr_module.f90 \
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/pnpoly.f
+FLTINV_INCLUDE = \$(INCLUDE)/tri_disloc.o \\
+                 \$(INCLUDE)/elast.o
 # SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
-\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(INCLUDE)/tri_disloc.mod \$(INCLUDE)/tri_disloc.o
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
-	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE) \$(INCLUDE)/tri_disloc.o
+\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(FLTINV_INCLUDE)
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE) \$(FLTINV_INCLUDE)
+	\$(FC) \$(FFLAG) -o \$(BIN)/fltinv src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE)  \$(FLTINV_INCLUDE)
 	rm *.o *.mod
 
 \$(BIN)/grid: src/grid.f
@@ -438,16 +439,20 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 ################################
 OBJECT_FILES = \$(INCLUDE)/trig.o \
                \$(INCLUDE)/earth.o \
-               \$(INCLUDE)/tri_disloc.o
+               \$(INCLUDE)/tri_disloc.o \
+               \$(INCLUDE)/elast.o
 
 \$(INCLUDE)/trig.o: src/trig_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/trig.o src/trig_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$<
 
 \$(INCLUDE)/earth.o: src/earth_module.f90 \$(INCLUDE)/trig.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/earth.o src/earth_module.f90 -I\$(INCLUDE)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
 
 \$(INCLUDE)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE)/trig.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$(INCLUDE)/tri_disloc.o src/tri_disloc_module.f90 -I\$(INCLUDE)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
+
+\$(INCLUDE)/elast.o: src/elast_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
 
 \$(INCLUDE)/%.o: \$(INCLUDE)/%.mod
 

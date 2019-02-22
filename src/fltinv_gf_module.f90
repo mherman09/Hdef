@@ -253,7 +253,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -278,7 +278,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -663,7 +663,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -689,7 +689,7 @@ contains
             ! Rotate back to original coordinates
             call rotate_strain(strain,str)
             call calc_strain_to_stress(strain,vp,vs,dens,stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -1140,7 +1140,7 @@ contains
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array
@@ -1183,7 +1183,7 @@ contains
             ! Calculate tractions
             call calc_strain_to_stress(strain,halfspace%array(1,1),halfspace%array(1,2), &
                                        halfspace%array(1,3),stress)
-            call calc_traction(stress,unit_normal,traction)
+            traction = trac_vector(stress,unit_normal)
             call calc_traction_components(traction,unit_normal,unit_strike,unit_updip, &
                                           traction_components)
             ! Load stress Green's functions array

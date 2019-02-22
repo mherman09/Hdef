@@ -33,7 +33,7 @@ use variable_module, only: inversion_mode, &
                            gf_type, gf_disp, gf_stress, gf_los, &
                            smoothing, rake_constraint, slip_constraint, &
                            halfspace, coord_type, disp_components, disp_cov_file, disp_cov_mat
-use elast, only: calc_plane_unit_vectors, calc_traction, calc_traction_components
+use elast, only: calc_plane_unit_vectors, trac_vector, calc_traction_components
 use tri_disloc, only: tri_geometry, tri_geo2cart
 
 implicit none
@@ -313,7 +313,7 @@ if (prestress%file.ne.'none') then
         stress(3,1) = prestress%array(i,5)
         stress(2,3) = prestress%array(i,6)
         stress(3,2) = prestress%array(i,6)
-        call calc_traction(stress,nor,traction)
+        traction = trac_vector(stress,nor)
         call calc_traction_components(traction,nor,str,upd,traction_comp)
         prestress%array(i,1) = traction_comp(2)
         prestress%array(i,2) = traction_comp(3)
