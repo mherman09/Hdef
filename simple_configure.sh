@@ -8,8 +8,9 @@ function usage() {
     echo "-f|--fortran_compiler=FC                   Fortran compiler"
     echo "-l|--lapack_dir=/PATH/TO/LAPACK/LIBRARIES  Location of LAPACK libraries"
     echo "-b|--bin_dir=/PATH/TO/EXECUTABLES          Path for installing executables"
+    echo "-o|--include_dir=/PATH/TO/OBJECT/FILES     Path for installing object files and modules"
     echo "-i|--interactive                           Interactive prompts for inputs"
-    echo "-d|--default                               Use Matt's default values (FC=gfortran, LAPACK_DIR=/sw/lib/lapack, BIN_DIR=bin)"
+    echo "-d|--default                               Use Matt's default values (FC=gfortran, LAPACK_DIR=/sw/lib/lapack, BIN_DIR=./bin, INCLUDE_DIR=./include)"
     echo
     echo "Note: if working in a root directory or trying to install programs in a root directory, may have to use \"sudo $0\""
     exit 1
@@ -23,6 +24,7 @@ fi
 FC=""
 LAPACK_LIB_DIR=""
 BIN_DIR=""
+INCLUDE_DIR=""
 INTERACTIVE="N"
 while [ "$1" != "" ]
 do
@@ -30,8 +32,12 @@ do
         -f=*|--fortran_compiler=*)FC=`echo $1 | sed -e "s/.*=//"`;;
         -l=*|--lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
         -b=*|--bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        -o=*|--include_dir=*)INCLUDE=`echo $1 | sed -e "s/.*=//"`;;
         -i|--interactive)INTERACTIVE="Y";;
-        -d|--default)FC="gfortran";LAPACK_LIB_DIR="/sw/lib/lapack";BIN_DIR="bin";;
+        -d|--default) FC="gfortran"
+                      LAPACK_LIB_DIR="/sw/lib/lapack"
+                      BIN_DIR="./bin"
+                      INCLUDE_DIR="./include";;
         *)echo "!! Error: No option $1"; usage;;
     esac
     shift
@@ -189,7 +195,7 @@ echo "##########                    WORKING ON INSTALL DIRECTORY STUFF          
 echo "####################################################################################################"
 if [ -z "$BIN_DIR" -o $INTERACTIVE == "Y" ]
 then
-    echo "Enter the path to place the compiled executables (Default: bin):"
+    echo "Enter the path to place the compiled executables (Default: ./bin):"
     read ANSWER
     if [ -z "$ANSWER" ]
     then
@@ -197,7 +203,7 @@ then
     fi
     BIN_DIR=$ANSWER
 fi
-echo Putting exectuables in $BIN_DIR
+echo "Putting executables in $BIN_DIR"
 if [ ! -d $BIN_DIR ]
 then
     echo "Directory $BIN_DIR does not exist....creating it"
@@ -208,10 +214,37 @@ fi
 echo
 echo
 
+#####
+#	Directory to install object files and Fortran modules (include) files
+#####
+echo "####################################################################################################"
+echo "##########                    WORKING ON INCLUDE DIRECTORY STUFF                          ##########"
+echo "####################################################################################################"
+if [ -z "$INCLUDE_DIR" -o $INTERACTIVE == "Y" ]
+then
+    echo "Enter the path to place the compiled object files (Default: ./include):"
+    read ANSWER
+    if [ -z "$ANSWER" ]
+    then
+        ANSWER="include"
+    fi
+    INCLUDE_DIR=$ANSWER
+fi
+echo "Putting object files and modules in $INCLUDE_DIR"
+if [ ! -d $INCLUDE_DIR ]
+then
+    echo "Directory $INCLUDE_DIR does not exist....creating it"
+    mkdir $INCLUDE_DIR
+else
+    echo "Directory $INCLUDE_DIR already exists"
+fi
+echo
+echo
+
 echo "####################################################################################################"
 echo "##########                           INSTALL THE CODES!                                   ##########"
 echo "####################################################################################################"
-echo "You used the options: -f=${FC} -l=${LAPACK_LIB_DIR} -b=${BIN_DIR}"
+echo "You used the options: -f=${FC} -l=${LAPACK_LIB_DIR} -b=${BIN_DIR} -o=${INCLUDE_DIR}"
 echo "Type \"make\" to install codes"
 
 if [ "$LAPACK_LIB_DIR" != "" ]
