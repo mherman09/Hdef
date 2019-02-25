@@ -13,23 +13,24 @@ module okada92_module
 !   - Depths are defined positive down
 !----
 
-double precision :: a, CA1, CA2, CB, CC
-double precision :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
-double precision :: x, y, z, c, d
-double precision :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
-double precision :: R, R2, R3, R4, R5, R7, Rd
-double precision :: A3, A5, A7, B3, B5, B7, C3, C5, C7
-double precision :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
-double precision :: U2, V2, W2, U3, V3, W3
-double precision :: eta_vec(2), ksi_vec(2), ksi, eta
-double precision :: cbar, dbar, ybar
-double precision :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
-double precision :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
-double precision :: D11, Re, Rk, logRe, logRk, TH
-double precision :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(/2,2/))
-logical :: isSingular
-double precision, parameter :: pi=datan(1.0d0)*4.0d0, d2r=pi/180.0d0
+use trig, only: pi, d2r
+use io, only: stderr, verbosity
 
+double precision, private :: a, CA1, CA2, CB, CC
+double precision, private :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
+double precision, private :: x, y, z, c, d
+double precision, private :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
+double precision, private :: R, R2, R3, R4, R5, R7, Rd
+double precision, private :: A3, A5, A7, B3, B5, B7, C3, C5, C7
+double precision, private :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
+double precision, private :: U2, V2, W2, U3, V3, W3
+double precision, public :: eta_vec(2), ksi_vec(2), ksi, eta
+double precision, private :: cbar, dbar, ybar
+double precision, private :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
+double precision, private :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
+double precision, private :: D11, Re, Rk, logRe, logRk, TH
+double precision, private :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(/2,2/))
+logical, private :: isSingular
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -1160,7 +1161,9 @@ implicit none
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, &
                     sta_coord(3), evdp, dip, slip(3), wid, len, lambda, shear_modulus
 ! Local variables
-double precision :: Css, Cds, Cts
+double precision :: Css, Cds, Cts, dudx_ss(3), dudy_ss(3), dudz_ss(3), dudx_ds(3), dudy_ds(3), &
+                    dudz_ds(3), dudx_ts(3), dudy_ts(3), dudz_ts(3), duA(3), duB(3), duC(3)
+integer :: i, j
 
 ! Initialize partial derivatives
 uxx = 0.0d0
@@ -1193,52 +1196,112 @@ if (isSingular) then
     return
 endif
 
+! Calculate the components of partial derivatives for z negative
+dudx_ss = 0.0d0
+dudy_ss = 0.0d0
+dudz_ss = 0.0d0
+dudx_ds = 0.0d0
+dudy_ds = 0.0d0
+dudz_ds = 0.0d0
+dudx_ts = 0.0d0
+dudy_ts = 0.0d0
+dudz_ts = 0.0d0
+do i = 1,2
+    do j = 1,2
+        call rect_src_vars(ksi_vec(i),eta_vec(j))
+        if (dabs(Css).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ss_rect()
+            duB = chinnery_factor(i,j)*duBdx_ss_rect()
+            duC = chinnery_factor(i,j)*z*duCdx_ss_rect()
+            dudx_ss(1) = dudx_ss(1) + duA(1) + duB(1) + duC(1)
+            dudx_ss(2) = dudx_ss(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudx_ss(3) = dudx_ss(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ss_rect()
+            duB = chinnery_factor(i,j)*duBdy_ss_rect()
+            duC = chinnery_factor(i,j)*z*duCdy_ss_rect()
+            dudy_ss(1) = dudy_ss(1) + duA(1) + duB(1) + duC(1)
+            dudy_ss(2) = dudy_ss(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudy_ss(3) = dudy_ss(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+            ! ! Z-derivatives
+            ! duA = chinnery_factor(i,j)*duAdx_ss_rect()
+            ! duB = chinnery_factor(i,j)*duBdx_ss_rect()
+            ! duC = chinnery_factor(i,j)*z*duCdx_ss_rect()
+            ! dudz_ss(1) = u_ss(1) + uA(1) + uB(1) + uC(1)
+            ! dudz_ss(2) = u_ss(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+            ! dudz_ss(3) = u_ss(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        endif
+        ! if (dabs(Cds).gt.1.0d-6) then
+        !     uA = chinnery_factor(i,j)*uA_ds_rect()
+        !     uB = chinnery_factor(i,j)*uB_ds_rect()
+        !     uC = chinnery_factor(i,j)*z*uC_ds_rect()
+        !     u_ds(1) = u_ds(1) + uA(1) + uB(1) + uC(1)
+        !     u_ds(2) = u_ds(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+        !     u_ds(3) = u_ds(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        ! endif
+        ! if (dabs(Cts).gt.1.0d-6) then
+        !     uA = chinnery_factor(i,j)*uA_ts_rect()
+        !     uB = chinnery_factor(i,j)*uB_ts_rect()
+        !     uC = chinnery_factor(i,j)*z*uC_ts_rect()
+        !     u_ts(1) = u_ts(1) + uA(1) + uB(1) + uC(1)
+        !     u_ts(2) = u_ts(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
+        !     u_ts(3) = u_ts(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+        ! endif
+    enddo
+enddo
+
+! Calculate the transformed coordinates (p, q, ksi, eta) for the terms that depend on the station
+! at the opposite depth
+call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
+
+! Check for singular solution when observation point lies on fault edge
+call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
+if (isSingular) then
+    write(0,*) 'o92_rect_strain: solution is singular, setting strains to zero'
+    return
+endif
+
+! Calculate the components of partial derivatives for z positive
+do i = 1,2
+    do j = 1,2
+        call rect_src_vars(ksi_vec(i),eta_vec(j))
+        if (dabs(Css).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ss_rect()
+            dudx_ss(1) = dudx_ss(1) - duA(1)
+            dudx_ss(2) = dudx_ss(2) - duA(2)*cd + duA(3)*sd
+            dudx_ss(3) = dudx_ss(3) - duA(2)*sd - duA(3)*cd
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ss_rect()
+            dudy_ss(1) = dudy_ss(1) - duA(1)
+            dudy_ss(2) = dudy_ss(2) - duA(2)*cd + duA(3)*sd
+            dudy_ss(3) = dudy_ss(3) - duA(2)*sd - duA(3)*cd
+        endif
+!         if (dabs(Cds).gt.1.0d-6) then
+!             uA = chinnery_factor(i,j)*uA_ds_rect()
+!             u_ds(1) = u_ds(1) - uA(1)
+!             u_ds(2) = u_ds(2) - uA(2)*cd + uA(3)*sd
+!             u_ds(3) = u_ds(3) - uA(2)*sd - uA(3)*cd
+!         endif
+!         if (dabs(Cts).gt.1.0d-6) then
+!             uA = chinnery_factor(i,j)*uA_ts_rect()
+!             u_ts(1) = u_ts(1) - uA(1)
+!             u_ts(2) = u_ts(2) - uA(2)*cd + uA(3)*sd
+!             u_ts(3) = u_ts(3) - uA(2)*sd - uA(3)*cd
+!         endif
+    enddo
+enddo
+
+uxx = Css*dudx_ss(1) + Cds*dudx_ds(1) + Cts*dudx_ts(1)
+uxy = Css*dudy_ss(1) + Cds*dudy_ds(1) + Cts*dudy_ts(1)
+uxz = Css*dudz_ss(1) + Cds*dudz_ds(1) + Cts*dudz_ts(1)
+uyx = Css*dudx_ss(2) + Cds*dudx_ds(2) + Cts*dudx_ts(2)
+uyy = Css*dudy_ss(2) + Cds*dudy_ds(2) + Cts*dudy_ts(2)
+uyz = Css*dudz_ss(2) + Cds*dudz_ds(2) + Cts*dudz_ts(2)
+
 return
 end subroutine
-! !----
-! ! Coordinates on fault plane (x,p,q) and distance from edges (ksi,eta)
-! !----
-!       ksi(1) = x+len*0.5d0
-!       ksi(2) = x-len*0.5d0
-! !      ksi(1) = x
-! !      ksi(2) = x-len
-!       if (dabs(ksi(1)).lt.eps) ksi(1) = zro
-!       if (dabs(ksi(2)).lt.eps) ksi(2) = zro
-!
-!       c =  evdp
-!       z = -stdp
-!   403 d =  c - z
-!       p = y*cd + d*sd
-!       q = y*sd - d*cd
-!
-!       eta(1) = p+wid*0.5d0
-!       eta(2) = p-wid*0.5d0
-! !      eta(1) = p
-! !      eta(2) = p-wid
-!       if (dabs(eta(1)).lt.eps) eta(1) = zro
-!       if (dabs(eta(2)).lt.eps) eta(2) = zro
-!       if (dabs(q)     .lt.eps) q      = zro
-! !----
-! ! Check for singular cases (after Okada DC3D)
-! !----
-!       call rectsingular(eq,ek,ee,ksi,eta,q,eps)
-!       if (eq.eq.1) then
-!           call singularstrain(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
-!           goto 499
-!       endif
-! !----
-! ! Integrate solutions over fault boundaries (-W/2:W/2 and -L/2:L/2)
-! !----
-!       fac = one
-!       do 408 ii = 1,2
-!       do 407 jj = 1,2
-!           if (ii.eq.1.and.jj.eq.1) fac =  one
-!           if (ii.eq.1.and.jj.eq.2) fac = -one
-!           if (ii.eq.2.and.jj.eq.1) fac = -one
-!           if (ii.eq.2.and.jj.eq.2) fac =  one
-!
-!           call rectvars(ksi(ii),eta(jj),q,z,ek(jj),ee(ii),eps)
-!
 !           if (thru.eq.0) then
 !               call xderiv1(fx,ksi(ii),eta(jj),q,z)
 !               call yderiv1(fy,ksi(ii),eta(jj),q,z)
@@ -1464,9 +1527,6 @@ Q3 = 3.0d0*cbar*ybar/R5 + q*Y32 - (z*Y32+Z32+Z0)*cd
 return
 end subroutine rect_src_vars
 
-
-
-!
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 ! COMPONENTS OF DISPLACEMENT FOR A RECTANGULAR SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!         !
@@ -1631,6 +1691,7 @@ duCdx_ds_rect(2) = -CC*ybar/R3 + a*3.0d0*cbar*eta*q/R5
 duCdx_ds_rect(3) = dbar/R3 - Y0*sd + a*cbar*(1.0d0-3.0d0*qq/R2)/R3
 return
 end function
+
 function duCdx_ts_rect()
 implicit none
 double precision :: duCdx_ts_rect(3)
@@ -1640,188 +1701,198 @@ duCdx_ts_rect(3) = -CC*(ybar/R3-Y0*cd) - a*(3.0d0*cbar*eta*q/R5-q*Z0)
 return
 end function
 
-! !-------------------
-!
-! !      SUBROUTINE FNXDER(fx,ksi,eta,q,z)
-!       SUBROUTINE xderiv1(fx,ksi,eta,q,z)
-! !----
-! ! Components of x-derivatives of displacement from finite source
-! !----
-!       IMPLICIT none
-!       REAL*8 fx(6,3),ksi,eta,q,z
-!       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       REAL*8 a,CA1,CA2,CB,CC
-!       REAL*8 cbar,dbar,ybar
-!       REAL*8 R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       REAL*8 J1,J2,J3,J4,J5,J6
-!       INTEGER thru
-!
-!       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       COMMON /ELAST/ a,CA1,CA2,CB,CC
-!       COMMON /BAR/ cbar,dbar,ybar
-!       COMMON /RVARS/ R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       COMMON /JVARS/ J1,J2,J3,J4,J5,J6
-!       COMMON /TAG/ thru
-!
-!       if (thru.eq.0) then
-!
-!
-!       else
-!           fx(1,1) = -CA1*q*Y11   - CA2*ksi*ksi*q*Y32
-!           fx(2,1) =              - CA2*ksi*q/R3
-!           fx(3,1) =  CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-!           fx(4,1) =              - CA2*ksi*q/R3
-!           fx(5,1) = -q*Y11*0.5d0 - CA2*eta*q/R3
-!           fx(6,1) =  CA1/R       + CA2*q*q/R3
-! !          fx(7,1) = -CA1*ksi*Y11 + CA2*ksi*q*q*Y32
-! !          fx(8,1) = -CA1/R       + CA2*q*q/R3
-! !          fx(9,1) = -CA1*q*Y11   - CA2*q*q*q*Y32
-!       endif
-!
-!       RETURN
-!       END
-!
-! !-------------------
-!
-! !      SUBROUTINE FNYDER(fy,ksi,eta,q,z)
-!       SUBROUTINE yderiv1(fy,ksi,eta,q,z)
-! !----
-! ! Components of y-derivatives of displacement from finite source
-! !----
-!       IMPLICIT none
-!       REAL*8 fy(6,3),ksi,eta,q,z
-!       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       REAL*8 a,CA1,CA2,CB,CC
-!       REAL*8 cbar,dbar,ybar
-!       REAL*8 R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       REAL*8 J1,J2,J3,J4,J5,J6
-!       REAL*8 E2,F2,G2,H2,P2,Q2
-!       INTEGER thru
-!
-!       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       COMMON /ELAST/ a,CA1,CA2,CB,CC
-!       COMMON /BAR/ cbar,dbar,ybar
-!       COMMON /RVARS/ R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       COMMON /JVARS/ J1,J2,J3,J4,J5,J6
-!       COMMON /YVARS/ E2,F2,G2,H2,P2,Q2
-!       COMMON /TAG/ thru
-!
-!       if (thru.eq.0) then
-!           fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
-!           fy(2,1) =                                    CA2*E2
-!           fy(3,1) =  CA1*(cd/R+q*Y11*sd)         - CA2*q*F2
-!           fy(4,1) =                                    CA2*E2
-!           fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
-!           fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
-! !          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
-! !          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
-! !          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
-!
-!           fy(1,2) = -ksi*F2 - dbar*X11     + CB*(ksi*Y11+J4)*sd
-!           fy(2,2) = -E2                    + CB*(1.0d0/R+J5)*sd
-!           fy(3,2) =  q*F2                  - CB*(q*Y11-J6)*sd
-!           fy(4,2) = -E2                    + CB*J1*cdsd
-!           fy(5,2) = -eta*G2 - ksi*Y11*sd + CB*J2*cdsd
-!           fy(6,2) =  q*G2                  + CB*J3*cdsd
-! !          fy(7,2) =  q*F2 - CB*J1*sdsd
-! !          fy(8,2) =  q*G2 - CB*J2*sdsd
-! !          fy(9,2) = -q*H2 - CB*J3*sdsd
-!
-!           fy(1,3) = -CC*ksi*P2*cd - a*ksi*Q2
-!           fy(2,3) =  2.0d0*CC*(dbar/R3-Y0*sd)*sd - ybar*cd/R3
-!      1             - a*((cbar+dbar)*sd/R3-eta/R3-3.0d0*cbar*ybar*q/R5)
-!           fy(3,3) = -CC*q/R3 + (ybar/R3-Y0*cd)*sd
-!      1                    + a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5
-!      2                                             -(Y0*cd+q*Z0)*sd)
-!           fy(4,3) = -CC*eta/R3 + Y0*sdsd
-!      1                    - a*((cbar+dbar)*sd/R3-3.0d0*cbar*ybar*q/R5)
-!           fy(5,3) =  CC*(X11-ybar*ybar*X32)
-!      1                 - a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
-!           fy(6,3) =  ksi*P2*sd + ybar*dbar*X32
-!      1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
-! !          fy(7,3) =  CC*(q/R3+Y0*cdsd)
-! !     1                  + a*(z*cd/R3+3.0d0*cbar*dbar*q/R5-q*Z0*sd)
-! !          fy(8,3) = -CC*2.0d0*ksi*P2*sd - ybar*dbar*X32
-! !     1                   + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*q*q*X53)
-! !          fy(9,3) = -CC*(ksi*P2*cd-X11+ybar*ybar*X32)
-! !     1                 + a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
-! !     2                 + a*ksi*Q2
-!       else
-!           fy(1,1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
-!           fy(2,1) =                                    CA2*E2
-!           fy(3,1) =  CA1*(cd/R+q*Y11*sd)         - CA2*q*F2
-!           fy(4,1) =                                    CA2*E2
-!           fy(5,1) =  CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
-!           fy(6,1) =  CA1*ybar*X11                    - CA2*q*G2
-! !          fy(7,1) = -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
-! !          fy(8,1) = -CA1*ybar*X11                    - CA2*q*G2
-! !          fy(9,1) =  CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
-!       endif
-!       z=z
-!
-!       RETURN
-!       END
-!
-! !-------------------
-!
-! !      SUBROUTINE FNZDER(fz,ksi,eta,q,z)
-!       SUBROUTINE zderiv1(fz,ksi,eta,q,z)
-! !----
-! ! Components of z-derivatives of displacement from finite source
-! !----
-!       IMPLICIT none
-!       REAL*8 fz(6,3),ksi,eta,q,z
-!       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       REAL*8 a,CA1,CA2,CB,CC
-!       REAL*8 cbar,dbar,ybar
-!       REAL*8 R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       REAL*8 K1,K2,K3,K4
-!       REAL*8 E3,F3,G3,H3,P3,Q3
-!       REAL*8 D11,Rd,Re,Rk,logRe,logRk,TH
-!       INTEGER thru
-!
-!       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       COMMON /ELAST/ a,CA1,CA2,CB,CC
-!       COMMON /BAR/ cbar,dbar,ybar
-!       COMMON /RVARS/ R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       COMMON /KVARS/ K1,K2,K3,K4
-!       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
-!       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
-!       COMMON /TAG/ thru
-!
-!       if (thru.eq.0) then
+function duAdy_ss_rect()
+implicit none
+double precision :: duAdy_ss_rect(3)
+duAdy_ss_rect(1) =  CA1*ksi*Y11*sd + dbar*X11*0.5d0 + CA2*ksi*F2
+duAdy_ss_rect(2) =                                    CA2*E2
+duAdy_ss_rect(3) =  CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
+return
+end function
+
+function duAdy_ds_rect()
+implicit none
+double precision :: duAdy_ds_rect(3)
+duAdy_ds_rect(1) =                                     CA2*E2
+duAdy_ds_rect(2) =   CA1*dbar*X11 + ksi*Y11*sd*0.5d0 + CA2*eta*G2
+duAdy_ds_rect(3) =   CA1*ybar*X11                    - CA2*q*G2
+return
+end function
+
+function duAdy_ts_rect()
+implicit none
+double precision :: duAdy_ts_rect(3)
+duAdy_ts_rect(1) =  -CA1*(cd/R+q*Y11*sd)             - CA2*q*F2
+duAdy_ts_rect(2) =  -CA1*ybar*X11                    - CA2*q*G2
+duAdy_ts_rect(3) =   CA1*(dbar*X11+ksi*Y11*sd)       + CA2*q*H2
+return
+end function
+
+function duBdy_ss_rect()
+implicit none
+double precision :: duBdy_ss_rect(3)
+duBdy_ss_rect(1) =  -ksi*F2 - dbar*X11     + CB*(ksi*Y11+J4)*sd
+duBdy_ss_rect(2) =  -E2                    + CB*(1.0d0/R+J5)*sd
+duBdy_ss_rect(3) =   q*F2                  - CB*(q*Y11-J6)*sd
+return
+end function
+
+function duBdy_ds_rect()
+implicit none
+double precision :: duBdy_ds_rect(3)
+duBdy_ds_rect(1) =  -E2                    + CB*J1*cdsd
+duBdy_ds_rect(2) =  -eta*G2 - ksi*Y11*sd + CB*J2*cdsd
+duBdy_ds_rect(3) =   q*G2                  + CB*J3*cdsd
+return
+end function
+
+function duBdy_ts_rect()
+implicit none
+double precision :: duBdy_ts_rect(3)
+duBdy_ts_rect(1) =  q*F2 - CB*J1*sdsd
+duBdy_ts_rect(2) =  q*G2 - CB*J2*sdsd
+duBdy_ts_rect(3) = -q*H2 - CB*J3*sdsd
+return
+end function
+
+function duCdy_ss_rect()
+implicit none
+double precision :: duCdy_ss_rect(3)
+duCdy_ss_rect(1) = -CC*ksi*P2*cd - a*ksi*Q2
+duCdy_ss_rect(2) = 2.0d0*CC*(dbar/R3-Y0*sd)*sd - ybar*cd/R3 - &
+                   a*((cbar+dbar)*sd/R3-eta/R3-3.0d0*cbar*ybar*q/R5)
+duCdy_ss_rect(3) = -CC*q/R3 + (ybar/R3-Y0*cd)*sd + &
+                   a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5-(Y0*cd+q*Z0)*sd)
+return
+end function
+
+function duCdy_ds_rect()
+implicit none
+double precision :: duCdy_ds_rect(3)
+duCdy_ds_rect(1) = -CC*eta/R3 + Y0*sdsd - a*((cbar+dbar)*sd/R3-3.0d0*cbar*ybar*q/R5)
+duCdy_ds_rect(2) =  CC*(X11-ybar*ybar*X32) - a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53)
+duCdy_ds_rect(3) =  ksi*P2*sd + ybar*dbar*X32 + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*qq*X53)
+return
+end function
+
+function duCdy_ts_rect()
+implicit none
+double precision :: duCdy_ts_rect(3)
+duCdy_ts_rect(1) =  CC*(q/R3+Y0*cdsd) + a*(z*cd/R3+3.0d0*cbar*dbar*q/R5-q*Z0*sd)
+duCdy_ts_rect(2) = -CC*2.0d0*ksi*P2*sd - ybar*dbar*X32 + a*cbar*((ybar+2.0d0*q*sd)*X32-ybar*qq*X53)
+duCdy_ts_rect(3) = -CC*(ksi*P2*cd-X11+ybar*ybar*X32) + &
+                   a*cbar*((dbar+2.0d0*q*cd)*X32-ybar*eta*q*X53) + a*ksi*Q2
+return
+end function
+
+function duAdz_ss_rect()
+implicit none
+double precision :: duAdz_ss_rect(3)
+duAdz_ss_rect(1) = 0
+duAdz_ss_rect(2) = 0
+duAdz_ss_rect(3) = 0
 !           fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
 !           fz(2,1) =                                    CA2*E3
 !           fz(3,1) = -CA1*(sd/R-q*Y11*cd)         - CA2*q*F3
+return
+end function
+
+function duAdz_ds_rect()
+implicit none
+double precision :: duAdz_ds_rect(3)
+duAdz_ds_rect(1) = 0
+duAdz_ds_rect(2) = 0
+duAdz_ds_rect(3) = 0
 !           fz(4,1) =                                    CA2*E3
 !           fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
 !           fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
+return
+end function
+
+function duAdz_ts_rect()
+implicit none
+double precision :: duAdz_ts_rect(3)
+duAdz_ts_rect(1) = 0
+duAdz_ts_rect(2) = 0
+duAdz_ts_rect(3) = 0
 ! !          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
 ! !          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
 ! !          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
-!
+return
+end function
+
+function duBdz_ss_rect()
+implicit none
+double precision :: duBdz_ss_rect(3)
+duBdz_ss_rect(1) = 0
+duBdz_ss_rect(2) = 0
+duBdz_ss_rect(3) = 0
 !           fz(1,2) = -ksi*F3 - ybar*X11     + CB*K1*sd
 !           fz(2,2) = -E3                    + CB*ybar*D11*sd
 !           fz(3,2) =  q*F3                  + CB*K2*sd
+return
+end function
+
+function duBdz_ds_rect()
+implicit none
+double precision :: duBdz_ds_rect(3)
+duBdz_ds_rect(1) = 0
+duBdz_ds_rect(2) = 0
+duBdz_ds_rect(3) = 0
 !           fz(4,2) = -E3                    - CB*K3*cdsd
 !           fz(5,2) = -eta*G3 - ksi*Y11*cd - CB*ksi*D11*cdsd
 !           fz(6,2) =  q*G3                  - CB*K4*cdsd
+return
+end function
+
+function duBdz_ts_rect()
+implicit none
+double precision :: duBdz_ts_rect(3)
+duBdz_ts_rect(1) = 0
+duBdz_ts_rect(2) = 0
+duBdz_ts_rect(3) = 0
 ! !          fz(7,2) =  q*F3 + CB*K3*sdsd
 ! !          fz(8,2) =  q*G3 + CB*ksi*D11*sdsd
 ! !          fz(9,2) = -q*H3 + CB*K4*sdsd
-!
+return
+end function
+
+function duCdz_ss_rect()
+implicit none
+double precision :: duCdz_ss_rect(3)
+duCdz_ss_rect(1) = 0
+duCdz_ss_rect(2) = 0
+duCdz_ss_rect(3) = 0
 !           fz(1,3) = CC*ksi*P3*cd - a*ksi*Q3
 !           fz(2,3) = 2.0d0*CC*(ybar/R3-Y0*cd)*sd + dbar*cd/R3
 !      1                    - a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
 !           fz(3,3) = (ybar/R3-Y0*cd)*cd
 !      1                    - a*((cbar+dbar)*sd/R3-3.0d0*cbar*ybar*q/R5
 !      2                                          -Y0*sd*sd+q*Z0*cd)
+return
+end function
+
+function duCdz_ds_rect()
+implicit none
+double precision :: duCdz_ds_rect(3)
+duCdz_ds_rect(1) = 0
+duCdz_ds_rect(2) = 0
+duCdz_ds_rect(3) = 0
 !           fz(4,3) = -q/R3 + Y0*sd*cd
 !      1                    - a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
 !           fz(5,3) = CC*ybar*dbar*X32
 !      1                 - a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
 !           fz(6,3) = -ksi*P3*sd + X11 - dbar*dbar*X32
 !      1                     - a*cbar*((dbar-2.0*q*cd)*X32-dbar*q*q*X53)
+return
+end function
+
+function duCdz_ts_rect()
+implicit none
+double precision :: duCdz_ts_rect(3)
+duCdz_ts_rect(1) = 0
+duCdz_ts_rect(2) = 0
+duCdz_ts_rect(3) = 0
 ! !          fz(7,3) = -eta/R3 + Y0*cdcd
 ! !     1               - a*(z*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sdsd+q*Z0*cd)
 ! !          fz(8,3) =  CC*2.0d0*ksi*P3*sd - X11 + dbar*dbar*X32
@@ -1829,58 +1900,10 @@ end function
 ! !          fz(9,3) =  CC*(ksi*P3*cd+ybar*dbar*X32)
 ! !     1                 + a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
 ! !     2                 + a*ksi*Q3
-!       else
-!           fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
-!           fz(2,1) =                                    CA2*E3
-!           fz(3,1) = -CA1*(sd/R-q*Y11*cd)         - CA2*q*F3
-!           fz(4,1) =                                    CA2*E3
-!           fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
-!           fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
-! !          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
-! !          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
-! !          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
-!       endif
-!       z=z
-!
-!       RETURN
-!       END
-!
-! !-------------------
-!
-! !      SUBROUTINE FNSDSP(f,ksi,eta,q,z)
-!       SUBROUTINE disp1stn(f,ksi,eta,q,z)
-! !----
-! ! Components of displacement due to finite source for calculating
-! ! partial derivatives
-! !----
-!       IMPLICIT none
-!       REAL*8 f(6),ksi,eta,q,z
-!       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       REAL*8 a,CA1,CA2,CB,CC
-!       REAL*8 cbar,dbar,ybar
-!       REAL*8 R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!
-!       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       COMMON /ELAST/ a,CA1,CA2,CB,CC
-!       COMMON /BAR/ cbar,dbar,ybar
-!       COMMON /RVARS/ R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!
-!       f(1) = CC*ksi*Y11*cd - a*ksi*q*Z32
-!       f(2) = CC*(cd/R+2.0d0*q*Y11*sd) - a*cbar*q/R3
-!       f(3) = CC*q*Y11*cd - a*(cbar*eta/R3-z*Y11+ksi*ksi*Z32)
-!       f(4) = CC*cd/R - q*Y11*sd - a*cbar*q/R3
-!       f(5) = CC*ybar*X11 - a*cbar*eta*q*X32
-!       f(6) = -dbar*X11 - ksi*Y11*sd - a*cbar*(X11 - q*q*X32)
-! !      f(7) = -CC*(sd/R+q*Y11*cd) - a*(z*Y11-q*q*Z32)
-! !      f(8) =  CC*2.0d0*ksi*Y11*sd + dbar*X11
-! !         1                                   - a*cbar*(X11-q*q*X32)
-! !      f(9) =  CC*(ybar*X11+ksi*Y11*cd)
-! !         1                                   + a*q*(cbar*eta*X32+ksi*Z32)
-!
-!       RETURN
-!       END
-!
-! !----------------------------------------------------------------------C
+return
+end function
+
+!--------------------------------------------------------------------------------------------------!
 
 subroutine check_singular_pt(isPointOnSource,Rin)
 !----
@@ -1980,5 +2003,199 @@ end subroutine check_singular_rect
 !
 !       RETURN
 !       END
+
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!----------------------------- PRIVATE VARIABLE UNIT TESTS ----------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_halfspace_vars()
+use test, only: test_value
+implicit none
+double precision :: lambda, shear_modulus
+lambda = 40.0d0
+shear_modulus = 40.0d0
+call halfspace_vars(lambda,shear_modulus)
+call test_value(a,0.66666666666666663d0,'halfspace_vars(): a')
+call test_value(CA1,0.16666666666666669d0,'halfspace_vars(): CA1')
+call test_value(CA2,0.33333333333333331d0,'halfspace_vars(): CA2')
+call test_value(CB,0.50000000000000011d0,'halfspace_vars(): CB')
+call test_value(CC,0.33333333333333337d0,'halfspace_vars(): CC')
+write(stderr,*) 'subroutine halfspace_vars() passed unit test'
+write(stderr,*)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_dip_vars()
+use test, only: test_value
+implicit none
+double precision :: dip
+dip = 70.0d0
+call dip_vars(dip)
+call test_value(sd,0.93969262078590832d0,'dip_vars(): sd')
+call test_value(cd,0.34202014332566882d0,'dip_vars(): cd')
+call test_value(s2d,0.64278760968653947d0,'dip_vars(): s2d')
+call test_value(c2d,-0.76604444311897790d0,'dip_vars(): c2d')
+call test_value(sdsd,0.88302222155948884d0,'dip_vars(): sdsd')
+call test_value(cdcd,0.11697777844051105d0,'dip_vars(): cdcd')
+call test_value(cdsd,0.32139380484326974d0,'dip_vars(): cdsd')
+write(stderr,*) 'subroutine dip_vars() passed unit test'
+write(stderr,*)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_pt_src_vars()
+use test, only: test_value
+implicit none
+double precision :: dip, sta_coord(3), evdp
+dip = 70.0d0
+call dip_vars(dip)
+sta_coord(1) = 2.0d0
+sta_coord(2) = 3.0d0
+sta_coord(3) = 0.0d0
+evdp = 4.0d0
+call pt_src_vars(sta_coord(1),sta_coord(2),sta_coord(3),evdp)
+call test_value(p,4.7848309131206399d0,'pt_src_vars(): p')
+call test_value(q,1.4509972890550495d0,'pt_src_vars(): q')
+call test_value(s,4.9925406015355298d0,'pt_src_vars(): s')
+call test_value(t,0.27301710938922441d0,'pt_src_vars(): t')
+call test_value(xx,4.0d0,'pt_src_vars(): xx')
+call test_value(xy,6.0d0,'pt_src_vars(): xy')
+call test_value(yy,9.0d0,'pt_src_vars(): yy')
+call test_value(dd,16.0d0,'pt_src_vars(): dd')
+call test_value(xd,8.0d0,'pt_src_vars(): xd')
+call test_value(xc,8.0d0,'pt_src_vars(): xc')
+call test_value(xq,2.9019945781100991d0,'pt_src_vars(): xq')
+call test_value(yq,4.3529918671651489d0,'pt_src_vars(): yq')
+call test_value(dq,5.8039891562201982d0,'pt_src_vars(): dq')
+call test_value(pq,6.9427766835248459d0,'pt_src_vars(): pq')
+call test_value(xs,9.9850812030710596d0,'pt_src_vars(): xs')
+call test_value(xt,0.54603421877844882d0,'pt_src_vars(): xt')
+call test_value(ys,14.977621804606589d0,'pt_src_vars(): ys')
+call test_value(yt,0.81905132816767323d0,'pt_src_vars(): yt')
+call test_value(qq,2.1053931328451032d0,'pt_src_vars(): qq')
+call test_value(R,5.3851648071345037d0,'pt_src_vars(): R')
+call test_value(R2,28.999999999999996d0,'pt_src_vars(): R2')
+call test_value(R3,156.16977940690060d0,'pt_src_vars(): R3')
+call test_value(R4,840.99999999999989d0,'pt_src_vars(): R4')
+call test_value(R5,4528.9236028001169d0,'pt_src_vars(): R5')
+call test_value(R7,131338.78448120339d0,'pt_src_vars(): R7')
+call test_value(Rd,9.3851648071345046d0,'pt_src_vars(): Rd')
+call test_value(A3,0.58620689655172409d0,'pt_src_vars(): A3')
+call test_value(A5,0.31034482758620685d0,'pt_src_vars(): A5')
+call test_value(A7,3.4482758620689502d-2,'pt_src_vars(): A7')
+call test_value(B3,6.8965517241379226d-2,'pt_src_vars(): B3')
+call test_value(B5,-0.55172413793103470d0,'pt_src_vars(): B5')
+call test_value(B7,-1.1724137931034484d0,'pt_src_vars(): B7')
+call test_value(C3,-0.65517241379310365d0,'pt_src_vars(): C3')
+call test_value(C5,-1.7586206896551726d0,'pt_src_vars(): C5')
+call test_value(C7,-2.8620689655172420d0,'pt_src_vars(): C7')
+call test_value(I1,4.4511857695225003d-003,'pt_src_vars(): I1')
+call test_value(I2,1.4062132997373915d-003,'pt_src_vars(): I2')
+call test_value(I3,1.1400361746955842d-002,'pt_src_vars(): I3')
+call test_value(I4,-6.4425920722921085d-003,'pt_src_vars(): I4')
+call test_value(I5,1.5490988410148277d-002,'pt_src_vars(): I5')
+call test_value(J1,-2.3037701706801377d-003,'pt_src_vars(): J1')
+call test_value(J2,8.3831231772032186d-004,'pt_src_vars(): J2')
+call test_value(J3,2.9153389890690740d-003,'pt_src_vars(): J3')
+call test_value(J4,-1.6706841541556938d-003,'pt_src_vars(): J4')
+call test_value(K1,-1.7024420377114214d-003,'pt_src_vars(): K1')
+call test_value(K2,1.3075030688791331d-004,'pt_src_vars(): K2')
+call test_value(K3,-5.4300227400023550d-003,'pt_src_vars(): K3')
+call test_value(U2,0.18917678161950324d0,'pt_src_vars(): U2')
+call test_value(V2,1.4014492135054364d0,'pt_src_vars(): V2')
+call test_value(W2,1.1288694024054116d0,'pt_src_vars(): W2')
+call test_value(U3,1.3427079288808756d0,'pt_src_vars(): U3')
+call test_value(V3,5.0611389600960157d0,'pt_src_vars(): V3')
+call test_value(W3,1.6847280722065445d0,'pt_src_vars(): W3')
+write(stderr,*) 'subroutine pt_src_vars() passed unit test'
+write(stderr,*)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_rect_src_vars()
+use test, only: test_value
+implicit none
+double precision :: dip, sta_coord(3), evdp, len, wid
+dip = 70.0d0
+call dip_vars(dip)
+sta_coord(1) = 2.0d0
+sta_coord(2) = 3.0d0
+sta_coord(3) = 0.0d0
+evdp = 4.0d0
+len = 3.0d0
+wid = 2.0d0
+call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
+call test_value(p,4.7848309131206399d0,'rect_src_coords(): p')
+call test_value(q,1.4509972890550495d0,'rect_src_coords(): q')
+call test_value(eta_vec(1),3.7848309131206399d0,'rect_src_coords(): eta_vec(1)')
+call test_value(eta_vec(2),5.7848309131206399d0,'rect_src_coords(): eta_vec(2)')
+call test_value(ksi_vec(1),0.5000000000000000d0,'rect_src_coords(): ksi_vec(1)')
+call test_value(ksi_vec(2),3.5000000000000000d0,'rect_src_coords(): ksi_vec(2)')
+write(6,*) 'subroutine rect_src_coords() passed unit test'
+call rect_src_vars(ksi_vec(1),eta_vec(1))
+call test_value(ybar,2.6579798566743307d0,'rect_src_vars(): ybar')
+call test_value(dbar,3.0603073792140916d0,'rect_src_vars(): cbar')
+call test_value(cbar,3.0603073792140916d0,'rect_src_vars(): dbar')
+call test_value(R,4.0841569722231199d0,'rect_src_vars(): R')
+call test_value(R2,16.680338173758720d0,'rect_src_vars(): R2')
+call test_value(R3,68.125119451396145d0,'rect_src_vars(): R3')
+! call test_value(R4,840.99999999999989d0,'rect_src_vars(): R4')
+call test_value(R5,1136.3500305769958d0,'rect_src_vars(): R5')
+! call test_value(R7,131338.78448120339d0,'rect_src_vars(): R7')
+call test_value(Rd,7.1444643514372110d0,'rect_src_vars(): Rd')
+call test_value(qq,2.1053931328451032d0,'rect_src_vars(): qq')
+call test_value(TH,0.30910022531517090d0,'rect_src_vars(): TH')
+call test_value(Rk,4.5841569722231199d0,'rect_src_vars(): Rk')
+call test_value(X11,5.3411908204318771d-002,'rect_src_vars(): X11')
+call test_value(X32,6.0549197882804537d-003,'rect_src_vars(): X32')
+call test_value(X53,1.3937426671487758d-003,'rect_src_vars(): X53')
+call test_value(logRk,1.5226062223303141d0,'rect_src_vars(): logRk')
+call test_value(Re,7.8689878853437598d0,'rect_src_vars(): Re')
+call test_value(Y11,3.1115637101260175d-002,'rect_src_vars(): Y11')
+call test_value(Y32,2.8335909219300561d-003,'rect_src_vars(): Y32')
+call test_value(Y53,5.6987957651285224d-004,'rect_src_vars(): Y53')
+call test_value(logRe,2.0629294500096305d0,'rect_src_vars(): logRe')
+call test_value(Y0,3.0407239370777661d-002,'rect_src_vars(): Y0')
+call test_value(I1,-24.464842377362366d0,'rect_src_vars(): I1')
+call test_value(I2,1.2599616181546565d0,'rect_src_vars(): I2')
+call test_value(I3,-0.75170987457349314d0,'rect_src_vars(): I3')
+call test_value(I4,26.009469280193130d0,'rect_src_vars(): I4')
+call test_value(Z32,1.2387401944116128d-002,'rect_src_vars(): Z53')
+call test_value(Z53,2.1980039131027692d-003,'rect_src_vars(): Z32')
+call test_value(Z0,1.1837900965840436d-002,'rect_src_vars(): Z0')
+call test_value(D11,3.4271088684950102d-002,'rect_src_vars(): D11')
+call test_value(K1,7.3562247838898460d-003,'rect_src_vars(): K1')
+call test_value(K2,0.11862078136010840d0,'rect_src_vars(): K2')
+call test_value(K3,-0.13432880842342962d0,'rect_src_vars(): K3')
+call test_value(K4,-1.5915028157424500d-003,'rect_src_vars(): K4')
+call test_value(J1,-3.6668885560592841d-002,'rect_src_vars(): J1')
+call test_value(J2,6.3749960046040766d-003,'rect_src_vars(): J2')
+call test_value(J3,3.9930048199627510d-003,'rect_src_vars(): J3')
+call test_value(J4,-1.3985998433743778d-002,'rect_src_vars(): J4')
+call test_value(J6,-1.1485677136015674d-002,'rect_src_vars(): J6')
+call test_value(E2,0.17347006835163784d0,'rect_src_vars(): E2')
+call test_value(F2,4.5587540534369766d-002,'rect_src_vars(): F2')
+call test_value(G2,7.7029412273117825d-002,'rect_src_vars(): G2')
+call test_value(H2,2.8818645950405460d-002,'rect_src_vars(): H2')
+call test_value(P2,8.8840473466618580d-003,'rect_src_vars(): P2')
+call test_value(Q2,1.9608281698289438d-003,'rect_src_vars(): Q2')
+call test_value(E3,0.14892464696612687d0,'rect_src_vars(): E3')
+call test_value(F3,3.9258435961432761d-002,'rect_src_vars(): F3')
+call test_value(G3,6.3422754458309291d-002,'rect_src_vars(): G3')
+call test_value(H3,2.4055253239807024d-002,'rect_src_vars(): H3')
+call test_value(P3,1.2387401944116128d-002,'rect_src_vars(): P3')
+call test_value(Q3,1.7300629665110766d-002,'rect_src_vars(): Q3')
+write(stderr,*) 'subroutine rect_src_vars() passed unit test'
+write(stderr,*)
+return
+end subroutine
 
 end module

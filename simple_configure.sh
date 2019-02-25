@@ -428,9 +428,9 @@ test_tri_disloc: src/tri_disloc_unit_tests.f90 src/pnpoly.f src/geomsubs.f \$(IN
 	\$@
 	rm \$@
 
-test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.f
-	\$(FC) \$(FFLAG) -c src/okada92_module.f90
-	\$(FC) \$(FFLAG) -o \$@ \$^
+test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.f \$(INCLUDE)/trig.o \$(INCLUDE)/test.o
+	\$(FC) \$(FFLAG) -c src/okada92_module.f90 -I\$(INCLUDE)
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
 	rm *.o *.mod
 	\$@
 	@echo "test_okada92 passed"
@@ -452,6 +452,9 @@ test_okada92: src/okada92_module.f90 src/okada92_unit_tests.f90 src/okada92subs.
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
 
 \$(INCLUDE)/elast.o: src/elast_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
+
+\$(INCLUDE)/test.o: src/test_module.f90
 	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
 
 \$(INCLUDE)/%.o: \$(INCLUDE)/%.mod
