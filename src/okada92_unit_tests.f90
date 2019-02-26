@@ -4,7 +4,7 @@ use test, only: test_value
 use io, only: stdout
 use trig, only: d2r
 
-use okada92_module
+use okada92
 
 implicit none
 

@@ -1,4 +1,4 @@
-module okada92_module
+module okada92
 !----
 ! Routines to compute deformation from point and finite sources in an elastic half-space.
 !
