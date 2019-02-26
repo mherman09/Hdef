@@ -13,24 +13,57 @@ module okada92_module
 !   - Depths are defined positive down
 !----
 
-use trig, only: pi, d2r
-use io, only: stderr, verbosity
-
+! Half-space variables
 double precision, private :: a, CA1, CA2, CB, CC
+
+! Fault dip variables
 double precision, private :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
+
+! Basic geometric variables
 double precision, private :: x, y, z, c, d
+
+! Derived geometric variables
 double precision, private :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
 double precision, private :: R, R2, R3, R4, R5, R7, Rd
 double precision, private :: A3, A5, A7, B3, B5, B7, C3, C5, C7
 double precision, private :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
 double precision, private :: U2, V2, W2, U3, V3, W3
-double precision, public :: eta_vec(2), ksi_vec(2), ksi, eta
+double precision, private :: eta_vec(2), ksi_vec(2), ksi, eta
 double precision, private :: cbar, dbar, ybar
 double precision, private :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
 double precision, private :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
 double precision, private :: D11, Re, Rk, logRe, logRk, TH
+
+! Integration constants for rectangular faults, stored as an array:
+!    chinnery_factor = [  1 -1 ]
+!                      [ -1  1 ]
 double precision, private :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(/2,2/))
+
+! Singular flag
 logical, private :: isSingular
+
+! PRIVATE
+private :: halfspace_vars
+private :: dip_vars
+private :: pt_src_vars
+private :: rect_src_coords
+private :: rect_src_vars
+private :: check_singular_pt
+private :: check_singular_rect
+
+! PUBLIC
+public :: o92_pt_disp
+public :: o92_pt_strain
+public :: o92_pt_partials
+public :: o92_rect_disp
+public :: o92_rect_strain
+public :: o92_rect_partials
+public :: test_halfspace_vars
+public :: test_dip_vars
+public :: test_pt_src_vars
+public :: test_rect_src_vars
+public :: test_rect_disp_components
+public :: test_rect_partial_components
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -42,13 +75,18 @@ subroutine halfspace_vars(lambda,mu)
 ! Coefficients in displacement and strain equations, where lambda is the Lame parameter and mu is
 ! the shear modulus, both in Pa.
 !----
+
 implicit none
+
+! Arguments
 double precision :: lambda, mu
+
 a   = (lambda+mu)/(lambda+2.0d0*mu)
 CA1 = (1.0d0-a)*0.5d0
 CA2 = a*0.5d0
 CB  = (1.0d0-a)/a
 CC  = 1.0d0-a
+
 return
 end subroutine
 
@@ -58,7 +96,12 @@ subroutine dip_vars(dip)
 !----
 ! Trigonometric functions of the fault dip (in degrees) found in the deformation equations.
 !----
+
+use trig, only: d2r
+
 implicit none
+
+! Arguments
 double precision :: dip
 
 ! To avoid divide by zero problems, avoid dip of 90 degress
@@ -73,6 +116,7 @@ c2d = dcos(2.0d0*dip*d2r)
 cdcd = cd*cd
 sdsd = sd*sd
 cdsd = sd*cd
+
 return
 end subroutine
 
@@ -94,9 +138,14 @@ subroutine o92_pt_disp(disp,sta_coord,evdp,dip,moment,lambda,shear_modulus)
 !     lambda, shear_modulus: half-space parameters (Pa)
 !----
 
+use io, only: stderr
+use trig, only: pi
+
 implicit none
+
 ! Arguments
 double precision :: disp(3), sta_coord(3), evdp, dip, moment(4), lambda, shear_modulus
+
 ! Local variables
 double precision :: Css, Cds, Cts, Cvol, u_ss(3), u_ds(3), u_ts(3), u_vol(3)
 
@@ -107,7 +156,7 @@ disp = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(0,*) 'o92_pt_disp: station depth less than zero, setting displacement to zero'
+    write(stderr,*) 'o92_pt_disp: station depth less than zero, setting displacement to zero'
     return
 endif
 
@@ -127,7 +176,7 @@ call pt_src_vars(sta_coord(1),sta_coord(2),-sta_coord(3),evdp)
 ! Check for singular solution when R=0
 call check_singular_pt(isSingular,R)
 if (isSingular) then
-    write(0,*) 'o92_pt_disp: solution is singular, setting displacement to zero'
+    write(stderr,*) 'o92_pt_disp: solution is singular, setting displacement to zero'
     return
 endif
 
@@ -155,7 +204,7 @@ call pt_src_vars(sta_coord(1),sta_coord(2),sta_coord(3),evdp)
 ! Check for singular solution when R=0
 call check_singular_pt(isSingular,R)
 if (isSingular) then
-    write(0,*) 'o92_pt_disp: solution is singular, setting displacement to zero'
+    write(stderr,*) 'o92_pt_disp: solution is singular, setting displacement to zero'
     return
 endif
 
@@ -196,9 +245,13 @@ subroutine o92_pt_strain(strain,sta_coord,evdp,dip,moment,lambda,shear_modulus)
 !     lambda, shear_modulus: half-space parameters (Pa)
 !----
 
+use io, only: stderr
+
 implicit none
+
 ! Arguments
 double precision :: strain(3,3), sta_coord(3), evdp, dip, moment(4), lambda, shear_modulus
+
 ! Local variables
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
 
@@ -209,7 +262,7 @@ strain = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(0,*) 'o92_pt_strain: station depth less than zero; setting strain to zero'
+    write(stderr,*) 'o92_pt_strain: station depth less than zero; setting strain to zero'
     return
 endif
 
@@ -241,10 +294,15 @@ subroutine o92_pt_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
 ! Compute partial derivatives at a point in an elastic half-space due to a point source dislocation
 !----
 
+use io, only: stderr
+use trig, only: pi
+
 implicit none
+
 ! Arguments
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, &
                     sta_coord(3), evdp, dip, moment(4), lambda, shear_modulus
+
 ! Local variables
 double precision :: Css, Cds, Cts, Cvol
 double precision :: dudx_ss(3), dudy_ss(3), dudz_ss(3), u_ss(3)
@@ -281,7 +339,7 @@ call pt_src_vars(sta_coord(1),sta_coord(2),-sta_coord(3),evdp)
 ! Check for singular solution when R=0
 call check_singular_pt(isSingular,R)
 if (isSingular) then
-    write(0,*) 'o92_pt_partials: solution is singular, setting partial derivatives to zero'
+    write(stderr,*) 'o92_pt_partials: solution is singular, setting partial derivatives to zero'
     return
 endif
 
@@ -332,7 +390,7 @@ call pt_src_vars(sta_coord(1),sta_coord(2),sta_coord(3),evdp)
 ! Check for singular solution when R=0
 call check_singular_pt(isSingular,R)
 if (isSingular) then
-    write(0,*) 'o92_pt_partials: solution is singular, setting partial derivatives to zero'
+    write(stderr,*) 'o92_pt_partials: solution is singular, setting partial derivatives to zero'
     return
 endif
 
@@ -385,8 +443,10 @@ subroutine pt_src_vars(xin,yin,zin,cin)
 !----
 
 implicit none
+
 ! Arguments
 double precision :: xin, yin, zin, cin
+
 ! Local variables
 double precision :: Rd2, Rd3, Rd4
 
@@ -946,9 +1006,14 @@ subroutine o92_rect_disp(disp,sta_coord,evdp,dip,slip,wid,len,lambda,shear_modul
 !     lambda, shear_modulus: half-space parameters (Pa)
 !----
 
+use io, only: stderr
+use trig, only: pi
+
 implicit none
+
 ! Arguments
 double precision :: disp(3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
+
 ! Local variables
 integer :: i, j
 double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), uA(3), uB(3), uC(3)
@@ -960,7 +1025,7 @@ disp = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(0,*) 'o92_rect_disp: station depth less than zero; setting displacement to zero'
+    write(stderr,*) 'o92_rect_disp: station depth less than zero; setting displacement to zero'
     return
 endif
 
@@ -979,7 +1044,7 @@ call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
 ! Check for singular solution when observation point lies on fault edge
 call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
 if (isSingular) then
-    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
+    write(stderr,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
     return
 endif
 
@@ -1024,7 +1089,7 @@ call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
 ! Check for singular solution when observation point lies on fault edge
 call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
 if (isSingular) then
-    write(0,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
+    write(stderr,*) 'o92_rect_disp: solution is singular, setting displacements to zero'
     return
 endif
 
@@ -1079,9 +1144,13 @@ subroutine o92_rect_strain(strain,sta_coord,evdp,dip,slip,wid,len,lambda,shear_m
 !     lambda, shear_modulus: half-space parameters (Pa)
 !----
 
+use io, only: stderr
+
 implicit none
+
 ! Arguments
 double precision :: strain(3,3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
+
 ! Local variables
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
 
@@ -1090,7 +1159,7 @@ strain = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(0,*) 'o92_rect_strain: station depth less than zero; setting strain to zero'
+    write(stderr,*) 'o92_rect_strain: station depth less than zero; setting strain to zero'
     return
 endif
 
@@ -1120,46 +1189,16 @@ subroutine o92_rect_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
 ! Compute partial derivatives of displacement at a point in an elastic half-space due to a
 ! rectangular source dislocation.
 !----
-!       IMPLICIT NONE
-!       REAL*8 eps
-!       PARAMETER (eps=1.0d-4)
-!       REAL*8 x,y,stdp,evdp,z,c,d,p,q,ksi(2),eta(2)
-!       REAL*8 dipin,rakin,wid,len,slip,Mss,Mds
-!       REAL*8 vp,vs,dens
-!       INTEGER i,j,ii,jj,ee(2),ek(2),eq
-!       REAL*8 fj(6,3),fk(6,3),fl(6,3),u(6),fx(6,3),fy(6,3),fz(6,3),f(6)
-!       REAL*8 uxx,uyx,uzx,uxy,uyy,uzy,uxz,uyz,uzz,strain(3,3)
-!       REAL*8 fac,zro,one
-!       DATA zro,one/0.0d0,1.0d0/
-!
-!       REAL*8 sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       REAL*8 a,CA1,CA2,CB,CC
-!       REAL*8 cbar,dbar,ybar
-!       REAL*8 R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       REAL*8 I1,I2,I3,I4
-!       REAL*8 J1,J2,J3,J4,J5,J6
-!       REAL*8 K1,K2,K3,K4
-!       REAL*8 E2,F2,G2,H2,P2,Q2
-!       REAL*8 E3,F3,G3,H3,P3,Q3
-!       REAL*8 D11,Rd,Re,Rk,logRe,logRk,TH
-!       INTEGER thru
-!
-!       COMMON /SOURCE/ sd,cd,s2d,c2d,cdcd,sdsd,cdsd
-!       COMMON /ELAST/ a,CA1,CA2,CB,CC
-!       COMMON /BAR/ cbar,dbar,ybar
-!       COMMON /RVARS/ R,R2,R3,R5,X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0
-!       COMMON /IVARS/ I1,I2,I3,I4
-!       COMMON /JVARS/ J1,J2,J3,J4,J5,J6
-!       COMMON /KVARS/ K1,K2,K3,K4
-!       COMMON /YVARS/ E2,F2,G2,H2,P2,Q2
-!       COMMON /ZVARS/ E3,F3,G3,H3,P3,Q3
-!       COMMON /MISC/ D11,Rd,Re,Rk,logRe,logRk,TH
-!       COMMON /TAG/ thru
+
+use io, only: stderr
+use trig, only: pi
 
 implicit none
+
 ! Arguments
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz, &
                     sta_coord(3), evdp, dip, slip(3), wid, len, lambda, shear_modulus
+
 ! Local variables
 double precision :: Css, Cds, Cts, dudx_ss(3), dudy_ss(3), dudz_ss(3), dudx_ds(3), dudy_ds(3), &
                     dudz_ds(3), dudx_ts(3), dudy_ts(3), dudz_ts(3), duA(3), duB(3), duC(3)
@@ -1192,7 +1231,7 @@ call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
 ! Check for singular solution when observation point lies on fault edge
 call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
 if (isSingular) then
-    write(0,*) 'o92_rect_strain: solution is singular, setting strains to zero'
+    write(stderr,*) 'o92_rect_strain: solution is singular, setting strains to zero'
     return
 endif
 
@@ -1209,6 +1248,7 @@ dudz_ts = 0.0d0
 do i = 1,2
     do j = 1,2
         call rect_src_vars(ksi_vec(i),eta_vec(j))
+
         if (dabs(Css).gt.1.0d-6) then
             ! X-derivatives
             duA = chinnery_factor(i,j)*duAdx_ss_rect()
@@ -1217,6 +1257,7 @@ do i = 1,2
             dudx_ss(1) = dudx_ss(1) + duA(1) + duB(1) + duC(1)
             dudx_ss(2) = dudx_ss(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
             dudx_ss(3) = dudx_ss(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+
             ! Y-derivatives
             duA = chinnery_factor(i,j)*duAdy_ss_rect()
             duB = chinnery_factor(i,j)*duBdy_ss_rect()
@@ -1224,30 +1265,68 @@ do i = 1,2
             dudy_ss(1) = dudy_ss(1) + duA(1) + duB(1) + duC(1)
             dudy_ss(2) = dudy_ss(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
             dudy_ss(3) = dudy_ss(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
-            ! ! Z-derivatives
-            ! duA = chinnery_factor(i,j)*duAdx_ss_rect()
-            ! duB = chinnery_factor(i,j)*duBdx_ss_rect()
-            ! duC = chinnery_factor(i,j)*z*duCdx_ss_rect()
-            ! dudz_ss(1) = u_ss(1) + uA(1) + uB(1) + uC(1)
-            ! dudz_ss(2) = u_ss(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-            ! dudz_ss(3) = u_ss(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ss_rect()
+            duB = chinnery_factor(i,j)*duBdz_ss_rect()
+            duC = chinnery_factor(i,j)*(uC_ss_rect()+z*duCdz_ss_rect())
+            dudz_ss(1) = dudz_ss(1) + duA(1) + duB(1) + duC(1)
+            dudz_ss(2) = dudz_ss(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudz_ss(3) = dudz_ss(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
         endif
-        ! if (dabs(Cds).gt.1.0d-6) then
-        !     uA = chinnery_factor(i,j)*uA_ds_rect()
-        !     uB = chinnery_factor(i,j)*uB_ds_rect()
-        !     uC = chinnery_factor(i,j)*z*uC_ds_rect()
-        !     u_ds(1) = u_ds(1) + uA(1) + uB(1) + uC(1)
-        !     u_ds(2) = u_ds(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-        !     u_ds(3) = u_ds(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
-        ! endif
-        ! if (dabs(Cts).gt.1.0d-6) then
-        !     uA = chinnery_factor(i,j)*uA_ts_rect()
-        !     uB = chinnery_factor(i,j)*uB_ts_rect()
-        !     uC = chinnery_factor(i,j)*z*uC_ts_rect()
-        !     u_ts(1) = u_ts(1) + uA(1) + uB(1) + uC(1)
-        !     u_ts(2) = u_ts(2) + (uA(2)+uB(2)+uC(2))*cd - (uA(3)+uB(3)+uC(3))*sd
-        !     u_ts(3) = u_ts(3) + (uA(2)+uB(2)-uC(2))*sd + (uA(3)+uB(3)-uC(3))*cd
-        ! endif
+
+        if (dabs(Cds).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ds_rect()
+            duB = chinnery_factor(i,j)*duBdx_ds_rect()
+            duC = chinnery_factor(i,j)*z*duCdx_ds_rect()
+            dudx_ds(1) = dudx_ds(1) + duA(1) + duB(1) + duC(1)
+            dudx_ds(2) = dudx_ds(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudx_ds(3) = dudx_ds(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ds_rect()
+            duB = chinnery_factor(i,j)*duBdy_ds_rect()
+            duC = chinnery_factor(i,j)*z*duCdy_ds_rect()
+            dudy_ds(1) = dudy_ds(1) + duA(1) + duB(1) + duC(1)
+            dudy_ds(2) = dudy_ds(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudy_ds(3) = dudy_ds(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ds_rect()
+            duB = chinnery_factor(i,j)*duBdz_ds_rect()
+            duC = chinnery_factor(i,j)*(uC_ds_rect()+z*duCdz_ds_rect())
+            dudz_ds(1) = dudz_ds(1) + duA(1) + duB(1) + duC(1)
+            dudz_ds(2) = dudz_ds(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudz_ds(3) = dudz_ds(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+        endif
+
+        if (dabs(Cts).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ts_rect()
+            duB = chinnery_factor(i,j)*duBdx_ts_rect()
+            duC = chinnery_factor(i,j)*z*duCdx_ts_rect()
+            dudx_ts(1) = dudx_ts(1) + duA(1) + duB(1) + duC(1)
+            dudx_ts(2) = dudx_ts(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudx_ts(3) = dudx_ts(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ts_rect()
+            duB = chinnery_factor(i,j)*duBdy_ts_rect()
+            duC = chinnery_factor(i,j)*z*duCdy_ts_rect()
+            dudy_ts(1) = dudy_ts(1) + duA(1) + duB(1) + duC(1)
+            dudy_ts(2) = dudy_ts(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudy_ts(3) = dudy_ts(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ts_rect()
+            duB = chinnery_factor(i,j)*duBdz_ts_rect()
+            duC = chinnery_factor(i,j)*(uC_ts_rect()+z*duCdz_ts_rect())
+            dudz_ts(1) = dudz_ts(1) + duA(1) + duB(1) + duC(1)
+            dudz_ts(2) = dudz_ts(2) + (duA(2)+duB(2)+duC(2))*cd - (duA(3)+duB(3)+duC(3))*sd
+            dudz_ts(3) = dudz_ts(3) + (duA(2)+duB(2)-duC(2))*sd + (duA(3)+duB(3)-duC(3))*cd
+        endif
+
     enddo
 enddo
 
@@ -1258,7 +1337,7 @@ call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
 ! Check for singular solution when observation point lies on fault edge
 call check_singular_rect(isSingular,ksi_vec,eta_vec,q)
 if (isSingular) then
-    write(0,*) 'o92_rect_strain: solution is singular, setting strains to zero'
+    write(stderr,*) 'o92_rect_strain: solution is singular, setting strains to zero'
     return
 endif
 
@@ -1266,30 +1345,67 @@ endif
 do i = 1,2
     do j = 1,2
         call rect_src_vars(ksi_vec(i),eta_vec(j))
+
         if (dabs(Css).gt.1.0d-6) then
             ! X-derivatives
             duA = chinnery_factor(i,j)*duAdx_ss_rect()
             dudx_ss(1) = dudx_ss(1) - duA(1)
             dudx_ss(2) = dudx_ss(2) - duA(2)*cd + duA(3)*sd
             dudx_ss(3) = dudx_ss(3) - duA(2)*sd - duA(3)*cd
+
             ! Y-derivatives
             duA = chinnery_factor(i,j)*duAdy_ss_rect()
             dudy_ss(1) = dudy_ss(1) - duA(1)
             dudy_ss(2) = dudy_ss(2) - duA(2)*cd + duA(3)*sd
             dudy_ss(3) = dudy_ss(3) - duA(2)*sd - duA(3)*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ss_rect()
+            dudz_ss(1) = dudz_ss(1) + duA(1)
+            dudz_ss(2) = dudz_ss(2) + duA(2)*cd - duA(3)*sd
+            dudz_ss(3) = dudz_ss(3) + duA(2)*sd + duA(3)*cd
         endif
-!         if (dabs(Cds).gt.1.0d-6) then
-!             uA = chinnery_factor(i,j)*uA_ds_rect()
-!             u_ds(1) = u_ds(1) - uA(1)
-!             u_ds(2) = u_ds(2) - uA(2)*cd + uA(3)*sd
-!             u_ds(3) = u_ds(3) - uA(2)*sd - uA(3)*cd
-!         endif
-!         if (dabs(Cts).gt.1.0d-6) then
-!             uA = chinnery_factor(i,j)*uA_ts_rect()
-!             u_ts(1) = u_ts(1) - uA(1)
-!             u_ts(2) = u_ts(2) - uA(2)*cd + uA(3)*sd
-!             u_ts(3) = u_ts(3) - uA(2)*sd - uA(3)*cd
-!         endif
+
+        if (dabs(Cds).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ds_rect()
+            dudx_ds(1) = dudx_ds(1) - duA(1)
+            dudx_ds(2) = dudx_ds(2) - duA(2)*cd + duA(3)*sd
+            dudx_ds(3) = dudx_ds(3) - duA(2)*sd - duA(3)*cd
+
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ds_rect()
+            dudy_ds(1) = dudy_ds(1) - duA(1)
+            dudy_ds(2) = dudy_ds(2) - duA(2)*cd + duA(3)*sd
+            dudy_ds(3) = dudy_ds(3) - duA(2)*sd - duA(3)*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ds_rect()
+            dudz_ds(1) = dudz_ds(1) + duA(1)
+            dudz_ds(2) = dudz_ds(2) + duA(2)*cd - duA(3)*sd
+            dudz_ds(3) = dudz_ds(3) + duA(2)*sd + duA(3)*cd
+        endif
+
+        if (dabs(Cts).gt.1.0d-6) then
+            ! X-derivatives
+            duA = chinnery_factor(i,j)*duAdx_ts_rect()
+            dudx_ts(1) = dudx_ts(1) - duA(1)
+            dudx_ts(2) = dudx_ts(2) - duA(2)*cd + duA(3)*sd
+            dudx_ts(3) = dudx_ts(3) - duA(2)*sd - duA(3)*cd
+
+            ! Y-derivatives
+            duA = chinnery_factor(i,j)*duAdy_ts_rect()
+            dudy_ts(1) = dudy_ts(1) - duA(1)
+            dudy_ts(2) = dudy_ts(2) - duA(2)*cd + duA(3)*sd
+            dudy_ts(3) = dudy_ts(3) - duA(2)*sd - duA(3)*cd
+
+            ! Z-derivatives
+            duA = chinnery_factor(i,j)*duAdz_ts_rect()
+            dudz_ts(1) = dudz_ts(1) + duA(1)
+            dudz_ts(2) = dudz_ts(2) + duA(2)*cd - duA(3)*sd
+            dudz_ts(3) = dudz_ts(3) + duA(2)*sd + duA(3)*cd
+        endif
+
     enddo
 enddo
 
@@ -1299,86 +1415,12 @@ uxz = Css*dudz_ss(1) + Cds*dudz_ds(1) + Cts*dudz_ts(1)
 uyx = Css*dudx_ss(2) + Cds*dudx_ds(2) + Cts*dudx_ts(2)
 uyy = Css*dudy_ss(2) + Cds*dudy_ds(2) + Cts*dudy_ts(2)
 uyz = Css*dudz_ss(2) + Cds*dudz_ds(2) + Cts*dudz_ts(2)
+uzx = Css*dudx_ss(3) + Cds*dudx_ds(3) + Cts*dudx_ts(3)
+uzy = Css*dudy_ss(3) + Cds*dudy_ds(3) + Cts*dudy_ts(3)
+uzz = Css*dudz_ss(3) + Cds*dudz_ds(3) + Cts*dudz_ts(3)
 
 return
 end subroutine
-!           if (thru.eq.0) then
-!               call xderiv1(fx,ksi(ii),eta(jj),q,z)
-!               call yderiv1(fy,ksi(ii),eta(jj),q,z)
-!               call zderiv1(fz,ksi(ii),eta(jj),q,z)
-!               call disp1stn(f ,ksi(ii),eta(jj),q,z)
-!
-!               do 405 i = 1,6
-!                   u(i)  =  u(i) + fac*f(i)
-!                   do 404 j = 1,3
-!                       fj(i,j) = fj(i,j) + fac*fx(i,j)
-!                       fk(i,j) = fk(i,j) + fac*fy(i,j)
-!                       fl(i,j) = fl(i,j) + fac*fz(i,j)
-!   404             continue
-!   405         continue
-!           else
-!               call xderiv1(fx,ksi(ii),eta(jj),q,z)
-!               call yderiv1(fy,ksi(ii),eta(jj),q,z)
-!               call zderiv1(fz,ksi(ii),eta(jj),q,z)
-!               do 406 i = 1,6
-!                   fj(i,1) = fj(i,1) - fac*fx(i,1)
-!                   fk(i,1) = fk(i,1) - fac*fy(i,1)
-!                   fl(i,1) = fl(i,1) + fac*fz(i,1)
-!   406         continue
-!           endif
-!
-!   407 continue
-!   408 continue
-! !----
-! ! Mirror source
-! !----
-!       if (thru.eq.0) then
-!           z = stdp
-!           thru = 1
-!           goto 403
-!       else
-!           z = -stdp
-!       endif
-! !----
-! ! If this works, I'm getting a beer. 'Nuff said.
-! !----
-!       uxx = Mss*(fj(1,1)+fj(1,2)+z*fj(1,3))
-!      1    + Mds*(fj(4,1)+fj(4,2)+z*fj(4,3))
-!       uyx = Mss*((fj(2,1)+fj(2,2)+z*fj(2,3))*cd
-!      1                               - (fj(3,1)+fj(3,2)+z*fj(3,3))*sd)
-!      2    + Mds*((fj(5,1)+fj(5,2)+z*fj(5,3))*cd
-!      3                               - (fj(6,1)+fj(6,2)+z*fj(6,3))*sd)
-!       uzx = Mss*((fj(2,1)+fj(2,2)-z*fj(2,3))*sd
-!      1                               + (fj(3,1)+fj(3,2)-z*fj(3,3))*cd)
-!      2    + Mds*((fj(5,1)+fj(5,2)-z*fj(5,3))*sd
-!      3                               + (fj(6,1)+fj(6,2)-z*fj(6,3))*cd)
-!
-!       uxy = Mss*(fk(1,1)+fk(1,2)+z*fk(1,3))
-!      1    + Mds*(fk(4,1)+fk(4,2)+z*fk(4,3))
-!       uyy = Mss*((fk(2,1)+fk(2,2)+z*fk(2,3))*cd
-!      1                               - (fk(3,1)+fk(3,2)+z*fk(3,3))*sd)
-!      2    + Mds*((fk(5,1)+fk(5,2)+z*fk(5,3))*cd
-!      3                               - (fk(6,1)+fk(6,2)+z*fk(6,3))*sd)
-!       uzy = Mss*((fk(2,1)+fk(2,2)-z*fk(2,3))*sd
-!      1                               + (fk(3,1)+fk(3,2)-z*fk(3,3))*cd)
-!      2    + Mds*((fk(5,1)+fk(5,2)-z*fk(5,3))*sd
-!      3                               + (fk(6,1)+fk(6,2)-z*fk(6,3))*cd)
-!
-!       uxz = Mss*(fl(1,1)+fl(1,2)+u(1)+z*fl(1,3))
-!      1    + Mds*(fl(4,1)+fl(4,2)+u(4)+z*fl(4,3))
-!       uyz = Mss*((fl(2,1)+fl(2,2)+u(2)+z*fl(2,3))*cd
-!      1                          - (fl(3,1)+fl(3,2)+u(3)+z*fl(3,3))*sd)
-!      2    + Mds*((fl(5,1)+fl(5,2)+u(5)+z*fl(5,3))*cd
-!      3                          - (fl(6,1)+fl(6,2)+u(6)+z*fl(6,3))*sd)
-!       uzz = Mss*((fl(2,1)+fl(2,2)-u(2)-z*fl(2,3))*sd
-!      1                          + (fl(3,1)+fl(3,2)-u(3)-z*fl(3,3))*cd)
-!      2    + Mds*((fl(5,1)+fl(5,2)-u(5)-z*fl(5,3))*sd
-!      3                          + (fl(6,1)+fl(6,2)-u(6)-z*fl(6,3))*cd)
-! !----
-! ! Strain tensor from partial derivatives (still in coordinate system
-! ! with +x in direction of strike, +y updip)
-! !----
-!   499 continue
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -1389,6 +1431,7 @@ subroutine rect_src_coords(xin,yin,zin,cin,wid,len)
 !----
 
 implicit none
+
 ! Arguments
 double precision :: xin, yin, zin, cin, wid, len
 
@@ -1422,8 +1465,10 @@ subroutine rect_src_vars(ksiin,etain)
 !----
 
 implicit none
+
 ! Arguments
 double precision :: ksiin, etain
+
 ! Local variables
 double precision :: h, xxx
 
@@ -1528,9 +1573,7 @@ return
 end subroutine rect_src_vars
 
 !--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
 ! COMPONENTS OF DISPLACEMENT FOR A RECTANGULAR SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!         !
-!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
 function uA_ss_rect()
@@ -1615,9 +1658,7 @@ return
 end function
 
 !--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
 ! COMPONENTS OF PARTIAL DERIVATIVES FOR A RECTANGULAR SOURCE DISLOCATION - EDIT AT YOUR OWN RISK!  !
-!--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
 function duAdx_ss_rect()
@@ -1788,118 +1829,85 @@ end function
 function duAdz_ss_rect()
 implicit none
 double precision :: duAdz_ss_rect(3)
-duAdz_ss_rect(1) = 0
-duAdz_ss_rect(2) = 0
-duAdz_ss_rect(3) = 0
-!           fz(1,1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
-!           fz(2,1) =                                    CA2*E3
-!           fz(3,1) = -CA1*(sd/R-q*Y11*cd)         - CA2*q*F3
+duAdz_ss_rect(1) =  CA1*ksi*Y11*cd + ybar*X11*0.5d0 + CA2*ksi*F3
+duAdz_ss_rect(2) =                                    CA2*E3
+duAdz_ss_rect(3) = -CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
 return
 end function
 
 function duAdz_ds_rect()
 implicit none
 double precision :: duAdz_ds_rect(3)
-duAdz_ds_rect(1) = 0
-duAdz_ds_rect(2) = 0
-duAdz_ds_rect(3) = 0
-!           fz(4,1) =                                    CA2*E3
-!           fz(5,1) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
-!           fz(6,1) = -CA1*dbar*X11                    - CA2*q*G3
+duAdz_ds_rect(1) =                                    CA2*E3
+duAdz_ds_rect(2) =  CA1*ybar*X11 + ksi*Y11*cd*0.5d0 + CA2*eta*G3
+duAdz_ds_rect(3) = -CA1*dbar*X11                    - CA2*q*G3
 return
 end function
 
 function duAdz_ts_rect()
 implicit none
 double precision :: duAdz_ts_rect(3)
-duAdz_ts_rect(1) = 0
-duAdz_ts_rect(2) = 0
-duAdz_ts_rect(3) = 0
-! !          fz(7,1) =  CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
-! !          fz(8,1) =  CA1*dbar*X11                    - CA2*q*G3
-! !          fz(9,1) =  CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
+duAdz_ts_rect(1) =   CA1*(sd/R-q*Y11*cd)             - CA2*q*F3
+duAdz_ts_rect(2) =  CA1*dbar*X11                    - CA2*q*G3
+duAdz_ts_rect(3) =   CA1*(ybar*X11+ksi*Y11*cd)       - CA2*q*H3
 return
 end function
 
 function duBdz_ss_rect()
 implicit none
 double precision :: duBdz_ss_rect(3)
-duBdz_ss_rect(1) = 0
-duBdz_ss_rect(2) = 0
-duBdz_ss_rect(3) = 0
-!           fz(1,2) = -ksi*F3 - ybar*X11     + CB*K1*sd
-!           fz(2,2) = -E3                    + CB*ybar*D11*sd
-!           fz(3,2) =  q*F3                  + CB*K2*sd
+duBdz_ss_rect(1) = -ksi*F3 - ybar*X11     + CB*K1*sd
+duBdz_ss_rect(2) = -E3                    + CB*ybar*D11*sd
+duBdz_ss_rect(3) =  q*F3                  + CB*K2*sd
 return
 end function
 
 function duBdz_ds_rect()
 implicit none
 double precision :: duBdz_ds_rect(3)
-duBdz_ds_rect(1) = 0
-duBdz_ds_rect(2) = 0
-duBdz_ds_rect(3) = 0
-!           fz(4,2) = -E3                    - CB*K3*cdsd
-!           fz(5,2) = -eta*G3 - ksi*Y11*cd - CB*ksi*D11*cdsd
-!           fz(6,2) =  q*G3                  - CB*K4*cdsd
+duBdz_ds_rect(1) = -E3                    - CB*K3*cdsd
+duBdz_ds_rect(2) = -eta*G3 - ksi*Y11*cd - CB*ksi*D11*cdsd
+duBdz_ds_rect(3) =  q*G3                  - CB*K4*cdsd
 return
 end function
 
 function duBdz_ts_rect()
 implicit none
 double precision :: duBdz_ts_rect(3)
-duBdz_ts_rect(1) = 0
-duBdz_ts_rect(2) = 0
-duBdz_ts_rect(3) = 0
-! !          fz(7,2) =  q*F3 + CB*K3*sdsd
-! !          fz(8,2) =  q*G3 + CB*ksi*D11*sdsd
-! !          fz(9,2) = -q*H3 + CB*K4*sdsd
+duBdz_ts_rect(1) =  q*F3 + CB*K3*sdsd
+duBdz_ts_rect(2) =  q*G3 + CB*ksi*D11*sdsd
+duBdz_ts_rect(3) = -q*H3 + CB*K4*sdsd
 return
 end function
 
 function duCdz_ss_rect()
 implicit none
 double precision :: duCdz_ss_rect(3)
-duCdz_ss_rect(1) = 0
-duCdz_ss_rect(2) = 0
-duCdz_ss_rect(3) = 0
-!           fz(1,3) = CC*ksi*P3*cd - a*ksi*Q3
-!           fz(2,3) = 2.0d0*CC*(ybar/R3-Y0*cd)*sd + dbar*cd/R3
-!      1                    - a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
-!           fz(3,3) = (ybar/R3-Y0*cd)*cd
-!      1                    - a*((cbar+dbar)*sd/R3-3.0d0*cbar*ybar*q/R5
-!      2                                          -Y0*sd*sd+q*Z0*cd)
+duCdz_ss_rect(1) = CC*ksi*P3*cd - a*ksi*Q3
+duCdz_ss_rect(2) = 2.0d0*CC*(ybar/R3-Y0*cd)*sd + dbar*cd/R3 - &
+                   a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
+duCdz_ss_rect(3) = (ybar/R3-Y0*cd)*cd - &
+                   a*((cbar+dbar)*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sd*sd+q*Z0*cd)
 return
 end function
 
 function duCdz_ds_rect()
 implicit none
 double precision :: duCdz_ds_rect(3)
-duCdz_ds_rect(1) = 0
-duCdz_ds_rect(2) = 0
-duCdz_ds_rect(3) = 0
-!           fz(4,3) = -q/R3 + Y0*sd*cd
-!      1                    - a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
-!           fz(5,3) = CC*ybar*dbar*X32
-!      1                 - a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
-!           fz(6,3) = -ksi*P3*sd + X11 - dbar*dbar*X32
-!      1                     - a*cbar*((dbar-2.0*q*cd)*X32-dbar*q*q*X53)
+duCdz_ds_rect(1) = -q/R3 + Y0*sd*cd - a*((cbar+dbar)*cd/R3+3.0d0*cbar*dbar*q/R5)
+duCdz_ds_rect(2) = CC*ybar*dbar*X32 - a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
+duCdz_ds_rect(3) = -ksi*P3*sd + X11 - dbar*dbar*X32 - a*cbar*((dbar-2.0*q*cd)*X32-dbar*qq*X53)
 return
 end function
 
 function duCdz_ts_rect()
 implicit none
 double precision :: duCdz_ts_rect(3)
-duCdz_ts_rect(1) = 0
-duCdz_ts_rect(2) = 0
-duCdz_ts_rect(3) = 0
-! !          fz(7,3) = -eta/R3 + Y0*cdcd
-! !     1               - a*(z*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sdsd+q*Z0*cd)
-! !          fz(8,3) =  CC*2.0d0*ksi*P3*sd - X11 + dbar*dbar*X32
-! !     1                - a*cbar*((dbar-2.0d0*q*cd)*X32-dbar*q*q*X53)
-! !          fz(9,3) =  CC*(ksi*P3*cd+ybar*dbar*X32)
-! !     1                 + a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53)
-! !     2                 + a*ksi*Q3
+duCdz_ts_rect(1) = -eta/R3 + Y0*cdcd - a*(z*sd/R3-3.0d0*cbar*ybar*q/R5-Y0*sdsd+q*Z0*cd)
+duCdz_ts_rect(2) =  CC*2.0d0*ksi*P3*sd - X11 + dbar*dbar*X32 - &
+                    a*cbar*((dbar-2.0d0*q*cd)*X32-dbar*qq*X53)
+duCdz_ts_rect(3) =  CC*(ksi*P3*cd+ybar*dbar*X32) + a*cbar*((ybar-2.0d0*q*sd)*X32+dbar*eta*q*X53) + &
+                    a*ksi*Q3
 return
 end function
 
@@ -1937,9 +1945,11 @@ subroutine check_singular_rect(isPointOnFaultEdge,ksiin,etain,qin)
 !----
 
 implicit none
+
 ! Arguments
 logical :: isPointOnFaultEdge
 double precision :: ksiin(2),etain(2),qin
+
 ! Local variables
 double precision :: k1k2, e1e2
 
@@ -1952,57 +1962,29 @@ e1e2 = etain(1)*etain(2)
 
  ! Check if point lies on fault edge (q=0 and either ksi=0 or eta=0)
 if (dabs(qin).lt.1.0d-6) then
+
     ! Point lies on edge with one of the etas=0
     if (k1k2.le.0.0d0.and.dabs(e1e2).lt.1.0d-6) then
         isPointOnFaultEdge = .true.
         return
+
     ! Point lies on edge with one of the ksis=0
     elseif (e1e2.le.0.0d0.and.dabs(k1k2).lt.1.0d-6) then
         isPointOnFaultEdge = .true.
         return
+
     endif
+
 endif
 
 ! write(0,*) 'check_singular_rect: finished'
 
 return
 end subroutine check_singular_rect
-!
-! !----------------------------------------------------------------------C
-! ! If observation point lies at point source or on finite fault edge,
-! ! return zeros.
-! !----
-! !      SUBROUTINE SINGSN(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
-!       SUBROUTINE singularstrain(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz)
-!       IMPLICIT none
-!       REAL*8 uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz
-!
-!       write(0,*) 'Observation point is singular.'
-!       uxx = 0.0d0
-!       uxy = 0.0d0
-!       uxz = 0.0d0
-!       uyx = 0.0d0
-!       uyy = 0.0d0
-!       uyz = 0.0d0
-!       uzx = 0.0d0
-!       uzy = 0.0d0
-!       uzz = 0.0d0
-!
-!       RETURN
-!       END
-!
-! !      SUBROUTINE SINGDS(ux,uy,uz)
-!       SUBROUTINE singulardisplacement(ux,uy,uz)
-!       IMPLICIT none
-!       REAL*8 ux,uy,uz
-!
-!       write(0,*) 'Observation point is singular.'
-!       ux = 0.0d0
-!       uy = 0.0d0
-!       uz = 0.0d0
-!
-!       RETURN
-!       END
+
+
+
+
 
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
@@ -2010,8 +1992,13 @@ end subroutine check_singular_rect
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
+
+
+
+
 subroutine test_halfspace_vars()
 use test, only: test_value
+use io, only: stdout
 implicit none
 double precision :: lambda, shear_modulus
 lambda = 40.0d0
@@ -2022,8 +2009,8 @@ call test_value(CA1,0.16666666666666669d0,'halfspace_vars(): CA1')
 call test_value(CA2,0.33333333333333331d0,'halfspace_vars(): CA2')
 call test_value(CB,0.50000000000000011d0,'halfspace_vars(): CB')
 call test_value(CC,0.33333333333333337d0,'halfspace_vars(): CC')
-write(stderr,*) 'subroutine halfspace_vars() passed unit test'
-write(stderr,*)
+write(stdout,*) 'subroutine halfspace_vars() passed unit test'
+write(stdout,*)
 return
 end subroutine
 
@@ -2031,6 +2018,7 @@ end subroutine
 
 subroutine test_dip_vars()
 use test, only: test_value
+use io, only: stdout
 implicit none
 double precision :: dip
 dip = 70.0d0
@@ -2042,8 +2030,8 @@ call test_value(c2d,-0.76604444311897790d0,'dip_vars(): c2d')
 call test_value(sdsd,0.88302222155948884d0,'dip_vars(): sdsd')
 call test_value(cdcd,0.11697777844051105d0,'dip_vars(): cdcd')
 call test_value(cdsd,0.32139380484326974d0,'dip_vars(): cdsd')
-write(stderr,*) 'subroutine dip_vars() passed unit test'
-write(stderr,*)
+write(stdout,*) 'subroutine dip_vars() passed unit test'
+write(stdout,*)
 return
 end subroutine
 
@@ -2051,6 +2039,7 @@ end subroutine
 
 subroutine test_pt_src_vars()
 use test, only: test_value
+use io, only: stdout
 implicit none
 double precision :: dip, sta_coord(3), evdp
 dip = 70.0d0
@@ -2113,8 +2102,8 @@ call test_value(W2,1.1288694024054116d0,'pt_src_vars(): W2')
 call test_value(U3,1.3427079288808756d0,'pt_src_vars(): U3')
 call test_value(V3,5.0611389600960157d0,'pt_src_vars(): V3')
 call test_value(W3,1.6847280722065445d0,'pt_src_vars(): W3')
-write(stderr,*) 'subroutine pt_src_vars() passed unit test'
-write(stderr,*)
+write(stdout,*) 'subroutine pt_src_vars() passed unit test'
+write(stdout,*)
 return
 end subroutine
 
@@ -2122,6 +2111,7 @@ end subroutine
 
 subroutine test_rect_src_vars()
 use test, only: test_value
+use io, only: stdout
 implicit none
 double precision :: dip, sta_coord(3), evdp, len, wid
 dip = 70.0d0
@@ -2132,6 +2122,7 @@ sta_coord(3) = 0.0d0
 evdp = 4.0d0
 len = 3.0d0
 wid = 2.0d0
+
 call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
 call test_value(p,4.7848309131206399d0,'rect_src_coords(): p')
 call test_value(q,1.4509972890550495d0,'rect_src_coords(): q')
@@ -2139,7 +2130,8 @@ call test_value(eta_vec(1),3.7848309131206399d0,'rect_src_coords(): eta_vec(1)')
 call test_value(eta_vec(2),5.7848309131206399d0,'rect_src_coords(): eta_vec(2)')
 call test_value(ksi_vec(1),0.5000000000000000d0,'rect_src_coords(): ksi_vec(1)')
 call test_value(ksi_vec(2),3.5000000000000000d0,'rect_src_coords(): ksi_vec(2)')
-write(6,*) 'subroutine rect_src_coords() passed unit test'
+write(stdout,*) 'subroutine rect_src_coords() passed unit test'
+
 call rect_src_vars(ksi_vec(1),eta_vec(1))
 call test_value(ybar,2.6579798566743307d0,'rect_src_vars(): ybar')
 call test_value(dbar,3.0603073792140916d0,'rect_src_vars(): cbar')
@@ -2193,8 +2185,199 @@ call test_value(G3,6.3422754458309291d-002,'rect_src_vars(): G3')
 call test_value(H3,2.4055253239807024d-002,'rect_src_vars(): H3')
 call test_value(P3,1.2387401944116128d-002,'rect_src_vars(): P3')
 call test_value(Q3,1.7300629665110766d-002,'rect_src_vars(): Q3')
-write(stderr,*) 'subroutine rect_src_vars() passed unit test'
-write(stderr,*)
+write(stdout,*) 'subroutine rect_src_vars() passed unit test'
+write(stdout,*)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_rect_disp_components()
+
+use test, only: test_value
+use io, only: stdout
+
+implicit none
+
+! Local variables
+double precision :: lambda, shear_modulus, dip, sta_coord(3), evdp, wid, len, disp(3)
+
+! Half-space
+lambda = 40.0d0
+shear_modulus = 40.0d0
+call halfspace_vars(lambda,shear_modulus)
+
+! Fault dip
+dip = 70.0d0
+call dip_vars(dip)
+
+! Geometry
+sta_coord(1) = -12.0d0
+sta_coord(2) = 6.2d0
+sta_coord(3) = 13.0d0
+evdp = 7.0d0
+wid = 3.2d0
+len = 6.5d0
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+call rect_src_vars(ksi_vec(2),eta_vec(1))
+
+disp = uA_ss_rect()
+call test_value(disp(1), 0.72547327384003113d0,'uA_ss_rect()(1)')
+call test_value(disp(2),-1.5927062399294267d-2,'uA_ss_rect()(2)')
+call test_value(disp(3), 0.61666031833564772d0,'uA_ss_rect()(3)')
+disp = uB_ss_rect()
+call test_value(disp(1),-11.993002387482605d0,'uB_ss_rect()(1)')
+call test_value(disp(2),0.11463965563116107d0,'uB_ss_rect()(2)')
+call test_value(disp(3),-0.99745107154736778d0,'uB_ss_rect()(3)')
+disp = uC_ss_rect()
+call test_value(disp(1),-1.4461853668621687d-003,'uC_ss_rect()(1)')
+call test_value(disp(2),5.0207492407645738d-003,'uC_ss_rect()(2)')
+call test_value(disp(3),-2.0079399191054680d-002,'uC_ss_rect()(3)')
+
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+call rect_src_vars(ksi_vec(1),eta_vec(2))
+disp = uA_ds_rect()
+call test_value(disp(1),-1.2424808371844004d-2,'uA_ds_rect()(1)')
+call test_value(disp(2), 0.72190403451379292d0,'uA_ds_rect()(2)')
+call test_value(disp(3), 0.41256779800532334d0,'uA_ds_rect()(3)')
+disp = uB_ds_rect()
+call test_value(disp(1),-0.24780594882338475d0,'uB_ds_rect()(1)')
+call test_value(disp(2),-1.3701174902198523d0,'uB_ds_rect()(2)')
+call test_value(disp(3),-3.8188429813460623d0,'uB_ds_rect()(3)')
+disp = uC_ds_rect()
+call test_value(disp(1), 5.1793376586471750d-003,'uC_ds_rect()(1)')
+call test_value(disp(2), 8.6684162903643731d-003,'uC_ds_rect()(2)')
+call test_value(disp(3),-7.2807977939472246d-002,'uC_ds_rect()(3)')
+write(stdout,*) 'displacement functions for rectangular source passed unit tests'
+write(stdout,*)
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_rect_partial_components()
+
+use test, only: test_value
+use io, only: stdout
+
+implicit none
+
+! Local variables
+double precision :: lambda, shear_modulus, dip, sta_coord(3), evdp, wid, len, disp(3)
+
+! Half-space
+lambda = 40.0d0
+shear_modulus = 40.0d0
+call halfspace_vars(lambda,shear_modulus)
+
+! Fault dip
+dip = 70.0d0
+call dip_vars(dip)
+
+! Geometry
+sta_coord(1) = -12.0d0
+sta_coord(2) = 6.2d0
+sta_coord(3) = 13.0d0
+evdp = 7.0d0
+wid = 3.2d0
+len = 6.5d0
+call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
+call rect_src_vars(ksi_vec(1),eta_vec(1))
+
+! X-derivatives of components of displacement
+disp = duAdx_ss_rect()
+call test_value(disp(1), 3.4306426504990750d-004,'duAdx_ss_rect(): (1)')
+call test_value(disp(2),-3.4508486032947076d-004,'duAdx_ss_rect(): (2)')
+call test_value(disp(3),-2.3607160020503188d-003,'duAdx_ss_rect(): (3)')
+disp = duAdx_ds_rect()
+call test_value(disp(1),-3.4508486032947076d-004,'duAdx_ds_rect(): (1)')
+call test_value(disp(2), 9.0562367901465455d-004,'duAdx_ds_rect(): (2)')
+call test_value(disp(3), 6.7897701068703959d-003,'duAdx_ds_rect(): (3)')
+! disp = duAdx_ts_rect()
+! write(0,*) 'duAdx_ts_rect()',disp
+disp = duBdx_ss_rect()
+call test_value(disp(1), 6.9599894428799694d-004,'duBdx_ss_rect(): (1)')
+call test_value(disp(2), 1.9194218761293762d-003,'duBdx_ss_rect(): (2)')
+call test_value(disp(3), 2.0942277171944572d-003,'duBdx_ss_rect(): (3)')
+disp = duBdx_ds_rect()
+call test_value(disp(1), 2.7417691868664293d-003,'duBdx_ds_rect(): (1)')
+call test_value(disp(2),-5.1586589356422364d-003,'duBdx_ds_rect(): (2)')
+call test_value(disp(3),-6.7076617173327598d-004,'duBdx_ds_rect(): (3)')
+! disp = duBdx_ts_rect()
+! write(0,*) 'duBdx_ts_rect()',disp
+disp = duCdx_ss_rect()
+call test_value(disp(1), 4.2126939364670769d-005,'duCdx_ss_rect(): (1)')
+call test_value(disp(2), 1.1209090419535319d-004,'duCdx_ss_rect(): (2)')
+call test_value(disp(3),-3.4475338947556833d-004,'duCdx_ss_rect(): (3)')
+disp = duCdx_ds_rect()
+call test_value(disp(1), 1.6966631277932049d-004,'duCdx_ds_rect(): (1)')
+call test_value(disp(2),-1.4986921869860253d-004,'duCdx_ds_rect(): (2)')
+call test_value(disp(3), 1.1331156239589844d-003,'duCdx_ds_rect(): (3)')
+! disp = duCdx_ts_rect()
+! write(0,*) 'duCdx_ts_rect()',disp
+
+! Y-derivatives of components of displacement
+disp = duAdy_ss_rect()
+call test_value(disp(1),2.8890966553217295d-002,'duAdy_ss_rect(): (1)')
+call test_value(disp(2),1.2845371264737372d-002,'duAdy_ss_rect(): (2)')
+call test_value(disp(3),2.7617711810937568d-003,'duAdy_ss_rect(): (3)')
+disp = duAdy_ds_rect()
+call test_value(disp(1), 1.2845371264737372d-002,'duAdy_ds_rect(): (1)')
+call test_value(disp(2), 6.0051670894042106d-002,'duAdy_ds_rect(): (2)')
+call test_value(disp(3), 6.8785272909704029d-003,'duAdy_ds_rect(): (3)')
+! disp = duAdy_ts_rect()
+disp = duBdy_ss_rect()
+call test_value(disp(1),-5.4892739626334362d-002,'duBdy_ss_rect(): (1)')
+call test_value(disp(2),-2.7969238876413290d-002,'duBdy_ss_rect(): (2)')
+call test_value(disp(3),-3.1020145458715599d-003,'duBdy_ss_rect(): (3)')
+disp = duBdy_ds_rect()
+call test_value(disp(1),-3.8965904427687062d-002,'duBdy_ds_rect(): (1)')
+call test_value(disp(2),-0.14704676790658636d0,'duBdy_ds_rect(): (2)')
+call test_value(disp(3),-9.1052106567444321d-003,'duBdy_ds_rect(): (3)')
+! disp = duBdy_ts_rect()
+disp = duCdy_ss_rect()
+call test_value(disp(1),3.6229956319952023d-004,'duCdy_ss_rect(): (1)')
+call test_value(disp(2),2.7645676601602590d-004,'duCdy_ss_rect(): (2)')
+call test_value(disp(3),5.2251433363535108d-004,'duCdy_ss_rect(): (3)')
+disp = duCdy_ds_rect()
+call test_value(disp(1),-1.1160386819908798d-003,'duCdy_ds_rect(): (1)')
+call test_value(disp(2),-6.3814177065406037d-004,'duCdy_ds_rect(): (2)')
+call test_value(disp(3), 2.7583611996049840d-003,'duCdy_ds_rect(): (3)')
+! disp = duCdy_ts_rect()
+
+! Z-derivatives of components of displacement
+disp = duAdz_ss_rect()
+call test_value(disp(1), 8.5466041996219398d-003,'duAdz_ss_rect(): (1)')
+call test_value(disp(2), 4.2102278432794181d-003,'duAdz_ss_rect(): (2)')
+call test_value(disp(3),-6.2203199241805318d-003,'duAdz_ss_rect(): (3)')
+disp = duAdz_ds_rect()
+call test_value(disp(1), 4.2102278432794181d-003,'duAdz_ds_rect(): (1)')
+call test_value(disp(2), 1.7605900194629188d-002,'duAdz_ds_rect(): (2)')
+call test_value(disp(3),-1.2506584807178457d-002,'duAdz_ds_rect(): (3)')
+! disp = duAdy_ts_rect()
+disp = duBdz_ss_rect()
+call test_value(disp(1),-1.7349770792071152d-002,'duBdz_ss_rect(): (1)')
+call test_value(disp(2),-1.0130288362773653d-002,'duBdz_ss_rect(): (2)')
+call test_value(disp(3), 1.0421179348291247d-002,'duBdz_ss_rect(): (3)')
+disp = duBdz_ds_rect()
+call test_value(disp(1),-9.6899784763487366d-003,'duBdz_ds_rect(): (1)')
+call test_value(disp(2),-4.0686184682977758d-002,'duBdz_ds_rect(): (2)')
+call test_value(disp(3),-2.2296367147699551d-003,'duBdz_ds_rect(): (3)')
+! disp = duBdy_ts_rect()
+disp = duCdz_ss_rect()
+call test_value(disp(1),-3.6434767894171044d-005,'duCdz_ss_rect(): (1)')
+call test_value(disp(2), 2.3748100977727307d-004,'duCdz_ss_rect(): (2)')
+call test_value(disp(3),-7.0849983200360817d-004,'duCdz_ss_rect(): (3)')
+disp = duCdz_ds_rect()
+call test_value(disp(1),-1.5620330749121738d-004,'duCdz_ds_rect(): (1)')
+call test_value(disp(2), 5.7029847969910998d-004,'duCdz_ds_rect(): (2)')
+call test_value(disp(3),-5.4083583036719013d-003,'duCdz_ds_rect(): (3)')
+! disp = duCdz_ts_rect()
+
+write(stdout,*) 'displacement derivative functions for rectangular source passed unit tests'
+write(stdout,*)
+
 return
 end subroutine
 
