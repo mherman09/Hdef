@@ -924,9 +924,9 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            gf_type, gf_disp, gf_stress, gf_los, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
-                           los, los_weight, disp_cov_file, initialize_program_data
-use lsqr_module, only: lsqr_mode
-use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
+                           los, los_weight, disp_cov_file, initialize_program_data, &
+                         lsqr_mode, &
+                    anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
                          anneal_init_file
 implicit none
@@ -992,9 +992,9 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                            gf_type, gf_disp, gf_stress, &
                            inversion_mode, damping_constant, smoothing_constant, smoothing, &
                            coord_type, halfspace, disp_misfit_file, los_misfit_file, &
-                           los, los_weight, disp_cov_file
-use lsqr_module, only: lsqr_mode
-use anneal_module, only: anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
+                           los, los_weight, disp_cov_file, &
+                         lsqr_mode, &
+                      anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
                          anneal_control_file, anneal_init_file
 implicit none

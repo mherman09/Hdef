@@ -1,15 +1,4 @@
 module anneal_module
-    ! Control options
-    character(len=8) :: anneal_init_mode          ! zero, mean, uniform, random, user
-    character(len=256) :: anneal_log_file         ! file logging annealing progress
-    integer :: max_iteration                      ! maximum number of steps
-    integer :: reset_iteration                    ! step to reset current solution to best, temp to temp_start
-    double precision :: temp_start                ! >0: mult by initial obj value; <0: use absolute value
-    double precision :: temp_minimum              ! >0: mult by initial obj value; <0: use absolute value
-    double precision :: cooling_factor            ! every iteration, temp->temp*cooling_factor
-    integer :: anneal_verbosity
-    character(len=256) :: anneal_control_file     ! define annealing parameters in file instead of cmdln
-    character(len=256) :: anneal_init_file
 
     integer :: idum
     double precision :: temp
@@ -93,7 +82,8 @@ contains
 
     subroutine initialize_annealing()
     use io, only: stderr, verbosity
-    use variable_module, only: fault, slip_constraint, rake_constraint
+    use variable_module, only: fault, slip_constraint, rake_constraint, &
+                               anneal_init_mode
     implicit none
     ! Local variables
     integer :: i
@@ -200,7 +190,9 @@ contains
     subroutine run_annealing_search()
     use io, only: stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, stress_weight, &
-                               los_weight, smoothing_constant
+                               los_weight, smoothing_constant, &
+                              anneal_log_file, max_iteration, reset_iteration, &
+                            temp_start, temp_minimum, cooling_factor, anneal_verbosity
     implicit none
     ! Local variables
     integer :: i, j, nflt, last_obj_best
@@ -764,7 +756,9 @@ contains
 
     subroutine invert_anneal_pseudocoupling()
     use io, only: verbosity, stderr
-    use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip
+    use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip, &
+                           anneal_log_file, max_iteration, reset_iteration, &
+                                temp_start, temp_minimum, cooling_factor
     use lsqr_module, only: invert_lsqr, A, b, x, isAsaveLoaded
     implicit none
     integer :: randFaultList(fault%nrecords)
@@ -1060,7 +1054,7 @@ contains
 
     subroutine initialize_annealing_psc()
     use io, only: stderr, verbosity
-    use variable_module, only: fault, slip_constraint
+    use variable_module, only: fault, slip_constraint, anneal_init_file, anneal_init_mode
     implicit none
     ! Local variables
     integer :: i, ios

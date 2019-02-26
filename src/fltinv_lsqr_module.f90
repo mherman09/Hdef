@@ -9,7 +9,6 @@ module lsqr_module
     integer :: ptr_stress
     integer :: ptr_damp
     integer :: ptr_smooth
-    character(len=8) :: lsqr_mode
     logical :: isAsaveLoaded
 
 !--------------------------------------------------------------------------------------------------!
@@ -22,7 +21,7 @@ contains
     !----
     use io, only : stderr, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip, &
-                               prestress, displacement, los
+                               prestress, displacement, los, lsqr_mode
     use variable_module, only: inversion_mode
     implicit none
     ! Local variables

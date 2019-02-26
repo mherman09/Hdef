@@ -18,6 +18,7 @@ use io, only: stderr, verbosity
     character(len=16) :: gf_type                  ! okada_rect, okada_pt
     character(len=16) :: coord_type               ! cartesian, geographic
     character(len=3) :: disp_components           ! 123, 1, 2, 3, 12, 13, 23
+    character(len=8) :: lsqr_mode
 
     double precision :: damping_constant
     double precision :: smoothing_constant
@@ -47,6 +48,18 @@ use io, only: stderr, verbosity
     double precision, allocatable :: disp_cov_mat(:,:)
     character(len=256) :: los_misfit_file
     double precision :: los_weight
+
+    ! Annealing control options
+    character(len=8) :: anneal_init_mode          ! zero, mean, uniform, random, user
+    character(len=256) :: anneal_log_file         ! file logging annealing progress
+    integer :: max_iteration                      ! maximum number of steps
+    integer :: reset_iteration                    ! step to reset current solution to best, temp to temp_start
+    double precision :: temp_start                ! >0: mult by initial obj value; <0: use absolute value
+    double precision :: temp_minimum              ! >0: mult by initial obj value; <0: use absolute value
+    double precision :: cooling_factor            ! every iteration, temp->temp*cooling_factor
+    integer :: anneal_verbosity
+    character(len=256) :: anneal_control_file     ! define annealing parameters in file instead of cmdln
+    character(len=256) :: anneal_init_file
 
 contains
 
