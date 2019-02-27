@@ -755,7 +755,7 @@ contains
 
 
     subroutine invert_anneal_pseudocoupling()
-    use io, only: verbosity, stderr
+    use io, only: verbosity, stderr, stdout
     use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip, &
                            anneal_log_file, max_iteration, reset_iteration, &
                                 temp_start, temp_minimum, cooling_factor
@@ -766,12 +766,16 @@ contains
     double precision :: fault_slip_0(fault%nrecords,2), fault_slip_best(fault%nrecords,2)
     integer :: nlocked, nunlocked, nswitchmax
     double precision :: temp, obj_0, obj_new, obj_best, p_trans
-    integer :: i, j, k, ktmp, vrb_save
+    integer :: i, j, k, ktmp
     real, external :: ran2
     logical :: do_inversion
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'invert_anneal_pseudocoupling says: starting'
+    if (verbosity.eq.1.or.verbosity.eq.2) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: starting'
+    endif
+
+    if (verbosity.ne.0) then
+        verbosity = verbosity + 20
     endif
 
     ! Initialize solution, random number generator, and slip_constraint%array values
@@ -786,7 +790,7 @@ contains
     displacement%file = 'none'
     displacement%flag = 'misfit'
 
-    ! Even though pre-stresses are not being inverted for in this mode, to find pseudo-coupling
+    ! Even though pre-stresses are not being inverted for in this mode (YET), to find pseudo-coupling
     ! slip in lsqr_invert() we need to activate this data structure.
     if (prestress%file.eq.'none') then
         prestress%file = 'zero'
@@ -811,18 +815,23 @@ contains
     endif
     ! write(0,*) 'nswitchmax',nswitchmax
 
+    if (verbosity.eq.22) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: annealing preparation finished'
+    endif
+
+
+
     ! Initialize solution array, compute initial solution, and save results
     if (.not.allocated(fault_slip)) then
         allocate(fault_slip(fault%nrecords,2))
     endif
 
     ! Solve for fault slip using largest possible A matrix
-    vrb_save = verbosity
-    if (verbosity.lt.4) then
-        verbosity = 0
+    call invert_lsqr()
+    if (verbosity.eq.22) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: initialized maximum size A'
     endif
-    call invert_lsqr() ! initial solution is in fault_slip array
-    verbosity = vrb_save
+
 
     ! I do not actually care about that solution as the first one...
     ! Set locked/unlocked to correct values and solve again
@@ -839,13 +848,12 @@ contains
     if (minval(dabs(slip_constraint%array)).gt.99998.0d0) then
         fault_slip = 0.0d0
     else
-        vrb_save = verbosity
-        if (verbosity.lt.4) then
-            verbosity = 0
-        endif
         call invert_lsqr() ! initial solution is in fault_slip array
-        verbosity = vrb_save
     endif
+    if (verbosity.eq.22) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: finished computing initial solution'
+    endif
+
 
     fault_slip_0 = fault_slip ! save the initial solution
     fault_slip_best = fault_slip
@@ -879,15 +887,25 @@ contains
         enddo
     endif
 
+    if (verbosity.eq.22) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: starting search'
+        write(stdout,*)
+    endif
+
     ! Run annealing search for distribution of locked patches
     do i = 1,max_iteration
 
-        if (verbosity.ge.1) then
-            write(0,'(A1,A,I5,A,I5)',advance='no') achar(13), &
-                'invert_anneal_pseudocoupling: iteration ',i,' of ',max_iteration
+        if (verbosity.eq.21) then
+            write(stdout,'(A1,A1,A,I5,A,I5)',advance='no') ' ',achar(13), &
+                                                   'invert_anneal_pseudocoupling: iteration ', &
+                                                   i,' of ',max_iteration
             if (i.eq.max_iteration) then
-                write(0,*)
+                write(stdout,*)
             endif
+        endif
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: iteration ', i,' of ',max_iteration
         endif
 
         ! Randomize fault list by switching each entry with a random entry
@@ -902,6 +920,10 @@ contains
             randFaultList(k) = randFaultList(j)
             randFaultList(j) = ktmp
         enddo
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: finished randomizing fault list'
+        endif
 
         ! Flip up to 10% of faults from locked->unlocked or vice versa
         nlocked = 0
@@ -940,14 +962,19 @@ contains
                 endif
             endif
 
-
         enddo
-        if (verbosity.ge.3) then
-            write(stderr,'(A,I8)') 'invert_anneal_pseudocoupling says: locked faults are:'
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: finished flipping faults'
+        endif
+
+        if (verbosity.eq.26) then
+            write(stdout,*) 'invert_anneal_pseudocoupling says: locked faults are:'
             do j = 1,fault%nrecords
                 write(stderr,'(A,I6,I6)') 'Fault: ',j,isFaultLocked(j)
             enddo
         endif
+
 
         ! Slip constraints applied to locked faults
         do j = 1,fault%nrecords
@@ -971,16 +998,22 @@ contains
                 exit
             endif
         enddo
+
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: finished setup; calling linear solver'
+        endif
+
         if (do_inversion) then
-            vrb_save = verbosity
-            if (verbosity.lt.4) then
-                verbosity = 0
-            endif
             call invert_lsqr()
-            verbosity = vrb_save
         else
             fault_slip = 0.0d0
         endif
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: linear solver finished'
+        endif
+
 
         ! Calculate new objective function
         obj_new = disp_misfit_chi2(fault_slip) ! chi-squared
@@ -990,17 +1023,26 @@ contains
             obj_best = obj_new
         endif
 
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: new objective function: ',obj_new
+        endif
+
         ! Compute transition probability
         !     (obj_new < obj_0) => always transition to better model
         !     (obj_new > obj_0) => transition with p = exp(-dE/T)
         p_trans = dexp((obj_0-obj_new)/temp)
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: transition probability: ', &
+                            min(p_trans,1.0d0)
+        endif
 
         ! If the transition is made because of better fit or chance,
         ! update the current model (slip_0) with the proposed model (slip_new)
         if (ran2(idum).lt.p_trans) then
             fault_slip_0 = fault_slip
             obj_0 = obj_new
-            if (verbosity.ge.3) then
+            if (verbosity.eq.26) then
                 write(stderr,'(A,1P1E14.6)') 'Current solution, Objective=', obj_0
                 do j = 1,fault%nrecords
                     write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
@@ -1025,8 +1067,22 @@ contains
         if (mod(i,reset_iteration).eq.0) then
             temp = temp_start
         endif
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: temperature updated to: ',temp
+            write(stdout,*)
+        endif
+
+
+        if (verbosity.eq.22) then
+            write(stdout,*) 'invert_anneal_pseudocoupling: finished iteration'
+            write(stdout,*)
+        endif
+
     enddo
     fault_slip = fault_slip_best
+
+    verbosity = verbosity - 20
 
     ! Free memory from least squares module variables
     if (allocated(A)) then
@@ -1042,9 +1098,8 @@ contains
         deallocate(isFaultLocked)
     endif
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'invert_anneal_pseudocoupling says: finished'
-        write(stderr,*)
+    if (verbosity.eq.1.or.verbosity.eq.2) then
+        write(stdout,*) 'invert_anneal_pseudocoupling: finished'
     endif
 
     return
@@ -1053,7 +1108,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine initialize_annealing_psc()
-    use io, only: stderr, verbosity
+    use io, only: stderr, stdout, verbosity
     use variable_module, only: fault, slip_constraint, anneal_init_file, anneal_init_mode
     implicit none
     ! Local variables
@@ -1064,8 +1119,8 @@ contains
     integer, external :: timeseed
     real, external :: ran2
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'initialize_annealing_psc says: starting'
+    if (verbosity.eq.22) then
+        write(stdout,*) 'initialize_annealing_psc: starting'
     endif
 
     ! Make sure slip_constraint%array is defined (values for locked faults)
@@ -1097,11 +1152,11 @@ contains
 
     elseif (trim(anneal_init_mode).eq.'user') then
         if (trim(anneal_init_file).eq.'') then
-            write(0,*) 'initialize_annealing_psc: no anneal_init_file defined'
+            write(stderr,*) 'initialize_annealing_psc: no anneal_init_file defined'
         endif
         inquire(file=anneal_init_file,exist=ex)
         if (.not.ex) then
-            write(0,*) 'initialize_annealing_psc: did not find anneal_init_file named ', &
+            write(stderr,*) 'initialize_annealing_psc: did not find anneal_init_file named ', &
                        trim(anneal_init_file)
         else
             open(unit=63,file=anneal_init_file,status='old')
@@ -1109,7 +1164,7 @@ contains
                 read(63,*,iostat=ios,err=6301,end=6301) isFaultLocked(i)
             enddo
             6301 if (ios.ne.0) then
-                write(0,*) 'initialize_annealing_psc: error reading anneal_init_file'
+                write(stderr,*) 'initialize_annealing_psc: error reading anneal_init_file'
             endif
             close(63)
         endif
@@ -1124,16 +1179,16 @@ contains
         enddo
 
     else
-        write(0,*) 'initialize_annealing_psc: did not recognize anneal_init_mode=',anneal_init_mode
-        write(0,*) '                          setting anneal_init_mode to unlocked'
+        write(stderr,*) 'initialize_annealing_psc: did not recognize anneal_init_mode=', &
+                        trim(anneal_init_mode)
+        write(stderr,*) '                          setting anneal_init_mode to unlocked'
     endif
 
     ! Initialize the random number generator
     idum = -timeseed()
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'initialize_annealing_psc says: finished'
-        write(stderr,*)
+    if (verbosity.eq.22) then
+        write(stderr,*) 'initialize_annealing_psc: finished'
     endif
 
     return

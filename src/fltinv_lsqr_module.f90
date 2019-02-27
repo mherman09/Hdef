@@ -19,7 +19,7 @@ contains
     !----
     ! Invert displacements and pre-stresses for fault slip using a direct or linear least squares approach
     !----
-    use io, only : stderr, verbosity
+    use io, only : stderr, stdout, verbosity
     use variable_module, only: fault, slip_constraint, rake_constraint, fault_slip, &
                                prestress, displacement, los, lsqr_mode
     use variable_module, only: inversion_mode
@@ -27,20 +27,28 @@ contains
     ! Local variables
     integer :: i, j, nzeros
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'invert_lsqr: starting'
+    if (verbosity.eq.1.or.verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'invert_lsqr: starting'
     endif
 
     ! Determine dimensions of model matrix
     call calc_array_dimensions()
 
-    ! Allocate memory to model matrix, constraint vector, and solution vector
+    ! Allocate memory to model matrix and constraint vector
     if (.not.allocated(A)) then
         allocate(A(nrows,ncols))
+        if (verbosity.eq.2.or.verbosity.eq.22) then
+            write(stdout,*) 'invert_lsqr: memory allocated to A(',nrows,',',ncols,')'
+        endif
     endif
+
     if (.not.allocated(b)) then
         allocate(b(nrows,1))
+        if (verbosity.eq.2.or.verbosity.eq.22) then
+            write(stdout,*) 'invert_lsqr: memory allocated to b(',nrows,',',1,')'
+        endif
     endif
+
     A = 0.0d0
     b = 0.0d0
 
@@ -56,19 +64,19 @@ contains
 
     ! Load model matrix, A (and maybe Asave), and constraint vector, b
     call load_arrays()
-    open(unit=55,file='a.dat',status='unknown')
-    open(unit=56,file='b.dat',status='unknown')
-    do i = 1,nrows
-        write(55,*) (A(i,j),j=1,ncols)
-    enddo
-    do i = 1,nrows
-        write(56,*) b(i,1)
-    enddo
-    close(55)
-    close(56)
+    ! open(unit=55,file='a.dat',status='unknown')
+    ! open(unit=56,file='b.dat',status='unknown')
+    ! do i = 1,nrows
+    !     write(55,*) (A(i,j),j=1,ncols)
+    ! enddo
+    ! do i = 1,nrows
+    !     write(56,*) b(i,1)
+    ! enddo
+    ! close(55)
+    ! close(56)
 
     if (nrows.eq.0.and.ncols.eq.0) then
-        write(0,*) 'invert_lsqr: no rows or columns in A matrix'
+        write(stderr,*) 'invert_lsqr: no rows or columns in A matrix'
         return
     endif
 
@@ -147,9 +155,8 @@ contains
         endif
     endif
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'invert_lsqr says: finished'
-        write(stderr,*)
+    if (verbosity.eq.1.or.verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'invert_lsqr: finished'
     endif
 
     return
@@ -158,14 +165,14 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_array_dimensions()
-    use io, only: stderr, verbosity
+    use io, only: stderr, stdout, verbosity
     use variable_module, only: displacement, prestress, los, fault, rake_constraint, &
                                 damping_constant, smoothing_constant, smoothing, &
                                 disp_components
     implicit none
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'calc_array_dimensions says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'calc_array_dimensions: starting'
     endif
 
     !  Initialize model matrix dimensions
@@ -222,9 +229,12 @@ contains
         endif
     endif
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'calc_array_dimensions says: finished'
-        write(stderr,'(A)') 'Model matrix parameters'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'calc_array_dimensions: finished'
+    endif
+
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stderr,'(A)') 'calc_array_dimensions: model array parameters'
         write(stderr,'(A,I8)') 'nrows:      ', nrows
         write(stderr,'(A,I8)') 'ncolumns:   ', ncols
         write(stderr,'(A,I8)') 'ptr_disp:   ', ptr_disp
@@ -241,16 +251,16 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_arrays()
-    use io, only: stderr, verbosity
+    use io, only: stderr, stdout, verbosity
     use variable_module, only: displacement, los, prestress, &
                                 slip_constraint, damping_constant, smoothing_constant
     implicit none
     ! Local variables
-    integer :: i, j, nzeros
+    integer :: i, j
     character(len=256) :: fmt
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_arrays says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'load_arrays: starting'
     endif
 
     if (.not.isAsaveLoaded) then
@@ -287,6 +297,11 @@ contains
 
     else
         ! If we have already loaded the A matrix and saved it as Asave, copy it to A
+        if (verbosity.eq.2.or.verbosity.eq.22) then
+            write(stdout,*) 'load_arrays: A matrix saved from previous iteration; copying to A'
+        endif
+
+
         A = Asave
     endif
 
@@ -303,45 +318,32 @@ contains
         call usage('!! Error: no columns in least-squares matrix')
     endif
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_arrays says: finished'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'load_arrays: finished'
     endif
-    if (verbosity.ge.3) then
-        write(stderr,'("A =")')
+
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,'("A =")')
         write(fmt,9001) ncols
     9001 format('(1P',I6,'E12.4)')
         do i = 1,nrows
-            if (i.eq.ptr_disp) write(stderr,'("displacements")')
-            if (i.eq.ptr_los) write(stderr,'("LOS displacements")')
-            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
-            if (i.eq.ptr_damp) write(stderr,'("damping")')
-            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
-            write(0,fmt) (A(i,j),j=1,ncols)
+            if (i.eq.ptr_disp) write(stdout,'("displacements")')
+            if (i.eq.ptr_los) write(stdout,'("LOS displacements")')
+            if (i.eq.ptr_stress) write(stdout,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stdout,'("damping")')
+            if (i.eq.ptr_smooth) write(stdout,'("smoothing")')
+            write(stdout,fmt) (A(i,j),j=1,ncols)
         enddo
-        write(stderr,*)
-        write(stderr,'("b =")')
+        write(stdout,*)
+        write(stdout,'("b =")')
         do i = 1,nrows
-            if (i.eq.ptr_disp) write(stderr,'("displacements")')
-            if (i.eq.ptr_los) write(stderr,'("LOS displacements")')
-            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
-            if (i.eq.ptr_damp) write(stderr,'("damping")')
-            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
-            write(stderr,'(1PE12.4)') b(i,1)
+            if (i.eq.ptr_disp) write(stdout,'("displacements")')
+            if (i.eq.ptr_los) write(stdout,'("LOS displacements")')
+            if (i.eq.ptr_stress) write(stdout,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stdout,'("damping")')
+            if (i.eq.ptr_smooth) write(stdout,'("smoothing")')
+            write(stdout,'(1PE12.4)') b(i,1)
         enddo
-    endif
-    if (verbosity.ge.2) then
-        nzeros = 0
-        do i = 1,nrows
-            do j = 1,ncols
-                if (dabs(A(i,j)).lt.1.0d-20) then
-                    nzeros = nzeros + 1
-                endif
-            enddo
-        enddo
-        write(0,*) 'load_arrays says: A matrix has ',nzeros,' zeros out of ',nrows*ncols,' total'
-    endif
-    if (verbosity.ge.2) then
-        write(stderr,*)
     endif
 
     return
@@ -355,8 +357,8 @@ contains
     implicit none
     integer :: i, j, ndsp, nflt
     !
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_displacements says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stderr,*) 'load_displacements: starting'
     endif
 
     ndsp = displacement%nrecords
@@ -435,9 +437,8 @@ contains
         endif
     enddo
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_displacements says: finished'
-        write(stderr,*)
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stderr,*) 'load_displacements: finished'
     endif
 
     return
@@ -491,8 +492,8 @@ contains
 
     nflt = fault%nrecords
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_prestresses says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stderr,*) 'load_prestresses: starting'
     endif
 
     do i = 1,nflt
@@ -513,9 +514,8 @@ contains
         b(ptr_stress+nflt+i-1,1) = stress_weight*prestress%array(i,2) ! ds traction
     enddo
     !
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_prestresses says: finished'
-        write(stderr,*)
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stderr,*) 'load_prestresses: finished'
     endif
 
     return
@@ -620,7 +620,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_slip_constraints()
-    use io, only: stderr, verbosity
+    use io, only: stderr, stdout, verbosity
     use variable_module, only: displacement, prestress, fault, &
                                 disp_components, slip_constraint, rake_constraint, &
                                 smoothing
@@ -630,32 +630,32 @@ contains
     integer :: cols2delete(ncols), rows2delete(nrows)
     character(len=256) :: fmt
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') "load_slip_constraints says: starting"
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'load_slip_constraints: starting'
     endif
 
-    if (verbosity.ge.3) then
-        write(stderr,'(A)') 'load_arrays says: arrays before modifying topology'
-        write(stderr,'("A =")')
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,'(A)') 'load_arrays: arrays before modifying topology'
+        write(stdout,'("A =")')
         write(fmt,9001) ncols
     9001 format('(1P',I6,'E12.4)')
         do i = 1,nrows
-            if (i.eq.ptr_disp) write(stderr,'("displacements")')
-            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
-            if (i.eq.ptr_damp) write(stderr,'("damping")')
-            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
-            write(0,fmt) (A(i,j),j=1,ncols)
+            if (i.eq.ptr_disp) write(stdout,'("displacements")')
+            if (i.eq.ptr_stress) write(stdout,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stdout,'("damping")')
+            if (i.eq.ptr_smooth) write(stdout,'("smoothing")')
+            write(stdout,fmt) (A(i,j),j=1,ncols)
         enddo
-        write(stderr,*)
-        write(stderr,'("b =")')
+        write(stdout,*)
+        write(stdout,'("b =")')
         do i = 1,nrows
-            if (i.eq.ptr_disp) write(stderr,'("displacements")')
-            if (i.eq.ptr_stress) write(stderr,'("pre-stresses")')
-            if (i.eq.ptr_damp) write(stderr,'("damping")')
-            if (i.eq.ptr_smooth) write(stderr,'("smoothing")')
-            write(stderr,'(1PE12.4)') b(i,1)
+            if (i.eq.ptr_disp) write(stdout,'("displacements")')
+            if (i.eq.ptr_stress) write(stdout,'("pre-stresses")')
+            if (i.eq.ptr_damp) write(stdout,'("damping")')
+            if (i.eq.ptr_smooth) write(stdout,'("smoothing")')
+            write(stdout,'(1PE12.4)') b(i,1)
         enddo
-        write(stderr,*)
+        write(stdout,*)
     endif
 
     nflt = fault%nrecords
@@ -748,9 +748,9 @@ contains
     enddo
 
     ! Renumber columns of arrays
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_slip_constraints says: renumbering matrix columns'
-        write(stderr,'(A,I10)') '    ncols=',ncols
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,*) 'load_slip_constraints: renumbering matrix columns'
+        write(stdout,*) '    ncols=',ncols
     endif
     ! Start counters for existing columns and number of shifted columns
     j = 0
@@ -765,15 +765,15 @@ contains
         endif
     enddo
     ncols = ncols - n
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_slip_constraints says: new number of columns:'
-        write(stderr,'(A,I10)') '    ncols=',ncols
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,*) 'load_slip_constraints: new number of columns:'
+        write(stdout,*) '    ncols=',ncols
     endif
 
     ! Renumber rows of arrays
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_slip_constraints says: renumbering matrix rows'
-        write(stderr,'(A,I10)') '    nrows=',nrows
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,*) 'load_slip_constraints: renumbering matrix rows'
+        write(stdout,*) '    nrows=',nrows
     endif
     ! Start counters for existing rows and number of shifted rows
     j = 0
@@ -789,14 +789,13 @@ contains
         endif
     enddo
     nrows = nrows - n
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'load_slip_constraints says: new number of rows:'
-        write(stderr,'(A,I10)') '    nrows=',nrows
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,*) 'load_slip_constraints: new number of rows:'
+        write(stdout,*) '    nrows=',nrows
     endif
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') "load_slip_constraints says: finished"
-        write(stderr,*)
+    if (verbosity.eq.2.or.verbosity.eq.26) then
+        write(stderr,*) "load_slip_constraints: finished"
     endif
 
     return
@@ -979,8 +978,8 @@ contains
     integer :: indx(ncols), mode
     double precision :: b1col(nrows), rnorm, x1col(ncols), w(ncols)
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'lsqr_solve_nnls says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stderr,*) 'lsqr_solve_nnls: starting'
     endif
 
     m = nrows        ! Number of rows in matrix A
@@ -1014,14 +1013,14 @@ contains
     !----
     ! Solve Ax = b for x using LU decomposition and partial pivoting (LAPACK routine GESV).
     !----
-    use io, only : stderr, verbosity
+    use io, only : stderr, stdout, verbosity
     implicit none
     ! Local variables
     integer :: i, n, nrhs, lda, ipiv(nrows), ldb, info
     double precision :: alocal(nrows,ncols), blocal(nrows,1)
 
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'solve_dgesv says: starting'
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'solve_dgesv: starting'
     endif
     if (nrows.ne.ncols) then
         call usage('!! Error in subroutine solve_dgesv: nrows not equal to ncols')
@@ -1041,7 +1040,7 @@ contains
     call dgesv(n, nrhs, alocal, lda, ipiv, blocal, ldb, info)
 #endif
     if (info.ne.0) then
-        write(0,*) 'solve_dgesv() says: info returned ',info,' indicating error in dgesv()'
+        write(stderr,*) 'solve_dgesv() says: info returned ',info,' indicating error in dgesv()'
         call usage('exiting program at solve_dgesv()')
     endif
 
@@ -1050,15 +1049,15 @@ contains
         x(i,1) = blocal(i,1)
     enddo
 
-    if (verbosity.ge.3) then
-        write(stderr,'("x =")')
+    if (verbosity.eq.6.or.verbosity.eq.26) then
+        write(stdout,'("x =")')
         do i = 1,ncols
-            write(stderr,'(1PE12.4)') x(i,1)
+            write(stdout,'(1PE12.4)') x(i,1)
         enddo
     endif
-    if (verbosity.ge.2) then
-        write(stderr,'(A)') 'solve_dgesv says: finished'
-        write(stderr,*)
+
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'solve_dgesv: finished'
     endif
 
     return

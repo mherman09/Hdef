@@ -27,7 +27,7 @@ subroutine fltinv_readin()
 ! Read the input files for fltinv
 !----
 
-use io, only: stderr, verbosity
+use io, only: stderr, stdout, verbosity
 use variable_module, only: inversion_mode, &
                            displacement, prestress, los, fault, &
                            gf_type, gf_disp, gf_stress, gf_los, &
@@ -47,8 +47,8 @@ character(len=256) :: line
 character(len=1) :: nchar, mchar
 
 
-if (verbosity.eq.2) then
-    write(stderr,*) 'fltinv_readin: starting'
+if (verbosity.eq.1.or.verbosity.eq.2) then
+    write(stdout,*) 'fltinv_readin: starting'
 endif
 
 
@@ -78,6 +78,10 @@ else
     if (los%file.ne.'none') then
         los%nfields = 6 ! x y z ulos az inc
         call read_program_data_file(los)
+    endif
+
+    if (verbosity.eq.2) then
+        write(stdout,*) 'fltinv_readin: finished reading displacement/pre-stress data'
     endif
 endif
 
@@ -125,6 +129,11 @@ else
 
     ! Read the fault data
     call read_program_data_file(fault)
+
+    if (verbosity.eq.2) then
+        write(stdout,*) 'fltinv_readin: finished reading fault data'
+    endif
+
 endif
 
 
@@ -182,6 +191,10 @@ elseif (gf_type.eq.'triangle') then
         write(stderr,*) '!! Warning: all fault depths are less than +1000 meters'
     endif
 
+endif
+
+if (verbosity.eq.2) then
+    write(stdout,*) 'fltinv_readin: fault depths checked'
 endif
 
 ! Checks on other coordinates depend on coordinate type
@@ -276,6 +289,10 @@ elseif (coord_type.eq.'geographic') then
 
 endif
 
+if (verbosity.eq.2) then
+    write(stdout,*) 'fltinv_readin: coordinates checked'
+endif
+
 
 ! MAKE SURE NSTRESS=NFAULT!!
 
@@ -321,6 +338,11 @@ if (prestress%file.ne.'none') then
         ! write(0,*) 'trac_ss:',traction_comp(2)
         ! write(0,*) 'trac_ds:',traction_comp(3)
     enddo
+
+    if (verbosity.eq.2) then
+        write(stdout,*) 'fltinv_readin: shear tractions computed'
+    endif
+
 endif
 ! stop
 
@@ -340,6 +362,10 @@ if (displacement%file.ne.'none') then
                              'must be 3*ndisplacements (one line per displacement DOF)')
         endif
 
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished reading displacement GFs'
+        endif
+
     ! Allocate memory to calculate Green's functions
     else
         gf_disp%nrecords = 3*displacement%nrecords
@@ -347,6 +373,11 @@ if (displacement%file.ne.'none') then
             deallocate(gf_disp%array)
         endif
         allocate(gf_disp%array(gf_disp%nrecords,gf_disp%nfields))
+
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished allocating memory for displacement GFs'
+        endif
+
     endif
 endif
 
@@ -366,6 +397,10 @@ if (prestress%file.ne.'none') then
                              '2*nfaults (one line per fault slip DOF)')
         endif
 
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished reading stress GFs'
+        endif
+
     ! Allocate memory to calculate Green's functions
     else
         gf_stress%nrecords = 2*fault%nrecords
@@ -373,6 +408,11 @@ if (prestress%file.ne.'none') then
             deallocate(gf_stress%array)
         endif
         allocate(gf_stress%array(gf_stress%nrecords,gf_stress%nfields))
+
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished allocating memory for stress GFs'
+        endif
+
     endif
 endif
 if (inversion_mode.eq.'anneal-psc') then
@@ -400,6 +440,10 @@ if (los%file.ne.'none') then
                              'file must be ndisplacements (one line per displacement DOF)')
         endif
 
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished reading LOS displacement GFs'
+        endif
+
     ! Allocate memory to calculate Green's functions
     else
         gf_los%nrecords = los%nrecords
@@ -407,6 +451,11 @@ if (los%file.ne.'none') then
             deallocate(gf_los%array)
         endif
         allocate(gf_los%array(gf_los%nrecords,gf_los%nfields))
+
+        if (verbosity.eq.2) then
+            write(stdout,*) 'fltinv_readin: finished allocating memory for LOS displacement GFs'
+        endif
+
     endif
 endif
 
@@ -609,7 +658,7 @@ end subroutine read_smoothing_neighbors
 !--------------------------------------------------------------------------------------------------!
 
 subroutine calc_greens_functions()
-use io, only: stderr, verbosity
+use io, only: stderr, stdout, verbosity
 use variable_module, only: inversion_mode, displacement, los, prestress, &
                            gf_type, gf_disp, gf_stress, gf_los
 use gf_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf_los_okada_rect, &
@@ -617,8 +666,8 @@ use gf_module, only: calc_gf_disp_okada_rect, calc_gf_stress_okada_rect, calc_gf
                      calc_gf_disp_tri,        calc_gf_stress_tri,        calc_gf_los_tri
 implicit none
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'calc_greens_functions says: starting'
+if (verbosity.eq.1.or.verbosity.eq.2) then
+    write(stdout,*) 'calc_greens_functions: starting'
 endif
 
 ! Displacement Green's functions
@@ -674,9 +723,8 @@ if (los%file.ne.'none') then
     endif
 endif
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'calc_greens_functions says: finished'
-    write(stderr,*)
+if (verbosity.ge.1.or.verbosity.eq.2) then
+    write(stderr,*) 'calc_greens_functions: finished'
 endif
 
 return
@@ -685,14 +733,15 @@ end subroutine calc_greens_functions
 !--------------------------------------------------------------------------------------------------!
 
 subroutine run_inversion()
-use io, only: stderr, verbosity
+use io, only: stdout, verbosity
 use variable_module, only: inversion_mode
 use lsqr_module, only: invert_lsqr
 use anneal_module, only: invert_anneal, invert_anneal_pseudocoupling
 implicit none
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'run_inversion says: starting'
+if (verbosity.eq.1.or.verbosity.eq.2) then
+    write(stdout,*)
+    write(stdout,*) 'run_inversion: starting'
 endif
 
 if (inversion_mode.eq.'lsqr') then
@@ -705,9 +754,8 @@ else
     call usage('!! Error: no inversion mode named '//trim(inversion_mode))
 endif
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'run_inversion says: finished'
-    write(stderr,*)
+if (verbosity.eq.1.or.verbosity.eq.2) then
+    write(stdout,*) 'run_inversion: finished'
 endif
 
 return
@@ -725,7 +773,7 @@ use variable_module, only: displacement, prestress, los, fault, &
                            halfspace
 implicit none
 
-if (verbosity.eq.1) then
+if (verbosity.eq.1.or.verbosity.eq.2) then
     write(stderr,*) 'free_memory: starting'
 endif
 
@@ -766,7 +814,7 @@ if (allocated(halfspace%array)) then
     deallocate(halfspace%array)
 endif
 
-if (verbosity.eq.2) then
+if (verbosity.eq.2.or.verbosity.eq.2) then
     write(stderr,*) 'free_memory says: finished'
 endif
 
@@ -785,8 +833,8 @@ implicit none
 integer :: i, ounit
 double precision :: slip_mag, tmp_slip_array(fault%nrecords,2)
 
-if (verbosity.ge.1) then
-    write(stderr,'(A)') 'write_solution says: starting'
+if (verbosity.eq.1.or.verbosity.eq.2) then
+    write(stderr,'(A)') 'write_solution: starting'
 endif
 
 ! Print RMS misfit if specified
@@ -986,7 +1034,7 @@ end
 !--------------------------------------------------------------------------------------------------!
 
 subroutine gcmdln()
-use io, only: stderr, verbosity
+use io, only: stderr, stdout, verbosity
 use variable_module, only: output_file, displacement, disp_components, prestress, stress_weight, &
                            sts_dist, fault, slip_constraint, rake_constraint, &
                            gf_type, gf_disp, gf_stress, &
@@ -1171,54 +1219,69 @@ do while (i.le.narg)
     i = i + 1
 enddo
 
-if (verbosity.ge.1) then
-    write(stderr,'("fltinv verbose output turned on")')
+! Announce verbosity mode
+if (verbosity.eq.0) then
+    ! fltinv running silently
+elseif (verbosity.eq.1) then
+    write(stdout,*) 'fltinv: verbosity level 1: major progress reports'
+elseif (verbosity.eq.2) then
+    write(stdout,*) 'fltinv: verbosity level 2: detailed progress reports'
+elseif (verbosity.eq.3) then
+    write(stdout,*) 'fltinv: verbosity level 3: parsed command line inputs'
+elseif (verbosity.eq.4) then
+    write(stdout,*) 'fltinv: verbosity level 4: parsed input files'
+elseif (verbosity.eq.5) then
+    write(stdout,*) 'fltinv: verbosity level 5: outputs'
+elseif (verbosity.eq.6) then
+    write(stdout,*) 'fltinv: verbosity level 6: debugging output...you asked for it...'
+else
+    write(stderr,*) 'gcmdln: no verbosity option ',verbosity
+    call usage('')
 endif
-if (verbosity.ge.2) then
-    write(stderr,'("Parsed command line inputs")')
-    write(stderr,'("    inversion_mode:         ",A)') trim(inversion_mode)
-    write(stderr,*)
-    write(stderr,'("    output_file:            ",A)') trim(output_file)
-    write(stderr,*)
-    write(stderr,'("    displacement%file:      ",A)') trim(displacement%file)
-    write(stderr,'("    disp_components:        ",A)') trim(disp_components)
-    write(stderr,'("    disp_misfit_file:       ",A)') trim(disp_misfit_file)
-    write(stderr,'("    disp_cov_file:          ",A)') trim(disp_cov_file)
-    write(stderr,'("    prestress%file:         ",A)') trim(prestress%file)
-    write(stderr,'("    stress_weight:          ",1PE14.6)') stress_weight
-    write(stderr,'("    sts_dist:               ",1PE14.6)') sts_dist
-    write(stderr,'("    fault%file:             ",A)') trim(fault%file)
-    write(stderr,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
-    write(stderr,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
-    write(stderr,'("    los%file:               ",A)') trim(los%file)
-    write(stderr,'("    los_weight:             ",1PE14.6)') los_weight
-    write(stderr,'("    los_misfit_file:        ",A)') trim(los_misfit_file)
-    write(stderr,*)
-    write(stderr,'("    gf_type:                ",A)') trim(gf_type)
-    write(stderr,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
-    write(stderr,'("    gf_stress%file:         ",A)') trim(gf_stress%file)
-    write(stderr,*)
-    write(stderr,'("    damping_constant:       ",1PE14.6)') damping_constant
-    write(stderr,'("    smoothing_constant:     ",1PE14.6)') smoothing_constant
-    write(stderr,'("    smoothing_file:         ",A)') trim(smoothing%file)
-    write(stderr,*)
-    write(stderr,'("    coord_type:             ",A)') trim(coord_type)
-    write(stderr,'("    halfspace%file:         ",A)') trim(halfspace%file)
-    write(stderr,'("    halfspace%flag:         ",A)') trim(halfspace%flag)
-    write(stderr,*)
-    write(stderr,'("    lsqr_mode:              ",A)') trim(lsqr_mode)
-    write(stderr,*)
-    write(stderr,'("    anneal_init_mode:       ",A)') trim(anneal_init_mode)
-    write(stderr,'("    max_iteration:          ",I14)') max_iteration
-    write(stderr,'("    reset_iteration:        ",I14)') reset_iteration
-    write(stderr,'("    temp_start:             ",1PE14.6)') temp_start
-    write(stderr,'("    temp_minimum:           ",1PE14.6)') temp_minimum
-    write(stderr,'("    anneal_log_file:        ",A)') trim(anneal_log_file)
-    write(stderr,'("    cooling_factor:         ",1PE14.6)') cooling_factor
-    write(stderr,'("    anneal_verbosity:       ",I14)') anneal_verbosity
-endif
-if (verbosity.ge.1) then
-    write(stderr,*)
+
+! Parsed command line values
+if (verbosity.eq.3) then
+    write(stdout,'("Parsed command line inputs")')
+    write(stdout,'("    inversion_mode:         ",A)') trim(inversion_mode)
+    write(stdout,*)
+    write(stdout,'("    output_file:            ",A)') trim(output_file)
+    write(stdout,*)
+    write(stdout,'("    displacement%file:      ",A)') trim(displacement%file)
+    write(stdout,'("    disp_components:        ",A)') trim(disp_components)
+    write(stdout,'("    disp_misfit_file:       ",A)') trim(disp_misfit_file)
+    write(stdout,'("    disp_cov_file:          ",A)') trim(disp_cov_file)
+    write(stdout,'("    prestress%file:         ",A)') trim(prestress%file)
+    write(stdout,'("    stress_weight:          ",1PE14.6)') stress_weight
+    write(stdout,'("    sts_dist:               ",1PE14.6)') sts_dist
+    write(stdout,'("    fault%file:             ",A)') trim(fault%file)
+    write(stdout,'("    rake_constraint%file:   ",A)') trim(rake_constraint%file)
+    write(stdout,'("    slip_constraint%file:   ",A)') trim(slip_constraint%file)
+    write(stdout,'("    los%file:               ",A)') trim(los%file)
+    write(stdout,'("    los_weight:             ",1PE14.6)') los_weight
+    write(stdout,'("    los_misfit_file:        ",A)') trim(los_misfit_file)
+    write(stdout,*)
+    write(stdout,'("    gf_type:                ",A)') trim(gf_type)
+    write(stdout,'("    gf_disp%file:           ",A)') trim(gf_disp%file)
+    write(stdout,'("    gf_stress%file:         ",A)') trim(gf_stress%file)
+    write(stdout,*)
+    write(stdout,'("    damping_constant:       ",1PE14.6)') damping_constant
+    write(stdout,'("    smoothing_constant:     ",1PE14.6)') smoothing_constant
+    write(stdout,'("    smoothing_file:         ",A)') trim(smoothing%file)
+    write(stdout,*)
+    write(stdout,'("    coord_type:             ",A)') trim(coord_type)
+    write(stdout,'("    halfspace%file:         ",A)') trim(halfspace%file)
+    write(stdout,'("    halfspace%flag:         ",A)') trim(halfspace%flag)
+    write(stdout,*)
+    write(stdout,'("    lsqr_mode:              ",A)') trim(lsqr_mode)
+    write(stdout,*)
+    write(stdout,'("    anneal_init_mode:       ",A)') trim(anneal_init_mode)
+    write(stdout,'("    max_iteration:          ",I14)') max_iteration
+    write(stdout,'("    reset_iteration:        ",I14)') reset_iteration
+    write(stdout,'("    temp_start:             ",1PE14.6)') temp_start
+    write(stdout,'("    temp_minimum:           ",1PE14.6)') temp_minimum
+    write(stdout,'("    anneal_log_file:        ",A)') trim(anneal_log_file)
+    write(stdout,'("    cooling_factor:         ",1PE14.6)') cooling_factor
+    write(stdout,'("    anneal_verbosity:       ",I14)') anneal_verbosity
 endif
 
 return
