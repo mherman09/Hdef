@@ -976,7 +976,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                          lsqr_mode, &
                     anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
-                         anneal_init_file
+                         anneal_init_file, prob_lock2unlock, prob_unlock2lock
 implicit none
 
 ! Initialize program behavior variables
@@ -1027,6 +1027,8 @@ cooling_factor = 0.98d0
 anneal_verbosity = 0
 sts_dist = 1.0d10
 anneal_init_file = ''
+prob_lock2unlock = 0.25d0
+prob_unlock2lock = 0.10d0
 
 return
 end
@@ -1044,7 +1046,7 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                          lsqr_mode, &
                       anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
-                         anneal_control_file, anneal_init_file
+                         anneal_control_file, anneal_init_file, prob_lock2unlock, prob_unlock2lock
 implicit none
 ! Local variables
 integer :: i, narg
@@ -1204,6 +1206,16 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) cooling_factor
+    elseif (trim(tag).eq.'-anneal:p_lock2unlock' .or. &
+                                trim(tag).eq.'-anneal:prob_lock2unlock') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) prob_lock2unlock
+    elseif (trim(tag).eq.'-anneal:p_unlock2lock' .or. &
+                                trim(tag).eq.'-anneal:prob_unlock2lock') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) prob_unlock2lock
     elseif (trim(tag).eq.'-anneal:verbosity') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -1281,6 +1293,8 @@ if (verbosity.eq.3) then
     write(stdout,'("    temp_minimum:           ",1PE14.6)') temp_minimum
     write(stdout,'("    anneal_log_file:        ",A)') trim(anneal_log_file)
     write(stdout,'("    cooling_factor:         ",1PE14.6)') cooling_factor
+    write(stdout,'("    prob_lock2unlock:       ",1PE14.6)') prob_lock2unlock
+    write(stdout,'("    prob_unlock2lock:       ",1PE14.6)') prob_lock2unlock
     write(stdout,'("    anneal_verbosity:       ",I14)') anneal_verbosity
 endif
 
@@ -1351,6 +1365,8 @@ write(stderr,'(A)') '-anneal:temp_0 START_TEMP    Starting temperature'
 write(stderr,'(A)') '-anneal:temp_min MIN_TEMP    Minimum temperature'
 write(stderr,'(A)') '-anneal:cool COOL_FACT       Cooling factor'
 write(stderr,'(A)') '-anneal:verbosity LEVEL      Messages for annealing progress'
+write(stderr,'(A)') '-anneal:p_lock2unlock P      Probability of flipping locked to unlocked'
+write(stderr,'(A)') '-anneal:p_unlock2lock P      Probability of flipping unlocked to locked'
 write(stderr,*)
 write(stderr,'(A)') 'See man page for details'
 write(stderr,*)

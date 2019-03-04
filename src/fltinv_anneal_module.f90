@@ -758,7 +758,8 @@ contains
     use io, only: verbosity, stderr, stdout
     use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip, &
                            anneal_log_file, max_iteration, reset_iteration, &
-                                temp_start, temp_minimum, cooling_factor
+                                temp_start, temp_minimum, cooling_factor, prob_lock2unlock, &
+                               prob_unlock2lock
     use lsqr_module, only: invert_lsqr, A, b, x, isAsaveLoaded
     implicit none
     integer :: randFaultList(fault%nrecords)
@@ -932,34 +933,32 @@ contains
 
             ! For all faults...
 
-            if (ran2(idum).gt.0.5d0) then
+            if (ran2(idum).gt.prob_lock2unlock.and.isFaultLocked(randFaultList(j)).eq.1) then
 
-                ! Flip this fault!
-                if (isFaultLocked(randFaultList(j)).eq.1) then
+                ! Flip this fault! Locked -> unlocked
 
-                    ! Locked -> unlocked
-                    if (nunlocked.lt.nswitchmax) then
-                        isFaultLocked(randFaultList(j)) = 0
-                    endif
-
-                    ! Only count fault as flipped if it is not always unlocked
-                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
-                        nunlocked = nunlocked + 1
-                    endif
-
-                else
-
-                    ! Unlocked -> locked
-                    if (nlocked.lt.nswitchmax) then
-                        isFaultLocked(randFaultList(j)) = 1
-                    endif
-
-                    ! Only count fault as flipped if it is not always unlocked
-                    if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
-                        nlocked = nlocked + 1
-                    endif
-
+                if (nunlocked.lt.nswitchmax) then
+                    isFaultLocked(randFaultList(j)) = 0
                 endif
+
+                ! Only count fault as flipped if it is not always unlocked
+                if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
+                    nunlocked = nunlocked + 1
+                endif
+
+            elseif (ran2(idum).gt.prob_unlock2lock.and.isFaultLocked(randFaultList(j)).eq.0) then
+
+                ! Flip this fault! Unlocked -> locked
+
+                if (nlocked.lt.nswitchmax) then
+                    isFaultLocked(randFaultList(j)) = 1
+                endif
+
+                ! Only count fault as flipped if it is not always unlocked
+                if (dabs(slip_save(randFaultList(j),1)).lt.99998.0d0) then
+                    nlocked = nlocked + 1
+                endif
+
             endif
 
         enddo

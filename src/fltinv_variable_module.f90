@@ -60,6 +60,8 @@ use io, only: stderr, verbosity
     integer :: anneal_verbosity
     character(len=256) :: anneal_control_file     ! define annealing parameters in file instead of cmdln
     character(len=256) :: anneal_init_file
+    double precision :: prob_lock2unlock
+    double precision :: prob_unlock2lock
 
 contains
 
