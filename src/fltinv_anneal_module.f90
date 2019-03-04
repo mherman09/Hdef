@@ -1113,7 +1113,7 @@ contains
     implicit none
     ! Local variables
     integer :: i, ios
-    double precision :: tmparray(1,2)
+    double precision :: tmparray(1,2), odds_locked
     logical :: ex
     ! External variables
     integer, external :: timeseed
@@ -1122,6 +1122,9 @@ contains
     if (verbosity.eq.22) then
         write(stdout,*) 'initialize_annealing_psc: starting'
     endif
+
+    ! Initialize the random number generator
+    idum = -timeseed()
 
     ! Make sure slip_constraint%array is defined (values for locked faults)
     if (slip_constraint%file.eq.'none') then
@@ -1169,9 +1172,14 @@ contains
             close(63)
         endif
 
-    elseif (trim(anneal_init_mode).eq.'rand') then
+    elseif (anneal_init_mode(1:4).eq.'rand') then
+        read(anneal_init_mode(5:8),*,iostat=ios) odds_locked
+        if (ios.ne.0) then
+            write(stderr,*) 'initialize_annealing_psc: could not read locked odds, setting to 0.5'
+            odds_locked = 0.5d0
+        endif
         do i = 1,fault%nrecords
-            if (ran2(idum).gt.0.50d0) then
+            if (ran2(idum).lt.odds_locked) then
                 isFaultLocked(i) = 1
             else
                 isFaultLocked(i) = 0
@@ -1183,9 +1191,6 @@ contains
                         trim(anneal_init_mode)
         write(stderr,*) '                          setting anneal_init_mode to unlocked'
     endif
-
-    ! Initialize the random number generator
-    idum = -timeseed()
 
     if (verbosity.eq.22) then
         write(stderr,*) 'initialize_annealing_psc: finished'

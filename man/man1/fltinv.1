@@ -374,13 +374,13 @@ by Alan Miller.
 .B SIMULATED ANNEALING OPTIONS
 
 .TP
-.BI "-anneal:init_mode " mean | zero | rand | unlocked | locked | user
-Set the mode to initialize the slip and rake values of the solution for 
+.BI "-anneal:init_mode " mean | zero | rand[ODDS] | unlocked | locked | user
+Set the mode to initialize the slip and rake values of the solution for
 mode
 .B anneal
 (default: mean) or to initialize which faults are locked or
 unlocked for mode
-.BR anneal-psc 
+.BR anneal-psc
 (default: unlocked):
 
 .BR mean :
@@ -405,8 +405,9 @@ set all faults to start out unlocked
 .BR locked :
 set all faults to start out locked
 .br
-.BR rand :
-randomly set locked faults
+.BR rand[ODDS] :
+randomly set locked faults with probability, e.g., rand0.75 for likelihood a fault is
+locked of 0.75
 .br
 .B user
 .IR file :
