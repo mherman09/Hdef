@@ -933,7 +933,7 @@ contains
 
             ! For all faults...
 
-            if (ran2(idum).gt.prob_lock2unlock.and.isFaultLocked(randFaultList(j)).eq.1) then
+            if (ran2(idum).lt.prob_lock2unlock.and.isFaultLocked(randFaultList(j)).eq.1) then
 
                 ! Flip this fault! Locked -> unlocked
 
@@ -946,7 +946,7 @@ contains
                     nunlocked = nunlocked + 1
                 endif
 
-            elseif (ran2(idum).gt.prob_unlock2lock.and.isFaultLocked(randFaultList(j)).eq.0) then
+            elseif (ran2(idum).lt.prob_unlock2lock.and.isFaultLocked(randFaultList(j)).eq.0) then
 
                 ! Flip this fault! Unlocked -> locked
 
