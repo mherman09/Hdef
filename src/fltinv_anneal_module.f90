@@ -1051,7 +1051,7 @@ contains
                 write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
                 do j = 1,fault%nrecords
-                    write(201,'(1P2E14.6)') fault_slip_0(j,1),fault_slip_0(j,2)
+                    write(201,'(1P2E14.6)') fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
                 enddo
             endif
         endif
