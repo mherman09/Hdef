@@ -878,15 +878,17 @@ contains
         temp_minimum = temp_minimum*obj_0
     endif
 
-    ! Write initial solution to log file
+    ! Write initial solution to a log file
     if (anneal_log_file.ne.'none') then
         open(unit=201,file=anneal_log_file,status='unknown')
         write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',0,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
         do j = 1,fault%nrecords
-            write(201,'(1P2E14.6)') fault_slip(j,1),fault_slip(j,2)
+            write(201,4001) fault_slip(j,1),fault_slip(j,2),isFaultLocked(j)
         enddo
     endif
+4001 format(1P2E14.6,I5)
+
 
     if (verbosity.eq.22) then
         write(stdout,*) 'invert_anneal_pseudocoupling: starting search'
@@ -1051,7 +1053,7 @@ contains
                 write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
                 do j = 1,fault%nrecords
-                    write(201,'(1P2E14.6)') fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
+                    write(201,4001) fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
                 enddo
             endif
         endif
