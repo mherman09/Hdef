@@ -881,7 +881,7 @@ contains
     ! Write initial solution to a log file
     if (anneal_log_file.ne.'none') then
         open(unit=201,file=anneal_log_file,status='unknown')
-        write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',0,'Temperature: ',temp,&
+        write(201,'(A,I4,2(4X,A,1PE14.6))') 'Iteration: ',0,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
         do j = 1,fault%nrecords
             write(201,4001) fault_slip(j,1),fault_slip(j,2),isFaultLocked(j)
@@ -1032,6 +1032,10 @@ contains
         !     (obj_new < obj_0) => always transition to better model
         !     (obj_new > obj_0) => transition with p = exp(-dE/T)
         p_trans = dexp((obj_0-obj_new)/temp)
+        ! write(stderr,*)
+        ! write(stderr,*) 'difference in objective function: ',obj_0-obj_new
+        ! write(stderr,*) 'difference in objective function divided by T: ',(obj_0-obj_new)/temp
+        ! write(stderr,*) 'probability of transitioning to proposed model: ',min(1.0d0,p_trans)
 
         if (verbosity.eq.22) then
             write(stdout,*) 'invert_anneal_pseudocoupling: transition probability: ', &
@@ -1050,7 +1054,7 @@ contains
                 enddo
             endif
             if (anneal_log_file.ne.'none') then
-                write(201,'(A,I4,2(4X,A,1PE12.4))') 'Iteration: ',i,'Temperature: ',temp,&
+                write(201,'(A,I4,2(4X,A,1PE14.6))') 'Iteration: ',i,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
                 do j = 1,fault%nrecords
                     write(201,4001) fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
