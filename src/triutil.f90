@@ -642,6 +642,9 @@ verbosity = 0
 narg = command_argument_count()
 if (narg.eq.0) call usage('')
 
+! Everything is hunky-dory to start out
+ios = 0
+
 i = 1
 do while (i.le.narg)
     call get_command_argument(i,tag)
