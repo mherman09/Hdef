@@ -482,10 +482,11 @@ contains
     ndsp = displacement%nrecords
 
 
+    ! Compute predicted displacement at each station
     do i = 1,ndsp
 
-        ! Compute predicted displacement at each station
-        ! The displacement components to compare depends on which are specified in disp_components
+        ! The displacement components to compare with observed depend
+        ! on which are specified in disp_components
         disp_pre = 0.0d0
 
         do j = 1,nflt
@@ -900,7 +901,7 @@ contains
 
         if (verbosity.eq.21) then
             write(stdout,'(A1,A1,A,I5,A,I5)',advance='no') ' ',achar(13), &
-                                                   'invert_anneal_pseudocoupling: iteration ', &
+                                                   ' invert_anneal_pseudocoupling: iteration ', &
                                                    i,' of ',max_iteration
             if (i.eq.max_iteration) then
                 write(stdout,*)
@@ -1060,6 +1061,11 @@ contains
                     write(201,4001) fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
                 enddo
             endif
+        else
+            if (anneal_log_file.ne.'none') then
+                write(201,'(A,I4,2(4X,A,1PE14.6))') '#Iteration: ',i,'Temperature: ',temp,&
+                                                 'Objective: ',obj_new
+            endif
         endif
 
         ! Reduce temperature by cooling factor
@@ -1203,5 +1209,13 @@ contains
 
     return
     end subroutine initialize_annealing_psc
+
+
+! subroutine chi_squared(chi2,obs,pre,cov,nobs,ndim)
+! implicit none
+! integer :: nobs, ndim
+! double precision :: chi2, obs(nobs*ndim), pre(nobs*ndim), cov(nobs*ndim,nobs*ndim)
+! return
+! end subroutine
 
 end module anneal_module

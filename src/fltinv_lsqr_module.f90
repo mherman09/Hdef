@@ -26,6 +26,7 @@ contains
     implicit none
     ! Local variables
     integer :: i, j, nzeros
+    double precision :: start, finish
 
     if (verbosity.eq.1.or.verbosity.eq.2.or.verbosity.eq.22) then
         write(stdout,*) 'invert_lsqr: starting'
@@ -63,7 +64,14 @@ contains
     endif
 
     ! Load model matrix, A (and maybe Asave), and constraint vector, b
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        call cpu_time(start)
+    endif
     call load_arrays()
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        call cpu_time(finish)
+        write(stdout,'(A,F10.4,A)') ' invert_lsqr: time to load arrays: ',finish-start,' s'
+    endif
     ! open(unit=55,file='a.dat',status='unknown')
     ! open(unit=56,file='b.dat',status='unknown')
     ! do i = 1,nrows
@@ -83,6 +91,10 @@ contains
     ! Solve generalized least squares problem
     if (.not.allocated(x)) then
         allocate(x(ncols,1))
+    endif
+
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        call cpu_time(start)
     endif
 
     if (inversion_mode.eq.'anneal-psc'.or. &
@@ -107,6 +119,10 @@ contains
         call usage('!! Error: no lsqr_mode named '//trim(lsqr_mode))
     endif
 
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        call cpu_time(finish)
+        write(stdout,'(A,F10.4,A)') ' invert_lsqr: time to solve equation: ',finish-start,' s'
+    endif
 
     ! Load solution into fault_slip array
     if (.not.allocated(fault_slip)) then
@@ -230,19 +246,18 @@ contains
     endif
 
     if (verbosity.eq.2.or.verbosity.eq.22) then
-        write(stdout,*) 'calc_array_dimensions: finished'
+        write(stdout,*) 'calc_array_dimensions: model array parameters'
+        write(stdout,*) 'nrows:      ', nrows
+        write(stdout,*) 'ncolumns:   ', ncols
+        write(stdout,*) 'ptr_disp:   ', ptr_disp
+        write(stdout,*) 'ptr_los:    ', ptr_los
+        write(stdout,*) 'ptr_stress: ', ptr_stress
+        write(stdout,*) 'ptr_damp:   ', ptr_damp
+        write(stdout,*) 'ptr_smooth: ', ptr_smooth
     endif
 
-    if (verbosity.eq.6.or.verbosity.eq.26) then
-        write(stderr,'(A)') 'calc_array_dimensions: model array parameters'
-        write(stderr,'(A,I8)') 'nrows:      ', nrows
-        write(stderr,'(A,I8)') 'ncolumns:   ', ncols
-        write(stderr,'(A,I8)') 'ptr_disp:   ', ptr_disp
-        write(stderr,'(A,I8)') 'ptr_los:    ', ptr_los
-        write(stderr,'(A,I8)') 'ptr_stress: ', ptr_stress
-        write(stderr,'(A,I8)') 'ptr_damp:   ', ptr_damp
-        write(stderr,'(A,I8)') 'ptr_smooth: ', ptr_smooth
-        write(stderr,*)
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) 'calc_array_dimensions: finished'
     endif
 
     return
@@ -748,7 +763,7 @@ contains
     enddo
 
     ! Renumber columns of arrays
-    if (verbosity.eq.6.or.verbosity.eq.26) then
+    if (verbosity.eq.2.or.verbosity.eq.22) then
         write(stdout,*) 'load_slip_constraints: renumbering matrix columns'
         write(stdout,*) '    ncols=',ncols
     endif
@@ -765,13 +780,13 @@ contains
         endif
     enddo
     ncols = ncols - n
-    if (verbosity.eq.6.or.verbosity.eq.26) then
+    if (verbosity.eq.2.or.verbosity.eq.2) then
         write(stdout,*) 'load_slip_constraints: new number of columns:'
         write(stdout,*) '    ncols=',ncols
     endif
 
     ! Renumber rows of arrays
-    if (verbosity.eq.6.or.verbosity.eq.26) then
+    if (verbosity.eq.2.or.verbosity.eq.22) then
         write(stdout,*) 'load_slip_constraints: renumbering matrix rows'
         write(stdout,*) '    nrows=',nrows
     endif
@@ -789,13 +804,13 @@ contains
         endif
     enddo
     nrows = nrows - n
-    if (verbosity.eq.6.or.verbosity.eq.26) then
+    if (verbosity.eq.2.or.verbosity.eq.22) then
         write(stdout,*) 'load_slip_constraints: new number of rows:'
         write(stdout,*) '    nrows=',nrows
     endif
 
-    if (verbosity.eq.2.or.verbosity.eq.26) then
-        write(stderr,*) "load_slip_constraints: finished"
+    if (verbosity.eq.2.or.verbosity.eq.22) then
+        write(stdout,*) "load_slip_constraints: finished"
     endif
 
     return
