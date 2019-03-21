@@ -9,6 +9,7 @@ module anneal_module
 
     ! Annealing for pseudo-coupling variables
     integer, allocatable :: isFaultLocked(:)
+    integer, allocatable :: isFaultLocked_best(:)
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -760,9 +761,11 @@ contains
     use variable_module, only: fault, displacement, prestress, slip_constraint, fault_slip, &
                            anneal_log_file, max_iteration, reset_iteration, &
                                 temp_start, temp_minimum, cooling_factor, prob_lock2unlock, &
-                               prob_unlock2lock
+                               prob_unlock2lock, mcmc_iteration, mcmc_log_file
     use lsqr_module, only: invert_lsqr, A, b, x, isAsaveLoaded
     implicit none
+
+    ! Local variables
     integer :: randFaultList(fault%nrecords)
     double precision :: slip_save(fault%nrecords,2)
     double precision :: fault_slip_0(fault%nrecords,2), fault_slip_best(fault%nrecords,2)
@@ -771,6 +774,8 @@ contains
     integer :: i, j, k, ktmp
     real, external :: ran2
     logical :: do_inversion
+    character(len=32) :: fmt_string
+    integer :: isFaultLocked_new(fault%nrecords)
 
     if (verbosity.eq.1.or.verbosity.eq.2) then
         write(stdout,*) 'invert_anneal_pseudocoupling: starting'
@@ -859,9 +864,11 @@ contains
 
     fault_slip_0 = fault_slip ! save the initial solution
     fault_slip_best = fault_slip
-    obj_0 = disp_misfit_chi2(fault_slip) ! chi-squared
+    obj_0 = 0.5d0*disp_misfit_chi2(fault_slip) ! chi-squared
     ! obj_0 = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
     obj_best = obj_0
+
+
 
     ! Set starting temperature
     if (temp_start.lt.0.0d0) then
@@ -879,6 +886,8 @@ contains
         temp_minimum = temp_minimum*obj_0
     endif
 
+
+
     ! Write initial solution to a log file
     if (anneal_log_file.ne.'none') then
         open(unit=201,file=anneal_log_file,status='unknown')
@@ -890,26 +899,63 @@ contains
     endif
 4001 format(1P2E14.6,I5)
 
+    ! Open the mcmc log file if necessary
+    if (mcmc_log_file.ne.'none'.and.mcmc_iteration.gt.0) then
+        open(unit=202,file=mcmc_log_file,status='unknown')
+    endif
+
+
+
 
     if (verbosity.eq.22) then
         write(stdout,*) 'invert_anneal_pseudocoupling: starting search'
         write(stdout,*)
     endif
 
-    ! Run annealing search for distribution of locked patches
-    do i = 1,max_iteration
+
+
+
+    !---- Run annealing search for distribution of locked patches ----!
+    do i = 1,max_iteration+mcmc_iteration
+
+        ! If starting MCMC mode, set current model to best model from annealing
+        if (i.eq.max_iteration+1) then
+            fault_slip_0 = fault_slip_best
+            obj_0 = obj_best
+            isFaultLocked = isFaultLocked_best
+            prob_lock2unlock = 0.02d0
+            prob_unlock2lock = 0.02d0
+            nswitchmax = fault%nrecords/20
+            if (nswitchmax.lt.1) then
+                nswitchmax = 1
+            endif
+        endif
 
         if (verbosity.eq.21) then
-            write(stdout,'(A1,A1,A,I5,A,I5)',advance='no') ' ',achar(13), &
+            if (i.eq.max_iteration+1) then
+                write(stdout,*) 'invert_anneal_pseudocoupling: starting Markov Chain Monte Carlo'
+            endif
+            if (i.le.max_iteration) then
+                write(stdout,'(A1,A1,A,I5,A,I5)',advance='no') ' ',achar(13), &
                                                    ' invert_anneal_pseudocoupling: iteration ', &
                                                    i,' of ',max_iteration
+            else
+                write(stdout,'(A1,A1,A,I5,A,I5)',advance='no') ' ',achar(13), &
+                                                ' invert_anneal_pseudocoupling: mcmc iteration ', &
+                                                   i,' of ',max_iteration+mcmc_iteration
+            endif
             if (i.eq.max_iteration) then
                 write(stdout,*)
             endif
         endif
 
         if (verbosity.eq.22) then
-            write(stdout,*) 'invert_anneal_pseudocoupling: iteration ', i,' of ',max_iteration
+            if (i.le.max_iteration) then
+                write(stdout,*) 'invert_anneal_pseudocoupling: iteration ', i,' of ',max_iteration
+            else
+                write(stdout,*) 'invert_anneal_pseudocoupling: mcmc iteration ', i,' of ', &
+                                max_iteration+mcmc_iteration
+            endif
         endif
 
         ! Randomize fault list by switching each entry with a random entry
@@ -932,16 +978,17 @@ contains
         ! Flip up to 10% of faults from locked->unlocked or vice versa
         nlocked = 0
         nunlocked = 0
+        isFaultLocked_new = isFaultLocked
         do j = 1,fault%nrecords
 
             ! For all faults...
 
-            if (ran2(idum).lt.prob_lock2unlock.and.isFaultLocked(randFaultList(j)).eq.1) then
+            if (ran2(idum).lt.prob_lock2unlock.and.isFaultLocked_new(randFaultList(j)).eq.1) then
 
                 ! Flip this fault! Locked -> unlocked
 
                 if (nunlocked.lt.nswitchmax) then
-                    isFaultLocked(randFaultList(j)) = 0
+                    isFaultLocked_new(randFaultList(j)) = 0
                 endif
 
                 ! Only count fault as flipped if it is not always unlocked
@@ -949,12 +996,12 @@ contains
                     nunlocked = nunlocked + 1
                 endif
 
-            elseif (ran2(idum).lt.prob_unlock2lock.and.isFaultLocked(randFaultList(j)).eq.0) then
+            elseif (ran2(idum).lt.prob_unlock2lock.and.isFaultLocked_new(randFaultList(j)).eq.0) then
 
                 ! Flip this fault! Unlocked -> locked
 
                 if (nlocked.lt.nswitchmax) then
-                    isFaultLocked(randFaultList(j)) = 1
+                    isFaultLocked_new(randFaultList(j)) = 1
                 endif
 
                 ! Only count fault as flipped if it is not always unlocked
@@ -971,16 +1018,16 @@ contains
         endif
 
         if (verbosity.eq.26) then
-            write(stdout,*) 'invert_anneal_pseudocoupling says: locked faults are:'
+            write(stdout,*) 'invert_anneal_pseudocoupling says: locked faults for proposed model are:'
             do j = 1,fault%nrecords
-                write(stderr,'(A,I6,I6)') 'Fault: ',j,isFaultLocked(j)
+                write(stderr,'(A,I6,I6)') 'Fault: ',j,isFaultLocked_new(j)
             enddo
         endif
 
 
         ! Slip constraints applied to locked faults
         do j = 1,fault%nrecords
-            if (isFaultLocked(j).eq.0) then
+            if (isFaultLocked_new(j).eq.0) then
                 slip_constraint%array(j,1) = 99999.0d0
                 slip_constraint%array(j,2) = 99999.0d0
             else
@@ -992,7 +1039,10 @@ contains
         ! Pre-stresses are zero at start of calculation (THIS MAY CHANGE TO ADD RESISTIVE TRACTIONS!)
         prestress%array = 0.0d0
 
+
         ! Calculate other subfault slip
+
+        ! No need to do inversion if all faults are unlocked; check for at least one locked fault
         do_inversion = .false.
         do j = 1,fault%nrecords
             if (slip_constraint%array(j,1).gt.99998.0d0) then
@@ -1000,7 +1050,6 @@ contains
                 exit
             endif
         enddo
-
 
         if (verbosity.eq.22) then
             write(stdout,*) 'invert_anneal_pseudocoupling: finished setup; calling linear solver'
@@ -1018,21 +1067,35 @@ contains
 
 
         ! Calculate new objective function
-        obj_new = disp_misfit_chi2(fault_slip) ! chi-squared
+        obj_new = 0.5d0*disp_misfit_chi2(fault_slip) ! chi-squared
         ! obj_new = disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords)) ! RMS
-        if (obj_new.lt.obj_best) then
+
+        ! If proposed model is the best, save it
+        if (obj_new.lt.obj_best.and.i.le.max_iteration) then
             fault_slip_best = fault_slip
             obj_best = obj_new
+            isFaultLocked_best = isFaultLocked_new
         endif
 
         if (verbosity.eq.22) then
-            write(stdout,*) 'invert_anneal_pseudocoupling: new objective function: ',obj_new
+            write(fmt_string,'("(A,",I5,"I1)")') fault%nrecords
+            write(stdout,fmt_string) ' Locked faults in current model: ',isFaultLocked
+            write(stdout,fmt_string) ' Locked faults in proposed model: ',isFaultLocked_new
+            write(stdout,*) 'invert_anneal_pseudocoupling: current objective function: ',obj_0
+            write(stdout,*) 'invert_anneal_pseudocoupling: proposed objective function: ',obj_new
+        endif
+
+        ! In annealing mode, temperature is some changing value
+        ! In Markov Chain Monte Carlo mode, temperature is one
+        if (i.gt.max_iteration) then
+            temp = 1.0d0
         endif
 
         ! Compute transition probability
         !     (obj_new < obj_0) => always transition to better model
         !     (obj_new > obj_0) => transition with p = exp(-dE/T)
         p_trans = dexp((obj_0-obj_new)/temp)
+
         ! write(stderr,*)
         ! write(stderr,*) 'difference in objective function: ',obj_0-obj_new
         ! write(stderr,*) 'difference in objective function divided by T: ',(obj_0-obj_new)/temp
@@ -1046,26 +1109,41 @@ contains
         ! If the transition is made because of better fit or chance,
         ! update the current model (slip_0) with the proposed model (slip_new)
         if (ran2(idum).lt.p_trans) then
+            isFaultLocked = isFaultLocked_new
             fault_slip_0 = fault_slip
             obj_0 = obj_new
+
             if (verbosity.eq.26) then
                 write(stderr,'(A,1P1E14.6)') 'Current solution, Objective=', obj_0
                 do j = 1,fault%nrecords
                     write(stderr,'(1P2E14.6)') fault_slip_0(j,:)
                 enddo
             endif
-            if (anneal_log_file.ne.'none') then
+
+            ! Save model to a log file
+            if (anneal_log_file.ne.'none'.and.i.le.max_iteration) then
                 write(201,'(A,I4,2(4X,A,1PE14.6))') 'Iteration: ',i,'Temperature: ',temp,&
                                                  'Objective: ',obj_0
                 do j = 1,fault%nrecords
                     write(201,4001) fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
                 enddo
             endif
+
         else
-            if (anneal_log_file.ne.'none') then
-                write(201,'(A,I4,2(4X,A,1PE14.6))') '#Iteration: ',i,'Temperature: ',temp,&
-                                                 'Objective: ',obj_new
-            endif
+            ! ! Save only iteration and fit to the log file
+            ! if (anneal_log_file.ne.'none'.and.i.le.max_iteration) then
+            !     write(201,'(A,I4,2(4X,A,1PE14.6))') '#Iteration: ',i,'Temperature: ',temp,&
+            !                                      'Objective: ',obj_new
+            ! endif
+        endif
+
+        ! In MCMC mode, write current solution (updated or not!) to log file at every iteration
+        if (mcmc_log_file.ne.'none'.and.i.gt.max_iteration) then
+            write(202,'(A,I4,2(4X,A,1PE14.6))') 'Iteration: ',i,'Temperature: ',temp,&
+                                                 'Objective: ',obj_0
+            do j = 1,fault%nrecords
+                write(202,4001) fault_slip_0(j,1),fault_slip_0(j,2),isFaultLocked(j)
+            enddo
         endif
 
         ! Reduce temperature by cooling factor
@@ -1107,6 +1185,9 @@ contains
     endif
     if (allocated(isFaultLocked)) then
         deallocate(isFaultLocked)
+    endif
+    if (allocated(isFaultLocked_best)) then
+        deallocate(isFaultLocked_best)
     endif
 
     if (verbosity.eq.1.or.verbosity.eq.2) then
@@ -1156,7 +1237,11 @@ contains
     if (.not.allocated(isFaultLocked)) then
         allocate(isFaultLocked(fault%nrecords))
     endif
+    if (.not.allocated(isFaultLocked_best)) then
+        allocate(isFaultLocked_best(fault%nrecords))
+    endif
     isFaultLocked = 0
+    isFaultLocked_best = 0
 
     if (trim(anneal_init_mode).eq.'unlocked') then
         isFaultLocked = 0

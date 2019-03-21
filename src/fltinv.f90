@@ -976,7 +976,8 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                          lsqr_mode, &
                     anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
-                         anneal_init_file, prob_lock2unlock, prob_unlock2lock
+                         anneal_init_file, prob_lock2unlock, prob_unlock2lock, &
+                         mcmc_iteration, mcmc_log_file
 implicit none
 
 ! Initialize program behavior variables
@@ -1029,6 +1030,8 @@ sts_dist = 1.0d10
 anneal_init_file = ''
 prob_lock2unlock = 0.25d0
 prob_unlock2lock = 0.10d0
+mcmc_iteration = 0
+mcmc_log_file = 'none'
 
 return
 end
@@ -1046,7 +1049,8 @@ use variable_module, only: output_file, displacement, disp_components, prestress
                          lsqr_mode, &
                       anneal_init_mode, anneal_log_file, max_iteration, reset_iteration, &
                          temp_start, temp_minimum, cooling_factor, anneal_verbosity, &
-                         anneal_control_file, anneal_init_file, prob_lock2unlock, prob_unlock2lock
+                         anneal_control_file, anneal_init_file, prob_lock2unlock, prob_unlock2lock,&
+                         mcmc_iteration,mcmc_log_file
 implicit none
 ! Local variables
 integer :: i, narg
@@ -1216,6 +1220,17 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) prob_unlock2lock
+    elseif (trim(tag).eq.'-anneal:mcmc') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) mcmc_iteration
+        i = i + 1
+        call get_command_argument(i,mcmc_log_file)
+    elseif (trim(tag).eq.'-anneal:p_unlock2lock' .or. &
+                                trim(tag).eq.'-anneal:prob_unlock2lock') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) prob_unlock2lock
     elseif (trim(tag).eq.'-anneal:verbosity') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -1295,6 +1310,8 @@ if (verbosity.eq.3) then
     write(stdout,'("    cooling_factor:         ",1PE14.6)') cooling_factor
     write(stdout,'("    prob_lock2unlock:       ",1PE14.6)') prob_lock2unlock
     write(stdout,'("    prob_unlock2lock:       ",1PE14.6)') prob_lock2unlock
+    write(stdout,'("    mcmc_iteration:          ",A)') mcmc_iteration
+    write(stdout,'("    mcmc_log_file:          ",A)') mcmc_log_file
     write(stdout,'("    anneal_verbosity:       ",I14)') anneal_verbosity
 endif
 
@@ -1367,6 +1384,7 @@ write(stderr,'(A)') '-anneal:cool COOL_FACT       Cooling factor'
 write(stderr,'(A)') '-anneal:verbosity LEVEL      Messages for annealing progress'
 write(stderr,'(A)') '-anneal:p_lock2unlock P      Probability of flipping locked to unlocked'
 write(stderr,'(A)') '-anneal:p_unlock2lock P      Probability of flipping unlocked to locked'
+write(stderr,'(A)') '-anneal:mcmc NSTEPS LOGFILE  Run MCMC search after annealing search'
 write(stderr,*)
 write(stderr,'(A)') 'See man page for details'
 write(stderr,*)

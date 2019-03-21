@@ -472,7 +472,14 @@ Probability of flipping unlocked to locked in
 .B anneal-psc
 mode (default: 0.10).
 
-
+.TP
+.BI "-anneal:mcmc " "nsteps mcmc_log_file"
+Run
+.I nsteps
+of Markov Chain Monte Carlo (Metropolis-Hastings algorithm) after annealing
+search is finished. Start MCMC from best-fitting annealing solution, so
+burn-in is not necessary. Print resulting models to
+.IR mcmc_log_file .
 
 
 .SH REFERENCES

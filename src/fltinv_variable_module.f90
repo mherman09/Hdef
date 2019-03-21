@@ -62,6 +62,8 @@ use io, only: stderr, verbosity
     character(len=256) :: anneal_init_file
     double precision :: prob_lock2unlock
     double precision :: prob_unlock2lock
+    character(len=256) :: mcmc_log_file
+    integer :: mcmc_iteration
 
 contains
 
