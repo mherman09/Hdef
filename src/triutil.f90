@@ -250,7 +250,7 @@ use triutil, only: halfspace_file, poisson, shearmod, lame
 implicit none
 
 ! Local variables
-integer :: i, j
+integer :: i, j, ios
 character(len=512) :: input_line
 logical :: doesHalfspaceFileExist
 character(len=32) :: lbl(3)
