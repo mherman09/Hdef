@@ -240,7 +240,6 @@ C----------------------------------------------------------------------C
 
       SUBROUTINE usage(str)
       IMPLICIT NONE
-      INTEGER lstr
       CHARACTER str*(*)
       if (str.ne.' ') then
           write(0,*) trim(str)
@@ -290,4 +289,3 @@ C----------------------------------------------------------------------C
       write(0,*)
       STOP
       END
-
