@@ -25,7 +25,7 @@ contains
     use variable_module, only: inversion_mode
     implicit none
     ! Local variables
-    integer :: i, j, nzeros
+    integer :: i, j
     double precision :: start, finish
 
     if (verbosity.eq.1.or.verbosity.eq.2.or.verbosity.eq.22) then
@@ -181,7 +181,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine calc_array_dimensions()
-    use io, only: stderr, stdout, verbosity
+    use io, only: stdout, verbosity
     use variable_module, only: displacement, prestress, los, fault, rake_constraint, &
                                 damping_constant, smoothing_constant, smoothing, &
                                 disp_components
@@ -266,7 +266,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_arrays()
-    use io, only: stderr, stdout, verbosity
+    use io, only: stdout, verbosity
     use variable_module, only: displacement, los, prestress, &
                                 slip_constraint, damping_constant, smoothing_constant
     implicit none
@@ -635,7 +635,7 @@ contains
 !--------------------------------------------------------------------------------------------------!
 
     subroutine load_slip_constraints()
-    use io, only: stderr, stdout, verbosity
+    use io, only: stdout, verbosity
     use variable_module, only: displacement, prestress, fault, &
                                 disp_components, slip_constraint, rake_constraint, &
                                 smoothing
