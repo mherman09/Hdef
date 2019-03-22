@@ -333,6 +333,7 @@ other: \\
 INCLUDE_FILES = \$(INCLUDE_DIR)/anneal.o \\
                 \$(INCLUDE_DIR)/earth.o \\
                 \$(INCLUDE_DIR)/elast.o \\
+                \$(INCLUDE_DIR)/geom.o \\
                 \$(INCLUDE_DIR)/io.o \\
                 \$(INCLUDE_DIR)/okada92.o \\
                 \$(INCLUDE_DIR)/random.o \\
@@ -342,19 +343,22 @@ INCLUDE_FILES = \$(INCLUDE_DIR)/anneal.o \\
 
 include: \$(INCLUDE_FILES)
 
-\$(INCLUDE_DIR)/anneal.o: src/anneal_module.f90
+\$(INCLUDE_DIR)/anneal.o: src/anneal.f90 \$(INCLUDE_DIR)/random.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
 
-\$(INCLUDE_DIR)/earth.o: src/earth_module.f90 \$(INCLUDE_DIR)/trig.o
+\$(INCLUDE_DIR)/earth.o: src/earth_module.f90 \$(INCLUDE_DIR)/trig.o \$(INCLUDE_DIR)/io.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
 
 \$(INCLUDE_DIR)/elast.o: src/elast_module.f90
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
 
+\$(INCLUDE_DIR)/geom.o: src/geom_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+
 \$(INCLUDE_DIR)/io.o: src/io_module.f90
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
 
-\$(INCLUDE_DIR)/okada92.o: src/okada92_module.f90
+\$(INCLUDE_DIR)/okada92.o: src/okada92_module.f90 \$(INCLUDE_DIR)/test.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
 
 \$(INCLUDE_DIR)/random.o: src/random_module.f90
@@ -395,14 +399,13 @@ include: \$(INCLUDE_FILES)
 
 FLTINV_MODULES = \\
                  src/fltinv_variable_module.f90 \\
-                 src/fltinv_gf_module.f90 \\
                  src/fltinv_lsqr_module.f90 \\
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/pnpoly.f
 \$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(INCLUDE_FILES)
 	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE_DIR)
-	\$(FC) \$(FFLAG) -o \$@ \$< \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE_DIR)  \$(INCLUDE_FILES)
+	\$(FC) \$(FFLAG) -o \$@ \$< \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(CPP) -I\$(INCLUDE_DIR) -I. \$(INCLUDE_FILES)
 	rm *.o *.mod
 
 \$(BIN)/grid: src/grid.f
