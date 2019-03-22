@@ -409,9 +409,9 @@ FLTINV_INCLUDE = \$(INCLUDE)/tri_disloc.o \\
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
 
-\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o
+\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o \$(INCLUDE)/io.o
 	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
-	rm triutil_module.mod
+	rm triutil.mod
 
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
 	\$(FC) \$(FFLAG) -o \$@ \$^
