@@ -32,7 +32,7 @@ do
         -f=*|--fortran_compiler=*)FC=`echo $1 | sed -e "s/.*=//"`;;
         -l=*|--lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
         -b=*|--bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
-        -o=*|--include_dir=*)INCLUDE=`echo $1 | sed -e "s/.*=//"`;;
+        -o=*|--include_dir=*)INCLUDE_DIR=`echo $1 | sed -e "s/.*=//"`;;
         -i|--interactive)INTERACTIVE="Y";;
         -d|--default) FC="gfortran"
                       LAPACK_LIB_DIR="/sw/lib/lapack"
@@ -264,7 +264,7 @@ FOPT  = -O1
 FFLAG = \$(FWARN) \$(FOPT)
 
 ##### Include directory (.o and .mod files) #####
-INCLUDE = include
+INCLUDE_DIR = include
 
 ##### Executable directory #####
 BIN   = $BIN_DIR
@@ -327,6 +327,50 @@ scripts: \\
 other: \\
       \$(BIN)/numint
 
+####################################
+##### MODULE AND OBJECT RULES ######
+####################################
+INCLUDE_FILES = \$(INCLUDE_DIR)/anneal.o \\
+                \$(INCLUDE_DIR)/earth.o \\
+                \$(INCLUDE_DIR)/elast.o \\
+                \$(INCLUDE_DIR)/io.o \\
+                \$(INCLUDE_DIR)/okada92.o \\
+                \$(INCLUDE_DIR)/random.o \\
+                \$(INCLUDE_DIR)/test.o \\
+                \$(INCLUDE_DIR)/trig.o \\
+                \$(INCLUDE_DIR)/tri_disloc.o
+
+include: \$(INCLUDE_FILES)
+
+\$(INCLUDE_DIR)/anneal.o: src/anneal_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/earth.o: src/earth_module.f90 \$(INCLUDE_DIR)/trig.o
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/elast.o: src/elast_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/io.o: src/io_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+
+\$(INCLUDE_DIR)/okada92.o: src/okada92_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/random.o: src/random_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/test.o: src/test_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/trig.o: src/trig_module.f90
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+
+\$(INCLUDE_DIR)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE_DIR)/trig.o
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+
+\$(INCLUDE_DIR)/%.o: \$(INCLUDE_DIR)/%.mod
+
 ##################################
 ##### COMPILED PROGRAM RULES #####
 ##################################
@@ -356,13 +400,9 @@ FLTINV_MODULES = \\
                  src/fltinv_anneal_module.f90
 FLTINV_SUBS = src/okada92subs.f src/geomsubs.f src/randsubs.f src/nnls.f90 \
               src/pnpoly.f
-FLTINV_INCLUDE = \$(INCLUDE)/tri_disloc.o \\
-                 \$(INCLUDE)/elast.o \\
-                 \$(INCLUDE)/io.o
-# SUPERLU = -Lext/SuperLU_5.2.1/lib -lsuperlu_5.1
-\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(FLTINV_INCLUDE)
-	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE)
-	\$(FC) \$(FFLAG) -o \$@ \$< \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE)  \$(FLTINV_INCLUDE)
+\$(BIN)/fltinv: src/fltinv.f90 \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(INCLUDE_FILES)
+	\$(FC) \$(FFLAG) -c \$(FLTINV_MODULES) \$(LAPACK) \$(CPP) -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -o \$@ \$< \$(FLTINV_MODULES) \$(FLTINV_SUBS) \$(LAPACK) \$(SUPERLU) \$(CPP) -I\$(INCLUDE_DIR)  \$(INCLUDE_FILES)
 	rm *.o *.mod
 
 \$(BIN)/grid: src/grid.f
@@ -409,8 +449,8 @@ FLTINV_INCLUDE = \$(INCLUDE)/tri_disloc.o \\
 \$(BIN)/stereo_project: src/stereo_project.f90
 	\$(FC) \$(FFLAG) -o \$@ \$^
 
-\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o \$(INCLUDE)/io.o
-	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
+\$(BIN)/triutil: src/triutil.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE_FILES)
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE_DIR)
 	rm triutil.mod
 
 \$(BIN)/utm2geo: src/utm2geo.f src/geomsubs.f
@@ -456,42 +496,16 @@ test: \\
       test_tri_disloc \
       test_okada92
 
-test_tri_disloc: src/tri_disloc_unit_tests.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE)/tri_disloc.o
-	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
+test_tri_disloc: src/tri_disloc_unit_tests.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE_FILES)
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE_DIR)
 	\$@
 	rm \$@
 
-test_okada92: src/okada92_unit_tests.f90 src/okada92subs.f \$(INCLUDE)/okada92.o \$(INCLUDE)/trig.o \$(INCLUDE)/test.o
-	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE)
+test_okada92: src/okada92_unit_tests.f90 src/okada92subs.f src/pnpoly.f src/geomsubs.f \$(INCLUDE_FILES)
+	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE_DIR)
 	\$@ > test_okada92.log
 	@echo "test_okada92 passed"
 	rm \$@ test_okada92.log
-
-################################
-##### MODULES AND OBJECTS ######
-################################
-\$(INCLUDE)/io.o: src/io_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$<
-
-\$(INCLUDE)/trig.o: src/trig_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$<
-
-\$(INCLUDE)/earth.o: src/earth_module.f90 \$(INCLUDE)/trig.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
-
-\$(INCLUDE)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE)/trig.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
-
-\$(INCLUDE)/elast.o: src/elast_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
-
-\$(INCLUDE)/test.o: src/test_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
-
-\$(INCLUDE)/okada92.o: src/okada92_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE) -c -o \$@ \$< -I\$(INCLUDE)
-
-\$(INCLUDE)/%.o: \$(INCLUDE)/%.mod
 
 ####################
 ##### CLEAN UP #####
@@ -500,7 +514,7 @@ test_okada92: src/okada92_unit_tests.f90 src/okada92subs.f \$(INCLUDE)/okada92.o
 .PHONY: clean
 clean:
 	-rm \$(BIN)/*
-	-rm \$(INCLUDE)/*
+	-rm \$(INCLUDE_DIR)/*
 
 
 EOF
