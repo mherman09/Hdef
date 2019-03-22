@@ -1,9 +1,11 @@
 module earth
 
-double precision :: radius_earth_m = 6371.0d3
-double precision :: radius_earth_km = 6371.0d0
+double precision, parameter :: radius_earth_m = 6371.0d3
+double precision, parameter :: radius_earth_km = 6371.0d0
 
 public :: radius_earth_m, radius_earth_km
+public :: distaz
+public :: lola
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -63,24 +65,38 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine lola(lon2,lat2,lon1,lat1,dist,az)
+subroutine lola(lon2,lat2,lon1,lat1,dist,az,dist_unit)
 !----
 ! Compute the longitude and latitude a distance and azimuth clockwise from north away from an
 ! initial point. Input coordinates and azimuth are in degrees, input distance is in km, and output
 ! coordinates are in radians.
 !----
 
+use io, only: stderr
 use trig, only: d2r
+
 implicit none
 
 ! Arguments
 double precision :: lon1, lat1, lon2, lat2, dist, az
+character(len=*) :: dist_unit
 
 ! Local variables
 double precision :: distr, azr, lon1r, lat1r, lat2r
 
 ! Convert all input quantities to radians
-distr = dist/radius_earth_km ! km -> rad
+if (trim(dist_unit).eq.'km'.or.trim(dist_unit).eq.'kilometers') then
+    distr = dist/radius_earth_km ! km -> rad
+elseif (trim(dist_unit).eq.'m'.or.trim(dist_unit).eq.'meters') then
+    distr = dist/radius_earth_m ! m -> rad
+elseif (trim(dist_unit).eq.'rad'.or.trim(dist_unit).eq.'radians') then
+    distr = dist
+elseif (trim(dist_unit).eq.'deg'.or.trim(dist_unit).eq.'degrees') then
+    distr = dist*d2r ! degrees -> rad
+else
+    write(stderr,*) 'lola: no distance units called "',trim(dist_unit),'"'
+    distr = 0.0d0
+endif
 azr = az*d2r          ! deg -> rad
 lon1r = lon1*d2r      ! deg -> rad
 lat1r = lat1*d2r      ! deg -> rad
@@ -94,5 +110,103 @@ lon2 = lon1r + datan2(dsin(azr)*dsin(distr)*dcos(lat1r), dcos(distr)-dsin(lat1r)
 
 return
 end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine loladp2xyz(x,y,z,lon,lat,dep,dep_unit)
+!----
+! Convert longitude, latitude, and depth (positive up) to Cartesian coordinates with origin at
+! Earth center ,x pointing towards longitude=0, and y pointing towards longitude=90. Output units
+! match input depth units.
+!----
+
+use io, only: stderr
+use trig, only: d2r
+
+implicit none
+
+! Arguments
+double precision :: x, y, z, lon, lat, dep
+character(len=*) :: dep_unit
+
+! Local variables
+double precision :: radius
+
+if (trim(dep_unit).eq.'m'.or.trim(dep_unit).eq.'meters') then
+    radius = radius_earth_m + dep
+elseif (trim(dep_unit).eq.'km'.or.trim(dep_unit).eq.'kilometers') then
+    radius = radius_earth_km + dep
+else
+    write(stderr,*) 'loladp2xyz: no depth units called "',trim(dep_unit),'"'
+    radius = 0.0d0
+endif
+x = radius*dcos(lon*d2r)*dcos(lat*d2r)
+y = radius*dsin(lon*d2r)*dcos(lat*d2r)
+z = radius*dsin(lat*d2r)
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine xyz2loladp(lon,lat,dep,x,y,z,dist_unit)
+!----
+! Convert Cartesian coordinates with origin at Earth center, x pointing towards longitude=0, and y
+! pointing towards longitude=90 to longitude, latitude (in degrees) and depth (positive up). Match
+! output units to input units.
+!----
+
+use io, only: stderr
+use trig, only: r2d
+
+implicit none
+
+! Arguments
+double precision :: lon, lat, dep, x, y, z
+character(len=*) :: dist_unit
+
+! Local variables
+double precision :: radius
+
+lon = datan2(y,x)*r2d
+lat = datan2(z,dsqrt(x*x+y*y))*r2d
+
+radius = dsqrt(x*x+y*y+z*z)
+if (trim(dist_unit).eq.'m'.or.trim(dist_unit).eq.'meters') then
+    dep = radius - radius_earth_m
+elseif (trim(dist_unit).eq.'km'.or.trim(dist_unit).eq.'kilometers') then
+    dep = radius - radius_earth_km
+else
+    write(stderr,*) 'xyz2loladp: no distance units called "',trim(dist_unit),'"'
+    dep = 0.0d0
+endif
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine sph_angle_altitude(angle,radius,altitude)
+!----
+! Compute the angle subtended by a sphere when the viewer is at altitude above its surface.
+! Altitude and radius must be provided in the same units.
+!----
+
+use trig, only: r2d
+implicit none
+
+! Arguments
+double precision :: angle, radius, altitude
+
+! Local variables
+double precision :: ratio
+
+ratio = altitude/radius
+angle = dasin(1.0d0/(1.0d0+ratio))
+angle = angle*r2d
+
+return
+end subroutine
+
 
 end module
