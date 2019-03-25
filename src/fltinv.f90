@@ -2068,7 +2068,7 @@ subroutine run_inversion()
 use io, only: stdout, verbosity
 use variable_module, only: inversion_mode
 use lsqr_module, only: invert_lsqr
-use anneal_module, only: invert_anneal, invert_anneal_pseudocoupling, invert_anneal_psc
+use anneal_module, only: invert_anneal, invert_anneal_pseudocoupling!, invert_anneal_psc
 implicit none
 
 if (verbosity.eq.1.or.verbosity.eq.2) then
