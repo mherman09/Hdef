@@ -1,21 +1,21 @@
 module triutil
 
-character(len=512) :: fault_file       ! source faults (x1 y1 z1 x2 y2 z2 x3 y3 z3 ss ds ts)
-character(len=512) :: station_file     ! station locations (stlo stla stdp)
-character(len=512) :: target_file      ! target/receiver fault geometry (str dip rak fric)
-character(len=512) :: halfspace_file         ! half-space parameters
-character(len=512) :: displacement_file      ! displacement
-character(len=512) :: strain_file      ! strain tensor
-character(len=512) :: stress_file      ! stress tensor
-character(len=512) :: estress_file      ! effective shear stress (maximum shear stress)
-character(len=512) :: normal_file      ! normal stress
-character(len=512) :: shear_file      ! shear stress
-character(len=512) :: coulomb_file     ! Coulomb stress
-logical :: isFaultFileDefined
-logical :: isStationFileDefined
-logical :: isTargetFileDefined
-logical :: isOutputFileDefined
-logical :: iWantDisp
+character(len=512) :: fault_file        ! source fault file
+character(len=512) :: station_file      ! station location file
+character(len=512) :: target_file       ! target/receiver fault geometry file
+character(len=512) :: halfspace_file    ! half-space parameter file
+character(len=512) :: displacement_file ! displacement file
+character(len=512) :: strain_file       ! strain tensor file
+character(len=512) :: stress_file       ! stress tensor file
+character(len=512) :: estress_file      ! effective (maximum) shear stress file
+character(len=512) :: normal_file       ! normal stress file
+character(len=512) :: shear_file        ! shear & maximum shear stress file
+character(len=512) :: coulomb_file      ! Coulomb stress
+logical :: isFaultFileDefined           ! Boolean for fault_file
+logical :: isStationFileDefined         ! Boolean for station_file
+logical :: isTargetFileDefined          ! Boolean for target_file
+logical :: isOutputFileDefined          ! Boolean for deformation output
+logical :: iWantDisp                    ! Boolean for calculating displacement
 logical :: iWantStrain
 logical :: iWantStress
 logical :: iWantTraction
@@ -375,6 +375,7 @@ use triutil, only: displacement_file, &
                    iWantDisp, iWantStrain, iWantStress, iWantTraction, &
                    nstations, stations, targets, &
                    lame, shearmod
+use elast, only: strain2stress, max_shear_stress, calc_tractions
 use io, only: stderr, verbosity
 implicit none
 
@@ -456,7 +457,7 @@ do iSta = 1,nstations
         endif
         ! Maximum (effective) shear stress: estress
         if (estress_file.ne.'') then
-            call calc_estress(estress,stress)
+            call max_shear_stress(estress,stress)
             write(121,*) stations(iSta,:),estress
         endif
     endif
@@ -660,129 +661,6 @@ end subroutine calc_strain
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine strain2stress(stress,strain,lame_param,shear_modulus)
-!----
-! Calculate stress tensor from strain tensor, assuming linear isotropic medium
-!----
-
-implicit none
-
-! Arguments
-double precision :: stress(3,3), strain(3,3), lame_param, shear_modulus
-
-! Local variables
-double precision :: diag
-
-diag = strain(1,1) + strain(2,2) + strain(3,3)
-
-! Diagonal terms
-stress(1,1) = lame_param*diag + 2.0d0*shear_modulus*strain(1,1)
-stress(2,2) = lame_param*diag + 2.0d0*shear_modulus*strain(2,2)
-stress(3,3) = lame_param*diag + 2.0d0*shear_modulus*strain(3,3)
-
-! Off-diagonal terms
-stress(1,2) = 2.0d0*shear_modulus*strain(1,2)
-stress(1,3) = 2.0d0*shear_modulus*strain(1,3)
-stress(2,3) = 2.0d0*shear_modulus*strain(2,3)
-stress(2,1) = stress(1,2)
-stress(3,1) = stress(1,3)
-stress(3,2) = stress(2,3)
-
-return
-end subroutine strain2stress
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine calc_estress(estress,stress)
-!----
-! Calculate maximum shear stress
-!----
-
-implicit none
-
-! Arguments
-double precision :: estress, stress(3,3)
-
-! Local variables
-double precision :: s11_s22, s11_s33, s22_s33, s12s12, s13s13, s23s23
-
-s11_s22 = stress(1,1)-stress(2,2)
-s11_s33 = stress(1,1)-stress(3,3)
-s22_s33 = stress(2,2)-stress(3,3)
-
-s12s12 = stress(1,2)*stress(1,2)
-s13s13 = stress(1,3)*stress(1,3)
-s23s23 = stress(2,3)*stress(2,3)
-
-estress = (1.0d0/6.0d0)*(s11_s22*s11_s22+s11_s33*s11_s33+s22_s33*s22_s33) + s12s12+s13s13+s23s23
-
-! Make sure it has units of Pa
-estress = dsqrt(estress)
-
-return
-end subroutine calc_estress
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine calc_tractions(trac_vector,shear,shearmax,normal,coulomb,stress,trg)
-!----
-! Calculate various tractions resolved onto a fault geometry from a stress tensor
-!----
-
-use trig, only: pi, d2r
-implicit none
-
-! Arguments
-double precision :: trac_vector(3), shear, shearmax, normal, coulomb, stress(3,3), trg(4)
-
-! Local variables
-integer :: i
-double precision :: str, dip, rak, fric
-double precision :: n(3), s(3), r(3)
-
-str = trg(1)*d2r
-dip = trg(2)*d2r
-rak = trg(3)*d2r
-fric = trg(4)
-
-! Unit normal vector to target plane
-n(1) = dsin(dip)*dsin(str+pi/2.0d0)
-n(2) = dsin(dip)*dcos(str+pi/2.0d0)
-n(3) = dcos(dip)
-
-! Traction vector is stress matrix times normal vector: t = S*n
-do i = 1,3
-    trac_vector(i) = stress(i,1)*n(1) + stress(i,2)*n(2) + stress(i,3)*n(3)
-enddo
-
-! Normal component of traction is parallel to unit normal vector; take dot product
-normal = 0.0d0
-do i = 1,3
-    normal = normal + trac_vector(i)*n(i)
-enddo
-
-! Shear component of traction is difference between total traction vector and normal traction
-s(1) = trac_vector(1) - normal*n(1)
-s(2) = trac_vector(2) - normal*n(2)
-s(3) = trac_vector(3) - normal*n(3)
-shearmax = dsqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
-
-! Compute unit slip vector (parallel to rake)
-r(1) =  dcos(str-pi/2.0d0)*dcos(rak) + dsin(str-pi/2.0d0)*dsin(rak)*dcos(dip)
-r(2) = -dsin(str-pi/2.0d0)*dcos(rak) + dcos(str-pi/2.0d0)*dsin(rak)*dcos(dip)
-r(3) =                                                    dsin(rak)*dsin(dip)
-
-! Project shear component on slip vector
-shear = s(1)*r(1) + s(2)*r(2) + s(3)*r(3)
-
-! Coulomb stress (recall sign convention: pos = dilation)
-coulomb = shear + fric*normal
-
-return
-end subroutine calc_tractions
-
-!--------------------------------------------------------------------------------------------------!
-
 subroutine gcmdln()
 
 use io, only: stderr, verbosity
@@ -842,7 +720,9 @@ coord_type = 'geographic'
 verbosity = 0
 
 narg = command_argument_count()
-if (narg.eq.0) call usage('')
+if (narg.eq.0) then
+    call usage('')
+endif
 
 ! Everything is hunky-dory to start out
 ios = 0
@@ -1003,16 +883,18 @@ write(stderr,*) 'Usage: triutil ...options...'
 write(stderr,*)
 write(stderr,*) '-flt FLTFILE         Triangular source faults'
 write(stderr,*) '-sta STAFILE         Station/receiver locations'
-write(stderr,*) '-trg TRGFILE         Target/receiver kinematics'
+write(stderr,*) '-trg TRGFILE         Target/receiver geometry'
 write(stderr,*) '-haf HAFSPCFILE      Elastic half-space properties'
 write(stderr,*) '-disp DSPFILE        Displacement (E N Z)'
 write(stderr,*) '-strain STNFILE      Strain matrix (EE NN ZZ EN EZ NZ)'
 write(stderr,*) '-stress STSFILE      Stress matrix (EE NN ZZ EN EZ NZ)'
 write(stderr,*) '-estress ESTSFILE    Effective (maximum) shear stress'
 write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires -trg)'
-write(stderr,*) '-shear[max] SHRFILE  Shear traction on target faults (requires -trg)'
+write(stderr,*) '-shear SHRFILE       Shear traction on target faults (requires -trg)'
 write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires -trg)'
 write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
+write(stderr,*)
+write(stderr,*) 'See man page for details'
 write(stderr,*)
 
 stop
