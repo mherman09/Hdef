@@ -330,7 +330,7 @@ other: \\
 ####################################
 ##### MODULE AND OBJECT RULES ######
 ####################################
-INCLUDE_FILES = \$(INCLUDE_DIR)/anneal.o \\
+INCLUDE_FILES = \$(INCLUDE_DIR)/annealing.o \\
                 \$(INCLUDE_DIR)/earth.o \\
                 \$(INCLUDE_DIR)/elast.o \\
                 \$(INCLUDE_DIR)/geom.o \\
@@ -343,7 +343,7 @@ INCLUDE_FILES = \$(INCLUDE_DIR)/anneal.o \\
 
 include: \$(INCLUDE_FILES)
 
-\$(INCLUDE_DIR)/anneal.o: src/anneal.f90 \$(INCLUDE_DIR)/random.o
+\$(INCLUDE_DIR)/annealing.o: src/annealing_module.f90 \$(INCLUDE_DIR)/random.o
 	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
 
 \$(INCLUDE_DIR)/earth.o: src/earth_module.f90 \$(INCLUDE_DIR)/trig.o \$(INCLUDE_DIR)/io.o
