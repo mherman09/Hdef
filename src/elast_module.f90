@@ -1,4 +1,10 @@
 module elast
+
+! TODO
+! Remove redundant subroutines
+!     - trac_vector & calc_tractions
+!     - calc_strain_to_stress & strain2stress
+
 !--------------------------------------------------------------------------------------------------!
 contains
 !--------------------------------------------------------------------------------------------------!
@@ -181,5 +187,127 @@ end function trac_vector
     enddo
     return
     end
+!--------------------------------------------------------------------------------------------------!
+
+subroutine strain2stress(stress,strain,lame_param,shear_modulus)
+!----
+! Calculate stress tensor from strain tensor, assuming linear isotropic medium
+!----
+
+implicit none
+
+! Arguments
+double precision :: stress(3,3), strain(3,3), lame_param, shear_modulus
+
+! Local variables
+double precision :: diag
+
+diag = strain(1,1) + strain(2,2) + strain(3,3)
+
+! Diagonal terms
+stress(1,1) = lame_param*diag + 2.0d0*shear_modulus*strain(1,1)
+stress(2,2) = lame_param*diag + 2.0d0*shear_modulus*strain(2,2)
+stress(3,3) = lame_param*diag + 2.0d0*shear_modulus*strain(3,3)
+
+! Off-diagonal terms
+stress(1,2) = 2.0d0*shear_modulus*strain(1,2)
+stress(1,3) = 2.0d0*shear_modulus*strain(1,3)
+stress(2,3) = 2.0d0*shear_modulus*strain(2,3)
+stress(2,1) = stress(1,2)
+stress(3,1) = stress(1,3)
+stress(3,2) = stress(2,3)
+
+return
+end subroutine strain2stress
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine max_shear_stress(estress,stress)
+!----
+! Calculate maximum shear stress
+!----
+
+implicit none
+
+! Arguments
+double precision :: estress, stress(3,3)
+
+! Local variables
+double precision :: s11_s22, s11_s33, s22_s33, s12s12, s13s13, s23s23
+
+s11_s22 = stress(1,1)-stress(2,2)
+s11_s33 = stress(1,1)-stress(3,3)
+s22_s33 = stress(2,2)-stress(3,3)
+
+s12s12 = stress(1,2)*stress(1,2)
+s13s13 = stress(1,3)*stress(1,3)
+s23s23 = stress(2,3)*stress(2,3)
+
+estress = (1.0d0/6.0d0)*(s11_s22*s11_s22+s11_s33*s11_s33+s22_s33*s22_s33) + s12s12+s13s13+s23s23
+
+! Make sure it has units of Pa
+estress = dsqrt(estress)
+
+return
+end subroutine max_shear_stress
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine calc_tractions(trac_vector,shear,shearmax,normal,coulomb,stress,trg)
+!----
+! Calculate various tractions resolved onto a fault geometry from a stress tensor
+!----
+
+use trig, only: pi, d2r
+implicit none
+
+! Arguments
+double precision :: trac_vector(3), shear, shearmax, normal, coulomb, stress(3,3), trg(4)
+
+! Local variables
+integer :: i
+double precision :: str, dip, rak, fric
+double precision :: n(3), s(3), r(3)
+
+str = trg(1)*d2r
+dip = trg(2)*d2r
+rak = trg(3)*d2r
+fric = trg(4)
+
+! Unit normal vector to target plane
+n(1) = dsin(dip)*dsin(str+pi/2.0d0)
+n(2) = dsin(dip)*dcos(str+pi/2.0d0)
+n(3) = dcos(dip)
+
+! Traction vector is stress matrix times normal vector: t = S*n
+do i = 1,3
+    trac_vector(i) = stress(i,1)*n(1) + stress(i,2)*n(2) + stress(i,3)*n(3)
+enddo
+
+! Normal component of traction is parallel to unit normal vector; take dot product
+normal = 0.0d0
+do i = 1,3
+    normal = normal + trac_vector(i)*n(i)
+enddo
+
+! Shear component of traction is difference between total traction vector and normal traction
+s(1) = trac_vector(1) - normal*n(1)
+s(2) = trac_vector(2) - normal*n(2)
+s(3) = trac_vector(3) - normal*n(3)
+shearmax = dsqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
+
+! Compute unit slip vector (parallel to rake)
+r(1) =  dcos(str-pi/2.0d0)*dcos(rak) + dsin(str-pi/2.0d0)*dsin(rak)*dcos(dip)
+r(2) = -dsin(str-pi/2.0d0)*dcos(rak) + dcos(str-pi/2.0d0)*dsin(rak)*dcos(dip)
+r(3) =                                                    dsin(rak)*dsin(dip)
+
+! Project shear component on slip vector
+shear = s(1)*r(1) + s(2)*r(2) + s(3)*r(3)
+
+! Coulomb stress (recall sign convention: pos = dilation)
+coulomb = shear + fric*normal
+
+return
+end subroutine calc_tractions
 
 end module elast
