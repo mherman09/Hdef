@@ -688,7 +688,7 @@ subroutine r4vec_normal_ab ( n, a, b, seed, x )
 
     r(1) = r4_uniform_01 ( seed )
 
-    if ( r(1) == 0.0E+00 ) then
+    if ( abs(r(1))  <= 1.0E-10 ) then
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R4VEC_NORMAL_AB - Fatal error!'
       write ( *, '(a)' ) '  R4_UNIFORM_01 returned a value of 0.'
@@ -931,7 +931,7 @@ function r8_uniform_01 ( seed )
 
   k = seed / 127773
 
-  seed = 16807 * ( seed - k * 127773 ) - k * 2836
+  seed = 16807 * ( seed - int(k) * 127773 ) - int(k) * 2836
 
   if ( seed < 0 ) then
     seed = seed + 2147483647
@@ -1223,7 +1223,7 @@ subroutine r8mat_print_some ( m, n, a, ilo, jlo, ihi, jhi, title )
 
         j = j2lo - 1 + j2
 
-        if ( a(i,j) == real ( int ( a(i,j) ), kind = 8 ) ) then
+        if ( abs(a(i,j) - real ( int ( a(i,j) ), kind = 8 ))  <= 1.0D-10  ) then
           write ( ctemp(j2), '(f8.0,6x)' ) a(i,j)
         else
           write ( ctemp(j2), '(g14.6)' ) a(i,j)
@@ -1306,7 +1306,7 @@ subroutine r8vec_normal_01 ( n, seed, x )
 
     r(1) = r8_uniform_01 ( seed )
 
-    if ( r(1) == 0.0D+00 ) then
+    if ( abs(r(1))  <= 1.0D-10 ) then
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R8VEC_NORMAL_01 - Fatal error!'
       write ( *, '(a)' ) '  R8_UNIFORM_01 returned a value of 0.'
@@ -1430,7 +1430,7 @@ subroutine r8vec_normal_ab ( n, a, b, seed, x )
 
     r(1) = r8_uniform_01 ( seed )
 
-    if ( r(1) == 0.0D+00 ) then
+    if ( abs(r(1)) <= 1.0D-10 ) then
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R8VEC_NORMAL_AB - Fatal error!'
       write ( *, '(a)' ) '  R8_UNIFORM_01 returned a value of 0.'
