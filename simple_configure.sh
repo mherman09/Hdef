@@ -2,17 +2,25 @@
 
 # Configure script command line options
 function usage() {
-    echo "$0 [-f=FC] [-l=/PATH/TO/LAPACK/LIBRARIES] [-b=/PATH/TO/EXECUTABLES]"
-    echo "   [-i] [-d]"
-    echo
-    echo "-f|--fortran_compiler=FC                   Fortran compiler"
-    echo "-l|--lapack_dir=/PATH/TO/LAPACK/LIBRARIES  Location of LAPACK libraries"
-    echo "-b|--bin_dir=/PATH/TO/EXECUTABLES          Path for installing executables"
-    echo "-o|--include_dir=/PATH/TO/OBJECT/FILES     Path for installing object files and modules"
-    echo "-i|--interactive                           Interactive prompts for inputs"
-    echo "-d|--default                               Use Matt's default values (FC=gfortran, LAPACK_DIR=/sw/lib/lapack, BIN_DIR=./bin, INCLUDE_DIR=./include)"
-    echo
-    echo "Note: if working in a root directory or trying to install programs in a root directory, may have to use \"sudo $0\""
+    echo "$0 ...options..." 1>&2
+    echo "" 1>&2
+    echo "All options take the form OPT=<value> unless otherwise specified" 1>&2
+    echo "" 1>&2
+    echo "FC                   Fortran compiler" 1>&2
+    echo "CC                   C compiler" 1>&2
+    echo "LAPACK_LIB_DIR       Location of LAPACK libraries" 1>&2
+    echo "BIN_DIR              Path for installing executables" 1>&2
+    echo "INCLUDE_DIR          Path for installing object files, headers, and modules" 1>&2
+    echo "-i|--interactive     Interactive prompts for inputs" 1>&2
+    echo "-d|--default         Matt's default values " 1>&2
+    echo "                         FC=gfortran" 1>&2
+    echo "                         CC=gcc" 1>&2
+    echo "                         LAPACK_LIB_DIR=/sw/lib/lapack" 1>&2
+    echo "                         BIN_DIR=./bin" 1>&2
+    echo "                         INCLUDE_DIR=./include" 1>&2
+    echo ""  1>&2
+    echo "Note: If trying to install programs in a root directory, may have to use \"sudo $0\""  1>&2
+    echo "But remember: with great power must also come great responsibility"  1>&2
     exit 1
 }
 if [ $# -eq 0 ]
@@ -22,6 +30,7 @@ fi
 
 # Parse command line
 FC=""
+CC=""
 LAPACK_LIB_DIR=""
 BIN_DIR=""
 INCLUDE_DIR=""
@@ -29,19 +38,28 @@ INTERACTIVE="N"
 while [ "$1" != "" ]
 do
     case $1 in
-        -f=*|--fortran_compiler=*)FC=`echo $1 | sed -e "s/.*=//"`;;
-        -l=*|--lapack_dir=*)LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
-        -b=*|--bin_dir=*)BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
-        -o=*|--include_dir=*)INCLUDE_DIR=`echo $1 | sed -e "s/.*=//"`;;
-        -i|--interactive)INTERACTIVE="Y";;
-        -d|--default) FC="gfortran"
-                      LAPACK_LIB_DIR="/sw/lib/lapack"
-                      BIN_DIR="./bin"
-                      INCLUDE_DIR="./include";;
-        *)echo "!! Error: No option $1"; usage;;
+        FC=*)             FC=`echo $1 | sed -e "s/.*=//"`;;
+        CC=*)             CC=`echo $1 | sed -e "s/.*=//"`;;
+        LAPACK_LIB_DIR=*) LAPACK_LIB_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        BIN_DIR=*)        BIN_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        INCLUDE_DIR=*)    INCLUDE_DIR=`echo $1 | sed -e "s/.*=//"`;;
+        -i|--interactive) INTERACTIVE="Y";;
+        -d|--default)     FC="gfortran"
+                          CC="gcc"
+                          LAPACK_LIB_DIR="/sw/lib/lapack"
+                          BIN_DIR="./bin"
+                          INCLUDE_DIR="./include";;
+        *) echo "!! Error: No option $1" 1>&2; usage;;
     esac
     shift
 done
+
+echo "Using variables:"
+echo "    FC=$FC"
+echo "    CC=$CC"
+echo "    LAPACK_LIB_DIR=$LAPACK_LIB_DIR"
+echo "    BIN_DIR=$BIN_DIR"
+echo "    INCLUDE_DIR=$INCLUDE_DIR"
 
 #####
 #	Set up and test Fortran compiler
@@ -62,8 +80,8 @@ echo "Testing $FC installation"
 FC_TEST=`which $FC`
 if [ -z $FC_TEST ]
 then
-    echo "!! Error: no executable found named $FC"
-    echo "!! Check to see if $FC is in your PATH or full path is written correctly"
+    echo "!! Error: no executable found named $FC" 1>&2
+    echo "!! Check to see if $FC is in your PATH or full path is written correctly" 1>&2
     exit 1
 fi
 
@@ -86,7 +104,7 @@ chmod +x $FC_TEST
 FC_OUTPUT=`./$FC_TEST`
 if [ "$FC_OUTPUT" != "1234567890" ]
 then
-    echo "!! Error: Fortran compiler does not compile Fortran 77 test example!"
+    echo "!! Error: Fortran compiler does not compile Fortran 77 test example!" 1>&2
     exit 1
 fi
 # Clean up
@@ -104,13 +122,71 @@ chmod +x $FC_TEST
 FC_OUTPUT=`./$FC_TEST`
 if [ "$FC_OUTPUT" != "1234567890" ]
 then
-    echo "!! Error: Fortran compiler does not compile Fortran 90 test example!"
+    echo "!! Error: Fortran compiler does not compile Fortran 90 test example!" 1>&2
     exit 1
 else
     echo "Test complete! Using Fortran compiler: $FC"
 fi
 # Clean up
 rm $FC_TEST.f90 $FC_TEST
+
+echo
+
+
+#####
+#	Set up and test C compiler
+#####
+echo "####################################################################################################"
+echo "##########                            WORKING ON C STUFF                                  ##########"
+echo "####################################################################################################"
+# Get name of C compiler
+if [ -z "$CC" -o $INTERACTIVE == "Y" ]
+then
+    echo "Enter the name of your C compiler:"
+    read CC
+fi
+
+echo "Testing $CC installation"
+
+# Look for an executable named $CC
+CC_TEST=`which $CC`
+if [ -z $CC_TEST ]
+then
+    echo "!! Error: no executable found named $CC" 1>&2
+    echo "!! Check to see if $CC is in your PATH or full path is written correctly" 1>&2
+    exit 1
+fi
+
+# Compile and run a couple simple C programs
+CC_TEST="config_c_compiler_test"
+if [ -f $CC_TEST ]
+then
+    rm $CC_TEST
+fi
+
+# C test
+cat > $CC_TEST.c << EOF
+#include <stdio.h>
+#include <stdlib.h>
+int main(void)
+{
+  puts("1234567890");
+  return EXIT_SUCCESS;
+}
+
+EOF
+$CC $CC_TEST.c -o $CC_TEST
+chmod +x $CC_TEST
+CC_OUTPUT=`./$CC_TEST`
+if [ "$CC_OUTPUT" != "1234567890" ]
+then
+    echo "!! Error: C compiler does not compile C test example!" 1>&2
+    exit 1
+else
+    echo "Test complete! Using C compiler: $CC"
+fi
+# Clean up
+rm $CC_TEST.c $CC_TEST
 
 echo
 
@@ -131,7 +207,7 @@ fi
 if [ -z "$LAPACK_LIB_DIR" ]
 then
     echo "Installing software without LAPACK dependencies"
-    LAPACK_CPP_OPTION=""
+    CPP_LAPACK=""
 else
     # Make sure the directory exists and has the correct libraries in it
     LAPACK_LIB_DIR_CONTENTS=`ls $LAPACK_LIB_DIR 2>&1`
@@ -140,13 +216,13 @@ else
 
     if [ "$EXIST" == "N" ]
     then
-        echo "!! Error: Directory $LAPACK_LIB_DIR is non-existent"
+        echo "!! Error: Directory $LAPACK_LIB_DIR is non-existent" 1>&2
         exit 1
     fi
 
     if [ -z "$LAPACK_LIB_DIR_CONTENTS" ]
     then
-        echo "!! Error: Directory $LAPACK_LIB_DIR is empty"
+        echo "!! Error: Directory $LAPACK_LIB_DIR is empty" 1>&2
         exit 1
     else
         LAPACK_LIB_LIST=""
@@ -174,7 +250,7 @@ else
 
             if [ "$EXIST" == "N" ]
             then
-                echo "!! Error: LAPACK library \"$LIB2\" is not in $LAPACK_LIB_DIR"
+                echo "!! Error: LAPACK library \"$LIB2\" is not in $LAPACK_LIB_DIR" 1>&2
                 exit 1
             fi
 
@@ -183,9 +259,10 @@ else
         done
     fi
     echo "Test complete! Using LAPACK libraries in directory: $LAPACK_LIB_DIR"
-    LAPACK_CPP_OPTION="-DUSELAPACK"
+    CPP_LAPACK="-DUSE_LAPACK"
 fi
 echo
+
 
 #####
 #	Directory to install software
@@ -199,7 +276,7 @@ then
     read ANSWER
     if [ -z "$ANSWER" ]
     then
-        ANSWER="bin"
+        ANSWER="./bin"
     fi
     BIN_DIR=$ANSWER
 fi
@@ -212,7 +289,7 @@ else
     echo "Directory $BIN_DIR already exists"
 fi
 echo
-echo
+
 
 #####
 #	Directory to install object files and Fortran modules (include) files
@@ -226,7 +303,7 @@ then
     read ANSWER
     if [ -z "$ANSWER" ]
     then
-        ANSWER="include"
+        ANSWER="./include"
     fi
     INCLUDE_DIR=$ANSWER
 fi
@@ -239,43 +316,68 @@ else
     echo "Directory $INCLUDE_DIR already exists"
 fi
 echo
-echo
+
 
 echo "####################################################################################################"
 echo "##########                           INSTALL THE CODES!                                   ##########"
 echo "####################################################################################################"
-echo "You used the options: -f=${FC} -l=${LAPACK_LIB_DIR} -b=${BIN_DIR} -o=${INCLUDE_DIR}"
+echo "You used the options:"
+echo "    FC=$FC"
+echo "    CC=$CC"
+echo "    LAPACK_LIB_DIR=$LAPACK_LIB_DIR"
+echo "    BIN_DIR=$BIN_DIR"
+echo "    INCLUDE_DIR=$INCLUDE_DIR"
 echo "Type \"make\" to install codes"
 
+
+# Set libraries to be read by the compiler
 if [ "$LAPACK_LIB_DIR" != "" ]
 then
     LAPACK_LIB_DIR="-L${LAPACK_LIB_DIR}"
 fi
+
 
 #####
 #	Generating makefile
 #####
 cat > Makefile << EOF
 ##### Compiler variables #####
-FC = -$FC
+CC = $CC
 FC = $FC
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 FOPT  = -O1
 FFLAG = \$(FWARN) \$(FOPT)
 
+
 ##### Include directory (.o and .mod files) #####
-INCLUDE_DIR = include
+INCLUDE_DIR = $INCLUDE_DIR
+
 
 ##### Executable directory #####
 BIN   = $BIN_DIR
 
+
 ##### External libraries #####
+# LAPACK (linear algebra)
 LAPACK_LIB_DIR = $LAPACK_LIB_DIR
 LAPACK_LIB     = $LAPACK_LIB_LIST
 LAPACK         = \$(LAPACK_LIB_DIR) \$(LAPACK_LIB)
-CPP_LAPACK     = $LAPACK_CPP_OPTION
+CPP_LAPACK     = $CPP_LAPACK
 
-CPP = \$(CPP_LAPACK) -cpp
+# # Super LU (sparse solvers)
+# SUPERLU_LIB_DIR = -Lext/SuperLU_5.2.1/lib
+# SUPERLU_LIB     = -lsuperlu_5.1
+# SUPERLU         = \$(SUPERLU_LIB_DIR) \$(SUPERLU_LIB)
+CPP_SUPERLU       = -DUSE_SUPERLU
+CPP_SUPERLU       =
+
+# Pre-processing directives
+CPP = -cpp \$(CPP_LAPACK) \$(CPP_SUPERLU)
+
+
+##### ALL COMPILER FLAGS #####
+ALL_FLAGS = \$(FFLAGS) -I\$(INCLUDE_DIR) \$(EXTERNAL_LIBS) \$(CPP)
+
 
 ##### GROUPS OF PROGRAMS #####
 all: defm geom misc fits seis scripts other
@@ -333,45 +435,49 @@ other: \\
 INCLUDE_FILES = \$(INCLUDE_DIR)/annealing.o \\
                 \$(INCLUDE_DIR)/earth.o \\
                 \$(INCLUDE_DIR)/elast.o \\
+                \$(INCLUDE_DIR)/error_exit.o \\
                 \$(INCLUDE_DIR)/geom.o \\
                 \$(INCLUDE_DIR)/io.o \\
                 \$(INCLUDE_DIR)/okada92.o \\
                 \$(INCLUDE_DIR)/random.o \\
                 \$(INCLUDE_DIR)/test.o \\
-                \$(INCLUDE_DIR)/trig.o \\
-                \$(INCLUDE_DIR)/tri_disloc.o
+                \$(INCLUDE_DIR)/tri_disloc.o \\
+                \$(INCLUDE_DIR)/trig.o
 
 include: \$(INCLUDE_FILES)
 
 \$(INCLUDE_DIR)/annealing.o: src/annealing_module.f90 \$(INCLUDE_DIR)/random.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/earth.o: src/earth_module.f90 \$(INCLUDE_DIR)/trig.o \$(INCLUDE_DIR)/io.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/elast.o: src/elast_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
+
+\$(INCLUDE_DIR)/error_exit.o: src/error_exit.c
+	\$(CC) \$<  -c -o \$@
 
 \$(INCLUDE_DIR)/geom.o: src/geom_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/io.o: src/io_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/okada92.o: src/okada92_module.f90 \$(INCLUDE_DIR)/test.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/random.o: src/random_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
-\$(INCLUDE_DIR)/test.o: src/test_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+\$(INCLUDE_DIR)/test.o: src/test_module.f90 \$(INCLUDE_DIR)/error_exit.o
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/trig.o: src/trig_module.f90
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$<
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/tri_disloc.o: src/tri_disloc_module.f90 \$(INCLUDE_DIR)/trig.o
-	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) -c -o \$@ \$< -I\$(INCLUDE_DIR)
+	\$(FC) \$(FFLAG) -J\$(INCLUDE_DIR) \$< -c -o \$@
 
 \$(INCLUDE_DIR)/%.o: \$(INCLUDE_DIR)/%.mod
 
@@ -499,13 +605,15 @@ test: \\
       test_tri_disloc \
       test_okada92
 
-test_tri_disloc: src/tri_disloc_unit_tests.f90 src/pnpoly.f src/geomsubs.f \$(INCLUDE_FILES)
-	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE_DIR)
-	\$@
-	rm \$@
+test_tri_disloc: src/unit_test_tri_disloc.f90 \$(INCLUDE_FILES)
+	@\$(FC) \$^ \$(ALL_FLAGS) -o \$@
+	\$@ > test_tri_disloc.log
+	@echo "test_tri_disloc passed"
+	rm \$@ test_tri_disloc.log
+	@echo
 
-test_okada92: src/okada92_unit_tests.f90 src/okada92subs.f src/pnpoly.f src/geomsubs.f \$(INCLUDE_FILES)
-	\$(FC) \$(FFLAG) -o \$@ \$^ -I\$(INCLUDE_DIR)
+test_okada92: src/unit_test_okada92.f90 \$(INCLUDE_FILES)
+	@\$(FC) \$^ \$(ALL_FLAGS) -o \$@
 	\$@ > test_okada92.log
 	@echo "test_okada92 passed"
 	rm \$@ test_okada92.log
