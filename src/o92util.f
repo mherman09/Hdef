@@ -641,7 +641,7 @@ C----------------------------------------------------------------------C
      1                        .and.index(line,'MULTISEGMENT').eq.0) then
                   read(line,*) dm,dm,dm,dm,dm,dm,strr,dm,dm,dm,dipr
               endif
-          elseif (index(line,'%').eq.0) then
+          elseif (index(line,'%').eq.0.and.line.ne.'') then
               i = i + 1
               read(line,*) evla(i),evlo(i),dm,dm,evdp(i),slip(i),
      1                     rak(i)
