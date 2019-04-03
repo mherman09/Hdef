@@ -10,7 +10,7 @@ implicit none
 
 double precision :: disp(3), strain(3,3), sta_coord(3), evdp, dip, moment(4), lambda, shear_modulus
 double precision :: slip_vec(3), wid, len
-double precision :: ux,uy,uz,xin,yin,stdp,dipin,rakin,slip,vp,vs,dens
+! double precision :: ux,uy,uz,xin,yin,stdp,dipin,rakin,slip,vp,vs,dens
 double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
 
 ! Tests for variables private to the module are built as module subroutines
@@ -325,16 +325,16 @@ call test_value(strain(3,3),-1.0325579987062454d-003,'o92_rect_strain(): e33 (z>
 !----
 ! Compare with original code results
 !----
-xin = sta_coord(1)
-yin = sta_coord(2)
-stdp = sta_coord(3)
-dipin = dip
+! xin = sta_coord(1)
+! yin = sta_coord(2)
+! stdp = sta_coord(3)
+! dipin = dip
 ! rakin = datan2(moment(2),moment(1))/d2r
 ! area = 1.0d0
 ! slip = dsqrt(moment(1)*moment(1)+moment(2)*moment(2))/shear_modulus/area
-dens = 1.0d0
-vp = dsqrt((lambda+2.0d0*shear_modulus)/dens)
-vs = dsqrt(shear_modulus/dens)
+! dens = 1.0d0
+! vp = dsqrt((lambda+2.0d0*shear_modulus)/dens)
+! vs = dsqrt(shear_modulus/dens)
 ! call o92pt(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,area,slip,vp,vs,dens)
 ! write(6,*) ux,uy,uz
 ! call o92ptstn(strain,xin,yin,stdp,evdp,dipin,rakin,area,slip,vp,vs,dens)
@@ -342,11 +342,11 @@ vs = dsqrt(shear_modulus/dens)
 ! write(6,*) strain(2,:)
 ! write(6,*) strain(3,:)
 
-rakin = datan2(slip_vec(2),slip_vec(1))/d2r
-slip = dsqrt(slip_vec(1)*slip_vec(1)+slip_vec(2)*slip_vec(2))
-call o92rect(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
+! rakin = datan2(slip_vec(2),slip_vec(1))/d2r
+! slip = dsqrt(slip_vec(1)*slip_vec(1)+slip_vec(2)*slip_vec(2))
+! call o92rect(ux,uy,uz,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
 ! write(6,*) ux,uy,uz
-call o92rectstn(strain,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
+! call o92rectstn(strain,xin,yin,stdp,evdp,dipin,rakin,wid,len,slip,vp,vs,dens)
 
 write(stdout,*) 'okada92_module unit test passed'
 end
