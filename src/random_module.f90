@@ -1,3 +1,12 @@
+!--------------------------------------------------------------------------------------------------!
+! Module: random
+!
+! Variables and routines to generate random numbers from different distributions. Currently, the
+! available random distributions are:
+!     - Uniform
+!     - Normal (Gaussian)
+!
+!--------------------------------------------------------------------------------------------------!
 module random
 
 integer, public :: iseed
@@ -157,6 +166,9 @@ function c4_normal_01 ( seed )
 
   return
 end
+
+
+
 function c8_normal_01 ( seed )
 
 !*****************************************************************************80
@@ -206,6 +218,9 @@ function c8_normal_01 ( seed )
 
   return
 end
+
+
+
 function i4_normal_ab ( a, b, seed )
 
 !*****************************************************************************80
@@ -262,6 +277,9 @@ function i4_normal_ab ( a, b, seed )
 
   return
 end
+
+
+
 function i8_normal_ab ( a, b, seed )
 
 !*****************************************************************************80
@@ -318,6 +336,9 @@ function i8_normal_ab ( a, b, seed )
 
   return
 end
+
+
+
 function r4_normal_01 ( seed )
 
 !*****************************************************************************80
@@ -367,6 +388,9 @@ function r4_normal_01 ( seed )
 
   return
 end
+
+
+
 function r4_normal_ab ( a, b, seed )
 
 !*****************************************************************************80
@@ -421,6 +445,9 @@ function r4_normal_ab ( a, b, seed )
 
   return
 end
+
+
+
 function r4_uniform_01 ( seed )
 
 !*****************************************************************************80
@@ -523,6 +550,9 @@ function r4_uniform_01 ( seed )
 
   return
 end
+
+
+
 subroutine r4vec_uniform_01 ( n, seed, r )
 
 !*****************************************************************************80
@@ -617,6 +647,9 @@ subroutine r4vec_uniform_01 ( n, seed, r )
 
   return
 end
+
+
+
 subroutine r4vec_normal_ab ( n, a, b, seed, x )
 
 !*****************************************************************************80
@@ -745,6 +778,9 @@ subroutine r4vec_normal_ab ( n, a, b, seed, x )
 
   return
 end
+
+
+
 function r8_normal_01 ( seed )
 
 !*****************************************************************************80
@@ -794,6 +830,9 @@ function r8_normal_01 ( seed )
 
   return
 end
+
+
+
 function r8_normal_ab ( a, b, seed )
 
 !*****************************************************************************80
@@ -848,6 +887,9 @@ function r8_normal_ab ( a, b, seed )
 
   return
 end
+
+
+
 function r8_uniform_01 ( seed )
 
 !*****************************************************************************80
@@ -944,6 +986,9 @@ function r8_uniform_01 ( seed )
 
   return
 end
+
+
+
 subroutine r8mat_normal_01 ( m, n, seed, r )
 
 !*****************************************************************************80
@@ -1013,6 +1058,9 @@ subroutine r8mat_normal_01 ( m, n, seed, r )
 
   return
 end
+
+
+
 subroutine r8mat_normal_ab ( m, n, a, b, seed, r )
 
 !*****************************************************************************80
@@ -1086,159 +1134,9 @@ subroutine r8mat_normal_ab ( m, n, a, b, seed, r )
 
   return
 end
-subroutine r8mat_print ( m, n, a, title )
 
-!*****************************************************************************80
-!
-!! R8MAT_PRINT prints an R8MAT.
-!
-!  Discussion:
-!
-!    An R8MAT is an MxN array of R8's, stored by (I,J) -> [I+J*M].
-!
-!  Licensing:
-!
-!    This code is distributed under the GNU LGPL license.
-!
-!  Modified:
-!
-!    12 September 2004
-!
-!  Author:
-!
-!    John Burkardt
-!
-!  Parameters:
-!
-!    Input, integer ( kind = 4 ) M, the number of rows in A.
-!
-!    Input, integer ( kind = 4 ) N, the number of columns in A.
-!
-!    Input, real ( kind = 8 ) A(M,N), the matrix.
-!
-!    Input, character ( len = * ) TITLE, a title.
-!
-  implicit none
 
-  integer ( kind = 4 ) m
-  integer ( kind = 4 ) n
 
-  real ( kind = 8 ) a(m,n)
-  character ( len = * ) title
-
-  call r8mat_print_some ( m, n, a, 1, 1, m, n, title )
-
-  return
-end
-subroutine r8mat_print_some ( m, n, a, ilo, jlo, ihi, jhi, title )
-
-!*****************************************************************************80
-!
-!! R8MAT_PRINT_SOME prints some of an R8MAT.
-!
-!  Discussion:
-!
-!    An R8MAT is an MxN array of R8's, stored by (I,J) -> [I+J*M].
-!
-!  Licensing:
-!
-!    This code is distributed under the GNU LGPL license.
-!
-!  Modified:
-!
-!    10 September 2009
-!
-!  Author:
-!
-!    John Burkardt
-!
-!  Parameters:
-!
-!    Input, integer ( kind = 4 ) M, N, the number of rows and columns.
-!
-!    Input, real ( kind = 8 ) A(M,N), an M by N matrix to be printed.
-!
-!    Input, integer ( kind = 4 ) ILO, JLO, the first row and column to print.
-!
-!    Input, integer ( kind = 4 ) IHI, JHI, the last row and column to print.
-!
-!    Input, character ( len = * ) TITLE, a title.
-!
-  implicit none
-
-  integer ( kind = 4 ), parameter :: incx = 5
-  integer ( kind = 4 ) m
-  integer ( kind = 4 ) n
-
-  real ( kind = 8 ) a(m,n)
-  character ( len = 14 ) ctemp(incx)
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) i2hi
-  integer ( kind = 4 ) i2lo
-  integer ( kind = 4 ) ihi
-  integer ( kind = 4 ) ilo
-  integer ( kind = 4 ) inc
-  integer ( kind = 4 ) j
-  integer ( kind = 4 ) j2
-  integer ( kind = 4 ) j2hi
-  integer ( kind = 4 ) j2lo
-  integer ( kind = 4 ) jhi
-  integer ( kind = 4 ) jlo
-  character ( len = * ) title
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) trim ( title )
-
-  if ( m <= 0 .or. n <= 0 ) then
-    write ( *, '(a)' ) ' '
-    write ( *, '(a)' ) '  (None)'
-    return
-  end if
-
-  do j2lo = max ( jlo, 1 ), min ( jhi, n ), incx
-
-    j2hi = j2lo + incx - 1
-    j2hi = min ( j2hi, n )
-    j2hi = min ( j2hi, jhi )
-
-    inc = j2hi + 1 - j2lo
-
-    write ( *, '(a)' ) ' '
-
-    do j = j2lo, j2hi
-      j2 = j + 1 - j2lo
-      write ( ctemp(j2), '(i8,6x)' ) j
-    end do
-
-    write ( *, '(''  Col   '',5a14)' ) ctemp(1:inc)
-    write ( *, '(a)' ) '  Row'
-    write ( *, '(a)' ) ' '
-
-    i2lo = max ( ilo, 1 )
-    i2hi = min ( ihi, m )
-
-    do i = i2lo, i2hi
-
-      do j2 = 1, inc
-
-        j = j2lo - 1 + j2
-
-        if ( abs(a(i,j) - real ( int ( a(i,j) ), kind = 8 ))  <= 1.0D-10  ) then
-          write ( ctemp(j2), '(f8.0,6x)' ) a(i,j)
-        else
-          write ( ctemp(j2), '(g14.6)' ) a(i,j)
-        end if
-
-      end do
-
-      write ( *, '(i5,a,5a14)' ) i, ':', ( ctemp(j), j = 1, inc )
-
-    end do
-
-  end do
-
-  return
-end
 subroutine r8vec_normal_01 ( n, seed, x )
 
 !*****************************************************************************80
@@ -1361,6 +1259,9 @@ subroutine r8vec_normal_01 ( n, seed, x )
 
   return
 end
+
+
+
 subroutine r8vec_normal_ab ( n, a, b, seed, x )
 
 !*****************************************************************************80
@@ -1487,54 +1388,9 @@ subroutine r8vec_normal_ab ( n, a, b, seed, x )
 
   return
 end
-subroutine r8vec_print ( n, a, title )
 
-!*****************************************************************************80
-!
-!! R8VEC_PRINT prints an R8VEC.
-!
-!  Discussion:
-!
-!    An R8VEC is a vector of R8's.
-!
-!  Licensing:
-!
-!    This code is distributed under the GNU LGPL license.
-!
-!  Modified:
-!
-!    22 August 2000
-!
-!  Author:
-!
-!    John Burkardt
-!
-!  Parameters:
-!
-!    Input, integer ( kind = 4 ) N, the number of components of the vector.
-!
-!    Input, real ( kind = 8 ) A(N), the vector to be printed.
-!
-!    Input, character ( len = * ) TITLE, a title.
-!
-  implicit none
 
-  integer ( kind = 4 ) n
 
-  real ( kind = 8 ) a(n)
-  integer ( kind = 4 ) i
-  character ( len = * ) title
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) trim ( title )
-  write ( *, '(a)' ) ' '
-
-  do i = 1, n
-    write ( *, '(2x,i8,a,1x,g16.8)' ) i, ':', a(i)
-  end do
-
-  return
-end
 subroutine r8vec_uniform_01 ( n, seed, r )
 
 !*****************************************************************************80

@@ -1,4 +1,4 @@
-.TH SURF_DISP.SH 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH SURF_DISP.SH 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 surf_disp.sh \- plot surface displacements for a fault source
@@ -7,73 +7,114 @@ surf_disp.sh \- plot surface displacements for a fault source
 .P
 .B surf_disp.sh
 .I source_type source_file
-.BI [...]
+.BI [...options...]
 
 .SH DESCRIPTION
 .B surf_disp.sh
 computes displacement vectors for an earthquake source embedded in an elastic
 half-space and plots them on a map, with vertical displacements contoured as
-colors and horizontal displacements shown as vectors.
+colors and horizontal displacements shown as vectors. Most of the map variables
+are determined automatically, but the user can specify some parameters to
+customize the appearance.
 
 .SH OPTIONS
+
+.B REQUIRED ARGUMENTS
+
 .TP
 .I source_type
-Choose from a moment tensor 
-.IR "" " (" MT )
-or finite fault model source in standard USGS subfault format
-.IR "" " (" FFM )
-or SRCMOD FSP format
-.IR "" " (" FSP ).
-For the 
-.I MT
-option, the input file has the format:
-.I evlo evla evdp str dip rak
-.IR mag .
+Choose from one of
+.IR MT ,
+.IR FLT ,
+.IR FFM ,
+or
+.IR FSP .
+The format of
+.I source_file
+depends on this type:
+
+.IR MT :
+evlo evla evdp str dip rak mag
+.br
+.IR FLT :
+evlo evla evdp str dip rak slip wid len
+.br
+.IR FFM :
+finite fault model in USGS .param format
+.br
+.IR FSP :
+finite fault model in SRCMOD FSP format
+
 .TP
 .I source_file
-Name of fault source file
+Path to fault source file
+
+
+
+.TP
+.B CUSTOMIZATION OPTIONS
+
 .TP
 .BI -R west / east / south / north
-Map limits (default defines limits automatically)
+Map limits in GMT format
+
 .TP
 .BI -T vmin / vmax / dv
-Vertical displacement color palette range (default defines color palette automatically)
+Vertical displacement color palette range in GMT
+.B makecpt
+format
+
+.TP
+.BI -vec_scale " vector_scale"
+Scale horizontal displacement vectors by
+.I vector_scale
+inches
+
+.TP
+.BI -vec_legend " length"
+Length of horizontal vector in legend, in meters
+
+
+
+
+.TP
+.B OTHER OPTIONS
+
 .TP
 .BI -nvert " nvert"
-Number of points along one dimension for background vertical displacement contour
+Number of points along each dimension for background vertical displacement color contour
 (default: 100)
+
 .TP
 .BI -nvec " nvec"
-Number of points along one dimension for horizontal displacement vector grid
+Number of points along each dimension for horizontal displacement vector grid
 (default: 20)
+
 .TP
 .B -seg
-Plot finite fault segments individually (default plots outline surrounding all segments)
-.TP
-.B -getscript
-Copy script
-.B surf_disp.sh
-to current working directory (useful for manually editing script)
+Plot finite fault segments individually (default: outline surrounds all segments)
+
 .TP
 .B -novector
 Suppress plotting of horizontal displacement vectors
-.TP
-.BI -o " output_file"
-Basename for output file. Script produces
-.IR output_file ".ps and " output_file .pdf
-(default: surf_disp)
+
 .TP
 .BI -gps " gps_file"
 Plot observed GPS displacements and predicted displacements at GPS stations.
 Suppresses grid of displacements. Input file format:
 .I stlo stla disp_east disp_north disp_vertical
+
 .TP
-.BI -vecscale " vector_scale"
-Scale vectors by
-.I vector_scale
-inches (default automatically scales vectors)
+.BI -sta " sta_file"
+Plot locations of GPS stations on top of predicted displacement grid.
+Input file format:
+.I stlo stla
+
+
 .TP
-.BI -veclbl " vector_label"
-Define length of vector in legend
+.BI -o " output_file"
+Basename for output file. Script produces
+.IR output_file ".ps and " output_file .pdf
+(default: surf_disp)
 
 .RS

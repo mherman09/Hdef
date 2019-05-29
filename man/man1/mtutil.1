@@ -1,4 +1,4 @@
-.TH MTUTIL 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH MTUTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic parameters
@@ -17,6 +17,23 @@ moment tensor components, moment tensor principal axes, seismic moment, or magni
 any of these values (when possible, e.g., you cannot convert a seismic moment to strike/dip/rake), a
 ternary representation of the focal mechanism (Frohlich, 1992), double-couple percentage, or slip vectors.
 See Jost and Herrmann (1989) for more details.
+
+If
+.I input
+is a file name, then
+.B mtutil
+will attempt to read inputs from that file.
+If
+.I input
+is a comma-separated list of numbers, then inputs will be read this list of arguments.
+If
+.I input
+is not provided, then
+.B mtutil
+will read from standard input.
+.B mtutil
+will print the results to standard output unless a file name is defined as
+.IR output .
 
 
 .SH OPTIONS
@@ -45,30 +62,54 @@ is co-latitude (unit vector corresponds to south), and
 .I p
 is longitude (unit vector corresponds to east).
 
-In
-.BR mtutil ,
-x=east, y=north, and z=up, so:
+Ekstrom et al. (2012) define a geographic Cartesian coordinate system for the
+Global Centroid Moment Tensor project,
+where
+.IR x =north,
+.IR y =east,
+and
+.IR z =down.
+Some moment tensor solutions are reported in this
+system (e.g., NIED F-net solutions from Japan). In this case:
 .br
-.IR mrr " = mzz"
+.IR mrr " =  mzz"
 .br
-.IR mtt " = myy"
+.IR mtt " =  mxx"
 .br
-.IR mpp " = mxx"
+.IR mpp " =  myy"
 .br
-.IR mrt " = -myz"
+.IR mrt " =  mxz"
 .br
-.IR mrp " = mxz"
+.IR mrp " = -myz"
 .br
 .IR mtp " = -mxy"
 
-IMPORTANT NOTE #1: Ekstrom et al. (2012) define a different Cartesian coordinate system,
-where x=north, y=east, and z=down. Some moment tensor solutions are reported in this
-system (e.g., NIED F-net solutions from Japan).
-
-IMPORTANT NOTE #2: Moment tensors behave similarly to stress tensors. You can use
+Moment tensors behave similarly to stress tensors. You can use
 .B mtutil
 to compute the eigenvectors and eigenvalues of stress tensors using -mij and -pnt,
 remembering to account for the coordinate transformation.
+In local
+.IR e ast,
+.IR n orth,
+and
+.IR v ertical
+(positive up) coordinates, the components of the tensor become:
+.br
+.IR mrr " =  mvv"
+.br
+.IR mtt " =  mnn"
+.br
+.IR mpp " =  mee"
+.br
+.IR mrt " = -mnv"
+.br
+.IR mrp " =  mev"
+.br
+.IR mtp " = -men"
+.br
+The eigenvectors computed by
+.B -pnt
+are reported in the same x=east, y=north, z=vertical reference frame.
 
 .TP
 .BI "-pnt [" input_file | px , py , pz , nx , ny , nz , tx , ty , tz , pmag , nmag , tmag ]
@@ -82,7 +123,8 @@ is typically positive.
 .TP
 .BI "-mag [" input_file | magnitude ]
 Moment
-.IR magnitude " = 2/3*log10(" moment ")-6.0"
+.IR magnitude " = 2/3*log10(" moment ")-6.0,"
+where the seismic moment is in N*m.
 
 .TP
 .BI "-mom [" input_file | moment ]
@@ -132,10 +174,11 @@ Double couple percentage:
 .TP
 .BI "-sv [" output_file ]
 Slip vector
-.I azimuth
+.IR east ,
+.IR north ,
 and
-.I plunge
-in degrees (horizontal=0, vertical=90)
+.I vertical
+components
 
 .SH REFERENCES
 .TP

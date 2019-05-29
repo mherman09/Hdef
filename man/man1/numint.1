@@ -1,0 +1,30 @@
+.TH NUMINT 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+numint \- numerically integrate a time series
+
+.SH SYNOPSIS
+.P
+.B numint
+.BI -f " input_file"
+.BI -o " output_file"
+
+.SH DESCRIPTION
+.B numint
+computes the integral of a discrete time series using a trapezoidal area calculation.
+WARNING: THIS CODE HAS NOT BEEN TESTED AT ALL. IT APPEARED TO WORK ONCE, BUT THERE ARE NO
+GUARANTEES.
+
+.SH OPTIONS
+.TP
+.BI -f " input_file"
+Read time series
+.I t_i f_i
+from an input file
+
+.TP
+.BI -o " output_file"
+Print integral of time series in format:
+.I t_i F_i
+
+.RS

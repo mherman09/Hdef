@@ -1,14 +1,26 @@
-module colormodule
-double precision, parameter :: refx =  95.047 !! For perfect reflecting diffuser in daylight at 2 degrees
-double precision, parameter :: refy = 100.000 !! For perfect reflecting diffuser in daylight at 2 degrees
-double precision, parameter :: refz = 108.883 !! For perfect reflecting diffuser in daylight at 2 degrees
+module color
+
+double precision, parameter :: refx =  95.047d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+double precision, parameter :: refy = 100.000d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+double precision, parameter :: refz = 108.883d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+
+double precision :: hue(2)
+double precision :: lightness(2)
+double precision :: chroma(2)
+character(len=16) :: color_path_type
+character(len=8) :: convert(2)
+double precision :: gmt_cpt_lims(2)
+
 integer :: verbose
+
 end module
 
 !==================================================================================================!
 
 program main
-use colormodule
+
+use color
+
 implicit none
 
 ! User-defined variables from command line
@@ -131,7 +143,7 @@ end
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 
 subroutine convert_colorspace(convert1,convert2)
-use colormodule, only : verbose
+use color, only : verbose
 implicit none
 ! I/O
 character(len=*) :: convert1, convert2
@@ -260,7 +272,7 @@ end
 subroutine checkrgb(r,g,b,clip)
 ! RGB colors only make up ~50% of the visible lightness-chroma-hue spectrum
 ! Check that RGB values are in range 0-255 and return whether they needed to be clipped
-use colormodule
+use color
 implicit none
 double precision :: r,g,b
 integer :: clip(3)
@@ -349,7 +361,7 @@ end
 
 subroutine lab2xyz (ciel,ciea,cieb,x,y,z)
 ! Lightness-a-b to x-y-z tristimulus
-use colormodule
+use color
 implicit none
 double precision :: ciel,ciea,cieb,x,y,z
 y = (ciel+16.0)/116.0
@@ -380,7 +392,7 @@ end
 
 subroutine xyz2lab(xin,yin,zin,ciel,ciea,cieb)
 ! X-y-z tristimulus to lightness-a-b
-use colormodule
+use color
 implicit none
 double precision :: xin,yin,zin,x,y,z,ciel,ciea,cieb
 x = xin/refx
@@ -525,7 +537,7 @@ end
 
 subroutine gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
                   gmtfile,lim1,lim2,saturate)
-use colormodule
+use color
 implicit none
 integer :: i,j,narg
 character(len=200) :: tag
@@ -751,6 +763,3 @@ write(0,*) '-d                        Detailed help'
 stop
 return
 end
-
-
-

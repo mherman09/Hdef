@@ -1,16 +1,38 @@
+module stereo_project
+
+character(len=32) :: project_mode
+character(len=512) :: input_file
+character(len=512) :: output_file
+double precision :: lon0
+double precision :: lat0
+double precision :: radius_sphere
+
+end module
+
+!==================================================================================================!
+
 program main
+
+use io, only: stderr, fileExists
+use map, only: stereo
+
+use stereo_project, only: project_mode, &
+                          input_file, &
+                          output_file, &
+                          lon0, &
+                          lat0, &
+                          radius_sphere
+
 implicit none
+
+! Local variables
 character(len=128) :: line
-integer :: ios, luin, luout
-character(len=1024) :: input_file, output_file
-character(len=64) :: mode
-double precision :: lon0, lat0, lon, lat, radius
-double precision :: k, x, y, rho, c, arg1
-double precision, parameter :: d2r = datan(1.0d0)*4.0d0/1.8d2
-logical :: ex
+integer :: ios, ierr, luin, luout
+double precision :: lon, lat, x, y
+
 
 ! Parse command line
-call gcmdln(mode,lon0,lat0,radius,input_file,output_file)
+call gcmdln()
 !write(0,*) trim(input_file)
 !write(0,*) trim(output_file)
 !write(0,*) trim(mode)
@@ -18,16 +40,17 @@ call gcmdln(mode,lon0,lat0,radius,input_file,output_file)
 !write(0,*) lat0
 !write(0,*) radius
 
-if (trim(input_file).eq.'stdin') then
+
+if (input_file.eq.'stdin') then
     luin = 5
 else
-    inquire(file=input_file,exist=ex)
-    if (.not.ex) then
-        call usage('!! Error: no input file found named '//trim(input_file))
+    if (.not.fileExists(input_file)) then
+        call usage('stereo_project: no input file found named '//trim(input_file))
     endif
     luin = 11
     open(unit=11,file=input_file,status='old')
 endif
+
 if (trim(output_file).eq.'stdout') then
     luout = 6
 else
@@ -41,23 +64,37 @@ do
     if (ios.ne.0) then
         exit
     endif
-    if (mode.eq.'project') then
-        read(line,*,iostat=ios) lon,lat
-        k = 2.0d0*radius/(1.0d0 + dsin(lat0*d2r)*dsin(lat*d2r) + &
-                              dcos(lat0*d2r)*dcos(lat*d2r)*dcos(lon*d2r-lon0*d2r))
-        x = k*dcos(lat*d2r)*dsin(lon*d2r-lon0*d2r)
-        y = k*(dcos(lat0*d2r)*dsin(lat*d2r)-dsin(lat0*d2r)*dcos(lat*d2r)*dcos(lon*d2r-lon0*d2r))
+
+    if (project_mode.eq.'geo2stereo') then
+        read(line,*,iostat=ios) lon, lat
+        if (ios.ne.0) then
+            write(stderr,*) 'stereo_project: error parsing lon lat from line'
+            call usage(trim(line))
+        endif
+
+        call stereo(lon,lat,x,y,lon0,lat0,radius_sphere,'lonlat2xy',ierr)
+        if (ierr.ne.0) then
+            call usage('stereo_project: error computing stereographic projection')
+        endif
+
         write(luout,*) x, y
-    elseif (mode.eq.'inverse') then
-        read(line,*,iostat=ios) x,y
-        rho = dsqrt(x*x+y*y)
-        c = 2.0d0*datan2(rho,2.0d0*radius)
-        arg1 = dcos(c)*dsin(lat0*d2r) + y*dsin(c)*dcos(lat0*d2r)/rho
-        lat = datan2(arg1, dsqrt(1.0d0-arg1*arg1))/d2r
-        lon = lon0 + datan2(x*dsin(c),rho*dcos(lat0*d2r)*dcos(c)-y*dsin(lat0*d2r)*dsin(c))/d2r
+
+    elseif (project_mode.eq.'stereo2geo') then
+        read(line,*,iostat=ios) x, y
+        if (ios.ne.0) then
+            write(stderr,*) 'stereo_project: error parsing x y from line'
+            call usage(trim(line))
+        endif
+
+        call stereo(lon,lat,x,y,lon0,lat0,radius_sphere,'xy2lonlat',ierr)
+        if (ierr.ne.0) then
+            call usage('stereo_project: error computing inverse stereographic projection')
+        endif
+
         write(luout,*) lon, lat
+
     else
-        call usage('!! Error: mode must be "project" or "inverse"')
+        call usage('stereo_project: project_mode must be "geo2stereo" or "stereo2geo"')
     endif
 enddo
 
@@ -65,30 +102,54 @@ end
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine gcmdln(mode,lon0,lat0,radius,input_file,output_file)
+subroutine gcmdln()
+
+use earth, only: radius_earth_km
+
+use stereo_project, only: project_mode, &
+                          input_file, &
+                          output_file, &
+                          lon0, &
+                          lat0, &
+                          radius_sphere
+
 implicit none
-! I/O variables
-character(len=*) :: mode, input_file, output_file
-double precision :: lon0, lat0, radius
+
 ! Local variables
 integer :: i, narg
 character(len=1024) :: tag
+
+
+project_mode = ''
 input_file = 'stdin'
 output_file = 'stdout'
-mode = ''
 lon0 = 1.0d3
 lat0 = 1.0d3
-radius = 6371.0d0
+radius_sphere = radius_earth_km
+
 narg = command_argument_count()
 if (narg.eq.0) then
     call usage('')
 endif
+
 i = 1
+
 do while (i.le.narg)
+
     call get_command_argument(i,tag)
-    if (trim(tag).eq.'-mode') then
+
+    if (trim(tag).eq.'-geo2stereo'.or.tag.eq.'-geo2xy'.or.tag.eq.'-lonlat2xy') then
+        project_mode = 'geo2stereo'
+    elseif (trim(tag).eq.'-stereo2geo'.or.tag.eq.'-xy2geo'.or.tag.eq.'-xy2lonlat') then
+        project_mode = 'stereo2geo'
+
+    elseif (trim(tag).eq.'-f') then
         i = i + 1
-        call get_command_argument(i,mode)
+        call get_command_argument(i,input_file)
+    elseif (trim(tag).eq.'-o') then
+        i = i + 1
+        call get_command_argument(i,output_file)
+
     elseif (trim(tag).eq.'-lon0') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -100,42 +161,42 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-radius') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) radius
-    elseif (trim(tag).eq.'-f') then
-        i = i + 1
-        call get_command_argument(i,input_file)
-    elseif (trim(tag).eq.'-o') then
-        i = i + 1
-        call get_command_argument(i,output_file)
+        read(tag,*) radius_sphere
+
     else
-        call usage('!! Error: no option '//trim(tag))
+        call usage('stereo_project: no option '//trim(tag))
     endif
+
     i = i + 1
 enddo
+
 return
-end
+end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
 subroutine usage(string)
+
+use io, only: stderr
+
 implicit none
-! I/O variables
+
 character(len=*) :: string
-! Local variables
-integer :: string_length
-integer, parameter :: stderr = 0
+
 if (string.ne.'') then
-    string_length = len(string)
     write(stderr,*) trim(string)
     write(stderr,*)
 endif
+
 write(stderr,*) 'Usage: stereo_project ...options...'
 write(stderr,*)
-write(stderr,*) '-f      input_file (default: stdin)'
-write(stderr,*) '-o      output_file (default: stdout)'
-write(stderr,*) '-mode   project|inverse'
-write(stderr,*) '-lon0   center_longitude'
-write(stderr,*) '-lat0   center_latitude'
-write(stderr,*) '-radius radius'
-stop 1
-end
+write(stderr,*) '-f FILE         Input geographic or projected x-y coordinates (default: stdin)'
+write(stderr,*) '-o FILE         Output coordinates (default: stdout)'
+write(stderr,*) '-geo2stereo     Project geographic to x-y coordinates'
+write(stderr,*) '-stereo2geo     Project x-y coordinates to geographic'
+write(stderr,*) '-lon0 LON0      Center longitude of projection'
+write(stderr,*) '-lat0 LAT0      Center latitude of projection'
+write(stderr,*) '-radius R       Sphere radius'
+
+stop
+end subroutine

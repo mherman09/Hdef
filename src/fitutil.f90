@@ -1,0 +1,271 @@
+module polyfit
+
+character(len=512) :: input_file
+character(len=512) :: output_file
+
+integer :: poly_order
+logical :: period(4)
+logical :: doExp
+
+end module
+
+!==================================================================================================!
+
+program main
+
+implicit none
+
+!       PROGRAM polyfit
+!       IMPLICIT none
+!       CHARACTER*40 ifile,ofile,cfile,pfile,rfile,MXORDC
+!       LOGICAL ex
+!       INTEGER i,nobs,MXOBS
+!       PARAMETER (MXOBS=100000)
+!       REAL*8 xobs(MXOBS),yobs(MXOBS)
+!       INTEGER MXORD,ord,MXCON,ncon
+!       PARAMETER (MXORD=20,MXCON=21)
+!       REAL*8 coeff(MXORD),xc(MXCON),yc(MXCON),ypre,res
+!       INTEGER j,p
+! C----
+! C TO-DO:
+! C Subroutine chkopt(ifile,ofile,cfile,ord,MXORD)
+! C   check existence of input files
+! C   check output file defined
+! C   check ord <= MXORD
+! C Subroutine readxy(ifile,xobs,yobs,nobs)
+! C   read in values and number of observations from ifile
+! C Subroutine readconstr(cfile,xc,yc,ncon)
+! C   read in constraints if necessary
+! C----
+!
+! #ifndef USELAPACK
+!       write(0,*) 'polyfit: compile with LAPACK to use'
+!       stop
+! #endif
+!
+! C----
+! C Parse command line
+! C----
+!       call gcmdln(ifile,ofile,cfile,xc,yc,ncon,pfile,rfile,ord,p)
+!
+! C----
+! C Check for required input files and values
+! C----
+!       if (ifile.eq.'none') then
+!           write(*,*) '!! Error: Input x-y data is not specified'
+!           call usage('!! Use -f XYFILE to specify input file')
+!       elseif (ifile.ne.'stdin') then
+!           inquire(file=ifile,EXIST=ex)
+!           if (.not.ex) call usage('!! Error: no x-y file: '//ifile)
+!       endif
+!       if (ord.lt.0) then
+!           write(*,*) '!! Error: polynomial order not specified'
+!           call usage('!! Use -ord ORDER to specify order')
+!       endif
+!       if (ofile.eq.'none'.and.p.eq.0) then
+!           write(*,*) '!! Error: No output file specified'
+!           call usage('!! Use -o COEFF to specify coefficient file')
+!       endif
+! C Check for optional input files and values
+!       if (cfile.ne.'none') then
+!           inquire(file=cfile,EXIST=ex)
+!           if (.not.ex) call usage('!! Error: no constraint file: '
+!      1                                           //cfile)
+!       endif
+!       if (ord.gt.MXORD) then
+!           write(MXORDC,*) MXORD
+!           call usage('!! Error: ORD must be <='//MXORDC)
+!       endif
+!
+! C----
+! C Extract observed data from input time series
+! C----
+!       if (ifile.ne.'stdin') then
+!           open(unit=11,file=ifile,status='old')
+!           i = 1
+!   101     read(11,*,end=102) xobs(i),yobs(i)
+!               i = i + 1
+!               goto 101
+!   102     continue
+!           close(11)
+!           nobs = i - 1
+!       else
+!           i = 1
+!   111     read(*,*,end=112) xobs(i),yobs(i)
+!               i = i + 1
+!               goto 111
+!   112     continue
+!           nobs = i - 1
+!       endif
+! C----
+! C Check if a constraint file was defined, and compute coefficients
+! C----
+! C     Unconstrained least squares fit
+!       if (cfile.eq.'none'.and.xc(1).lt.-1.0d98) then
+!           call polylsq(coeff,xobs,yobs,nobs,ord)
+! C     Constrained least squares fit
+!       elseif (cfile.eq.'none') then
+!           call polylsqconstr(coeff,xobs,yobs,nobs,ord,xc,yc,ncon)
+!       else
+!           open(unit=13,file=cfile,status='old')
+!           i = 1
+!  103      read(13,*,end=104) xc(i),yc(i)
+!               i = i + 1
+!               goto 103
+!  104      continue
+!           close(13)
+!           ncon = i - 1
+!           call polylsqconstr(coeff,xobs,yobs,nobs,ord,xc,yc,ncon)
+!       endif
+!
+! C----
+! C Print coefficients
+! C----
+!       if (p.eq.0) then
+!           open(unit=14,file=ofile,status='unknown')
+!           write(14,9001)
+!           do 105 i = 1,ord+1
+!               write(14,9002) i-1,coeff(i)
+!   105     continue
+!           close(14)
+!       else
+!           write(*,9001)
+!           do 106 i = 1,ord+1
+!               write(*,9002) i-1,coeff(i)
+!   106     continue
+!       endif
+!
+! C----
+! C Print predicted results
+! C----
+!       if (pfile.ne.'none') then
+!           open(unit=12,file=pfile,status='unknown')
+!           do 108 i = 1,nobs
+!               ypre = 0.0d0
+!               do 107 j = 1,ord+1
+!                   ypre = ypre + coeff(j)*xobs(i)**(j-1)
+!   107         continue
+!               write (12,9003) xobs(i),ypre
+!   108     continue
+!           close(12)
+!       endif
+!
+!       if (rfile.ne.'none') then
+!           open(unit=15,file=rfile,status='unknown')
+!           do 110 i = 1,nobs
+!               ypre = 0.0d0
+!               do 109 j = 1,ord+1
+!                   ypre = ypre + coeff(j)*xobs(i)**(j-1)
+!   109         continue
+!               res = yobs(i) - ypre
+!               write(15,9003) xobs(i),res
+!   110     continue
+!       endif
+!
+!  9001 format('POLY_ORDER      COEFFICIENT')
+!  9002 format(I10,X,1PE16.6)
+!  9003 format(2E14.6)
+
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine gcmdln()
+implicit none
+! C======================================================================C
+!
+!       SUBROUTINE gcmdln(ifile,ofile,cfile,xc,yc,ncon,pfile,rfile,ord,p)
+!       IMPLICIT NONE
+!       INTEGER MXCON
+!       PARAMETER (MXCON=21)
+!       REAL*8 xc(MXCON),yc(MXCON)
+!       CHARACTER*40 ifile,ofile,cfile,pfile,rfile,tag
+!       INTEGER i,j,narg,ord,p,ncon
+!       j = 0
+!       xc(1) = -1.0d99
+!       ifile = 'none'
+!       ofile = 'none'
+!       cfile = 'none'
+!       pfile = 'none'
+!       rfile = 'none'
+!       p = 0
+!       ord = -1
+!       ncon = 0
+!       narg = iargc()
+!       if (narg.eq.0) then
+!           call usage('')
+!       endif
+!       i = 0
+!   101 i = i + 1
+!       if (i.gt.narg) goto 102
+!           call getarg(i,tag)
+!           if (tag(1:4).eq.'-pre') then
+!               i = i + 1
+!               call getarg(i,pfile)
+!           elseif (tag(1:4).eq.'-ord') then
+!               i = i + 1
+!               call getarg(i,tag)
+!               read(tag,'(BN,I5)') ord
+!           elseif (tag(1:4).eq.'-res') then
+!               i = i + 1
+!               call getarg(i,rfile)
+!           elseif (tag(1:3).eq.'-cf') then
+!               i = i + 1
+!               call getarg(i,cfile)
+!           elseif (tag(1:2).eq.'-c') then
+!               j = j + 1
+!               i = i + 1
+!               call getarg(i,tag)
+!               read(tag,'(BN,F10.0)') xc(j)
+!               i = i + 1
+!               call getarg(i,tag)
+!               read(tag,'(BN,F10.0)') yc(j)
+!           elseif (tag(1:2).eq.'-p') then
+!               p = 1
+!           elseif (tag(1:2).eq.'-o') then
+!               i = i + 1
+!               call getarg(i,ofile)
+!           elseif (tag(1:2).eq.'-f') then
+!               i = i + 1
+!               call getarg(i,ifile)
+!           elseif (tag(1:2).eq.'-h') then
+!               call usage(' ')
+!           else
+!               call usage('!! Error: No option '//tag)
+!           endif
+!           goto 101
+!   102 continue
+!       ncon = j
+!       RETURN
+!       END
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine usage(str)
+
+use io, only: stderr
+
+implicit none
+
+character(len=*) :: str
+
+if (str.ne.'') then
+    write(stderr,*) trim(str)
+    write(stderr,*)
+endif
+
+write(stderr,*) 'Usage: polyfit ...options...'
+write(stderr,*)
+write(stderr,*) '-f FILE           X-Y data to fit (default: stdin)'
+write(stderr,*) '-o FILE           Inverted coefficients (default: stdout)'
+write(stderr,*) '-poly N           Polynomial fit of order N'
+write(stderr,*) '-sin T            Sinusoid fit with period T'
+write(stderr,*) '-exp              Exponential fit'
+write(stderr,*) '-constraint FILE  Fixed coordinates'
+write(stderr,*) '-pre FILE         Predicted values at input x-coordinates'
+write(stderr,*)
+
+stop
+end subroutine

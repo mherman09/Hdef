@@ -14,44 +14,84 @@ module okada92
 !----
 
 ! Half-space variables
-double precision, private :: a, CA1, CA2, CB, CC
+double precision :: a, CA1, CA2, CB, CC
 
 ! Fault dip variables
-double precision, private :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
+double precision :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
 
 ! Basic geometric variables
-double precision, private :: x, y, z, c, d
+double precision :: x, y, z, c, d
 
 ! Derived geometric variables
-double precision, private :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
-double precision, private :: R, R2, R3, R4, R5, R7, Rd
-double precision, private :: A3, A5, A7, B3, B5, B7, C3, C5, C7
-double precision, private :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
-double precision, private :: U2, V2, W2, U3, V3, W3
-double precision, private :: eta_vec(2), ksi_vec(2), ksi, eta
-double precision, private :: cbar, dbar, ybar
-double precision, private :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
-double precision, private :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
-double precision, private :: D11, Re, Rk, logRe, logRk, TH
+double precision :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
+double precision :: R, R2, R3, R4, R5, R7, Rd
+double precision :: A3, A5, A7, B3, B5, B7, C3, C5, C7
+double precision :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
+double precision :: U2, V2, W2, U3, V3, W3
+double precision :: eta_vec(2), ksi_vec(2), ksi, eta
+double precision :: cbar, dbar, ybar
+double precision :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
+double precision :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
+double precision :: D11, Re, Rk, logRe, logRk, TH
 
 ! Integration constants for rectangular faults, stored as an array:
 !    chinnery_factor = [  1 -1 ]
 !                      [ -1  1 ]
-double precision, private :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(/2,2/))
+double precision :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(/2,2/))
 
 ! Singular flag
-logical, private :: isSingular
+logical :: isSingular
 
-! PRIVATE
-private :: halfspace_vars
-private :: dip_vars
-private :: pt_src_vars
-private :: rect_src_coords
-private :: rect_src_vars
-private :: check_singular_pt
-private :: check_singular_rect
+! Private variables and routines are only public for unit testing
+#ifdef UNIT_TEST
+  public :: a, CA1, CA2, CB, CC
+  public :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
+  public :: x, y, z, c, d
+  public :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
+  public :: R, R2, R3, R4, R5, R7, Rd
+  public :: A3, A5, A7, B3, B5, B7, C3, C5, C7
+  public :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
+  public :: U2, V2, W2, U3, V3, W3
+  public :: eta_vec, ksi_vec, ksi, eta
+  public :: cbar, dbar, ybar
+  public :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
+  public :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
+  public :: D11, Re, Rk, logRe, logRk, TH
+  public :: chinnery_factor
+  public :: isSingular
+  public :: halfspace_vars
+  public :: dip_vars
+  public :: pt_src_vars
+  public :: rect_src_coords
+  public :: rect_src_vars
+  public :: check_singular_pt
+  public :: check_singular_rect
+#else
+  private :: a, CA1, CA2, CB, CC
+  private :: sd, cd, s2d, c2d, cdcd, sdsd, cdsd
+  private :: x, y, z, c, d
+  private :: p, q, s, t, xx, xy, yy, dd, xd, xc, xq, xs, xt, yq, ys, yt, dq, pq, qq
+  private :: R, R2, R3, R4, R5, R7, Rd
+  private :: A3, A5, A7, B3, B5, B7, C3, C5, C7
+  private :: I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4
+  private :: U2, V2, W2, U3, V3, W3
+  private :: eta_vec, ksi_vec, ksi, eta
+  private :: cbar, dbar, ybar
+  private :: X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0
+  private :: E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3
+  private :: D11, Re, Rk, logRe, logRk, TH
+  private :: chinnery_factor
+  private :: isSingular
+  private :: halfspace_vars
+  private :: dip_vars
+  private :: pt_src_vars
+  private :: rect_src_coords
+  private :: rect_src_vars
+  private :: check_singular_pt
+  private :: check_singular_rect
+#endif
 
-! PUBLIC
+! Public routines
 public :: o92_pt_disp
 public :: o92_pt_strain
 public :: o92_pt_partials
@@ -104,9 +144,12 @@ implicit none
 ! Arguments
 double precision :: dip
 
+! Local variables
+double precision, parameter :: dip_max = 89.9999d0
+
 ! To avoid divide by zero problems, avoid dip of 90 degress
-if (dip.gt.89.99999d0) then
-  dip = 89.99999d0
+if (dip.gt.dip_max) then
+  dip = dip_max
 endif
 
 sd = dsin(dip*d2r)
@@ -1019,6 +1062,14 @@ integer :: i, j
 double precision :: Css, Cds, Cts, u_ss(3), u_ds(3), u_ts(3), uA(3), uB(3), uC(3)
 
 ! write(0,*) 'o92_rect_disp: starting'
+! write(0,*) 'o92_rect_disp: sta_coord: ',sta_coord
+! write(0,*) 'o92_rect_disp: evdp     : ',evdp
+! write(0,*) 'o92_rect_disp: dip      : ',dip
+! write(0,*) 'o92_rect_disp: slip      : ',slip
+! write(0,*) 'o92_rect_disp: wid      : ',wid
+! write(0,*) 'o92_rect_disp: len      : ',len
+! write(0,*) 'o92_rect_disp: lambda   : ',lambda
+! write(0,*) 'o92_rect_disp: shear    : ',shear_modulus
 
 ! Initialize displacements
 disp = 0.0d0
@@ -1031,6 +1082,8 @@ endif
 
 ! Calculate some parameters for fault geometry and elastic half-space
 call dip_vars(dip)
+! write(0,*) 'o92_rect_disp: cd       : ',cd
+! write(0,*) 'o92_rect_disp: sd       : ',sd
 call halfspace_vars(lambda,shear_modulus)
 
 Css = slip(1)/(2.0d0*pi)
@@ -1471,6 +1524,7 @@ double precision :: ksiin, etain
 
 ! Local variables
 double precision :: h, xxx
+double precision, parameter :: eps = 1.0d-4
 
 ! Save module variables from arguments (other variables already set)
 ksi = ksiin
@@ -1491,14 +1545,14 @@ h = q*cd - z
 qq = q*q
 
 ! Singular case (i) from Okada (1992)
-if (dabs(q).lt.1.0d-6) then
+if (dabs(q).lt.eps) then
     TH = 0.0d0
 else
     TH = datan(ksi*eta/(q*R))
 endif
 
 ! Singular case (iii) from Okada (1992)
-if (ksi.lt.0.0d0.and.dabs(R+ksi).lt.1.0d-6) then
+if (ksi.lt.0.0d0.and.dabs(R+ksi).lt.eps) then
     X11 = 0.0d0
     X32 = 0.0d0
     X53 = 0.0d0
@@ -1512,7 +1566,7 @@ else
 endif
 
 ! Singular case (iv) from Okada (1992)
-if (eta.lt.0.0d0.and.dabs(R+eta).lt.1.0d-6) then
+if (eta.lt.0.0d0.and.dabs(R+eta).lt.eps) then
     Y11 = 0.0d0
     Y32 = 0.0d0
     Y53 = 0.0d0
@@ -1527,7 +1581,7 @@ endif
 Y0  = Y11 - ksi*ksi*Y32
 
 ! Singular case (ii) from Okada (1992)
-if (dabs(ksi).lt.1.0d-6) then
+if (dabs(ksi).lt.eps) then
     I4 = 0.0d0
 else
     xxx = sqrt(ksi*ksi+q*q)
@@ -1981,404 +2035,5 @@ endif
 
 return
 end subroutine check_singular_rect
-
-
-
-
-
-!--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
-!----------------------------- PRIVATE VARIABLE UNIT TESTS ----------------------------------------!
-!--------------------------------------------------------------------------------------------------!
-!--------------------------------------------------------------------------------------------------!
-
-
-
-
-
-subroutine test_halfspace_vars()
-use test, only: test_value
-use io, only: stdout
-implicit none
-double precision :: lambda, shear_modulus
-lambda = 40.0d0
-shear_modulus = 40.0d0
-call halfspace_vars(lambda,shear_modulus)
-call test_value(a,0.66666666666666663d0,'halfspace_vars(): a')
-call test_value(CA1,0.16666666666666669d0,'halfspace_vars(): CA1')
-call test_value(CA2,0.33333333333333331d0,'halfspace_vars(): CA2')
-call test_value(CB,0.50000000000000011d0,'halfspace_vars(): CB')
-call test_value(CC,0.33333333333333337d0,'halfspace_vars(): CC')
-write(stdout,*) 'subroutine halfspace_vars() passed unit test'
-write(stdout,*)
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine test_dip_vars()
-use test, only: test_value
-use io, only: stdout
-implicit none
-double precision :: dip
-dip = 70.0d0
-call dip_vars(dip)
-call test_value(sd,0.93969262078590832d0,'dip_vars(): sd')
-call test_value(cd,0.34202014332566882d0,'dip_vars(): cd')
-call test_value(s2d,0.64278760968653947d0,'dip_vars(): s2d')
-call test_value(c2d,-0.76604444311897790d0,'dip_vars(): c2d')
-call test_value(sdsd,0.88302222155948884d0,'dip_vars(): sdsd')
-call test_value(cdcd,0.11697777844051105d0,'dip_vars(): cdcd')
-call test_value(cdsd,0.32139380484326974d0,'dip_vars(): cdsd')
-write(stdout,*) 'subroutine dip_vars() passed unit test'
-write(stdout,*)
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine test_pt_src_vars()
-use test, only: test_value
-use io, only: stdout
-implicit none
-double precision :: dip, sta_coord(3), evdp
-dip = 70.0d0
-call dip_vars(dip)
-sta_coord(1) = 2.0d0
-sta_coord(2) = 3.0d0
-sta_coord(3) = 0.0d0
-evdp = 4.0d0
-call pt_src_vars(sta_coord(1),sta_coord(2),sta_coord(3),evdp)
-call test_value(p,4.7848309131206399d0,'pt_src_vars(): p')
-call test_value(q,1.4509972890550495d0,'pt_src_vars(): q')
-call test_value(s,4.9925406015355298d0,'pt_src_vars(): s')
-call test_value(t,0.27301710938922441d0,'pt_src_vars(): t')
-call test_value(xx,4.0d0,'pt_src_vars(): xx')
-call test_value(xy,6.0d0,'pt_src_vars(): xy')
-call test_value(yy,9.0d0,'pt_src_vars(): yy')
-call test_value(dd,16.0d0,'pt_src_vars(): dd')
-call test_value(xd,8.0d0,'pt_src_vars(): xd')
-call test_value(xc,8.0d0,'pt_src_vars(): xc')
-call test_value(xq,2.9019945781100991d0,'pt_src_vars(): xq')
-call test_value(yq,4.3529918671651489d0,'pt_src_vars(): yq')
-call test_value(dq,5.8039891562201982d0,'pt_src_vars(): dq')
-call test_value(pq,6.9427766835248459d0,'pt_src_vars(): pq')
-call test_value(xs,9.9850812030710596d0,'pt_src_vars(): xs')
-call test_value(xt,0.54603421877844882d0,'pt_src_vars(): xt')
-call test_value(ys,14.977621804606589d0,'pt_src_vars(): ys')
-call test_value(yt,0.81905132816767323d0,'pt_src_vars(): yt')
-call test_value(qq,2.1053931328451032d0,'pt_src_vars(): qq')
-call test_value(R,5.3851648071345037d0,'pt_src_vars(): R')
-call test_value(R2,28.999999999999996d0,'pt_src_vars(): R2')
-call test_value(R3,156.16977940690060d0,'pt_src_vars(): R3')
-call test_value(R4,840.99999999999989d0,'pt_src_vars(): R4')
-call test_value(R5,4528.9236028001169d0,'pt_src_vars(): R5')
-call test_value(R7,131338.78448120339d0,'pt_src_vars(): R7')
-call test_value(Rd,9.3851648071345046d0,'pt_src_vars(): Rd')
-call test_value(A3,0.58620689655172409d0,'pt_src_vars(): A3')
-call test_value(A5,0.31034482758620685d0,'pt_src_vars(): A5')
-call test_value(A7,3.4482758620689502d-2,'pt_src_vars(): A7')
-call test_value(B3,6.8965517241379226d-2,'pt_src_vars(): B3')
-call test_value(B5,-0.55172413793103470d0,'pt_src_vars(): B5')
-call test_value(B7,-1.1724137931034484d0,'pt_src_vars(): B7')
-call test_value(C3,-0.65517241379310365d0,'pt_src_vars(): C3')
-call test_value(C5,-1.7586206896551726d0,'pt_src_vars(): C5')
-call test_value(C7,-2.8620689655172420d0,'pt_src_vars(): C7')
-call test_value(I1,4.4511857695225003d-003,'pt_src_vars(): I1')
-call test_value(I2,1.4062132997373915d-003,'pt_src_vars(): I2')
-call test_value(I3,1.1400361746955842d-002,'pt_src_vars(): I3')
-call test_value(I4,-6.4425920722921085d-003,'pt_src_vars(): I4')
-call test_value(I5,1.5490988410148277d-002,'pt_src_vars(): I5')
-call test_value(J1,-2.3037701706801377d-003,'pt_src_vars(): J1')
-call test_value(J2,8.3831231772032186d-004,'pt_src_vars(): J2')
-call test_value(J3,2.9153389890690740d-003,'pt_src_vars(): J3')
-call test_value(J4,-1.6706841541556938d-003,'pt_src_vars(): J4')
-call test_value(K1,-1.7024420377114214d-003,'pt_src_vars(): K1')
-call test_value(K2,1.3075030688791331d-004,'pt_src_vars(): K2')
-call test_value(K3,-5.4300227400023550d-003,'pt_src_vars(): K3')
-call test_value(U2,0.18917678161950324d0,'pt_src_vars(): U2')
-call test_value(V2,1.4014492135054364d0,'pt_src_vars(): V2')
-call test_value(W2,1.1288694024054116d0,'pt_src_vars(): W2')
-call test_value(U3,1.3427079288808756d0,'pt_src_vars(): U3')
-call test_value(V3,5.0611389600960157d0,'pt_src_vars(): V3')
-call test_value(W3,1.6847280722065445d0,'pt_src_vars(): W3')
-write(stdout,*) 'subroutine pt_src_vars() passed unit test'
-write(stdout,*)
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine test_rect_src_vars()
-use test, only: test_value
-use io, only: stdout
-implicit none
-double precision :: dip, sta_coord(3), evdp, len, wid
-dip = 70.0d0
-call dip_vars(dip)
-sta_coord(1) = 2.0d0
-sta_coord(2) = 3.0d0
-sta_coord(3) = 0.0d0
-evdp = 4.0d0
-len = 3.0d0
-wid = 2.0d0
-
-call rect_src_coords(sta_coord(1),sta_coord(2),sta_coord(3),evdp,wid,len)
-call test_value(p,4.7848309131206399d0,'rect_src_coords(): p')
-call test_value(q,1.4509972890550495d0,'rect_src_coords(): q')
-call test_value(eta_vec(1),3.7848309131206399d0,'rect_src_coords(): eta_vec(1)')
-call test_value(eta_vec(2),5.7848309131206399d0,'rect_src_coords(): eta_vec(2)')
-call test_value(ksi_vec(1),0.5000000000000000d0,'rect_src_coords(): ksi_vec(1)')
-call test_value(ksi_vec(2),3.5000000000000000d0,'rect_src_coords(): ksi_vec(2)')
-write(stdout,*) 'subroutine rect_src_coords() passed unit test'
-
-call rect_src_vars(ksi_vec(1),eta_vec(1))
-call test_value(ybar,2.6579798566743307d0,'rect_src_vars(): ybar')
-call test_value(dbar,3.0603073792140916d0,'rect_src_vars(): cbar')
-call test_value(cbar,3.0603073792140916d0,'rect_src_vars(): dbar')
-call test_value(R,4.0841569722231199d0,'rect_src_vars(): R')
-call test_value(R2,16.680338173758720d0,'rect_src_vars(): R2')
-call test_value(R3,68.125119451396145d0,'rect_src_vars(): R3')
-! call test_value(R4,840.99999999999989d0,'rect_src_vars(): R4')
-call test_value(R5,1136.3500305769958d0,'rect_src_vars(): R5')
-! call test_value(R7,131338.78448120339d0,'rect_src_vars(): R7')
-call test_value(Rd,7.1444643514372110d0,'rect_src_vars(): Rd')
-call test_value(qq,2.1053931328451032d0,'rect_src_vars(): qq')
-call test_value(TH,0.30910022531517090d0,'rect_src_vars(): TH')
-call test_value(Rk,4.5841569722231199d0,'rect_src_vars(): Rk')
-call test_value(X11,5.3411908204318771d-002,'rect_src_vars(): X11')
-call test_value(X32,6.0549197882804537d-003,'rect_src_vars(): X32')
-call test_value(X53,1.3937426671487758d-003,'rect_src_vars(): X53')
-call test_value(logRk,1.5226062223303141d0,'rect_src_vars(): logRk')
-call test_value(Re,7.8689878853437598d0,'rect_src_vars(): Re')
-call test_value(Y11,3.1115637101260175d-002,'rect_src_vars(): Y11')
-call test_value(Y32,2.8335909219300561d-003,'rect_src_vars(): Y32')
-call test_value(Y53,5.6987957651285224d-004,'rect_src_vars(): Y53')
-call test_value(logRe,2.0629294500096305d0,'rect_src_vars(): logRe')
-call test_value(Y0,3.0407239370777661d-002,'rect_src_vars(): Y0')
-call test_value(I1,-24.464842377362366d0,'rect_src_vars(): I1')
-call test_value(I2,1.2599616181546565d0,'rect_src_vars(): I2')
-call test_value(I3,-0.75170987457349314d0,'rect_src_vars(): I3')
-call test_value(I4,26.009469280193130d0,'rect_src_vars(): I4')
-call test_value(Z32,1.2387401944116128d-002,'rect_src_vars(): Z53')
-call test_value(Z53,2.1980039131027692d-003,'rect_src_vars(): Z32')
-call test_value(Z0,1.1837900965840436d-002,'rect_src_vars(): Z0')
-call test_value(D11,3.4271088684950102d-002,'rect_src_vars(): D11')
-call test_value(K1,7.3562247838898460d-003,'rect_src_vars(): K1')
-call test_value(K2,0.11862078136010840d0,'rect_src_vars(): K2')
-call test_value(K3,-0.13432880842342962d0,'rect_src_vars(): K3')
-call test_value(K4,-1.5915028157424500d-003,'rect_src_vars(): K4')
-call test_value(J1,-3.6668885560592841d-002,'rect_src_vars(): J1')
-call test_value(J2,6.3749960046040766d-003,'rect_src_vars(): J2')
-call test_value(J3,3.9930048199627510d-003,'rect_src_vars(): J3')
-call test_value(J4,-1.3985998433743778d-002,'rect_src_vars(): J4')
-call test_value(J6,-1.1485677136015674d-002,'rect_src_vars(): J6')
-call test_value(E2,0.17347006835163784d0,'rect_src_vars(): E2')
-call test_value(F2,4.5587540534369766d-002,'rect_src_vars(): F2')
-call test_value(G2,7.7029412273117825d-002,'rect_src_vars(): G2')
-call test_value(H2,2.8818645950405460d-002,'rect_src_vars(): H2')
-call test_value(P2,8.8840473466618580d-003,'rect_src_vars(): P2')
-call test_value(Q2,1.9608281698289438d-003,'rect_src_vars(): Q2')
-call test_value(E3,0.14892464696612687d0,'rect_src_vars(): E3')
-call test_value(F3,3.9258435961432761d-002,'rect_src_vars(): F3')
-call test_value(G3,6.3422754458309291d-002,'rect_src_vars(): G3')
-call test_value(H3,2.4055253239807024d-002,'rect_src_vars(): H3')
-call test_value(P3,1.2387401944116128d-002,'rect_src_vars(): P3')
-call test_value(Q3,1.7300629665110766d-002,'rect_src_vars(): Q3')
-write(stdout,*) 'subroutine rect_src_vars() passed unit test'
-write(stdout,*)
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine test_rect_disp_components()
-
-use test, only: test_value
-use io, only: stdout
-
-implicit none
-
-! Local variables
-double precision :: lambda, shear_modulus, dip, sta_coord(3), evdp, wid, len, disp(3)
-
-! Half-space
-lambda = 40.0d0
-shear_modulus = 40.0d0
-call halfspace_vars(lambda,shear_modulus)
-
-! Fault dip
-dip = 70.0d0
-call dip_vars(dip)
-
-! Geometry
-sta_coord(1) = -12.0d0
-sta_coord(2) = 6.2d0
-sta_coord(3) = 13.0d0
-evdp = 7.0d0
-wid = 3.2d0
-len = 6.5d0
-call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
-call rect_src_vars(ksi_vec(2),eta_vec(1))
-
-disp = uA_ss_rect()
-call test_value(disp(1), 0.72547327384003113d0,'uA_ss_rect()(1)')
-call test_value(disp(2),-1.5927062399294267d-2,'uA_ss_rect()(2)')
-call test_value(disp(3), 0.61666031833564772d0,'uA_ss_rect()(3)')
-disp = uB_ss_rect()
-call test_value(disp(1),-11.993002387482605d0,'uB_ss_rect()(1)')
-call test_value(disp(2),0.11463965563116107d0,'uB_ss_rect()(2)')
-call test_value(disp(3),-0.99745107154736778d0,'uB_ss_rect()(3)')
-disp = uC_ss_rect()
-call test_value(disp(1),-1.4461853668621687d-003,'uC_ss_rect()(1)')
-call test_value(disp(2),5.0207492407645738d-003,'uC_ss_rect()(2)')
-call test_value(disp(3),-2.0079399191054680d-002,'uC_ss_rect()(3)')
-
-call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
-call rect_src_vars(ksi_vec(1),eta_vec(2))
-disp = uA_ds_rect()
-call test_value(disp(1),-1.2424808371844004d-2,'uA_ds_rect()(1)')
-call test_value(disp(2), 0.72190403451379292d0,'uA_ds_rect()(2)')
-call test_value(disp(3), 0.41256779800532334d0,'uA_ds_rect()(3)')
-disp = uB_ds_rect()
-call test_value(disp(1),-0.24780594882338475d0,'uB_ds_rect()(1)')
-call test_value(disp(2),-1.3701174902198523d0,'uB_ds_rect()(2)')
-call test_value(disp(3),-3.8188429813460623d0,'uB_ds_rect()(3)')
-disp = uC_ds_rect()
-call test_value(disp(1), 5.1793376586471750d-003,'uC_ds_rect()(1)')
-call test_value(disp(2), 8.6684162903643731d-003,'uC_ds_rect()(2)')
-call test_value(disp(3),-7.2807977939472246d-002,'uC_ds_rect()(3)')
-write(stdout,*) 'displacement functions for rectangular source passed unit tests'
-write(stdout,*)
-
-return
-end subroutine
-
-!--------------------------------------------------------------------------------------------------!
-
-subroutine test_rect_partial_components()
-
-use test, only: test_value
-use io, only: stdout
-
-implicit none
-
-! Local variables
-double precision :: lambda, shear_modulus, dip, sta_coord(3), evdp, wid, len, disp(3)
-
-! Half-space
-lambda = 40.0d0
-shear_modulus = 40.0d0
-call halfspace_vars(lambda,shear_modulus)
-
-! Fault dip
-dip = 70.0d0
-call dip_vars(dip)
-
-! Geometry
-sta_coord(1) = -12.0d0
-sta_coord(2) = 6.2d0
-sta_coord(3) = 13.0d0
-evdp = 7.0d0
-wid = 3.2d0
-len = 6.5d0
-call rect_src_coords(sta_coord(1),sta_coord(2),-sta_coord(3),evdp,wid,len)
-call rect_src_vars(ksi_vec(1),eta_vec(1))
-
-! X-derivatives of components of displacement
-disp = duAdx_ss_rect()
-call test_value(disp(1), 3.4306426504990750d-004,'duAdx_ss_rect(): (1)')
-call test_value(disp(2),-3.4508486032947076d-004,'duAdx_ss_rect(): (2)')
-call test_value(disp(3),-2.3607160020503188d-003,'duAdx_ss_rect(): (3)')
-disp = duAdx_ds_rect()
-call test_value(disp(1),-3.4508486032947076d-004,'duAdx_ds_rect(): (1)')
-call test_value(disp(2), 9.0562367901465455d-004,'duAdx_ds_rect(): (2)')
-call test_value(disp(3), 6.7897701068703959d-003,'duAdx_ds_rect(): (3)')
-! disp = duAdx_ts_rect()
-! write(0,*) 'duAdx_ts_rect()',disp
-disp = duBdx_ss_rect()
-call test_value(disp(1), 6.9599894428799694d-004,'duBdx_ss_rect(): (1)')
-call test_value(disp(2), 1.9194218761293762d-003,'duBdx_ss_rect(): (2)')
-call test_value(disp(3), 2.0942277171944572d-003,'duBdx_ss_rect(): (3)')
-disp = duBdx_ds_rect()
-call test_value(disp(1), 2.7417691868664293d-003,'duBdx_ds_rect(): (1)')
-call test_value(disp(2),-5.1586589356422364d-003,'duBdx_ds_rect(): (2)')
-call test_value(disp(3),-6.7076617173327598d-004,'duBdx_ds_rect(): (3)')
-! disp = duBdx_ts_rect()
-! write(0,*) 'duBdx_ts_rect()',disp
-disp = duCdx_ss_rect()
-call test_value(disp(1), 4.2126939364670769d-005,'duCdx_ss_rect(): (1)')
-call test_value(disp(2), 1.1209090419535319d-004,'duCdx_ss_rect(): (2)')
-call test_value(disp(3),-3.4475338947556833d-004,'duCdx_ss_rect(): (3)')
-disp = duCdx_ds_rect()
-call test_value(disp(1), 1.6966631277932049d-004,'duCdx_ds_rect(): (1)')
-call test_value(disp(2),-1.4986921869860253d-004,'duCdx_ds_rect(): (2)')
-call test_value(disp(3), 1.1331156239589844d-003,'duCdx_ds_rect(): (3)')
-! disp = duCdx_ts_rect()
-! write(0,*) 'duCdx_ts_rect()',disp
-
-! Y-derivatives of components of displacement
-disp = duAdy_ss_rect()
-call test_value(disp(1),2.8890966553217295d-002,'duAdy_ss_rect(): (1)')
-call test_value(disp(2),1.2845371264737372d-002,'duAdy_ss_rect(): (2)')
-call test_value(disp(3),2.7617711810937568d-003,'duAdy_ss_rect(): (3)')
-disp = duAdy_ds_rect()
-call test_value(disp(1), 1.2845371264737372d-002,'duAdy_ds_rect(): (1)')
-call test_value(disp(2), 6.0051670894042106d-002,'duAdy_ds_rect(): (2)')
-call test_value(disp(3), 6.8785272909704029d-003,'duAdy_ds_rect(): (3)')
-! disp = duAdy_ts_rect()
-disp = duBdy_ss_rect()
-call test_value(disp(1),-5.4892739626334362d-002,'duBdy_ss_rect(): (1)')
-call test_value(disp(2),-2.7969238876413290d-002,'duBdy_ss_rect(): (2)')
-call test_value(disp(3),-3.1020145458715599d-003,'duBdy_ss_rect(): (3)')
-disp = duBdy_ds_rect()
-call test_value(disp(1),-3.8965904427687062d-002,'duBdy_ds_rect(): (1)')
-call test_value(disp(2),-0.14704676790658636d0,'duBdy_ds_rect(): (2)')
-call test_value(disp(3),-9.1052106567444321d-003,'duBdy_ds_rect(): (3)')
-! disp = duBdy_ts_rect()
-disp = duCdy_ss_rect()
-call test_value(disp(1),3.6229956319952023d-004,'duCdy_ss_rect(): (1)')
-call test_value(disp(2),2.7645676601602590d-004,'duCdy_ss_rect(): (2)')
-call test_value(disp(3),5.2251433363535108d-004,'duCdy_ss_rect(): (3)')
-disp = duCdy_ds_rect()
-call test_value(disp(1),-1.1160386819908798d-003,'duCdy_ds_rect(): (1)')
-call test_value(disp(2),-6.3814177065406037d-004,'duCdy_ds_rect(): (2)')
-call test_value(disp(3), 2.7583611996049840d-003,'duCdy_ds_rect(): (3)')
-! disp = duCdy_ts_rect()
-
-! Z-derivatives of components of displacement
-disp = duAdz_ss_rect()
-call test_value(disp(1), 8.5466041996219398d-003,'duAdz_ss_rect(): (1)')
-call test_value(disp(2), 4.2102278432794181d-003,'duAdz_ss_rect(): (2)')
-call test_value(disp(3),-6.2203199241805318d-003,'duAdz_ss_rect(): (3)')
-disp = duAdz_ds_rect()
-call test_value(disp(1), 4.2102278432794181d-003,'duAdz_ds_rect(): (1)')
-call test_value(disp(2), 1.7605900194629188d-002,'duAdz_ds_rect(): (2)')
-call test_value(disp(3),-1.2506584807178457d-002,'duAdz_ds_rect(): (3)')
-! disp = duAdy_ts_rect()
-disp = duBdz_ss_rect()
-call test_value(disp(1),-1.7349770792071152d-002,'duBdz_ss_rect(): (1)')
-call test_value(disp(2),-1.0130288362773653d-002,'duBdz_ss_rect(): (2)')
-call test_value(disp(3), 1.0421179348291247d-002,'duBdz_ss_rect(): (3)')
-disp = duBdz_ds_rect()
-call test_value(disp(1),-9.6899784763487366d-003,'duBdz_ds_rect(): (1)')
-call test_value(disp(2),-4.0686184682977758d-002,'duBdz_ds_rect(): (2)')
-call test_value(disp(3),-2.2296367147699551d-003,'duBdz_ds_rect(): (3)')
-! disp = duBdy_ts_rect()
-disp = duCdz_ss_rect()
-call test_value(disp(1),-3.6434767894171044d-005,'duCdz_ss_rect(): (1)')
-call test_value(disp(2), 2.3748100977727307d-004,'duCdz_ss_rect(): (2)')
-call test_value(disp(3),-7.0849983200360817d-004,'duCdz_ss_rect(): (3)')
-disp = duCdz_ds_rect()
-call test_value(disp(1),-1.5620330749121738d-004,'duCdz_ds_rect(): (1)')
-call test_value(disp(2), 5.7029847969910998d-004,'duCdz_ds_rect(): (2)')
-call test_value(disp(3),-5.4083583036719013d-003,'duCdz_ds_rect(): (3)')
-! disp = duCdz_ts_rect()
-
-write(stdout,*) 'displacement derivative functions for rectangular source passed unit tests'
-write(stdout,*)
-
-return
-end subroutine
 
 end module

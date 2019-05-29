@@ -1,0 +1,130 @@
+.TH TERNARY.SH 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+ternary.sh \- plot a ternary focal mechanism diagram
+
+.SH SYNOPSIS
+.P
+.B ternary.sh
+.BI -f " input_file"
+.BI [-c " cpt_file" ]
+.BI [-s " symbol_scale" ]
+.BI [-j " jitter" ]
+.BI [-a " postscript_file" ]
+.BI [-x " x0" , y0 , width ]
+.BI [-t " font_size" ]
+.BI [--shift_ss " dx" , dy ]
+.BI [--shift_th " dx" , dy ]
+.BI [--shift_no " dx" , dy ]
+.BI [--frac_simple " fraction" ]
+
+.SH DESCRIPTION
+.B ternary.sh
+takes focal mechanism data in fraction thrust, strike-slip, and normal representation
+(Frohlich, 1992) and plots the points on a ternary diagram. This ternary representation can be
+computed using the Hdef program
+.BR mtutil .
+Additional information and flags can be specified to color and scale the symbols.
+
+Frohlich (1992) originally suggested using the azimuthal gnomonic projection (Richardus
+and Adler, 1972). Later, Frohlich (2001) noted that this projection is not equal-area,
+distorting the percentage of the triangle taken up by different ranges of mechanisms.
+A combined gnomonic + simple projection was proposed so that the ternary diagram becomes
+close to equal-area. This combined projection is now the default for
+.BR ternary.sh ,
+but the user can specify the fraction of simple projection with the
+.B --frac_simple
+option.
+
+This script uses standard bash tools (including awk and sed), the Generic Mapping Tools,
+Ghostscript, and the Hdef program
+.BR grid .
+
+.SH OPTIONS
+.TP
+.BI -f " input_file"
+Ternary data in format
+.IR frac_thrust ,
+.IR frac_strikeslip ,
+and
+.IR frac_normal .
+Optionally, add a fourth column with
+.I magnitude
+to scale the symbols by the value of the magnitude cubed.
+If there is a fifth column and a
+.I cpt_file
+is defined, then color the symbols by the value in the fifth column.
+
+.TP
+.BI -c " cpt_file"
+If the
+.I input_file
+contains five columns, use this color palette file to color symbols by the fifth column.
+
+.TP
+.BI -s " symbol_scale"
+Symbol scaling factor (default: 0.2). If there are three columns in
+.IR input_file ,
+then this is the size of all symbols. If there are four or five columns,
+then this is the scaling factor based on the value in the fourth column cubed.
+
+.TP
+.BI -j " jitter"
+Randomly perturb the locations of symbols by the value
+.IR jitter .
+Useful when there are many symbols that may plot on top of each other.
+
+.TP
+.BI -a " postscript_file"
+Append the PostScript produced by
+.B ternary.sh
+to an existing PostScript file
+
+.TP
+.BI -x " x0" , y0 , width
+Location of lower left corner of schematic relative to origin and width of schematic,
+all in inches (default: 1,1,5).
+
+.TP
+.BI -t " font_size"
+Define the font size for labeling the corners of the ternary diagram (default: scaled
+with
+.I width
+of figure).
+
+.TP
+.BI --shift_ss " dx" , dy
+.TP
+.BI --shift_th " dx" , dy
+.TP
+.BI --shift_no " dx" , dy
+Shift the location of the label text by
+.I dx
+and
+.I dy
+inches.
+
+.TP
+.BI --frac_simple " fraction"
+Define the percentage of simple projection used to make the ternary plot (default: 0.33).
+See note above and Frohlich (2001).
+
+
+.SH REFERENCES
+.TP
+Frohlich, C. (1992).
+Triangle diagrams: ternary graphs to display similarity and diversity of earthquake
+focal mechanisms.
+Physics of the Earth and Planetary Interiors 75, 193-198.
+
+.TP
+Frohlich, C. (2001).
+Display and quantitative assessment of distributions of earthquake focal mechanisms.
+Geophysical Journal International 144, 300-308.
+
+.TP
+Richardus, P., Adler, R.K. (1972).
+Map Projections North Holland.
+Amsterdam, 174 pp.
+
+.RS

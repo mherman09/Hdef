@@ -1,0 +1,41 @@
+.TH RANGEN 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+rangen \- generate random numbers
+
+.SH SYNOPSIS
+.P
+.B rangen
+.BI -uniform " x1 x2" " |"
+.BI -normal " mean stdev"
+.BI [-n " npts" ]
+.BI [-seed " iseed" ]
+
+.SH DESCRIPTION
+.B rangen
+generates a series of pseudo-random numbers from a uniform or normal probability distribution.
+
+.SH OPTIONS
+.TP
+.BI -uniform " x1 x2"
+Sample from a uniform probability distribution between
+.I x1
+and
+.IR x2 .
+
+.TP
+.BI -normal " mean stdev"
+Sample from a normal (Gaussian) probability distribution centered at
+.I mean
+and with standard deviation
+.IR stdev .
+
+.TP
+.BI -n " npts"
+Number of points to sample from distribution (default: 100)
+
+.TP
+.BI -seed " iseed"
+Random number generator seed (default: based on date and time)
+
+.RS

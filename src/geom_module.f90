@@ -1,21 +1,39 @@
 module geom
 
-public :: coords2distaz
-public :: distaz2coords
+public :: lola2distaz
+public :: distaz2lola
+
+public :: str2vec
+public :: strdip2normal
+public :: strdip2updip
+public :: normal2strike
+public :: normal2updip
+
+! public :: nvec2sdvec
 public :: pnpoly
 
 !--------------------------------------------------------------------------------------------------!
 contains
 !--------------------------------------------------------------------------------------------------!
 
-subroutine coords2distaz(lon1,lat1,lon2,lat2,dist,az)
+subroutine lola2distaz(lon1,lat1,lon2,lat2,dist,az)
 !----
 ! Given the latitude and longitude of two points, compute the great circle distance between them
-! and the azimuth from point 1 to point 2 measured clockwise from north. Input coordinates are in
-! degrees, output distance and azimuth are in radians.
+! and the azimuth from point 1 to point 2 measured clockwise from north.
+!
+! Inputs
+!     lon1: starting longitude, in degrees
+!     lat1: starting latitude, in degrees
+!     lon2: ending longitude, in degrees
+!     lat2: ending latitude, in degrees
+!
+! Outputs
+!     dist: distance between points along sphere, in radians
+!     az: azimuth pointing from point 1 to point 2, clockwise from north, in degrees
 !----
 
-use trig, only: pi, d2r
+use io, only: stderr
+use trig, only: pi, d2r, r2d
 implicit none
 
 ! Arguments
@@ -24,8 +42,21 @@ double precision :: dist, az, lon1, lat1, lon2, lat2
 ! Local variables
 double precision :: lon1r, lat1r, lon2r, lat2r, colat1, colat2, dlon, dlat, a
 
+dist = 0.0d0
+az = 0.0d0
+
+if (abs(lat1).gt.90.0d0) then
+    write(stderr,*) 'distaz2lola: input latitude 1 is greater than 90'
+    return
+endif
+
+if (abs(lat2).gt.90.0d0) then
+    write(stderr,*) 'distaz2lola: input latitude 2 is greater than 90'
+    return
+endif
+
 ! Check if points are polar opposite
-if (dabs(lat1+lat2).le.1.0d-6.and.dabs(mod(lon1-lon2,1.8d2)).le.1.0d-6) then
+if (dabs(lat1+lat2).le.1.0d-6.and.dabs(mod((lon1-lon2)+1.8d2,3.6d2)).le.1.0d-6) then
     dist = pi
     az = 0.0d0
     return
@@ -57,57 +88,222 @@ else
     az = datan2(dsin(dlon)*dcos(lat2r), dcos(lat1r)*dsin(lat2r)-dsin(lat1r)*dcos(lat2r)*dcos(dlon))
 endif
 
+az = az*r2d
+
 return
 end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine distaz2coords(lon1,lat1,dist,az,lon2,lat2,dist_unit)
+subroutine distaz2lola(lon1,lat1,dist,az,lon2,lat2)
 !----
-! Compute the longitude and latitude a distance and azimuth clockwise from north away from an
-! initial point. Input coordinates and azimuth are in degrees, input distance is in km, and output
-! coordinates are in radians.
+! Given a longitude and latitude and distance and azimuth clockwise from north away from this
+! initial point, compute the ending longitude and latitude.
+!
+! Inputs
+!     lon1: starting longitude, in degrees
+!     lat1: starting latitude, in degrees
+!     dist: distance between points along sphere, in radians
+!     az: azimuth pointing from point 1 to point 2, clockwise from north, in degrees
+!
+! Outputs
+!     lon2: ending latitude, in degrees
+!     lat2: ending latitude, in degrees
 !----
 
 use io, only: stderr
-use trig, only: d2r
-use earth, only: radius_earth_m, radius_earth_km
+use trig, only: d2r, r2d
 
 implicit none
 
 ! Arguments
 double precision :: lon1, lat1, lon2, lat2, dist, az
-character(len=*) :: dist_unit
 
 ! Local variables
-double precision :: distr, azr, lon1r, lat1r, lat2r
+double precision :: azr, lon1r, lat1r
+
+lon2 = 0.0d0
+lat2 = 0.0d0
+
+if (abs(lat1).gt.90.0d0) then
+    write(stderr,*) 'distaz2lola: input latitude is greater than 90'
+    return
+endif
 
 ! Convert all input quantities to radians
-if (trim(dist_unit).eq.'km'.or.trim(dist_unit).eq.'kilometers') then
-    distr = dist/radius_earth_km ! km -> rad
-elseif (trim(dist_unit).eq.'m'.or.trim(dist_unit).eq.'meters') then
-    distr = dist/radius_earth_m ! m -> rad
-elseif (trim(dist_unit).eq.'rad'.or.trim(dist_unit).eq.'radians') then
-    distr = dist
-elseif (trim(dist_unit).eq.'deg'.or.trim(dist_unit).eq.'degrees') then
-    distr = dist*d2r ! degrees -> rad
-else
-    write(stderr,*) 'distaz2coords: no distance units called "',trim(dist_unit),'"'
-    distr = 0.0d0
-endif
 azr = az*d2r          ! deg -> rad
 lon1r = lon1*d2r      ! deg -> rad
 lat1r = lat1*d2r      ! deg -> rad
 
 ! Spherical law of cosines
-lat2 = dasin(dsin(lat1r)*dcos(distr)+dcos(lat1r)*dsin(distr)*dcos(azr))
-lat2r = lat2*d2r
+lat2 = dasin(dsin(lat1r)*dcos(dist)+dcos(lat1r)*dsin(dist)*dcos(azr))
 
 ! Spherical law of cosines and law of sines
-lon2 = lon1r + datan2(dsin(azr)*dsin(distr)*dcos(lat1r), dcos(distr)-dsin(lat1r)*dsin(lat2r))
+lon2 = lon1r + datan2(dsin(azr)*dsin(dist)*dcos(lat1r), dcos(dist)-dsin(lat1r)*dsin(lat2))
+
+lon2 = lon2*r2d
+lat2 = lat2*r2d
 
 return
 end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine str2vec(str,strike_vec)
+!----
+! Given the strike (degrees CW from north) of a plane, calculate the vector parallel to strike
+! (east, north, and vertical components).
+!----
+
+use trig, only: d2r
+
+implicit none
+
+! Arguments
+double precision :: str, strike_vec(3)
+
+strike_vec(1) = sin(str*d2r)
+strike_vec(2) = cos(str*d2r)
+strike_vec(3) = 0.0d0
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine strdip2normal(str,dip,normal_vec)
+!----
+! Given the strike (degrees CW from north) and dip (degrees from horizontal) of a plane, calculate
+! the normal vector (east, north, and vertical components).
+!----
+
+use trig, only: d2r
+
+implicit none
+
+! Arguments
+double precision :: str, dip, normal_vec(3)
+
+normal_vec(1) = sin(dip*d2r)*sin((str+90.0d0)*d2r)
+normal_vec(2) = sin(dip*d2r)*cos((str+90.0d0)*d2r)
+normal_vec(3) = cos(dip*d2r)
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine strdip2updip(str,dip,updip_vec)
+!----
+! Given the strike (degrees CW from north) and dip (degrees from horizontal) of a plane, calculate
+! the vector pointing up-dip (east, north, and vertical components).
+!----
+
+use trig, only: d2r
+
+implicit none
+
+! Arguments
+double precision :: str, dip, updip_vec(3)
+
+updip_vec(1) = -cos(dip*d2r)*sin((str+90.0d0)*d2r)
+updip_vec(2) = -cos(dip*d2r)*cos((str+90.0d0)*d2r)
+updip_vec(3) = sin(dip*d2r)
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine normal2strike(normal_vec,strike_vec)
+use algebra, only: normalize
+implicit none
+! Arguments
+double precision :: normal_vec(3), strike_vec(3)
+
+if (abs(normal_vec(1)).lt.1.0d-6.and.abs(normal_vec(2)).lt.1.0d-6) then
+    strike_vec(1) = 1.0d0
+    strike_vec(2) = 0.0d0
+    strike_vec(3) = 0.0d0
+else
+    strike_vec(1) = -normal_vec(2)
+    strike_vec(2) = normal_vec(1)
+    strike_vec(3) = 0.0d0
+endif
+
+call normalize(strike_vec)
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine normal2updip(normal_vec,updip_vec)
+use trig, only: pi
+implicit none
+! Arguments
+double precision :: normal_vec(3), updip_vec(3)
+
+if (abs(normal_vec(1)).lt.1.0d-6.and.abs(normal_vec(2)).lt.1.0d-6) then
+    updip_vec(1) = 0.0d0
+    updip_vec(2) = 1.0d0
+    updip_vec(3) = 0.0d0
+else
+    updip_vec(1) = normal_vec(3)*cos(atan2(normal_vec(2),normal_vec(1))+pi)
+    updip_vec(2) = normal_vec(3)*sin(atan2(normal_vec(2),normal_vec(1))+pi)
+    updip_vec(3) = sqrt(normal_vec(1)*normal_vec(1)+normal_vec(2)*normal_vec(2))
+endif
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+!
+! subroutine nvec2sdvec(normal_vector,strike_vector,dip_vector)
+! !----
+! ! Calculate the vectors parallel to strike and dip of a plane, given its normal vector.
+! !----
+!
+! use io, only: stderr
+!
+! implicit none
+!
+! ! Arguments
+! double precision :: normal_vector(3), strike_vector(3), dip_vector(3)
+!
+! ! Local variables
+! double precision :: magnitude, strike_angle
+!
+! ! Initialize strike, dip vectors
+! strike_vector = 0.0d0
+! dip_vector = 0.0d0
+!
+! ! Normalize normal vector
+! magnitude = normal_vector(1)*normal_vector(1) + &
+!             normal_vector(2)*normal_vector(2) + &
+!             normal_vector(3)*normal_vector(3)
+!
+! if (magnitude.lt.1.0d-10) then
+!     write(stderr,*) 'normalvec2strdipvec: normal vector magnitude is zero'
+!     return
+! endif
+!
+! normal_vector = normal_vector/magnitude
+!
+! ! Strike is horizontal, parallel to plane
+! strike_angle = atan2(normal_vector(1),normal_vector(2))
+! strike_vector(1) = sin(strike_angle)
+! strike_vector(2) = cos(strike_angle)
+! strike_vector(3) = 0.0d0
+!
+! ! Up-dip is perpendicular to strike, normal
+! dip_vector(1) = normal_vector(2)*strike_vector(3) - normal_vector(3)*strike_vector(2)
+! dip_vector(2) = normal_vector(3)*strike_vector(1) - normal_vector(1)*strike_vector(3)
+! dip_vector(3) = normal_vector(1)*strike_vector(2) - normal_vector(2)*strike_vector(1)
+!
+! return
+! end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 

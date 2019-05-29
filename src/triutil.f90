@@ -19,6 +19,7 @@ logical :: iWantDisp                    ! Boolean for calculating displacement
 logical :: iWantStrain
 logical :: iWantStress
 logical :: iWantTraction
+logical :: iWantProg
 character(len=16) :: coord_type         ! cartesian-m, cartesian-km, geographic
 integer :: nfaults
 integer :: nstations
@@ -67,13 +68,17 @@ subroutine read_faults()
 !----
 
 use io, only: stderr, line_count
-use triutil, only: fault_file, nfaults, faults, isFaultFileDefined
+use triutil, only: fault_file, &
+                   nfaults, &
+                   faults, &
+                   isFaultFileDefined
 implicit none
 
 ! Local variables
 integer :: i, j, ios
 character(len=512) :: input_line
 logical :: doesFaultFileExist
+
 
 ! Initialize ios
 ios = 0
@@ -91,6 +96,7 @@ endif
 ! Fault array: x1 y1 z1 x2 y2 z2 x3 y3 z3 ss ds ts
 nfaults = line_count(fault_file)
 allocate(faults(nfaults,12))
+! write(0,*) 'read_faults: nfaults=',nfaults
 
 ! Read fault file
 open(unit=12,file=fault_file,status='old')
@@ -105,6 +111,7 @@ do i = 1,nfaults
         read(input_line,*,iostat=ios,err=1001,end=1002) (faults(i,j),j=1,11)
         faults(i,12) = 0.0d0
     endif
+    ! write(0,*) 'read_faults:',i,faults(i,:)
 enddo
 close(12)
 
@@ -130,13 +137,19 @@ subroutine read_stations()
 !----
 
 use io, only: stderr, line_count
-use triutil, only: station_file, nstations, stations, isStationFileDefined
+
+use triutil, only: station_file, &
+                   nstations, &
+                   stations, &
+                   isStationFileDefined
+
 implicit none
 
 ! Local variables
 integer :: i, j, ios
 character(len=512) :: input_line
 logical :: doesStationFileExist
+
 
 ! Check that station file is defined and the file exists
 if (.not.isStationFileDefined) then
@@ -149,6 +162,7 @@ endif
 
 ! Count number of stations and allocate memory to station array (x y z)
 nstations = line_count(station_file)
+! write(0,*) 'read_stations: nstations=',nstations
 allocate(stations(nstations,3))
 
 ! Read stations
@@ -156,6 +170,7 @@ open(unit=13,file=station_file,status='old')
 do i = 1,nstations
     read(13,'(A)') input_line
     read(input_line,*,iostat=ios,err=1003,end=1004) (stations(i,j),j=1,3)
+    ! write(0,*) 'read_stations: ',i,stations(i,:)
 enddo
 close(13)
 
@@ -181,13 +196,20 @@ subroutine read_targets()
 !----
 
 use io, only: stderr, line_count
-use triutil, only: target_file, targets, isTargetFileDefined, iWantTraction, nstations
+
+use triutil, only: target_file, &
+                   targets, &
+                   isTargetFileDefined, &
+                   iWantTraction, &
+                   nstations
+
 implicit none
 
 ! Local variables
 integer :: i, j, ios, ntargets
 character(len=512) :: input_line
 logical :: doesTargetFileExist
+
 
 ! Check that tractions need to be resolved, target fault file is defined, and the file exists
 if (.not.iWantTraction) then
@@ -241,122 +263,17 @@ end subroutine read_targets
 
 subroutine read_halfspace()
 !----
-! Read half-space elastic moduli from file (if provided), in format:
-!     lbl1 value1 lbl2 value2 [lbl3 value3]
+! Read half-space parameters with the subroutine read_halfspace_file in the elast module.
 !----
-
-use io, only: stderr, line_count
-use triutil, only: halfspace_file, poisson, shearmod, lame
+use elast, only: read_halfspace_file
+use triutil, only: halfspace_file, &
+                   poisson, &
+                   lame, &
+                   shearmod
 implicit none
-
-! Local variables
-integer :: i, j, ios
-character(len=512) :: input_line
-logical :: doesHalfspaceFileExist
-character(len=32) :: lbl(3)
-double precision :: val(3)
-
-! If not defined, use defaults from gcmdln()
-if (halfspace_file.eq.'') then
-    return
-endif
-
-! Check whether half-space file exists
-inquire(exist=doesHalfspaceFileExist,file=halfspace_file)
-if (.not.doesHalfspaceFileExist) then
-    write(stderr,*) 'read_halfspace: no half-space file named '//trim(halfspace_file)//' found'
-    write(stderr,*) 'using default elastic moduli values'
-    return
-endif
-
-! Initialize modulus variables
-lbl = ''
-val = 0.0d0
-
-! Open the file and read the half-space elastic moduli
-open(unit=15,file=halfspace_file,status='old')
-read(15,'(A)') input_line
-read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2), lbl(3), val(3)
-if (ios.ne.0) then
-    read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2)
-endif
-if (ios.ne.0) then
-    write(stderr,*) 'read_halfspace: error reading modulus labels and values'
-    call usage('offending line: '//trim(input_line))
-endif
-close(15)
-
-do i = 1,2
-    if (lbl(i).eq.'mu' .or. lbl(i).eq.'shear_modulus' .or. lbl(i).eq.'shear' .or. &
-                                                                     lbl(i).eq.'shearmod') then
-        lbl(i) = 'shearmod'
-    elseif (lbl(i).eq.'lame') then
-        lbl(i) = 'lame'
-    elseif (lbl(i).eq.'poisson' .or. lbl(i).eq.'nu') then
-        lbl(i) = 'poisson'
-    elseif (lbl(i).eq.'young') then
-        lbl(i) = 'young'
-    elseif (lbl(i).eq.'vp'.or.lbl(i).eq.'vs'.or.lbl(i).eq.'dens') then
-        ! Okay
-    else
-        write(stderr,*) 'read_halfspace: elastic modulus "',trim(lbl(i)),'" not implemented'
-        call usage('specify two of: shear_modulus, lame, poisson, or young OR vp vs dens')
-    endif
-enddo
-
-! Subroutines use poisson to compute displacement and strain, lame and shearmod to compute stress
-do i = 1,2
-
-    j = mod(i,2)+1
-
-    if (lbl(i).eq.'shearmod'.and.lbl(j).eq.'lame') then
-        ! Calculate Poisson's ratio from Lame's parameter and shear modulus
-        shearmod = val(i)
-        lame = val(j)
-        poisson = lame/(2.0d0*(lame+shearmod))
-
-    elseif (lbl(i).eq.'shearmod'.and.lbl(j).eq.'poisson') then
-        ! Calculate Lame's parameter from Poisson's ratio and shear modulus
-        shearmod = val(i)
-        poisson = val(j)
-        lame = 2.0d0*shearmod*poisson/(1.0d0-2.0d0*poisson)
-
-    elseif (lbl(i).eq.'shearmod'.and.lbl(j).eq.'young') then
-        ! Calculate Lame's parameter and Poisson's ratio from Young's modulus and shear modulus
-        shearmod = val(i)
-        lame = shearmod*(val(j)-2.0d0*shearmod)/(3.0d0*shearmod-val(j))
-        poisson = lame/(2.0d0*(lame+shearmod))
-
-    elseif (lbl(i).eq.'lame'.and.lbl(j).eq.'poisson') then
-        ! Calculate shear modulus from Lame's parameter and Poisson's ratio
-        lame = val(i)
-        poisson = val(j)
-        shearmod = lame*(1.0d0-2.0d0*poisson)/(2.0d0*poisson)
-
-    elseif (lbl(i).eq.'lame'.and.lbl(j).eq.'young') then
-        ! Calculate shear modulus and Poisson's ratio from Lame's parameter and Young's modulus
-        lame = val(i)
-        poisson = 2.0d0*lame/(val(j)+lame+sqrt(val(j)*val(j)+9.0d0*lame*lame+2.0d0*lame*val(j)))
-        shearmod = lame*(1.0d0-2.0d0*poisson)/(2.0d0*poisson)
-
-    elseif (lbl(i).eq.'poisson'.and.lbl(j).eq.'young') then
-        ! Calculate shear modulus and Lame's parameter from Poisson's ratio and Young's modulus
-        poisson = val(i)
-        shearmod = val(j)/(2.0d0*(1.0d0+poisson))
-        lame = 2.0d0*shearmod*poisson/(1.0d0-2.0d0*poisson)
-
-    endif
-enddo
-
-if (lbl(1).eq.'vp'.and.lbl(2).eq.'vs'.and.lbl(3).eq.'dens') then
-    ! Calculate shear modulus, Lame's parameter, and Poisson's ratio from seismic velocities and density
-    shearmod = val(2)*val(2)*val(3)
-    lame = val(3)*val(3)*val(3) + 2.0d0*shearmod
-    poisson = lame/(2.0d0*(lame+shearmod))
-endif
-
+call read_halfspace_file(halfspace_file,poisson,shearmod,lame)
 return
-end subroutine read_halfspace
+end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
@@ -365,6 +282,13 @@ subroutine calc_deformation()
 ! Calculate all requested deformation values at station locations
 !----
 
+use io, only: stderr, verbosity, progress_indicator
+use trig, only: d2r
+use elast, only: strain2stress, stress2traction, max_shear_stress, traction_components
+use algebra, only: dot_product
+use eq, only: sdr2sv
+use geom, only: strdip2normal
+
 use triutil, only: displacement_file, &
                    strain_file, &
                    stress_file, &
@@ -372,18 +296,25 @@ use triutil, only: displacement_file, &
                    normal_file, &
                    shear_file, &
                    coulomb_file, &
-                   iWantDisp, iWantStrain, iWantStress, iWantTraction, &
-                   nstations, stations, targets, &
-                   lame, shearmod
-use elast, only: strain2stress, max_shear_stress, calc_tractions
-use io, only: stderr, verbosity
+                   iWantDisp, &
+                   iWantStrain, &
+                   iWantStress, &
+                   iWantTraction, &
+                   iWantProg, &
+                   nstations, &
+                   stations, &
+                   targets, &
+                   lame, &
+                   shearmod
+
 implicit none
 
 ! Local variables
-integer :: iSta, file_unit
+integer :: ierr, iSta, file_unit
 logical :: isThisUnitOpen
 double precision :: disp(3), strain(3,3), stress(3,3), estress
-double precision :: trac_vector(3), shear, shearmax, normal, coulomb
+double precision :: trac_vector(3), shear, shearmax, normal, coulomb, svec(3), nvec(3), tstr, tupd
+
 
 ! Check which calculations are needed and open output files if requested
 if (iWantDisp) then
@@ -428,6 +359,8 @@ if (iWantTraction) then
     endif
 endif
 
+
+
 ! Calculate the requested quantities at each station
 do iSta = 1,nstations
 
@@ -449,7 +382,7 @@ do iSta = 1,nstations
     endif
 
     if (iWantStress) then
-        call strain2stress(stress,strain,lame,shearmod)
+        call strain2stress(strain,lame,shearmod,stress)
         ! Stress tensor: sxx, syy, szz, sxy, sxz, syz
         if (stress_file.ne.'') then
             write(121,*) stations(iSta,:),stress(1,1),stress(2,2),stress(3,3), &
@@ -457,13 +390,21 @@ do iSta = 1,nstations
         endif
         ! Maximum (effective) shear stress: estress
         if (estress_file.ne.'') then
-            call max_shear_stress(estress,stress)
-            write(121,*) stations(iSta,:),estress
+            call max_shear_stress(stress,estress)
+            write(122,*) stations(iSta,:),estress
         endif
     endif
 
     if (iWantTraction) then
-        call calc_tractions(trac_vector,shear,shearmax,normal,coulomb,stress,targets(iSta,:))
+        ! call calc_tractions(trac_vector,shear,shearmax,normal,coulomb,stress,targets(iSta,:))
+        call sdr2sv(targets(iSta,1),targets(iSta,2),targets(iSta,3),svec)
+        call strdip2normal(targets(iSta,1),targets(iSta,2),nvec)
+        call stress2traction(stress,nvec,trac_vector)
+        call traction_components(trac_vector,nvec,normal,tstr,tupd)
+        shearmax = sqrt(tstr*tstr+tupd*tupd)
+        shear = tstr*cos(targets(iSta,3)*d2r) + tupd*sin(targets(iSta,3)*d2r)
+        coulomb = shear + targets(iSta,4)*normal
+
         ! Normal traction: normal (positive=dilation)
         if (normal_file.ne.'') then
             write(131,*) stations(iSta,:),normal
@@ -475,6 +416,13 @@ do iSta = 1,nstations
         ! Coulomb stress: coulomb
         if (coulomb_file.ne.'') then
             write(133,*) stations(iSta,:),coulomb
+        endif
+    endif
+
+    if (iWantProg) then
+        call progress_indicator(iSta,nstations,'triutil calc_deformation',ierr)
+        if (ierr.ne.0) then
+            call usage('calc_deformation: error in progress_indicator')
         endif
     endif
 enddo
@@ -509,6 +457,7 @@ if (isThisUnitOpen) then
     close(file_unit)
 endif
 
+
 return
 end subroutine calc_deformation
 
@@ -520,8 +469,16 @@ subroutine calc_displacement(disp,x,y,z)
 ! displacement uz is defined positive up.
 !----
 
-use triutil, only: nfaults, faults, poisson, coord_type     ! Fault and half-space variables
+use trig, only: d2r
+use geom, only: lola2distaz
 use tri_disloc, only: tri_disloc_disp, tri_center           ! Triangular dislocation subroutines
+use earth, only: radius_earth_m
+
+use triutil, only: nfaults, &
+                   faults, &
+                   poisson, &
+                   coord_type     ! Fault and half-space variables
+
 implicit none
 
 ! Arguments
@@ -556,23 +513,26 @@ do iFlt = 1,nfaults
     slip(1) = -faults(iFlt,10)        ! triutil: ll positive;  tri_disloc_disp(): rl positive
     slip(2) = -faults(iFlt,11)        ! triutil: thr positive; tri_disloc_disp(): nor positive
     slip(3) = faults(iFlt,12)
+    ! write(0,*) 'triutil    : tri_coord',tri_coord(1:3,1:3)
+    ! write(0,*) 'triutil    : slip',slip
 
     if (coord_type.eq.'geographic') then
         ! Convert lon lat dep(km) to x(m) y(m) z(m) from triangle center
         call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
-        call ddistaz(dist,az,center(1),center(2),x,y)
-        sta_coord(1) = dist*6.371d6*dsin(az)
-        sta_coord(2) = dist*6.371d6*dcos(az)
+        call lola2distaz(center(1),center(2),x,y,dist,az)
+        sta_coord(1) = dist*radius_earth_m*dsin(az*d2r)
+        sta_coord(2) = dist*radius_earth_m*dcos(az*d2r)
         do iTri = 1,3
-            call ddistaz(dist,az,center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri))
-            tri_coord_new(1,iTri) = dist*6.371d6*dsin(az)
-            tri_coord_new(2,iTri) = dist*6.371d6*dcos(az)
+            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az)
+            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az*d2r)
+            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az*d2r)
             tri_coord_new(3,iTri) = tri_coord(3,iTri)*1.0d3
         enddo
     else
         ! Convert triangle x(km) y(km) z(km) to x(m) y(m) z(m)
         tri_coord_new = tri_coord*1.0d3
     endif
+    ! write(0,*) 'triutil    : sta_coord',sta_coord
 
     call tri_disloc_disp(disptmp, sta_coord, tri_coord_new, poisson, slip)
     disp = disp + disptmp
@@ -592,8 +552,16 @@ subroutine calc_strain(strain,x,y,z)
 ! strain z coordinate is defined positive up.
 !----
 
-use triutil, only: nfaults, faults, poisson, coord_type   ! Fault and half-space variables
+use trig, only: d2r
 use tri_disloc, only: tri_disloc_strain, tri_center       ! Triangular dislocation subroutines
+use geom, only: lola2distaz
+use earth, only: radius_earth_m
+
+use triutil, only: nfaults, &
+                   faults, &
+                   poisson, &
+                   coord_type   ! Fault and half-space variables
+
 implicit none
 
 ! Arguments
@@ -632,13 +600,13 @@ do iFlt = 1,nfaults
     if (coord_type.eq.'geographic') then
         ! Convert lon lat dep(km) to x(m) y(m) z(m) from triangle center
         call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
-        call ddistaz(dist,az,center(1),center(2),x,y)
-        sta_coord(1) = dist*6.371d6*dsin(az)
-        sta_coord(2) = dist*6.371d6*dcos(az)
+        call lola2distaz(center(1),center(2),x,y,dist,az)
+        sta_coord(1) = dist*radius_earth_m*dsin(az*d2r)
+        sta_coord(2) = dist*radius_earth_m*dcos(az*d2r)
         do iTri = 1,3
-            call ddistaz(dist,az,center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri))
-            tri_coord_new(1,iTri) = dist*6.371d6*dsin(az)
-            tri_coord_new(2,iTri) = dist*6.371d6*dcos(az)
+            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az)
+            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az*d2r)
+            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az*d2r)
             tri_coord_new(3,iTri) = tri_coord(3,iTri)*1.0d3
         enddo
     else
@@ -650,11 +618,11 @@ do iFlt = 1,nfaults
     strain = strain + straintmp
 enddo
 
-! Output from tri_disloc_disp is positive down, so invert xz and yz strain components
+! Output from tri_disloc_strain is positive down, so invert xz and yz strain components
 strain(1,3) = -strain(1,3)
-strain(3,1) = -strain(1,3)
+strain(3,1) = -strain(3,1)
 strain(2,3) = -strain(2,3)
-strain(3,2) = -strain(2,3)
+strain(3,2) = -strain(3,2)
 
 return
 end subroutine calc_strain
@@ -684,6 +652,7 @@ use triutil, only: fault_file, &
                    iWantStrain, &
                    iWantStress, &
                    iWantTraction, &
+                   iWantProg, &
                    poisson, &
                    lame, &
                    shearmod
@@ -713,6 +682,7 @@ iWantDisp = .false.
 iWantStrain = .false.
 iWantStress = .false.
 iWantTraction = .false.
+iWantProg = .false.
 poisson = 0.25d0
 lame = 40.0d9
 shearmod = 40.0d9
@@ -817,6 +787,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-cartesian'.or.trim(tag).eq.'-xy') then
         coord_type = 'cartesian'
 
+    elseif (trim(tag).eq.'-prog') then
+        iWantProg = .true.
+
     elseif (trim(tag).eq.'-v'.or.trim(tag).eq.'-verbose'.or.trim(tag).eq.'-verbosity') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -833,17 +806,17 @@ enddo
 
 if (verbosity.ge.1) then
     write(stderr,*) 'gcmdln read:'
-    write(stderr,*) 'fault_file:          ',fault_file
-    write(stderr,*) 'station_file:        ',station_file
-    write(stderr,*) 'target_file:         ',target_file
-    write(stderr,*) 'halfspace_file:      ',halfspace_file
-    write(stderr,*) 'displacement_file:   ',displacement_file
-    write(stderr,*) 'strain_file:         ',strain_file
-    write(stderr,*) 'stress_file:         ',stress_file
-    write(stderr,*) 'estress_file:        ',estress_file
-    write(stderr,*) 'normal_file:         ',normal_file
-    write(stderr,*) 'shear_file:          ',shear_file
-    write(stderr,*) 'coulomb_file:        ',coulomb_file
+    write(stderr,*) 'fault_file:          ',trim(fault_file)
+    write(stderr,*) 'station_file:        ',trim(station_file)
+    write(stderr,*) 'target_file:         ',trim(target_file)
+    write(stderr,*) 'halfspace_file:      ',trim(halfspace_file)
+    write(stderr,*) 'displacement_file:   ',trim(displacement_file)
+    write(stderr,*) 'strain_file:         ',trim(strain_file)
+    write(stderr,*) 'stress_file:         ',trim(stress_file)
+    write(stderr,*) 'estress_file:        ',trim(estress_file)
+    write(stderr,*) 'normal_file:         ',trim(normal_file)
+    write(stderr,*) 'shear_file:          ',trim(shear_file)
+    write(stderr,*) 'coulomb_file:        ',trim(coulomb_file)
     write(stderr,*) 'isFaultFileDefined:  ',isFaultFileDefined
     write(stderr,*) 'isStationFileDefined:',isStationFileDefined
     write(stderr,*) 'isTargetFileDefined: ',isTargetFileDefined
@@ -852,7 +825,7 @@ if (verbosity.ge.1) then
     write(stderr,*) 'iWantStrain:         ',iWantStrain
     write(stderr,*) 'iWantStress:         ',iWantStress
     write(stderr,*) 'iWantTraction:       ',iWantTraction
-    write(stderr,*) 'coord_type:          ',coord_type
+    write(stderr,*) 'coord_type:          ',trim(coord_type)
     write(stderr,*) 'verbosity:           ',verbosity
 endif
 
@@ -893,6 +866,8 @@ write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires
 write(stderr,*) '-shear SHRFILE       Shear traction on target faults (requires -trg)'
 write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires -trg)'
 write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
+write(stderr,*) '-prog                Progress indicator'
+write(stderr,*) '-v LVL               Turn on verbose mode'
 write(stderr,*)
 write(stderr,*) 'See man page for details'
 write(stderr,*)

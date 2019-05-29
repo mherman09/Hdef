@@ -4,34 +4,33 @@
 #	USAGE STATEMENT
 #####
 function usage() {
-    echo "$0 -f IFILE [-c CPT] [-s SCALE] [-j DX] [-a PSFILE]" 1>&2
-    echo "    [-x X0,Y0,WID] [-t FONTSZ] [--shift_ss X,Y] [--adjust_proj FRAC]" 1>&2
-    echo "    -f IFILE             Input file (fth fss fno [mag [val]])" 1>&2
-    echo "    -c CPT               Color palette file (color by val in fifth column)" 1>&2
-    echo "    -s SCALE             Symbol scale factor (default: 0.002 in)" 1>&2
-    echo "    -j DX                Jitter symbols randomly by up to DX in (default: none)" 1>&2
-    echo "    -a PSFILE            Add ternary diagram to an existing PostScript file" 1>&2
-    echo "    -x X0,Y0,WID         Move or resize triangle(x0,y0,wid); origin at bottom left (default: 1,1,5 in)" 1>&2
-    echo "    -t FONTSZ            Define font size (default: scaled with WID)" 1>&2
-    echo "    --shift_ss X,Y       Move labels on ternary diagram (alternatively, _th, _no)" 1>&2
-    echo "    --adjust_proj FRAC   Define fraction for combined projection (0-1; default:0)" 1>&2
-    echo
-    echo " NOTE: all units are inches"
-    exit
+    echo "Usage: ternary.sh -f IFILE [...options...]" 1>&2
+    echo 1>&2
+    echo "-f IFILE             Input file (fth fss fno [mag [val]])" 1>&2
+    echo "-c CPT               Color palette file (color by val in fifth column)" 1>&2
+    echo "-s SCALE             Symbol scale factor (default: 0.2)" 1>&2
+    echo "-j DX                Jitter symbols randomly by up to DX in (default: none)" 1>&2
+    echo "-a PSFILE            Add ternary diagram to an existing PostScript file" 1>&2
+    echo "-x X0,Y0,WID         Move/resize triangle; origin at bottom left (default: 1,1,5 in)" 1>&2
+    echo "-t FONTSZ            Define font size (default: scaled with WID)" 1>&2
+    echo "--shift_ss X,Y       Move labels on ternary diagram (alternatively, _th, _no)" 1>&2
+    echo "--frac_simple FRAC   Fraction simple projection (default:0.33)" 1>&2
+    echo 1>&2
+    exit 1
 }
 
 #####
 #	PARSE COMMAND LINE
 #####
-SCALE="0.002"
-JITTER=0
+SCALE="0.2"
+JITTER="0"
 APPEND=""
 ALTER=""
 FONTSZ=""
 SS_SHFT="0,0"
 TH_SHFT="0,0"
 NO_SHFT="0,0"
-FRAC_SIMPLE="0"
+FRAC_SIMPLE="0.33"
 if [ $# -eq 0 ]; then usage; fi
 while [ "$1" != "" ]; do
     case $1 in
@@ -45,13 +44,17 @@ while [ "$1" != "" ]; do
         --shift_ss) shift;SS_SHFT="$1";;
         --shift_th) shift;TH_SHFT="$1";;
         --shift_no) shift;NO_SHFT="$1";;
-        --adjust_proj) shift;FRAC_SIMPLE="$1";;
+        --frac_simple) shift;FRAC_SIMPLE="$1";;
         -h) usage;;
          *) echo No option $1;usage
     esac
     shift
 done
-if [ -z $SCALE ];then echo Did not define scale, setting to 0.002;SCALE="0.002";fi
+if [ -z $SCALE ]
+then
+    echo "ternary.sh: no symbol scale defined, setting to 0.2" 1>&2
+    SCALE="0.2"
+fi
 FRAC_SIMPLE=`echo $FRAC_SIMPLE | awk '{if($1<0){print 0}else if($1>1){print 1}else{print $1}}'`
 
 #####
@@ -59,19 +62,31 @@ FRAC_SIMPLE=`echo $FRAC_SIMPLE | awk '{if($1<0){print 0}else if($1>1){print 1}el
 #####
 if [ -z "$IFILE" ]
 then
-    echo No input file defined
-    exit
+    echo "ternary.sh: no input file defined" 1>&2
+    usage
 elif [ ! -f "$IFILE" ]
 then
-    echo No input file $IFILE found
-    exit
+    echo "ternary.sh: no input file $IFILE found" 1>&2
+    usage
 fi
 MODE=`sed -n "1p" $IFILE | awk '{print NF}'`
 case $MODE in
-    3)OPT="-Sc0.2i -Ggrey";;
-    4)OPT="-Sci -Ggrey";;
-    5)OPT="-Sci -C$CPT";;
-    *)echo No option for this many fields in input file; exit;;
+    3) OPT="-Sc${SCALE}i -Ggrey";;
+    4) OPT="-Sci -Ggrey";;
+    5) OPT="-Sci -C$CPT"
+       if [ "$CPT" == "" ]
+       then
+           echo "ternary.sh: no color palette defined" 1>&2
+           MODE=4
+           OPT="-Sci -Ggrey"
+       elif [ ! -f "$CPT" ]
+       then
+           echo "ternary.sh: no color palette file named $CPT found" 1>&2
+           MODE=4
+           OPT="-Sci -Ggrey"
+       fi
+       ;;
+    *) echo "No option for this many fields in input file" 1>&2; usage;;
 esac
 
 #####
@@ -105,7 +120,7 @@ LIMS="-R$XMIN/$XMAX/$YMIN/$YMAX"
 if [ -z "$APPEND" ]
 then
     PSFILE="ternary.ps"
-    echo 0 0 | gmt psxy $PROJ $LIMS -K > $PSFILE
+    echo 0 0 | gmt psxy $PROJ $LIMS -K -P --PS_MEDIA=8.5ix11i > $PSFILE
 else
     PSFILE="$APPEND"
 fi
@@ -262,15 +277,19 @@ fi
 OFFSET=`echo $WID 5 0.2 | awk '{print $1/$2*$3}'`
 SS_DX=`echo $SS_SHFT | awk -F, '{print $1}'`
 SS_DY=`echo $SS_SHFT | awk -F, '{print $2+'"$OFFSET"'}'`
-echo 0 $YMAX $FONT_SIZE,0 CB Slip | gmt pstext $PROJ $LIMS -F+f+j -D${SS_DX}i/${SS_DY}i -N -K -O >> $PSFILE
+echo 0 $YMAX $FONT_SIZE,0 CB Slip |\
+    gmt pstext $PROJ $LIMS -F+f+j -D${SS_DX}i/${SS_DY}i -N -K -O >> $PSFILE
 SS_DY=`echo $SS_DY $FONT_SIZE | awk '{print $1+$2/72}'`
-echo 0 $YMAX $FONT_SIZE,0 CB Strike | gmt pstext $PROJ $LIMS -F+f+j -D${SS_DX}i/${SS_DY}i -N -K -O >> $PSFILE
+echo 0 $YMAX $FONT_SIZE,0 CB Strike |\
+    gmt pstext $PROJ $LIMS -F+f+j -D${SS_DX}i/${SS_DY}i -N -K -O >> $PSFILE
 NO_DX=`echo $NO_SHFT | awk -F, '{print $1}'`
 NO_DY=`echo $NO_SHFT | awk -F, '{print $2-'"$OFFSET"'}'`
-echo $XMIN $YMIN $FONT_SIZE,0 LT Normal | gmt pstext $PROJ $LIMS -F+f+j -D${NO_DX}i/${NO_DY}i -N -K -O >> $PSFILE
+echo $XMIN $YMIN $FONT_SIZE,0 LT Normal |\
+    gmt pstext $PROJ $LIMS -F+f+j -D${NO_DX}i/${NO_DY}i -N -K -O >> $PSFILE
 TH_DX=`echo $TH_SHFT | awk -F, '{print $1}'`
 TH_DY=`echo $TH_SHFT | awk -F, '{print $2-'"$OFFSET"'}'`
-echo $XMAX $YMIN $FONT_SIZE,0 RT Thrust | gmt pstext $PROJ $LIMS -F+f+j -D${TH_DX}i/${TH_DY}i -N -K -O >> $PSFILE
+echo $XMAX $YMIN $FONT_SIZE,0 RT Thrust |\
+    gmt pstext $PROJ $LIMS -F+f+j -D${TH_DX}i/${TH_DY}i -N -K -O >> $PSFILE
 
 # Plot data
 TIME=`date "+%s"`
@@ -297,15 +316,15 @@ awk 'BEGIN{
     h = frac*hs + (1-frac)*h
     v = frac*vs + (1-frac)*v
     if (jitter>0) {
-        h = h + (rand()-0.5)*0.02
-        v = v + (rand()-0.5)*0.02
+        h = h + (rand()-0.5)*jitter
+        v = v + (rand()-0.5)*jitter
     }
-    if (NF==3) {
+    if ('"$MODE"'==3) {
         print h,v
-    } else if (NF==4) {
-        print h,v,$4*$4*$4*scl
-    } else if (NF==5) {
-        print h,v,$5,$4*$4*$4*scl
+    } else if ('"$MODE"'==4) {
+        print h,v,$4*$4*$4*scl/100
+    } else if ('"$MODE"'==5) {
+        print h,v,$5,$4*$4*$4*scl/100
     }
 }' $IFILE |\
     gmt psxy $PROJ $LIMS $OPT -W0.5p -N -K -O >> $PSFILE

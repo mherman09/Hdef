@@ -11,6 +11,7 @@
 C----
 C Get file names from command line
 C----
+      write(0,*) 'WARNING: NUMINT HAS NOT BEEN TESTED AT ALL!'
       call gcmdln(ifile,ofile)
       inquire(file=ifile,EXIST=ex)
       if (.not.ex) then
@@ -56,7 +57,7 @@ C======================================================================C
 
       ifile = 'numint.in'
       ofile = 'numint.out'
-      
+
       narg = iargc()
       if (narg.eq.0) call usage()
       i = 0

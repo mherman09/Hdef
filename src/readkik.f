@@ -7,7 +7,7 @@ C----
       IMPLICIT none
       CHARACTER*80 kikfile,accfile,velfile,dspfile
       LOGICAL ex
-      
+
       INTEGER n,ntot,NMAX,nstart,nfinish
       PARAMETER (NMAX=100000)
       REAL*8 acc(NMAX),vel(NMAX),dsp(NMAX),tstart,dt,first
@@ -18,7 +18,7 @@ C----
       call gcmdln(kikfile,accfile,velfile,dspfile,first)
       inquire(file=kikfile,exist=ex)
       if (.not.ex) then
-          write(*,9999),kikfile
+          write(*,9999) kikfile
           write(*,*)
           call usage()
       endif
@@ -29,7 +29,7 @@ C----
      1                                        dspfile.eq.'none') then
           print *,'No output file designated!'
           call usage()
-      endif    
+      endif
 
 C----
 C Parse the strong motion file
@@ -72,7 +72,7 @@ C----
  9998 format(F10.3,E18.6)
 
       END
-      
+
 C======================================================================C
 
       SUBROUTINE readsmfile(kikfile,acc,ntot,tstart,dt)
@@ -91,11 +91,11 @@ C----
       REAL*8 yr0,mo0,dy0,hr0,mn0,sc0,yr1,mo1,dy1,hr1,mn1,sc1
       REAL*8 tstart
       INTEGER i
-      
+
       INTEGER n,ntot,NMAX
       PARAMETER (NMAX=100000)
       REAL*8 acc(NMAX),avg
-      
+
       open (unit=11,file=kikfile,status='old')
       read(11,1001) lbl,otimec
       read(11,1002) lbl,evla
@@ -130,7 +130,7 @@ C----
 C      write(*,1112) yr0,mo0,dy0,hr0,mn0,sc0
 C      write(*,1112) yr1,mo1,dy1,hr1,mn1,sc1
  1111 format(F4.0,1X,F2.0,1X,F2.0,1X,F2.0,1X,F2.0,1X,F2.0)
- 1112 format(F5.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0)
+C 1112 format(F5.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0,1X,F3.0)
       tstart = (hr1-hr0)*3.6d3 + (mn1-mn0)*6.0d1 + (sc1-sc0)
       tstart = tstart - 15.0d0
 
@@ -146,7 +146,7 @@ C----
       scalefactc(i:i+5) = ' '
       read (scalefactc,*) scaletop,scalebot
       scalefact = scaletop/scalebot
-      
+
 C----
 C Read in acceleration time series
 C----
@@ -170,18 +170,18 @@ C----
           acc(n) = acc(n) - avg
           acc(n) = 1.0d-2*acc(n)
   104 continue
-      
+
       RETURN
       END
 
 C----------------------------------------------------------------------C
 
       SUBROUTINE numint(oser,iser,dt,npts)
-      
+
       INTEGER n,npts,NMAX
       PARAMETER (NMAX=100000)
       REAL*8 oser(NMAX),iser(NMAX),dt
-      
+
       do 101 n = 1,npts
           if (n.eq.1) then
               oser(n) = 0.0d0
@@ -189,7 +189,7 @@ C----------------------------------------------------------------------C
               oser(n) = oser(n-1) + dt*0.5d0*(iser(n-1)+iser(n))
           endif
   101 continue
-      
+
       RETURN
       END
 C----------------------------------------------------------------------C
@@ -199,7 +199,7 @@ C----------------------------------------------------------------------C
       INTEGER i,npts,NMAX,nstart,nfinish
       PARAMETER (NMAX=100000)
       REAL*8 tseries(NMAX),avg
- 
+
       avg = 0.0d0
       do 101 i = nstart,nfinish
           avg = avg + tseries(i)
@@ -208,17 +208,17 @@ C----------------------------------------------------------------------C
       do 102 i = 1,npts
           tseries(i) = tseries(i) - avg
   102 continue
-      
+
       RETURN
       END
-      
+
 C----------------------------------------------------------------------C
 
       SUBROUTINE gcmdln(kikfile,accfile,velfile,dspfile,first)
       IMPLICIT none
       CHARACTER*30 tag
       CHARACTER*80 kikfile,accfile,velfile,dspfile
-      INTEGER i,narg,termout,trap
+      INTEGER i,narg !,termout,trap
       REAL*8 first
 
       kikfile = 'none'

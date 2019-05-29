@@ -1,94 +1,91 @@
-.TH GRID 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH GRID 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 grid \- generate regularly spaced points
 
 .SH SYNOPSIS
 .P
-.B grid
-.BI -x " x1 x2"
-.BI -dx " dx" "|-nx " nx
-.BI [-y " y1 y2" ]
-.BI [-dy " dy" "|-ny " ny ]
-.BI [...]
+.B grid [...options...]
 
 .SH DESCRIPTION
 .B grid
-produces regularly spaced points with a constant z-coordinate, on a dipping surface,
+produces regularly spaced points with options for projecting points onto a dipping surface
 or on a vertically dipping plane.
 
 .SH OPTIONS
 .TP
-.BI -x " x1 x2"
-Minimum and maximum x-coordinates
+.BI -x " x1 " [ x2 ]
+Minimum and (optional) maximum x-coordinates
+
 .TP
 .BI -dx " dx"
 X-coordinate increment
+
 .TP
 .BI -nx " nx"
 Number of points from minimum to maximum x-coordinate (inclusive)
+
 .TP
-.BI -y " y1 y2"
-Minimum and maximum y-coordinates
+.BI -y " y1 " [ y2 ]
+Minimum and (optional) maximum y-coordinates
+
 .TP
 .BI -dy " dy"
 Y-coordinate increment
+
 .TP
 .BI -ny " ny"
 Number of points from minimum to maximum y-coordinate (inclusive)
+
 .TP
-.BI -z " z"
-Z-coordinate (default: z=0)
+.BI -z " z1 " [ z2 ]
+Minimum and (optional) maximum z-coordinates
+
 .TP
-.BI -dip " lon0 lat0 dep0 strike dip"
+.BI -dz " dz"
+Z-coordinate increment
+
+.TP
+.BI -nz " nz"
+Number of points from minimum to maximum z-coordinate (inclusive)
+
+.TP
+.BI -dip " x0 y0 z0 strike dip"
 Project z-coordinates onto dipping plane with geometry
 .I strike
-and
+(degrees clockwise from north) and
 .IR dip ,
-containing the point
-.IR "" ( lon0 ", " lat0 ", " dep0 ).
-Treat
-.I x
-and
-.I y
-as geographic coordinates.
+(degrees from horizontal) containing the point
+.IR "" ( x0 ", " y0 ", " z0 ).
+
 .TP
-.BI -xsec " lon0 lat0 azimuth " [-xz]
+.BI -xsec " x0 y0 azimuth "
 Generate geographic points on a vertically dipping plane containing the point
-.IR "" ( lon0 ", " lat0 )
+.IR "" ( x0 ", " y0 )
 and with orientation
 .IR azimuth .
 Treat
 .I x
-as the horizontal distance (in km) parallel to the azimuth and 
+as the horizontal distance parallel to the azimuth and
 .I y
-as the depth (in km, positive downward). If
-.B -xz
-is used, then print the horizontal distance 
-.I x
-and the vertical depth
-.IR y .
+as the horizontal distance perpendicular to the azimuth.
+
 .TP
 .BI -R xmin / xmax / ymin / ymax
 Define
 .IR xmin ", " xmax ", " ymin ", and " ymax
 with GMT syntax.
+
 .TP
-.BI -clip " clip_file " [-in?[o2]]
-Set points outside polygon defined by
-.I clip_file
-to have depth 
-.IR z =-12345.
-If
-.B -in?
-is used, take points from standard input and only print them if they lie within the boundary
-defined by
-.IR clip_file .
-Appending
-.B o2
-will print outside elements followed by "OUTSIDE".
+.BI -geo
+Treat
+.B -dip
+and
+.B -xsec
+coordinates as lon and lat instead of x and y.
+
 .TP
-.BI -exp " x" | y
+.BI -exp
 Change definition of number of points or increment from linear to multiplicative.
 .I Nx
 and
@@ -98,6 +95,7 @@ specify number of points (including endpoints) with an equal ratio spacing, and
 and
 .I dy
 become multiplicative factors (required to be greater than 1).
+
 .TP
 .BI -o " output_file"
 Output file (default prints to standard output)

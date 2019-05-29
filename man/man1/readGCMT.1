@@ -1,0 +1,46 @@
+.TH READGCMT 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+readGCMT \- parse GCMT catalog
+
+.SH SYNOPSIS
+.P
+.B readGCMT
+.BI -f " gcmt_NDK_file"
+.BI [-rect " lon_min lon_max lat_min lat_max"
+.B |
+.BI -circle " lon0 lat0 distance" ]
+.BI [-mag " mag_min mag_max" ]
+.BI [-date " date_beg date_end" ]
+
+.SH DESCRIPTION
+.B readGCMT
+parses the Global Centroid Moment Tensor catalog (download this file at
+https://www.globalcmt.org/CMTfiles.html) and prints event data to standard output.
+The events can be sorted by location, magnitude, and date.
+
+.SH OPTIONS
+.TP
+.BI -f " gcmt_NDK_file"
+Full path to the GCMT catalog file
+
+.TP
+.BI -rect " lon_min lon_max lat_min lat_max"
+Select only events with centroids inside the rectangle defined by geographic limits
+
+.TP
+.BI -circle " lon0 lat0 distance"
+Select only events with centroids inside the circle defined by a central coordinate and
+distance in km
+
+.TP
+.BI -mag " mag_min mag_max"
+Select only events with moment magnitude in the specified range
+
+.TP
+.BI -date " date_beg date_end"
+Select only events with origin times in the time frame provided, with dates in the format
+YYYY-MM-DDTHH:MM:SS
+
+
+.RS

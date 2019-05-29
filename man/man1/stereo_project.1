@@ -1,0 +1,50 @@
+.TH STEREO_PROJECT 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+stereo_project \- compute stereographic projections
+
+.SH SYNOPSIS
+.P
+.B stereo_project
+.BI -geo2stereo|-stereo2geo
+.BI -lon0 " lon0"
+.BI -lat0 " lat0"
+.BI -radius " radius_sphere"
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+
+.SH DESCRIPTION
+.B stereo_project
+projects geographic coordinates onto a stereo plot, given a central longitude and latitude and
+sphere radius. Can perform either forward or inverse projection.
+
+.SH OPTIONS
+.TP
+.BI -geo2stereo
+Project geographic coordinates to Cartesian coordinates
+
+.TP
+.BI -stereo2geo
+Project Cartesian coordinates to geographic coordinates
+
+.TP
+.BI -lon0 " lon0"
+Central longitude
+
+.TP
+.BI -lat0 " lat0"
+Central latitude
+
+.TP
+.BI -radius " radius_sphere"
+Radius of the sphere
+
+.TP
+.BI -f " input_file"
+Input coordinate file (default reads from standard input)
+
+.TP
+.BI -o " output_file"
+Output coordinate file (default prints to standard output)
+
+.RS

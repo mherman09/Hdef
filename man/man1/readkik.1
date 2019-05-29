@@ -1,0 +1,46 @@
+.TH READKIK 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+readkik \- parse KiK-net strong motion file
+
+.SH SYNOPSIS
+.P
+.B readkik
+.BI -f " input_kik_file"
+.BI -acc " accel_file"
+.BI -vel " vel_file"
+.BI -dsp " displacement_file"
+.BI -first " arr_time"
+
+.SH DESCRIPTION
+.B readkik
+parses a strong motion file in KiK-net format into a two-column time series.
+Options to integrate numerically to velocity and displacement, and
+remove mean from segment of time series (default removes mean from entire time series).
+WARNING: THIS CODE HAS NOT BEEN TESTED AT ALL. IT APPEARED TO WORK ONCE, BUT THERE ARE NO
+GUARANTEES.
+
+.SH OPTIONS
+.TP
+.BI -f " input_kik_file"
+Input KiK-net strong motion file
+
+.TP
+.BI -acc " accel_file"
+Acceleration time series
+
+.TP
+.BI -vel " vel_file"
+Velocity time series (numerically integrated from acceleration)
+
+.TP
+.BI -dsp " displacement_file"
+Displacement time series (numerically integrated from velocity)
+
+.TP
+.BI -first " arr_time"
+Remove mean from first point in time series to
+.I arr_time
+in seconds (default: -1.0 s)
+
+.RS

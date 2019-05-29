@@ -20,7 +20,11 @@ character(len=*) :: string
 ! Local variables
 double precision :: diff
 
-diff = (actual_value-expected_value)/actual_value
+if (dabs(expected_value).lt.1.0d-10) then
+    diff = actual_value - expected_value
+else
+    diff = (actual_value-expected_value)/actual_value
+endif
 
 if (dabs(diff).gt.1.0d-10) then
     write(0,*) 'test FAILED for '//trim(string)
@@ -65,7 +69,11 @@ character(len=*) :: string
 ! Local variables
 real :: diff
 
-diff = (actual_value-expected_value)/actual_value
+if (abs(expected_value).lt.1.0e-10) then
+    diff = actual_value - expected_value
+else
+    diff = (actual_value-expected_value)/actual_value
+endif
 
 if (abs(diff).gt.1.0e-7) then
     write(0,*) 'test FAILED for '//trim(string)

@@ -1,0 +1,50 @@
+.TH DATEUTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+dateutil \- calculate calendar dates and number of days
+
+.SH SYNOPSIS
+.P
+.B dateutil
+.B -nday | -date
+.BI [-format " date_format" ]
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+
+.SH DESCRIPTION
+.B dateutil
+calculates the number of (decimal) days between two calendar dates or the calendar date given
+a starting date and number of days.
+
+.SH OPTIONS
+.TP
+.BI -nday
+Calculate number of days between two calendar dates
+
+.TP
+.BI -date
+Calculate the calendar date from a starting date and number of days
+
+.TP
+.BI -format " date_format"
+Define the input date format. Choose one of the following options:
+
+YYYY-MM-DD[THH:MM:SS] (default)
+.br
+YYYYMMDD[HHMMSS]
+.br
+YYYY MM DD [HH MM SS]
+
+Use quotations when specifying the third format to make sure the spaces are read
+correctly by
+.BR dateutil .
+
+.TP
+.BI -f " input_file"
+Input starting calendar date and either ending date or number of days
+
+.TP
+.BI -o " output_file"
+Output calendar date or number of days
+
+.RS

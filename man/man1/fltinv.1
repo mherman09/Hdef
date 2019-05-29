@@ -1,153 +1,97 @@
-.TH FLTINV 1 "Sep 2018" "Version 2018.09.16" "User Manuals"
+.TH FLTINV 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 fltinv \- invert displacement or pre-stresses for fault slip.
 
 .SH SYNOPSIS
 .P
-.B fltinv ...options...
+.B fltinv
+.BI -mode " inversion_mode"
+.BI -o " output_file"
+.BI "-flt " fault_file
+.BI [-flt:rake " rake_constraint_file" ]
+.BI [-flt:slip " slip_constraint_file" ]
+.BI -disp " displacement_file"
+.B |
+.BI -los " los_file"
+.B |
+.BI -prests " prestress_file"
+.BI "[-disp:components [" 1 ][ 2 ][ 3 ]]
+.BI [-cov_file " covariance_file" ]
+.BI -gf:model " model"
+.BI [-gf:disp_file " gf_disp_file" ]
+.BI [-gf:los_file " gf_los_file" ]
+.BI [-gf:stress_file " gf_stress_file" ]
+.B [-geo]
+.BI [-haf " halfspace_file"]
+.BI [-damping " damping_constant"]
+.BI [-smoothing " smoothing_constant smoothing_file"]
+.BI [-lsqr:mode " gels" | nnls | gesv ]
+.BI [-anneal:init_mode " mean" | min | max | rand | user | unlocked | locked ]
+.BI [-anneal:step " step_size" ]
+.BI [-anneal:max_it " max_iteration" ]
+.BI [-anneal:reset_iteration " reset_iteration" ]
+.BI [-anneal:temp_start " temp_start" ]
+.BI [-anneal:temp_min " temp_minimum" ]
+.BI [-anneal:cool " cooling_factor" ]
+.BI [-anneal:log_file " anneal_log_file" ]
+.BI [-anneal:seed " seed" ]
+.BI [-anneal-psc:min_flip " nmin" ]
+.BI [-anneal-psc:max_flip " nmax" ]
+.BI [-v " level" ]
+
 
 .SH DESCRIPTION
 .B fltinv
 inverts for fault slip distributions based on either displacement observations
 or pre-stresses resolved onto the faults. The inversion can be done using linear least
-squares, simulated annealing, or the neighborhood algorithm. The inputs are the same for
-all of the inversion modes, but the outputs can change depending on command line
-specifications.
-
-
+squares, simulated annealing, or the neighborhood algorithm (j/k, not yet). The meaning of
+the inputs and the specific outputs depend on the mode and other control specifications.
 
 
 .SH OPTIONS
 
-
-
-
 .TP
-.BI "-mode " inversion_mode
+.BI -mode " inversion_mode"
 Specify the
-.IR inversion_mode :
+.I inversion_mode
+as one of:
 .BR lsqr " (default), " anneal ", or " anneal-psc .
 
 .BR lsqr :
-Linear least-squares inversion. Loads Green's functions, damping, and smoothing
-into model matrix, and corresponding constraints into observation vector. Uses
-dgels (LAPACK generalized least squares) or nnls (Non-negative least-squares)
-algorithm to invert for fault slip values.
+Linear least-squares inversion. Loads Green's functions, regularization, and constraints
+into model matrix and into observation vector. Uses gels (LAPACK generalized least squares),
+nnls (Non-negative least-squares), or gesv (LAPACK generalized square matrix solver) algorithm
+to invert for fault slip values.
 
 .BR anneal :
 Simulated annealing inversion. Starts with an initial fault solution, then
 randomly perturbs fault slip and rake values. If objective function
-(sum of RMS misfit, total shear stress, model length, and roughness) decreases,
-keeps new solution. If objective increases, keeps new solution with a probability
-that decreases over the search (associated with the "temperature" of the annealing
+(chi-squared misfit) decreases, keeps new solution. If objective increases,
+keeps new solution with a probability that decreases over the search
+(associated with the "temperature" of the annealing
 process). For more information, see Sambridge and Mosegaard (2002).
 
 .BR anneal-psc :
 Simulated annealing inversion with pseudo-coupling as defined by Herman et al. (2018).
-Starts with all faults unlocked, then randomly switches subset of faults from unlocked
-to locked or vice versa. Computes partial slip around locked sections using least squares
-and calculates corresponding misfit to displacement observations.
+Faults are either completely locked or unlocked, then randomly switched in each iteration.
+Computes partial slip around locked sections using least squares algorithm gesv (LAPACK solver).
+Computes predicted displacement and corresponding misfits to displacement observations.
 
 .TP
 .B OUTPUT OPTIONS
+
 .TP
-.BI "-o " output_file
-By default,
-.B fltinv
-prints the solution to standard output. To redirect the solution to a file, use the
-.B -o
-option. The solution has the format:
+.BI -o " output_file"
+The inverted fault slip solution has the format:
 .IR "strike-slip dip-slip" ,
 for each fault in the input
 .IR fault_file ,
 including faults with fixed slip values.
 
-.TP
-.B INPUT OPTIONS
-.TP
-.BI "-disp " displacement_file
-Three-component displacement observations in the format:
-.IR "x y z ux uy uz" .
-The misfit between these displacements and those produced by modeled fault slip will be minimized.
-All values are in SI units, unless the coordinate type is changed to geographic using the
-.B -geo
-option.
 
 .TP
-.BI "-disp:components [" 1 ][ 2 ][ 3 ]
-Use only selected displacement components in the inversion. Default is
-.IR 123 .
-Useful when only horizontal or vertical data are available or in 2D problems.
-
-.TP
-.BI "-disp:misfit " misfit_file
-Print RMS misfit to displacements to file
-.IR misfit_file .
-
-.TP
-.BI "-disp:cov_file " covariance_file
-File with displacement covariance data in the format:
-.IR "idisp jdisp icmp jcmp cov" ,
-where
-.I idisp
-and
-.I jdisp
-are the indices of the displacement corresponding to the entries in
-.IR displacement_file ,
-.I icmp
-and
-.I jcmp
-are the components of the displacement,
-and
-.I cov
-is the covariance, in square meters.
-
-.TP
-.BI "-los " los_file
-Line-of-sight displacement observations in the format:
-.IR "x y z ulos azimuth inclination" .
-.I Azimuth
-is the look direction for the observation, clockwise from north.
-.I Inclination
-is the vertical look direction for the observation, from 0 at the horizon to 90 at vertical.
-The misfit between these displacements and those produced by modeled fault slip will be minimized.
-All values are in SI units, unless the coordinate type is changed to geographic using the
-.B -geo
-option, and angles are in degrees.
-
-.TP
-.BI "-los:weight " weight
-Set the weight for the minimizing fit to line-of-sight observations
-part of the inversion (default: 1)
-
-.TP
-.BI "-los:misfit " misfit_file
-Print RMS misfit to line-of-sight displacements to file
-.IR misfit_file .
-
-.TP
-.BI "-prests " prestress_file
-Pre-stresses on all input faults in the format:
-.IR "sxx syy szz sxy sxz syz" .
-The shear stresses resolved onto the faults will be minimized. Note that
-the pre-stress values can be set to zero to minimize shear stresses without
-external influences; this is particularly useful in combination with fixing
-the fault slip values to provide a source of stress. In the case where only pre-stress values
-are provided (plus optional fixed-slip faults) without kinematic
-observations, the matrix equation is solved directly using the
-LAPACK routine dgesv instead of with a least-squares approach, because the system
-of equations is properly determined and well behaved. All values are in SI units.
-
-.TP
-.BI "-prests:weight " weight
-Set the weight for the minimizing stress part of the inversion (default: 1e-9)
-
-.TP
-.BI "-prests:dist_threshold " dist
-Set shear tractions for fault pairs greater than
-.I dist
-meters apart to zero. Forces the use of the sparse equation solving routine dgssv.
+.B FAULT OPTIONS
 
 .TP
 .BI "-flt " fault_file
@@ -168,53 +112,127 @@ The
 .I fault_file
 needs to be in its full format if GFs must be computed for either displacements or stresses.
 All values are in SI units. If all desired GFs are pre-computed (options
-.BR -gf:disp_file " or " -gf:sts_file ),
-this file can contain anything as long as the number of lines corresponds to the number of
-faults for the GFs.
+.BR -gf:disp_file ", " -gf:los_file ", or " -gf:sts_file ),
+this file can contain anything as long as the number of lines corresponds to the correct
+number of faults required for the slip degrees of freedom defined by the GFs.
+
 
 .TP
 .BI "-flt:rake " rake_constraint_file
-Constraints on the rake angles. File format and meaning depends on value of
-.IR inversion_mode :
-
-.BR lsqr :
-.I fixed_rake
-(set fault rake angles to fixed values;
-if one column, set rakes to that fixed value;
-if two columns, do two-component slip inversion with these rakes instead of 0 and 90 -
-this is useful for constraining rake to one quadrant in conjunction with
-.BR nnls )
-.br
-.BR anneal :
-.I rake_min rake_max
-(defines the range of possible rake angles)
-
-If
+Constraints on the rake angles. If
 .I rake_constraint_file
 has only one line, use that value for all faults. Otherwise, the rake angles in the file
 must correspond to the faults in
 .IR fault_file .
+The meaning of the values depends on the
+.IR inversion_mode
+and the number of columns:
+
+.BR lsqr " (one column):"
+fix the rake of each fault to the corresponding value in
+.I rake_constraint_file
+
+.BR lsqr " (two columns):"
+set the two rakes for calculating Green's functions to the corresponding values in
+.I rake_constraint_file
+instead of 0 and 90 (this is useful for constraining rake to one quadrant in conjunction with
+.BR nnls )
+
+.BR anneal " (two columns):"
+define the range of possible rake angles for each fault in the search
+
+.BR anneal-psc " (one column):"
+fix the rake of each fault to the corresponding value in
+.I rake_constraint_file
+
 
 .TP
 .BI "-flt:slip " slip_constraint_file
-Constraints on the slip magnitudes. File format and meaning depends on value of
-.IR inversion_mode :
-
-.BR lsqr :
-.I strike_slip dip_slip
-(set fault slip to fixed values; set to 99999 to NOT fix the value)
-.br
-.BR anneal :
-.I slip_min slip_max
-.br
-.BR anneal-psc :
-.I strike_slip dip_slip (set slip magnitude for fixed faults)
-
-If
+Constraints on the slip magnitudes. If
 .I slip_constraint_file
 has only one line, use that value for all faults. Otherwise, slip magnitudes in the file
 must correspond to the faults in
 .IR fault_file .
+Meaning of values in file depends on value of
+.IR inversion_mode :
+
+.B lsqr
+.IR "" ( "strike_slip dip_slip" ):
+set fault slip to fixed values specified in
+.IR slip_constraint_file ;
+set to 99999 to NOT fix the value
+
+.B anneal
+.IR "" ( "slip_min slip_max" ):
+minimum and maximum slip magnitudes in each fault
+
+.B anneal-psc
+.IR "" ( "strike_slip dip_slip" ):
+slip magnitudes for locked faults; set to 99999 to keep fault always unlocked
+
+
+
+.TP
+.B INPUT OPTIONS
+
+.TP
+.BI -disp " displacement_file"
+Three-component displacement observations in the format:
+.IR "x y z ux uy uz" .
+The misfit between these displacements and those produced by modeled fault slip will be minimized.
+All values are in SI units, unless the coordinate type is changed to geographic using the
+.B -geo
+option.
+
+.TP
+.BI "-disp:components [" 1 ][ 2 ][ 3 ]
+Use only selected displacement components in the inversion. Default is
+.IR 123 .
+Useful when only horizontal or vertical data are available or in 2D problems.
+
+.TP
+.BI -los " los_file"
+Line-of-sight displacement observations in the format:
+.IR "x y z ulos azimuth inclination" .
+.I Azimuth
+is the look direction from the observer to the site, clockwise from north.
+.I Inclination
+is the vertical look direction from observer to site, from 0 at the horizon to 90 at vertical.
+The misfit between these displacements and those produced by modeled fault slip will be minimized.
+All values are in SI units, unless the coordinate type is changed to geographic using the
+.B -geo
+option, and angles are in degrees.
+
+.TP
+.BI -prests " prestress_file"
+Pre-stresses on all input faults in the format:
+.IR "sxx syy szz sxy sxz syz" .
+The shear stresses resolved onto the faults will be minimized. Note that
+the pre-stress values can be set to zero to minimize shear stresses without
+external influences; this is particularly useful in combination with fixing
+the fault slip values to provide a source of stress. In the case where only pre-stress values
+are provided (plus optional fixed-slip faults) without kinematic
+observations, the matrix equation is solved directly using the
+LAPACK routine dgesv instead of with a least-squares approach, because the system
+of equations is properly determined and well behaved. All values are in SI units.
+
+.TP
+.BI -cov_file " covariance_file"
+File with displacement covariance data in the format:
+.IR "idisp jdisp icmp jcmp cov" ,
+where
+.I idisp
+and
+.I jdisp
+are the indices of the displacement corresponding to the entries in
+.IR displacement_file ,
+.I icmp
+and
+.I jcmp
+are the components of the displacement or L for line-of-sight displacement,
+and
+.I cov
+is the covariance, in square meters.
 
 
 
@@ -222,13 +240,13 @@ must correspond to the faults in
 .TP
 .B GREENS FUNCTIONS OPTIONS
 .TP
-.BI "-gf:model " model
+.BI -gf:model " model"
 Model to be used to calculate Green's functions:
-.BR okada_rect " (default), " okada_pt ", or " triangle .
+.BR okada_rect ", " okada_pt ", or " triangle .
 
 .TP
-.BI "-gf:disp_file " gf_disp_file
-Pre-computed displacement Green's functions, e.g., from a finite element model.
+.BI -gf:disp_file " gf_disp_file"
+Pre-computed three-component displacement Green's functions, e.g., from a finite element model.
 All values are in SI units.
 The file structure is as follows:
 
@@ -271,7 +289,31 @@ ux, uy, uz are the components of displacement, and ss and ds are strike-slip
 and dip-slip fault sources.
 
 .TP
-.BI "-gf:stress_file " gf_stress_file
+.BI -gf:los_file " gf_los_file"
+Pre-computed line-of-sight displacement Green's functions, e.g., from a finite element model.
+All values are in SI units.
+The file structure is as follows:
+
+       1 - m  |  1 - m
+.br
+     _________|_________
+.br
+    [         |         ]
+.br
+  1 [         |         ]
+.br
+  | [  uL_ss  |  uL_ds  ]
+.br
+  n [         |         ]
+.br
+    [_________|_________]
+
+where n is the number of displacement observations, m is the number of faults,
+uL is the line-of-sight displacement, and ss and ds are strike-slip
+and dip-slip fault sources.
+
+.TP
+.BI -gf:stress_file " gf_stress_file"
 Pre-computed stress Green's functions, e.g., from a finite element model.
 All values are in SI units.
 The file structure is as follows:
@@ -304,11 +346,39 @@ where m is the number of faults, ss sts and ds sts are the strike-slip and dip-s
 components of the shear traction resolved onto the fault plane, and ss slp and ds slp
 are strike-slip and dip-slip fault sources.
 
+.TP
+.B -geo
+Treat
+.I x
+and
+.I y
+as geographic coordinates instead of SI units in
+.IR fault_file " and " displacement_file .
+
+
 
 
 
 .TP
-.B INVERSION OPTIONS
+.B HALF-SPACE OPTIONS
+
+.TP
+.BI -haf " halfspace_file"
+Optional file to define half-space elastic moduli. The default values
+are
+.IR lame "=40e9 Pa and " shearmod "=40e9 Pa."
+This file has the following format:
+.IR "modulus1 value1 modulus2 value2" ,
+where
+.I modulus
+can be "lame", "shearmod", "poisson", or "young" and
+.I value
+is the value in Pa.
+
+
+
+.TP
+.B REGULARIZATION OPTIONS
 
 .TP
 .BI "-damping " damping_constant
@@ -328,34 +398,6 @@ ifault nneighbors neighbor_1 neighbor_2 ... neighbor_n
 
 
 
-.TP
-.B MISCELLANEOUS OPTIONS
-
-.TP
-.B "-geo"
-Treat
-.I x
-and
-.I y
-as geographic coordinates instead of SI units in
-.IR fault_file " and " displacement_file .
-
-.TP
-.BI "-haf " "halfspace_file [flag]"
-Define the elastic half-space parameters for gf:model
-.BR okada_rect ,
-.BR okada_pt ", or"
-.BR triangle .
-By default, this file contains vp (m/s), vs (m/s), and density (kg/m^3).
-At some point, you will be able to specify the elastic parameters in the file
-with the
-.I flag
-option, but not yet.
-
-.TP
-.BI "-v " level
-Set the verbosity of the program. Level 1 prints major steps, level 2 prints subroutine
-start/finish, and level 3 prints all intermediate calculations.
 
 
 
@@ -363,123 +405,122 @@ start/finish, and level 3 prints all intermediate calculations.
 .B LEAST SQUARES OPTIONS
 
 .TP
-.BI "-lsqr:mode " gels | nnls
+.BI "-lsqr:mode " gels | nnls | gesv
 Set the algorithm to use for the least-squares solution (default: gels).
-The gels algorithm is from the LAPACK library.
-The nnls algorithm is from Lawson and Hanson (1974), translated into Fortran 90
+The
+.I gels
+and
+.I gesv
+algorithms are from the LAPACK library.
+The
+.I nnls
+algorithm is from Lawson and Hanson (1974), translated into Fortran 90
 by Alan Miller.
+
+
+
 
 
 .TP
 .B SIMULATED ANNEALING OPTIONS
 
 .TP
-.BI "-anneal:init_mode " mean | zero | rand[ODDS] | unlocked | locked | user
-Set the mode to initialize the slip and rake values of the solution for
-mode
+.BI "-anneal:init_mode " mean | min | max | rand | user | unlocked | locked
+Set the mode to initialize the slip magnitudes and rake angles for mode
 .B anneal
-(default: mean) or to initialize which faults are locked or
-unlocked for mode
-.BR anneal-psc
-(default: unlocked):
+or to initialize which faults are locked and unlocked for mode
+.BR anneal-psc .
 
-.BR mean :
-set values to middle of ranges set in
-.I slip_constraint_file
-and
-.I rake_constraint_file
+.BR anneal :
 .br
-.BR zero :
-set values to zero
+.IR mean :
+set values to center of slip and rake ranges
 .br
-.BR rand :
-set values to random within ranges set in
-.I slip_constraint_file
-and
-.I rake_constraint_file
+.IR min :
+set values to minimum values of slip and rake ranges
+.br
+.IR max :
+set values to maximum values of slip and rake ranges
+.br
+.IR rand :
+randomly select starting value from uniform distribution in ranges
+.br
+.IR user :
+specify a file with starting slip and rake
 
+.BR anneal-psc :
+.IR unlocked :
+set all faults to start unlocked
 .br
-.BR unlocked :
-set all faults to start out unlocked
+.IR locked :
+set all faults to start locked
 .br
-.BR locked :
-set all faults to start out locked
-.br
-.BR rand[ODDS] :
+.IR randODDS :
 randomly set locked faults with probability, e.g., rand0.75 for likelihood a fault is
 locked of 0.75
 .br
-.B user
-.IR file :
-set locked faults with file containing 0 for unlocked and 1 for locked
+.IR user :
+specify a file with starting locked (1) and unlocked (0) faults
 
 .TP
-.BI "-anneal:max_iteration " max_iteration
+.BI -anneal:step " step_file"
+Slip magnitude and rake angle step sizes for each fault in annealing search.
+
+.TP
+.BI -anneal:max_it " max_iteration"
 Set the maximum number of iterations in the simulated annealing search
 (default: 1000).
 
 .TP
-.BI "-anneal:reset_iteration " reset_iteration
+.BI -anneal:reset_iteration " reset_iteration"
 After each
 .I reset_iteration
-steps, the current solution will be set to the best solution and the
-temperature will be set to
+steps, the temperature in the annealing search will be set to
 .I temp_start
 (default: 1000000).
 
 .TP
-.BI "-anneal:log_file " anneal_log_file
-Keep a log of current solutions in
-.IR anneal_log_file .
+.BI -anneal:temp_start " temp_start"
+Starting temperature for annealing process (default: 2.0).
 
 .TP
-.BI "-anneal:temp_start " temp_start
-Starting temperature for annealing process (default: 2).
-Positive
-.I temp_start
-will use this value as a scaling factor, multiplied by the objective function
-corresponding to the initial solution.
-Negative
-.I temp_start
-will use the absolute value as the initial temperature.
-High temperatures lead to all solutions being accepted, i.e., a random search.
-Low temperatures lead to only better solutions being accepted, i.e. a gradient search.
+.BI -anneal:temp_min " temp_minimum"
+Minimum temperature for annealing process (default: 0.0).
 
 .TP
-.BI "-anneal:temp_minimum " temp_minimum
-Minimum temperature for annealing process (default: 0).
-Positive
-.I temp_minimum
-will use this value as a scaling factor, multiplied by the objective function
-corresponding to the initial solution.
-Negative
-.I temp_minimum
-will use the absolute value as the minimum temperature.
-
-.TP
-.BI "-anneal:cooling_factor " cooling_factor
+.BI -anneal:cool " cooling_factor"
 Factor to reduce temperature by every iteration (default: 0.98).
 
 .TP
-.BI "-anneal:p_lock2unlock " probability
-Probability of flipping locked to unlocked in
-.B anneal-psc
-mode (default: 0.25).
+.BI -anneal:log_file " anneal_log_file"
+Save a log of solutions and fits in
+.IR anneal_log_file .
 
 .TP
-.BI "-anneal:p_lock2unlock " probability
-Probability of flipping unlocked to locked in
-.B anneal-psc
-mode (default: 0.10).
+.BI -anneal:seed " seed"
+Set the random number generator seed (default: based on date and time)
+
 
 .TP
-.BI "-anneal:mcmc " "nsteps mcmc_log_file"
-Run
-.I nsteps
-of Markov Chain Monte Carlo (Metropolis-Hastings algorithm) after annealing
-search is finished. Start MCMC from best-fitting annealing solution, so
-burn-in is not necessary. Print resulting models to
-.IR mcmc_log_file .
+.BI -anneal-psc:min_flip " nmin"
+Minimum number of faults to flip from locked to unlocked or vice versa every iteration
+
+.TP
+.BI -anneal-psc:max_flip " nmax"
+Maximum number of faults to flip from locked to unlocked or vice versa every iteration
+
+
+
+
+.TP
+.B MISCELLANEOUS OPTIONS
+
+.TP
+.BI "-v " level
+Set the verbosity of the program. Level 1 prints major steps, level 2 prints subroutine
+start/finish, and level 3 prints all intermediate calculations.
+
+
 
 
 .SH REFERENCES

@@ -1,0 +1,38 @@
+.TH SPHFINROT 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+sphfinrot \- compute finite rotations on a sphere
+
+.SH SYNOPSIS
+.P
+.B sphfinrot
+.BI -pole " lon0 lat0"
+.BI -angle " angle"
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+
+.SH DESCRIPTION
+.B sphfinrot
+takes geographic coordinates and rotates them
+.I angle
+degrees counter-clockwise about a pole centered at
+.IR "lon0 lat0" .
+
+.SH OPTIONS
+.TP
+.BI -pole " lon0 lat0"
+Coordinates of finite rotation pole
+
+.TP
+.BI -angle " angle"
+Angle (in degrees counter-clockwise) to rotate points about rotation pole
+
+.TP
+.BI -f " input_file"
+Input coordinate file (default reads from standard input)
+
+.TP
+.BI -o " output_file"
+Output coordinate file (default prints to standard output)
+
+.RS

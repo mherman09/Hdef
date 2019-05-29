@@ -1,4 +1,4 @@
-.TH COLORTOOL 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH COLORTOOL 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 colortool \- convert between color spaces and create color palettes
@@ -6,9 +6,10 @@ colortool \- convert between color spaces and create color palettes
 .SH SYNOPSIS
 .P
 .B colortool
-.BI -hue " hue1" , hue2
 .BI -lightness " lightness1" , lightness2
-.BI -chroma " chroma1" , "chroma2 " |
+.BI -chroma " chroma1" , "chroma2 "
+.BI -hue " hue1" , hue2
+.B |
 .BI -convert " input_type" = x , y , z
 .IB output_type
 .BI
@@ -27,7 +28,7 @@ as colors that have a lightness, chroma (kind of like saturation), and hue. This
 mathematically with a polar coordinate system, where lightness is the z value, chroma is the radius,
 and hue is the angle. We are sensitive to changes in all of these values, but we ascribe particular
 significance to differences in lightness. Note that LCH is NOT the same as hue-saturation-value
-.BR "" ( colortool 
+.BR "" ( colortool
 can convert between these representations). A computer produces combinations of colors in
 three narrow bands (red, green, and blue; RGB), which can also be converted to and from LCH.
 Note: currently,
@@ -38,30 +39,38 @@ only implements colors for a perfectly reflecting diffuser surface in daylight.
 .TP
 .BI -lightness " lightness1" , lightness2
 Starting and ending lightness values, where 0=black and 100=white (default:
-.IR lightness1 "=0, " lightness2 =100)
+.IR lightness1 "=0, " lightness2 =100). This is probably the most important value
+when defining a color palette.
+
 .TP
 .BI -chroma " chroma1" , chroma2
 Starting and ending chroma values (default:
-.IR chroma1 "=40, " chroma2 =40)
+.IR chroma1 "=40, " chroma2 =40). Similar to saturation. Max chroma value depends on
+hue and lightness. The max chroma will be automatically limited to fit into RGB space.
+
 .TP
 .BI -hue " hue1" , hue2
 Starting and ending hue values (default:
 .IR hue1 "=0, " hue2 =360).
-Hue=0=magenta, 40=red, 60=orange, 100=yellow, 135=green, 305=blue, 330=purple.
+Hue=0=magenta, 30=red, 50=orange, 90=yellow, 140=green, 270=blue, 330=purple.
+
 .TP
 .BI -convert " input_type" = x , y , z " " output_type
 Convert color in one set of coordinates to another.
 .IR Input_type " and " output_type
-can take the following values: LCH, LAB (where a=chroma*cos(hue), b=chroma*sin(hue)), RGB, or HSV. 
+can take the following values: LCH, LAB (where a=chroma*cos(hue), b=chroma*sin(hue)), RGB, or HSV.
 .IR X ", " y ", and " z
 correspond to the components of the defined color system.
+
 .TP
 .BR "-cmap [" spiral | linear ]
 Define progression through LCH/LAB color space. "spiral" changes hue uniformly (rotates around the color space),
 and "linear" changes A and B uniformly (shortest distance between two points in the color space).
+
 .TP
 .BR -n[colors] " N"
 Number of color increments to output (default: N=10)
+
 .TP
 .BR "-gmt [" "cpt" ]
 Write output to GMT color palette with
@@ -69,22 +78,26 @@ Write output to GMT color palette with
 and
 .IR zmax =1
 (default: print R/G/B list).
+
 .TP
 .BI -limits " zmin" , zmax
 Minimum and maximum values for GMT color palette
 .BR "" ( -gmt
 option).
+
 .TP
 .BI -dz " dz"
-Increment for GMT color palette 
+Increment for GMT color palette
 .BR "" ( -gmt
 option)
 (default: 10 colors)
+
 .TP
 .BI -T zmin / zmax / dz
 Minimum and maximum values and increment for GMT color palette
 .BR "" ( -gmt
 option), in GMT makecpt format.
+
 .TP
 .BI -D
 Set background and foreground colors of GMT color palette
@@ -94,14 +107,9 @@ option) to
 and
 .IR zmax ,
 respectively.
+
 .TP
 .B -verbose
 Print program steps to standard error.
-.TP
-.B -h
-Short online help
-.TP
-.B -d
-Detailed online help
 
 .RS

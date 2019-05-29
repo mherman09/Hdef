@@ -1,77 +1,75 @@
-Hdef version 2019.01.01
+Hdef version 2019.06.01
 
-The primary purpose for this suite of codes is the forward calculation of
-displacements, strains, and stresses in an elastic half-space (hence,
-H(alfspace)def(ormation)...). The sources are fault slip models, using the
-solutions derived in Okada (1992). The main engines can be found in the file
-okada92subs.f, and most of the other programs are designed to apply the
-subroutines in okada92subs.f in seismological or geodetic utilities.
+The primary purpose for this suite of codes is the forward calculation of displacements, strains,
+and stresses in an elastic half-space (hence, H(alfspace)def(ormation)...). The sources are fault
+slip models, using the solutions derived in Okada (1992) and in Meade (2007). The main engines can
+be found in the file okada92_module.f90 and tri_disloc_module.f90. Most of the programs are designed
+to use these routines in a variety of seismological and geodetic applications.
 
-There are also programs that I wrote as I came across other applications in
-Geodynamics. I got tired of always rewriting and recalculating and looking up
-certain equations and typing them into my calculator or Matlab, so I wrote some
-simple codes to have these results at my fingertips. These are included, and you
-may find them useful as well.
+There are also several other programs that I wrote as I came across other applications in
+Geodynamics (so in that sense maybe Hdef stands for "Herman Deformation" toolbox). I got tired of
+always rewriting and recalculating and looking up certain equations and typing them into my
+calculator or Matlab, so I wrote some simple codes to have these results at my fingertips. These are
+included, and you may find them useful as well.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Directions for installation are in the file INSTALL.
 Tutorials can be found at my website: http://www.matthewwherman.com/software.html
-Man pages for many of the programs are in the man/ directory.
+Man pages for most of the programs and scripts are in the man/ directory.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There are no guarantees: happy? I think these results are correct, and I have
-used these codes to make calculations for peer-reviewed publications, but I
-cannot guarantee that there are no bugs. If you think you have found a bug,
-please report it to me at:
+There are no guarantees: happy? I think these results are correct, and I have used these codes to
+make calculations for peer-reviewed publications, but I cannot guarantee that there are no bugs. If
+you think you have found a bug, please report it to me at:
 
 matthew.w.herman@gmail.com
 
-Feel free to change the codes and use them as you see fit. Please check out the
-LICENSE when you use the software (it's the MIT license). There is no
-authoritative citation for the codes (yet), but the first published papers using
-the software are:
+Feel free to change the codes and use them as you see fit. Please check out the LICENSE when you use
+the software (it's the MIT license). There is no authoritative citation for the codes (yet), but the
+first published papers using the software are:
 
-Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock
-triggering of the 1 April 2014 Mw 8.2 Iquique, Chile, earthquake. Earth and
-Planetary Science Letters 447, 119-129.
+Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
+	2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
 
-Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional
-moment tensors to constrain the kinematics and stress evolution of the 2010–2013
-Canterbury earthquake sequence, South Island, New Zealand. Tectonophysics 633,
-1-15.
+Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
+	constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake sequence,
+	South Island, New Zealand. Tectonophysics 633, 1-15.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Alphabetical list of programs in Hdef (*requires LAPACK; ^use with caution: deprecated):
+Alphabetical list of programs in Hdef (indented programs have not been updated yet):
 	colortool              generate perceptually linear color maps
-	coul_dip.sh            plot Coulomb stress changes on a dipping plane
-	coul_hor.sh            plot Coulomb stress changes on a horizontal plane
-	coul_xsec.sh           plot Coulomb stress changes on a vertical cross-section
 	dateutil               convert from/to dates and number of days
 	distaz2lola            compute coordinates from distance/azimuth from a point
-	eqempirical            implement earthquake empirical relation
-	eventfrequency         count frequency of a list of values
+		eqempirical            implement earthquake empirical relation
+		eventfrequency         count frequency of a list of values
 	ff2gmt                 convert finite fault parameters to GMT format
-	*fltinv                linear inversion for fault slip
-	gmtcpt.sh              make GMT color palette from (nice) existing color maps
+	fltinv                 inversion of geodetic data for fault slip
 	grid                   generate evenly spaced values
 	lola2distaz            compute distance/azimuth between coordinate pairs
-	*mtutil                convert between seismic source parameterizations
-	*multifit              fit data series with multiple functions
+	mtutil                convert between seismic source parameterizations
+		multifit              fit data series with multiple functions
 	numint                 numerical integration
 	o92util                compute displacement, stress, strain from fault source
-	perturb                randomly vary values
 	platemotion            compute velocity for plate pair or Euler pole
-	*polyfit               fit data series with a polynomial function
-	^*polyfit_special      fit data series with a polynomial function (windowed)
+		polyfit               fit data series with a polynomial function
+	rangen                 generate random numbers
+	readGCMT               read and parse GCMT catalog
 	readkik                read strong motion in KiK-net format
-	simplify_ffm.sh        remove slip less than threshold value from FFM
 	sphfinrot              make finite rotation on sphere
+	stereo_project         compute forward and inverse stereographic projections
+	triutil                deformation produced by triangular dislocations
+		utm2geo                convert UTM to geographic coordinates
+	vec2los                project vector onto line of sight
+	wraplos                wrap input value onto rotations around frequency
+
+		coul_dip.sh            plot Coulomb stress changes on a dipping plane
+		coul_hor.sh            plot Coulomb stress changes on a horizontal plane
+		coul_xsec.sh           plot Coulomb stress changes on a vertical cross-section
+		gmtcpt.sh              make GMT color palette from (nice) existing color maps
+		simplify_ffm.sh        remove slip less than threshold value from FFM
 	surf_disp.sh           plot surface displacements
 	ternary.sh             plot earthquakes on ternary discriminant diagram
 	trg_schem.sh           plot target fault kinematics
-	utm2geo                convert UTM to geographic coordinates
-	vec2los                project vector onto line of sight
-	wraplos                wrap input value onto rotations around frequency

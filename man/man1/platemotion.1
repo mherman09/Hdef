@@ -1,4 +1,4 @@
-.TH PLATEMOTION 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH PLATEMOTION 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 platemotion \- compute velocities from plate pairs
@@ -6,8 +6,11 @@ platemotion \- compute velocities from plate pairs
 .SH SYNOPSIS
 .P
 .B platemotion
-.BI -plate " plate1" / plate2 |-pole " lon" / lat / rot_vel
-.B [...]
+.BI -plate " plate1" / plate2 " | -pole" " lon" / lat / rot_vel
+.BI [-model " NAME" ]
+.BI "[-list [" " MODEL" ]]
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
 
 .SH DESCRIPTION
 .B platemotion
@@ -17,9 +20,14 @@ from a plate circuit model or from an Euler pole.
 .SH OPTIONS
 .TP
 .BI -plate " plate1" / plate2
-Plate pair from built-in plate circuit. Use
-.B -model?
-to see available plates for given plate circuit.
+Plate pair from built-in plate circuit, with
+.I plate2
+moving with respect to a fixed
+.IR plate1 .
+Use
+.B -list
+to see available plates for each plate circuit.
+
 .TP
 .BI -pole " lon" / lat / rot_vel
 Euler pole for plate pair located at
@@ -27,30 +35,35 @@ Euler pole for plate pair located at
 and with rotational velocity
 .I rot_vel
 (in degrees/million years, with positive indicating counter-clockwise).
+
 .TP
-.BI -model[?] " MORVEL" | NUVEL-1A | MORVEL56
-Plate circuit (default: MORVEL). Use
-.B -model?
-to print plates available in each model to standard error and exit program.
+.BI -model " NUVEL-1A" | MORVEL | MORVEL56 | ITRF05 | ITRF08
+Plate circuit to use with
+.B -plate
+option.
 See
 .B REFERENCES
 for more details about each plate circuit.
+
 .TP
 .BI -f " input_file"
 Input file (default reads standard input)
+
 .TP
 .BI -o " output_file"
 Output file (default prints to standard output)
-.TP
-.BI -verbose
-Print
-.B platemotion
-progress
-.TP
-.BI -h
-Print usage statement
+
 
 .SH REFERENCES
+.TP
+Altamimi, Z., Collilieux, X., Legrand, J., Garayt, B., Boucher, C. (2007).
+ITRF2005: A new release of the International Terrestrial Reference Frame based on time series of
+station positions and Earth Orientation Parameters.
+Journal of Geophysical Research 112, B09401.
+.TP
+Altamimi, Z., Metivier, L., Collilieux, X. (2012).
+ITRF2008 plate motion model.
+Journal of Geophysical Research 117, B07402.
 .TP
 Argus, D.F., Gordon, R.G., DeMets, C. (2011).
 Geologically current motion of 56 plates relative to the no-net-rotation reference frame.

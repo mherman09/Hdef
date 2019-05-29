@@ -1,48 +1,56 @@
 PREREQUISITES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - Fortran compiler
-	- I work with gfortran; I know some of the compiler configurations are gfortran specific,
-          so use a different compiler at your own risk
-	- Gfortran can be installed with most package managers (Fink, Homebrew, MacPorts, APT, etc.)
-	- You can also find gfortran at https://gcc.gnu.org/wiki/GFortran
+	- I work with gfortran. Some of the compiler configurations and options in the Makefile are
+      gfortran specific, so use a different compiler at your own risk.
+	- Gfortran can be installed with most package managers (Fink, Homebrew, MacPorts, APT, etc.).
+	- You can also find gfortran at https://gcc.gnu.org/wiki/GFortran.
+- C compiler
+	- A C compiler is required for the testing suite only. I use gcc, and in many (most?) cases, gcc
+      comes with gfortran.
 - LAPACK
-	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions)
-	- The LAPACK 3.7.1 source code is included in the ext/ directory, per the user license
-	- Hdef can still be compiled without LAPACK; a few programs will not work at all, and
-          a few others will have some options disabled
-	- Make sure that LAPACK is installed with the same compiler as Hdef
+	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions).
+	- The LAPACK 3.7.1 source code is included in the ext/ directory, per the LAPACK user license.
+	- Hdef can still be compiled without LAPACK; some programs will not work at all, and a few
+      others will have LAPACK-dependent options disabled.
+	- Make sure that LAPACK is installed with the same compiler as Hdef.
 	- Installing LAPACK is fairly easy on most systems:
 		1. Unzip the LAPACK package. Change into the LAPACK directory.
 		2. Copy make.inc.example to make.inc.
 		3. Edit the Makefile so that the line "lib: blaslib variants lapacklib tmglib" is
-                   uncommented.
+           uncommented.
 		4. Type "make".
-	- NOTE: You may see the following error when compiling: "recipe for target lapack_testing 
-          failed". You may disregard this, or if you really want to run the tests, you can dive
-          into OS memory management and type "ulimit -s unlimited" before running "make".
+	- NOTE: You may see the following error when compiling: "recipe for target lapack_testing
+      failed". You may disregard this, or if you really want to run the tests, you can dive
+      into OS memory management and type "ulimit -s unlimited" before running "make".
+
 
 COMPILING HDEF DIRECTIONS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 I did not think too hard about other users installing the software, so this process is a little
-haphazard. Sorry. The simplest option that should work for most people is to run the shell script
-called "simple_configure.sh" in interactive mode from the top directory:
+haphazard. Sorry. THERE IS NO LONGER A CONFIGURATION SCRIPT! You now have to edit the Makefile
+directly. You will need to check the following variables for your system:
 
-./simple_configure.sh --interactive
+	- CC: path to gcc
+	- FC: path to gfortran
+	- FOPT: gfortran optimization flags
+	- INCLUDE_DIR: location to place and use .o and .mod files
+	- BIN: location to put compiled executables
+	- LAPACK_LIB_DIR: path to LAPACK libraries
+	- LAPACK_LIB: names of static LAPACK libraries; check the LAPACK_LIB_DIR to see the specific
+      names of the libraries: (ref)lapack, (ref)blas
+	- CPP_LAPACK: compiler pre-processor for LAPACK; must be set to -DUSE_LAPACK to compile codes
+      with LAPACK
 
-If no command line inputs are specified for the simple_configure script, a usage statement is
-printed. The --interactive flag will prompt you to enter your Fortran compiler, the path to LAPACK
-(if you have compiled the libraries), the directory to hold the object files and Fortran modules,
-and the directory to place the executables.
-
-This script checks that your compiler exists and LAPACK is present, then generates a Makefile for
-compiling the software. Once this script is completed, you can install the software into the
-designated directory with:
+Once you have set up these variables in the Makefile, type:
 
 make
 
-I am in the process of expanding and improving the test suite for this software. A couple basic\
-tests can be run with:
+Unit tests of the modules and numerical tests of the executables are run with:
 
 make test
 
-Contact matthew.w.herman@gmail.com for questions.
+
+QUESTIONS, COMMENTS, OR CONCERNS?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Contact matthew.w.herman@gmail.com.

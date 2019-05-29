@@ -1,4 +1,4 @@
-.TH WRAPLOS 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH WRAPLOS 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 wraplos \- compute phase of line-of-sight displacement given satellite observation wavelength
@@ -9,31 +9,31 @@ wraplos \- compute phase of line-of-sight displacement given satellite observati
 .BI -w " wavelength"
 .BI [-f " input_file" ]
 .BI [-o " output_file" ]
-.BI [-h]
 
 .SH DESCRIPTION
 .B wraplos
 computes the phase of a line-of-sight surface displacement (input in meters) given an
-observation wavelength (input in centimeters), where:
+observation wavelength (input in meters), and accounting for the two-way travel of the signal.
+The phase corresponding to the displacement is:
+
 .TP
 .in
-.IR phase " = 2*2*pi*" uLOS / wavelength
+.IR phase " = 2*2*pi*" disp_los / wavelength
 
 .SH OPTIONS
 .TP
 .BI -w " wavelength"
 .I Wavelength
-(in centimeters) of the observation
+(in meters) of the observation
+
 .TP
 .BI -f " input_file"
 Input file (default reads standard input) in format:
-.I stlo stla stdp disp_LOS
+.I stlo stla stdp disp_los
+
 .TP
 .BI -o " output_file"
 Output file (default prints to standard output) in format:
 .I stlo stla stdp phase
-.TP
-.BI -h
-Usage statement
 
 .RS

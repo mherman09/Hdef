@@ -1,4 +1,4 @@
-.TH VEC2LOS 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH VEC2LOS 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 vec2los \- compute line-of-sight projection of three-component vector
@@ -8,9 +8,10 @@ vec2los \- compute line-of-sight projection of three-component vector
 .B vec2los
 .BI -a " azimuth"
 .BI -i " inclination"
+.B |
+.BI -look " look_geometry_file"
 .BI [-f " input_file" ]
 .BI [-o " output_file" ]
-.BI [-h]
 
 .SH DESCRIPTION
 .B vec2los
@@ -20,27 +21,38 @@ measured clockwise from north and an
 .I inclination
 measured up from horizontal (vertical=90).
 
+.TP
+.in
+.IR u_los " = " u_n "*cos(" az ")*cos(" inc ") + " u_e "*sin(" az ")*cos(" inc ") - " u_z "*sin(" inc ")"
+
 .SH OPTIONS
 .TP
 .BI -a " azimuth"
 .I Azimuth
-(in degrees) of the line-of-sight, measured clockwise from north
+(in degrees) of the line-of-sight from viewer to location, measured clockwise from north
+
 .TP
 .BI -i " inclination"
 .I Inclination
-(in degrees) of the line-of-sight, measured from 0=horizontal to 90=vertical (looking down)
+(in degrees) of the line-of-sight from viewer to location, measured from 0=horizontal to
+90=vertical (looking down)
+
+.TP
+.BI -look " look_geometry_file"
+File with one
+.I azimuth inclination
+for each input displacement vector.
+
 .TP
 .BI -f " input_file"
 Input file (default reads standard input) in format:
 .I stlo stla stdp disp_east disp_north disp_vertical
 (positive up)
+
 .TP
 .BI -o " output_file"
 Output file (default prints to standard output) in format:
 .I stlo stla stdp disp_LOS
 (positive in look direction)
-.TP
-.BI -h
-Usage statement
 
 .RS

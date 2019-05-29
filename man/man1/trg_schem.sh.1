@@ -1,0 +1,45 @@
+.TH TRG_SCHEM.SH 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+trg_schem.sh \- plot a schematic diagram of fault kinematics
+
+.SH SYNOPSIS
+.P
+.B trg_schem.sh
+.BI -i " str" , dip , rak
+.BI [-a " postscript_file" ]
+.BI [-x " x0" , y0 , width ]
+
+.SH DESCRIPTION
+.B trg_schem.sh
+plots a schematic image of fault geometry defined by strike, dip, and rake angles, projected
+onto a horizontal surface (i.e., looking down at the fault from directly above). The fault is
+a square patch rotated to the strike direction, and the dimensions are projected for the dip.
+The rake is indicated by arrows on the top and bottom of the fault. The shallow edge of the fault
+is indicated by a green line.
+
+This script uses standard bash tools (including awk), the Generic Mapping Tools, and Ghostscript.
+
+.SH OPTIONS
+.TP
+.BI -i " str" , dip , rak
+Fault kinematics defined by
+.IR strike ,
+.IR dip ,
+and
+.I rake
+angles.
+
+.TP
+.BI -a " postscript_file"
+Append the PostScript produced by
+.B trg_schem.sh
+to an existing PostScript file
+
+.TP
+.BI -x " x0" , y0 , width
+Location of lower left corner of schematic relative to origin and width of schematic,
+all in inches (default: 0.5,0.5,1.0) 
+
+
+.RS

@@ -1,4 +1,4 @@
-.TH DISTAZ2LOLA 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH DISTAZ2LOLA 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 distaz2lola \- compute geographic coordinates given distance and azimuth from a point
@@ -6,9 +6,13 @@ distaz2lola \- compute geographic coordinates given distance and azimuth from a 
 .SH SYNOPSIS
 .P
 .B distaz2lola
-.BI -f " input_file" "|-s|-c " "lon lat distance azimuth"
+.BI -f " input_file"
+.B |
+.BI -s
+.B |
+.BI -c " lon lat distance azimuth"
 .BI [-o " output_file" ]
-.BI [-h]
+.BI [-lon " NEG" | POS ]
 
 .SH DESCRIPTION
 .B distaz2lola
@@ -26,18 +30,22 @@ degrees (measured clockwise from north) from the initial point.
 Read
 .I lon0 lat0 distance azimuth
 from an input file
+
 .TP
 .BI -s
 Read from standard input
+
 .TP
 .BI -c " lon0 lat0 distance azimuth"
 Read from the command line
+
 .TP
 .BI -o " output_file"
 Output file (default prints to standard output) in format:
 .I lon lat
+
 .TP
-.BI -h
-Usage statement
+.BI -lon " NEG" | POS
+Output longitude in range (-180,180) or (0,360)(default)
 
 .RS

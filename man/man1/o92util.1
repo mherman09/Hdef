@@ -1,20 +1,20 @@
-.TH O92UTIL 1 "March 2018" "Version 2018.03.01" "User Manuals"
+.TH O92UTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
 
 .SH NAME
 o92util \- compute fault-generated deformation in an elastic half-space
 
 .SH SYNOPSIS
 .P
-.B o92util -ffm|-fsp|-mag|-flt
-.I fault_file
-.B -sta
-.I station_file
-.B [-trg
-.IB target_file ]
-.B [-haf
-.IB halfspace_file ]
-.B -disp|-strain|-stress|-estress|-shear[max]|-normal|-coul
-.I defm_file
+.B o92util
+.BI -ffm|-fsp|-mag|-flt " fault_file"
+.B [-fn|-pt]
+.BI [-empirical " empirical_relation" ]
+.BI -sta " station_file"
+.B |
+.BI -autosta " depth number"
+.BI -trg " target_file"
+.BI [-haf " halfspace_file" ]
+.BI -disp|-strain|-stress|-estress|-shear|-normal|-coul " defm_file"
 .B [...]
 
 .SH DESCRIPTION
@@ -28,12 +28,15 @@ positive up.
 .SH OPTIONS
 .TP
 .B INPUTS
+
 .TP
 .BI -ffm " fault_file"
 Finite fault model in USGS param format (Hayes, 2017; https://earthquake.usgs.gov)
+
 .TP
 .BI -fsp " fault_file"
 Finite fault model in SRCMOD FSP format (http://equake-rc.info)
+
 .TP
 .BI -mag " fault_file"
 Fault file:
@@ -41,16 +44,47 @@ Fault file:
 If using finite sources, the
 .I magnitude
 is converted using the specified empirical relation.
+
 .TP
 .BI -flt " fault_file"
 Fault file:
 .I evlo evla evdp(km) strike dip rake slip(m) width(km)
 .IR length(km) ,
 where width is the down-dip dimension and length is the along-strike dimension
+
+.TP
+.B -fn|-pt
+Treat faults as finite rectangular (default) or point sources
+
+.TP
+.BI -empirical " WC" | MB | B | YM | AH
+Choose the empirical relation for earthquake magnitude and slip, width, and length (default is
+.IR WC ).
+The options are
+.IR W "ells and " C oppersmith
+(1994),
+.IR M "ai and " B eroza
+(2000),
+.IR B "laser et al"
+(2010),
+.IR Y "en and " M a
+(2011), and
+.IR A "llen and " H "ayes (2017)."
+
 .TP
 .BI -sta " station_file"
 Locations to compute deformation:
 .I stlo stla stdp(km)
+
+.TP
+.BI -autosta " depth number"
+Automatically generate a horizontal grid of points to calculate deformation on.
+The
+.I depth
+of the plane is in km and
+.I number
+indicates the number of grid points per dimension.
+
 .TP
 .BI -trg " target_file"
 Target fault parameters:
@@ -62,82 +96,63 @@ has one line, all locations have the same target parameters. If
 has the same number of entries as
 .IR station_file ,
 then target fault parameters correspond to matching station coordinate.
-Alternatively, replace
-.I target_file
-with
-.IB strike / dip / rake / friction
-to define the target parameters as a command line argument.
+
 .TP
 .BI -haf " halfspace_file"
 Optional file to define half-space elastic moduli. The default values
 are
-.IR vp "=6800 m/s, " vs "=3926 m/s, and " dens "=2800 kg/m^3 (Lame parameters: " lambda "=4.3e10 Pa, " shear_modulus "=4.3e10 Pa)."
-This file can take the following formats, depending on the elastic moduli to specify:
-.IR "vp(m/s) vs(m/s) dens(kg/m^3)" ;
-.IR "" Lame " lambda(Pa) shear_modulus(Pa)" ;
-.IR "" Poisson " shear_modulus(Pa) poissons_ratio" ;
-.IR "" Young " youngs_modulus(Pa) poissons_ratio" ;
-.TP
-.BI -autosta " h" | d | "s distance increment"
-Automatically generate a
-.IR station_file
-along a
-.IR h "orizontal plane, a " d "ip-parallel vertical plane, or a " s trike-parallel
-vertical plane.
-.I Distance
-(km) is the depth for a
-.IR h orizontal
-plane, the horizontal along-strike offset for a
-.IR d ip-parallel
-vertical plane, or the horizontal along-dip offset for a
-.IR s trike-parallel
-vertical plane.
-.I Increment
-is the spacing of points, and has default units of degrees for
-.I h
-or km for
-.IR d " and " s .
-To change units to km, append
-.IR k " to " increment .
+.IR lame "=40e9 Pa and " shearmod "=40e9 Pa."
+This file has the following format:
+.IR "modulus1 value1 modulus2 value2" ,
+where
+.I modulus
+can be "lame", "shearmod", "poisson", or "young" and
+.I value
+is the value in Pa.
+
 
 .TP
 .B OUTPUTS
+
 .TP
 .BI -disp " output_file"
 Displacement:
 .I stlo stla stdp(km) disp_e(m) disp_n(m) disp_v(m)
+
 .TP
 .BI -strain " output_file"
 Strain tensor components:
 .I stlo stla stdp(km) exx eyy ezz exy exz eyz
+
 .TP
 .BI -stress " output_file"
 Stress tensor components:
 .I stlo stla stdp(km) sxx(Pa) syy(Pa) szz(Pa) sxy(Pa) sxz(Pa) syz(Pa)
+
 .TP
 .BI -estress " output_file"
 Effective (maximum) shear stress:
 .IR "stlo stla stdp(km) estre(Pa)" .
 This is the second invariant of the deviatoric stress tensor.
+
 .TP
-.BI -shear[max] " output_file"
+.BI -shear " output_file"
 Shear stress resolved onto target geometry (requires
 .IR target_file ):
-.IR "stlo stla stdp(km) shear(Pa)" .
-Use
-.B -shear
-to project shear traction onto fault slip vector, or
-.B -shearmax
-to print magnitude of maximum shear traction on target plane.
+.IR "stlo stla stdp(km) shear(Pa) shearmax(Pa)" .
+The first value is the shear traction projected onto the fault slip vector
+and the second is the  maximum shear traction on the target plane.
+
 .TP
 .BI -normal " output_file"
 Normal stress resolved onto target geometry (requires
 .IR target_file ):
 .IR "stlo stla stdp(km) normal(Pa)" .
 Positive indicates dilation.
+
 .TP
 .BI -coul " output_file"
-Coulomb stress 
+Coulomb stress
 .IR "" ( coul
 =
 .I shear
@@ -148,81 +163,34 @@ Coulomb stress
 resolved onto target geometry (requires
 .IR target_file ):
 .I stlo stla stdp(km) coulomb(Pa)
-.TP
-.BI -gmt " gmt_file"
-Print the input faults to a file for use with GMT psxy -SJ -Ccpt (works even if 
-.B -pt
-is set).
+
 
 .TP
 .B OTHER OPTIONS
-.TP
-.B -az
-Output format for
-.B -disp
-becomes:
-.IR "stlo stla stdp(km) azimuth(deg) disp_hor(m) disp_v(m)" ,
-where
-.I azimuth
-is degrees clockwise from north.
-.TP
-.BI -empirical " WC" | MB | B | YM [ p ]
-Choose the empirical relation for earthquake magnitude and slip, width, and length (default is
-.IR WC ).
-The options are
-.IR W "ells and " C oppersmith
-(1994),
-.IR M "ai and " B eroza
-(2000),
-.IR B "laser et al"
-(2010), and
-.IR Y "en and " M a
-(2011). Append
-.I p
-to print the fault parameters to standard error.
-.TP
-.B -fn|-pt
-Treat faults as finite rectangular (default) or point sources
-.TP
-.B -long
-.B THIS OPTION IS DEPRECATED.
-Increase output precision for
-.B -disp
-option (from F12.4 to F16.8).
-.TP
-.B -prog
-Display a progress indicator printed to standard error.
-.TP
-.BI -thr " threshold"
-If
-.I threshold
-> 0, set slip less than
-.I threshold
-meters to zero. If -1 <
-.I threshold
-< 0, then set slip less than
-.IR "" | threshold "| * maximum_slip"
-to zero.
+
 .TP
 .B -xy
-Treat input and output coordinates 
+Treat input and output coordinates
 .IR "" ( evlo ", " evla ", " stlo ", " stla )
 as Cartesian (km) instead of geographic.
 .I Strike
 angle is still defined clockwise from north.
+
 .TP
-.BI "-verbose [" level ]
+.BI -prog
+Print program progress to the terminal.
+
+.TP
+.BI -v " level"
 Run in verbose mode, printing progress to standard error.
 .I Level
 from 1 (low, default) to 3 (high) controls amount of output.
-.TP
-.B -h
-Short online help
-.TP
-.B -d
-Detailed online help
 
 .SH REFERENCES
+.TP
+Allen, T.I., Hayes, G.P. (2017).
+Alternative Rupture-Scaling Relationships for Subduction Interface and Other Offshore Environments.
+Bulletin of the Seismological Society of America 107, 1240-1253.
 .TP
 Blaser, L., Kruger, F., Ohrnberger, M., Scherbaum, F. (2010).
 Scaling relations of earthquake source parameter estimates with special focus on subduction

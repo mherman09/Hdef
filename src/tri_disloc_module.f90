@@ -94,6 +94,8 @@ subroutine tri_disloc_disp(disp, sta_coord, tri_coord, poisson, slip)
 !**% OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 !**% USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+use geom, only: pnpoly
+
 implicit none
 
 double precision :: disp(3), sta_coord(3), tri_coord(3,4), poisson, slip(3)
@@ -395,6 +397,8 @@ subroutine tri_disloc_strain(strain_output, sta_coord, tri_coord, poisson, slip)
 !**% OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 !**% USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+use io, only: stderr
+
 implicit none
 
 double precision :: strain_output(3,3), sta_coord(3), tri_coord(3,4), poisson, slip(3)
@@ -412,6 +416,20 @@ double precision :: stn1(3,3), stn2(3,3), stn_diff(3,3), strain_leg(3,3)
 !**% Calculate the slip vector in XYZ coordinates
 !**normVec                      = cross([x(2);y(2);z(2)]-[x(1);y(1);z(1)], [x(3);y(3);z(3)]-[x(1);y(1);z(1)]);
 !**normVec                      = normVec./norm(normVec);
+
+
+! Check if observation point is at a vertex
+do i = 1,3
+    dx = sta_coord(1)-tri_coord(1,i)
+    dy = sta_coord(2)-tri_coord(2,i)
+    dz = sta_coord(3)-tri_coord(3,i)
+    dh = sqrt(dx*dx+dy*dy+dz*dz)
+    if (dh.lt.1.0d-4) then
+        write(stderr,*) 'tri_disloc_strain: observation point at triangle vertex, returning zeros'
+        strain_output = 0.0d0
+        return
+    endif
+enddo
 
 ! Vectors pointing from triangle vertices 1->2 and vertices 1->3
 do i = 1,3
@@ -3239,6 +3257,8 @@ center(3) = (p1(3)+p2(3)+p3(3))/3.0d0
 return
 end
 
+!--------------------------------------------------------------------------------------------------!
+
 subroutine tri_geometry(normal,strike,updip,p1in,p2in,p3in)
 !----
 ! Calculate the triangle normal vector, strike-parallel vector, and up-dip vector
@@ -3246,6 +3266,7 @@ subroutine tri_geometry(normal,strike,updip,p1in,p2in,p3in)
 !----
 
 implicit none
+
 ! Arguments
 double precision :: normal(3), strike(3), updip(3), p1in(3), p2in(3), p3in(3)
 ! Local variables
@@ -3287,8 +3308,15 @@ updip(3) = normal(1)*strike(2) - normal(2)*strike(1)
 return
 end subroutine
 
+!--------------------------------------------------------------------------------------------------!
+
 subroutine tri_geo2cart(pt1,pt2,pt3,pt1_in,pt2_in,pt3_in,depthUnits)
+
+use earth, only: radius_earth_m, radius_earth_km
+use geom, only: lola2distaz
+
 implicit none
+
 ! Arguments
 double precision :: pt1(3),pt2(3),pt3(3),pt1_in(3),pt2_in(3),pt3_in(3)
 character(len=*) :: depthUnits
@@ -3297,28 +3325,31 @@ double precision :: center(3), dist, az, radius
 
 radius = 0.0d0
 if (trim(depthUnits).eq.'m') then
-    radius = 6.371d6
+    radius = radius_earth_m
 elseif (trim(depthUnits).eq.'km') then
-    radius = 6.371d3
+    radius = radius_earth_km
 else
     write(0,*) 'tri_geo2cart: no depth unit named ',trim(depthUnits)
 endif
 
 call tri_center(center,pt1_in,pt2_in,pt3_in)
 
-call ddistaz(dist,az,center(1),center(2),pt1_in(1),pt1_in(2))
+! call ddistaz(dist,az,center(1),center(2),pt1_in(1),pt1_in(2))
+call lola2distaz(center(1),center(2),pt1_in(1),pt1_in(2),dist,az)
 dist = dist*radius
 pt1(1) = dist*dsin(az)
 pt1(2) = dist*dcos(az)
 pt1(3) = pt1_in(3)
 
-call ddistaz(dist,az,center(1),center(2),pt2_in(1),pt2_in(2))
+! call ddistaz(dist,az,center(1),center(2),pt2_in(1),pt2_in(2))
+call lola2distaz(center(1),center(2),pt2_in(1),pt2_in(2),dist,az)
 dist = dist*radius
 pt2(1) = dist*dsin(az)
 pt2(2) = dist*dcos(az)
 pt2(3) = pt2_in(3)
 
-call ddistaz(dist,az,center(1),center(2),pt3_in(1),pt3_in(2))
+! call ddistaz(dist,az,center(1),center(2),pt3_in(1),pt3_in(2))
+call lola2distaz(center(1),center(2),pt3_in(1),pt3_in(2),dist,az)
 dist = dist*radius
 pt3(1) = dist*dsin(az)
 pt3(2) = dist*dcos(az)

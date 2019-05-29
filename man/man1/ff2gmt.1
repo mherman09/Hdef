@@ -1,0 +1,63 @@
+.TH FF2GMT 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+ff2gmt \- convert FFM to GMT-readable formats
+
+.SH SYNOPSIS
+.P
+.B ff2gmt
+.BI -ffm " usgs_param_file"
+.B |
+.BI -fsp " srcmod_fsp_file"
+.BI [-slip " slip_file" ]
+.BI [-trup " trup_file" ]
+.BI [-dep " dep_file" ]
+.BI [-clip[seg] " clip_file" ]
+.BI [-epi " epi_file" ]
+
+.SH DESCRIPTION
+.B ff2gmt
+reads a finite fault model from a standard format and produces files for plotting with GMT.
+
+.SH OPTIONS
+.TP
+.BI -ffm " usgs_param_file"
+Finite fault model in U.S. Geological Survey .param format. See event pages for Mw 7+ events
+at http://earthquake.usgs.gov for examples.
+
+.TP
+.BI -fsp " srcmod_fsp_file"
+Finite fault model in SRCMOD FSP format. See http://equake-rc.info/SRCMOD for examples.
+
+
+.TP
+The following options print lon lat <value> str len hwid, for use with "gmt psxy -SJ -C<cptfile>"
+
+.TP
+.BI -slip " slip_file"
+Print slip magnitude (in meters) in the third column.
+
+.TP
+.BI -trup " trup_file"
+Print rupture time (in seconds after origin) in the third column.
+
+.TP
+.BI -dep " depth_file"
+Print depth (in km, positive down) in the third column.
+
+
+.TP
+Other options
+
+.TP
+.BI -clip[seg] " clip_file"
+Print the outline of the FFM to a file. By default, prints a quadrilateral with
+corners placed at the cartesian extremes of the FFM. Appending
+.B seg
+will print a quadrilateral for each segment defined in the input file.
+
+.TP
+.BI -epi " epi_file"
+Print the epicenter to a file.
+
+.RS

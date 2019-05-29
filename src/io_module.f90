@@ -12,10 +12,16 @@ integer :: verbosity  ! 0: Silent, only error messages
                       ! 5: Outputs
                       ! 6: Detailed debugging output
 
+logical :: debug
+
 public :: stdin
 public :: stdout
 public :: stderr
 public :: verbosity
+
+public :: fileExists
+public :: line_count
+public :: progress_indicator
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -76,5 +82,48 @@ close(41)
 
 return
 end function line_count
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine progress_indicator(i,n,label,ierr)
+!----
+! Display a progress indicator showing i steps out of n total.
+!----
+
+implicit none
+
+! Arguments
+integer :: i, n, ierr
+character(len=*) :: label
+
+! Local variables
+character(len=1) :: CR
+
+ierr = 0
+
+if (n.le.0) then
+    write(stderr,*) 'progress_indicator: input n must be greater than 0'
+    ierr = 1
+    return
+endif
+
+CR = char(13) ! Carriage return
+
+if (n.le.100) then
+    write(stdout,1000,advance='no') label,100*i/n,CR
+else
+    if (mod(i,n/100).eq.0) then
+        write(stdout,1000,advance='no') label,100*i/n,CR
+    endif
+endif
+
+if (i.eq.n) then
+    write(stdout,1000) label,100*i/n
+endif
+
+1000 format (1X,A,' progress: [',I3,'% complete]',A)
+
+return
+end subroutine
 
 end module

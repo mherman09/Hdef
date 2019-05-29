@@ -4,20 +4,23 @@
 #       USAGE STATEMENT
 #####
 function usage() {
-    echo "$0 -i STR,DIP,RAK [-a PSFILE] [-x OPT]"
-    echo "    -i STR,DIP,RAK   Input strike, dip, and rake"
-    echo "    -a PSFILE        Add schematic to an existing PostScript file"
-    echo "    -x OPT           Move/resize schematic (x0,y0,wid); origin at bottom left"
-    exit
+    echo "Usage: trg_schem.sh -i STR,DIP,RAK [-a PSFILE] [-x OPT]" 1>&2
+    echo 1>&2
+    echo "-i STR,DIP,RAK   Input strike, dip, and rake" 1>&2
+    echo "-a PSFILE        Add schematic to an existing PostScript file" 1>&2
+    echo "-x OPT           Move/resize schematic (x0,y0,wid); origin at bottom left" 1>&2
+    echo 1>&2
+    exit 1
 }
 if [ $# -eq 0 ]; then usage; fi
 
 #####
 #	PARSE COMMAND LINE
 #####
-STR="0"
-DIP="90"
-RAK="180"
+TSTR=""
+TDIP=""
+TRAK=""
+KINEMATICS=""
 APPEND=""
 ALTER=""
 while [ "$1" != "" ]
@@ -31,10 +34,22 @@ do
     shift
 done
 
+# Fault kinematics: str,dip,rak
+if [ "$KINEMATICS" == "" ]
+then
+    echo "$0: define fault kinematics" 1>&2
+    usage
+fi
 TSTR=`echo $KINEMATICS | awk -F, '{print $1}'`
 TDIP=`echo $KINEMATICS | awk -F, '{print $2}'`
 TRAK=`echo $KINEMATICS | awk -F, '{print $3}'`
+if [ "$TSTR" == "" -o "$TDIP" == "" -o "$TRAK" == "" ]
+then
+    echo "$0: failed to parse $KINEMATICS into strike,dip,rake" 1>&2
+    usage
+fi
 
+# Dimensions and location of figure
 if [ -z $ALTER ]
 then
     X0="0.5"
@@ -44,6 +59,11 @@ else
     X0=`echo $ALTER | awk -F, '{print $1}'`
     Y0=`echo $ALTER | awk -F, '{print $2}'`
     WID=`echo $ALTER | awk -F, '{print $3}'`
+fi
+if [ "$X0" == "" -o "$Y0" == "" -o "$WID" == "" ]
+then
+    echo "$0: failed to parse $ALTER into x0,y0,wid" 1>&2
+    usage
 fi
 SHIFT="-Xa${X0}i -Ya${Y0}i"
 HEIGHT=`echo $WID | awk '{print $1*1.5}'`
