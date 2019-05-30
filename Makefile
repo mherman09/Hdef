@@ -66,6 +66,7 @@ CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
 ##### COMPILED PROGRAM RULES #####
 ##################################
 all: \
+    $(BIN) \
     $(BIN)/colortool \
     $(BIN)/dateutil \
     $(BIN)/distaz2lola \
@@ -86,6 +87,9 @@ all: \
     $(BIN)/vec2los \
     $(BIN)/wraplos \
     scripts
+
+$(BIN):
+	mkdir -p $(BIN)
 
 $(BIN)/colortool: src/colortool.f90
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
