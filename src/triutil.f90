@@ -796,7 +796,7 @@ do while (i.le.narg)
         read(tag,*,iostat=ios,err=9001) verbosity
 
     else
-        call usage('!! gcmdln: no option '//trim(tag))
+        call usage('triutil: no option '//trim(tag))
 
     endif
 
@@ -830,8 +830,7 @@ if (verbosity.ge.1) then
 endif
 
 9001 if (ios.ne.0) then
-    write(stderr,*) 'gcmdln: error reading string ',trim(tag)
-    call usage('exiting triutil from gcmdln')
+    call usage('triutil: error reading string '//trim(tag))
 endif
 
 return

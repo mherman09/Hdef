@@ -1122,7 +1122,7 @@ do while (i.le.narg)
         iWantProg = .true.
 
     else
-        call usage('gcmdln: no option '//trim(tag))
+        call usage('o92util: no option '//trim(tag))
     endif
 
     i = i + 1

@@ -198,7 +198,7 @@ do while (i.le.narg)
         read(tag,*) verbosity
 
     else
-        call usage('gcmdln: no option '//trim(tag))
+        call usage('sphfinrot: no option '//trim(tag))
     endif
 
     i = i + 1

@@ -211,7 +211,7 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,date_format)
     else
-        call usage('gcmdln: No option '//tag)
+        call usage('dateutil: No option '//tag)
     endif
 
     i = i + 1

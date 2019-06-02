@@ -175,7 +175,7 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,lon_range)
     else
-        call usage('gcmdln: no option '//trim(tag))
+        call usage('distaz2lola: no option '//trim(tag))
     endif
 
     i = i + 1

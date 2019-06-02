@@ -166,7 +166,7 @@ do while (i.le.narg)
                     trim(tag_array(4))
         close(86)
     else
-        call usage('gcmdln: no option '//trim(tag))
+        call usage('lola2distaz: no option '//trim(tag))
     endif
 
     i = i + 1
