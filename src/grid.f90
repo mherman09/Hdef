@@ -747,7 +747,7 @@ do while (i.le.narg)
         read(tag,*) verbosity
 
     else
-        call usage('!! Error: no option '//tag)
+        call usage('grid: no option '//tag)
     endif
     i = i + 1
 enddo
