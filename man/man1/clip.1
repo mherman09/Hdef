@@ -1,0 +1,60 @@
+.TH CLIP 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+clip \- select points inside or outside a polygon
+
+.SH SYNOPSIS
+.P
+.B clip
+.I polygon_file
+.BI -in|-out|-on " eps"
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+
+.SH DESCRIPTION
+.B clip
+selects points inside, outside, or on a polygon using the pnpoly algorithm.
+Define the threshold distance,
+.IR eps ,
+for lying on the polygon by using the
+.B -on
+option.
+
+.SH OPTIONS
+.TP
+.I polygon_file
+Polygon x-y coordinates
+
+.TP
+.B -in
+Select points inside polygon (may be used with
+.B -out
+and
+.BR -on )
+
+.TP
+.B -out
+Select points outside polygon (may be used with
+.B -in
+and
+.BR -on )
+
+.TP
+.BI -on " eps"
+Select points less than
+.I eps
+from the polygon boundary (may be used with
+.B -in
+and
+.BR -out )
+
+
+.TP
+.BI -f " input_file"
+Coordinates to clip in x-y-z format (default: read from standard input)
+
+.TP
+.BI -o " output_file"
+Output file (default prints to standard output)
+
+.RS
