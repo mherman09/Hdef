@@ -311,7 +311,7 @@ enddo
 !**U.z(underIdx)                = U.z(underIdx) - slipVec(3);
 
 ! Check for points under triangle
-call pnpoly(sta_coord(1),sta_coord(2),tri_coord(1,:),tri_coord(2,:),4,inOrOut)
+call pnpoly(sta_coord(1),sta_coord(2),tri_coord(1,:),tri_coord(2,:),4,inOrOut,1.0d-8)
 
 ! If point is under, add slip to displacement
 if (inOrOut.ge.0) then

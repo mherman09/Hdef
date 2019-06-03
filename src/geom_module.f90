@@ -307,7 +307,7 @@ end
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine pnpoly(PX,PY,XX,YY,N,INOUT)
+subroutine pnpoly(PX,PY,XX,YY,N,INOUT,eps)
 
 !----
 ! SUBROUTINE pnpoly
@@ -329,6 +329,7 @@ subroutine pnpoly(PX,PY,XX,YY,N,INOUT)
 !             -1 IF THE POINT IS OUTSIDE OF THE POLYGON,
 !              0 IF THE POINT IS ON AN EDGE OR AT A VERTEX,
 !              1 IF THE POINT IS INSIDE OF THE POLYGON.
+!   eps     - Threshold for distance from boundary
 !
 ! REMARKS:
 !   - THE VERTICES MAY BE LISTED CLOCKWISE OR ANTICLOCKWISE.
@@ -349,14 +350,13 @@ subroutine pnpoly(PX,PY,XX,YY,N,INOUT)
 implicit none
 
 ! Arguments
-double precision :: PX, PY, XX(N), YY(N)
+double precision :: PX, PY, XX(N), YY(N), eps
 integer :: N, INOUT
 
 ! Local variables
 double precision :: X(N), Y(N), var
 integer :: I, J
 logical :: MX, MY, NX, NY
-double precision, parameter :: eps = 1.0d-8
 
 
 ! Compute the coordinates of the points on the clipping path (xx,yy) relative to the point of
