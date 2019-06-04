@@ -1,0 +1,59 @@
+.TH FITUTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+fitutil \- select points inside or outside a polygon
+
+.SH SYNOPSIS
+.P
+.B fitutil
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+.BI -poly " n"
+.BI -sin " period"
+
+.SH DESCRIPTION
+.B fitutil
+selects points inside, outside, or on a polygon using the pnpoly algorithm.
+Define the threshold distance,
+.IR eps ,
+for lying on the polygon by using the
+.B -on
+option.
+
+.SH OPTIONS
+.TP
+.BI -f " input_file"
+Coordinates to fit in x-y format (default: read from standard input)
+
+.TP
+.BI -o " output_file"
+Output coefficients (default prints to standard output)
+
+
+.TP
+.BI -poly " n"
+Fit data with a polynomial of order
+.IR n .
+
+.TP
+.BI -sin " period"
+Fit data with a sinusoid with
+.IR period .
+Solves for the amplitude and phase of
+y=A*sin(2*pi/T*x+phase). Repeat up to four times.
+
+.TP
+.BI "-exp [" constant ]
+Fit data with an exponential. Solves for amplitude and exponential constant
+(cannot be used with other options) or amplitude with a fixed exponential constant.
+
+.TP
+.BI -label_coeff " Y" | N
+Print coefficients with labels (default: Y)
+
+.TP
+.BI -pre " predicted_file"
+Predicted values at input x coordinates
+
+
+.RS

@@ -66,10 +66,13 @@ CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
 ##### COMPILED PROGRAM RULES #####
 ##################################
 all: \
+    $(INCLUDE_DIR) \
     $(BIN) \
+    $(BIN)/clip \
     $(BIN)/colortool \
     $(BIN)/dateutil \
     $(BIN)/distaz2lola \
+    $(BIN)/fitutil \
     $(BIN)/ff2gmt \
     $(BIN)/fltinv \
     $(BIN)/grid \
@@ -90,6 +93,12 @@ all: \
 
 $(BIN):
 	mkdir -p $(BIN)
+
+$(BIN)/clip: src/clip.f90 \
+             $(INCLUDE_DIR)/algebra.o \
+             $(INCLUDE_DIR)/geom.o \
+             $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 $(BIN)/colortool: src/colortool.f90
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -113,6 +122,12 @@ $(BIN)/ff2gmt: src/ff2gmt.f90 \
                $(INCLUDE_DIR)/io.o \
                $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+$(BIN)/fitutil: src/fitutil.f90 \
+                $(INCLUDE_DIR)/io.o \
+                $(INCLUDE_DIR)/solver.o \
+                $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
 
 $(BIN)/fltinv: src/fltinv.f90 \
                $(INCLUDE_DIR)/algebra.o \
@@ -274,7 +289,11 @@ INCLUDE_FILES = \
     $(INCLUDE_DIR)/trig.o \
     $(INCLUDE_DIR)/tri_disloc.o
 
-include: $(INCLUDE_FILES)
+objects: $(INCLUDE_FILES)
+
+$(INCLUDE_DIR):
+	mkdir -p $(INCLUDE_DIR)
+
 
 $(INCLUDE_DIR)/algebra.o: src/algebra_module.f90 \
                           $(INCLUDE_DIR)/io.o \
