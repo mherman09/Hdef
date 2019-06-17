@@ -57,7 +57,7 @@ elseif (date_format.eq.'YYYYMMDD') then
         ios = 1
     endif
 elseif (date_format.eq.'YYYY-MM-DDTHH:MM:SS') then
-    if (len(trim(date_string)).eq.19) then
+    if (len(trim(date_string)).ge.19) then
         read(date_string,'(I4,X,I2,X,I2,X,I2,X,I2,X,I2)',iostat=ios) (date(j),j=1,6)
     else
         ios = 1
