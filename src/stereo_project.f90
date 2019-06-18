@@ -104,6 +104,7 @@ end
 
 subroutine gcmdln()
 
+use io, only: stderr
 use earth, only: radius_earth_km
 
 use stereo_project, only: project_mode, &
@@ -153,15 +154,15 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-lon0') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) lon0
+        read(tag,*,err=9001) lon0
     elseif (trim(tag).eq.'-lat0') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) lat0
+        read(tag,*,err=9002) lat0
     elseif (trim(tag).eq.'-radius') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) radius_sphere
+        read(tag,*,err=9003) radius_sphere
 
     else
         call usage('stereo_project: no option '//trim(tag))
@@ -171,6 +172,15 @@ do while (i.le.narg)
 enddo
 
 return
+
+! Error messages
+9001 write(stderr,*) 'stereo_project: error reading central longitude'
+call usage(          'Tried to read: '//trim(tag))
+9002 write(stderr,*) 'stereo_project: error reading central latitude'
+call usage(          'Tried to read: '//trim(tag))
+9003 write(stderr,*) 'stereo_project: error reading radius of sphere'
+call usage(          'Tried to read: '//trim(tag))
+
 end subroutine
 
 !--------------------------------------------------------------------------------------------------!
