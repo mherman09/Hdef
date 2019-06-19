@@ -97,7 +97,7 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine distaz2lola(lon1,lat1,dist,az,lon2,lat2)
+subroutine distaz2lola(lon1,lat1,dist,az,lon2,lat2,dist_unit,az_unit,ierr)
 !----
 ! Given a longitude and latitude and distance and azimuth clockwise from north away from this
 ! initial point, compute the ending longitude and latitude.
@@ -105,8 +105,11 @@ subroutine distaz2lola(lon1,lat1,dist,az,lon2,lat2)
 ! Inputs
 !     lon1: starting longitude, in degrees
 !     lat1: starting latitude, in degrees
-!     dist: distance between points along sphere, in radians
-!     az: azimuth pointing from point 1 to point 2, clockwise from north, in degrees
+!     dist: distance between points along sphere, in dist_unit
+!     az: azimuth pointing from point 1 to point 2, clockwise from north, in az_unit
+!     dist_unit: radians, meters, kilometers
+!     az_unit: degrees, radians
+!     ierr: error status
 !
 ! Outputs
 !     lon2: ending latitude, in degrees
@@ -120,28 +123,52 @@ implicit none
 
 ! Arguments
 double precision :: lon1, lat1, lon2, lat2, dist, az
+character(len=*) :: dist_unit, az_unit
+integer :: ierr
 
 ! Local variables
-double precision :: azr, lon1r, lat1r
+double precision :: distr, azr, lon1r, lat1r
 
+
+ierr = 0
 lon2 = 0.0d0
 lat2 = 0.0d0
 
 if (abs(lat1).gt.90.0d0) then
     write(stderr,*) 'distaz2lola: input latitude is greater than 90'
+    ierr = 1
     return
 endif
 
 ! Convert all input quantities to radians
-azr = az*d2r          ! deg -> rad
+! Distance
+if (dist_unit.eq.'radians') then
+    distr = dist
+else
+    write(stderr,*) 'distaz2lola: no dist_unit named ',trim(dist_unit)
+    ierr = 2
+    return
+endif
+
+! Azimuth
+if (az_unit.eq.'degrees') then
+    azr = az*d2r          ! deg -> rad
+elseif (az_unit.eq.'radians') then
+    azr = az
+else
+    write(stderr,*) 'distaz2lola: no az_unit named ',trim(az_unit)
+    ierr = 2
+    return
+endif
+
 lon1r = lon1*d2r      ! deg -> rad
 lat1r = lat1*d2r      ! deg -> rad
 
 ! Spherical law of cosines
-lat2 = dasin(dsin(lat1r)*dcos(dist)+dcos(lat1r)*dsin(dist)*dcos(azr))
+lat2 = dasin(dsin(lat1r)*dcos(distr)+dcos(lat1r)*dsin(distr)*dcos(azr))
 
 ! Spherical law of cosines and law of sines
-lon2 = lon1r + datan2(dsin(azr)*dsin(dist)*dcos(lat1r), dcos(dist)-dsin(lat1r)*dsin(lat2))
+lon2 = lon1r + datan2(dsin(azr)*dsin(distr)*dcos(lat1r), dcos(distr)-dsin(lat1r)*dsin(lat2))
 
 lon2 = lon2*r2d
 lat2 = lat2*r2d

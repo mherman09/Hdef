@@ -400,7 +400,7 @@ type(ffm_data) :: input_ffm
 double precision :: outline(input_ffm%nseg,4,2)
 
 ! Local variables
-integer :: i, j, iseg, iflt, ioutline(input_ffm%nseg,4)
+integer :: i, j, ierr, iseg, iflt, ioutline(input_ffm%nseg,4)
 logical :: isSegInit(input_ffm%nseg)
 double precision :: evlo, evla, str, dip, wid, len, lo, la, corners(4,2)
 
@@ -463,12 +463,16 @@ do iseg = 1,input_ffm%nseg
         dip = input_ffm%subflt(iflt,5)
         wid = input_ffm%subflt(iflt,8)
         len = input_ffm%subflt(iflt,9)
-        call distaz2lola(evlo,evla,len/2.0d0/6371.0d3,str,lo,la)
-        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str-90.0d0,corners(1,1),corners(1,2))
-        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str+90.0d0,corners(2,1),corners(2,2))
-        call distaz2lola(evlo,evla,len/2.0d0/6371.0d3,str+180.0d0,lo,la)
-        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str-90.0d0,corners(3,1),corners(3,2))
-        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str+90.0d0,corners(4,1),corners(4,2))
+        call distaz2lola(evlo,evla,len/2.0d0/6371.0d3,str,lo,la,'radians','degrees',ierr)
+        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str-90.0d0,corners(1,1),corners(1,2), &
+                         'radians','degrees',ierr)
+        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str+90.0d0,corners(2,1),corners(2,2), &
+                         'radians','degrees',ierr)
+        call distaz2lola(evlo,evla,len/2.0d0/6371.0d3,str+180.0d0,lo,la,'radians','degrees',ierr)
+        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str-90.0d0,corners(3,1),corners(3,2), &
+                         'radians','degrees',ierr)
+        call distaz2lola(lo,la,wid/2.0d0*cos(dip*d2r)/6371.0d3,str+90.0d0,corners(4,1),corners(4,2), &
+                         'radians','degrees',ierr)
 
         if (i.eq.1) then
             outline(iseg,i,1) = minval(corners(:,1))

@@ -233,7 +233,10 @@ elseif (isXDefined.and.isYDefined.and.isZDefined) then
                 x = x0 + dx*dsin(azimuth*d2r) ! move global x along plane
                 y = y0 + dx*dcos(azimuth*d2r) ! move global y along plane
             elseif (coord_type.eq.'geographic') then
-                call distaz2lola(x0,y0,dx/radius_earth_km,azimuth,x,y)
+                call distaz2lola(x0,y0,dx/radius_earth_km,azimuth,x,y,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('grid: error computing longitude and latitude')
+                endif
             endif
 
             do j = 1,ny+1
@@ -242,7 +245,11 @@ elseif (isXDefined.and.isYDefined.and.isZDefined) then
                     x = x + dy*dsin((azimuth-90.0d0)*d2r) ! add to global x
                     y = y + dy*dcos((azimuth-90.0d0)*d2r) ! add to global y
                 elseif (coord_type.eq.'geographic') then
-                    call distaz2lola(x,y,dy/radius_earth_km,azimuth-90.0d0,x,y)
+                    call distaz2lola(x,y,dy/radius_earth_km,azimuth-90.0d0,x,y,'radians','degrees',&
+                                     ierr)
+                    if (ierr.ne.0) then
+                        call usage('grid: error computing longitude and latitude')
+                    endif
                 endif
 
                 do k = 1,nz+1
@@ -270,7 +277,10 @@ elseif (isXDefined.and..not.isYDefined.and.isZDefined) then
                 x = x0 + dx*dsin(azimuth*d2r) ! move global x along plane
                 y = y0 + dx*dcos(azimuth*d2r) ! move global y along plane
             elseif (coord_type.eq.'geographic') then
-                call distaz2lola(x0,y0,dx/radius_earth_km,azimuth,x,y)
+                call distaz2lola(x0,y0,dx/radius_earth_km,azimuth,x,y,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('grid: error computing longitude and latitude')
+                endif
             endif
 
             do k = 1,nz+1

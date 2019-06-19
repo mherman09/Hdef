@@ -85,7 +85,10 @@ do
     endif
 
     ! Compute longitude and latitude
-    call distaz2lola(lon1,lat1,dist/radius_earth_km,az,lon2,lat2)
+    call distaz2lola(lon1,lat1,dist/radius_earth_km,az,lon2,lat2,'radians','degrees',ios)
+    if (ios.ne.0) then
+        call usage('distaz2lola: error computing longitude and latitude')
+    endif
 
     ! Make sure lon is in specified range
     if (lon_range.eq.'NEG'.and.lon2.gt.180.0d0) then

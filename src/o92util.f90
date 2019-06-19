@@ -741,7 +741,7 @@ use o92util, only: station_file, &
 implicit none
 
 ! Local variables
-integer :: i
+integer :: i, ierr
 double precision :: centroid(3), moment, lon, lat, x, y, dx, dy
 
 if (station_file.ne.'o92_autosta_86_this_when_finished') then
@@ -766,14 +766,22 @@ centroid = centroid/moment
 if (coord_type.eq.'geographic') then
     dx = -500.0d0
     do while (dx.le.500.0d0)
-        call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,90.0d0,lon,lat)
+        call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,90.0d0,lon,lat, &
+                         'radians','degrees',ierr)
+        if (ierr.ne.0) then
+            call usage('auto_stations: error computing longitude and latitude')
+        endif
         write(81,*) lon,lat,auto_depth
         dx = dx + 1.0d0
     enddo
     dy = -500.0d0
     do while (dy.le.500.0d0)
-        call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,0.0d0,lon,lat)
+        call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,0.0d0,lon,lat, &
+                         'radians','degrees',ierr)
         write(81,*) lon,lat,auto_depth
+        if (ierr.ne.0) then
+            call usage('auto_stations: error computing longitude and latitude')
+        endif
         dy = dy + 1.0d0
     enddo
 
