@@ -307,6 +307,8 @@ else
         call read_fltinv_data_file(displacement,ierr)
         if (ierr.ne.0) then
             call usage('read_inputs: problem reading displacement file')
+        elseif (displacement%nrows.eq.0) then
+            call usage('read_inputs: displacement file is empty')
         endif
     endif
 
@@ -315,6 +317,8 @@ else
         call read_fltinv_data_file(los,ierr)
         if (ierr.ne.0) then
             call usage('read_inputs: problem reading los file')
+        elseif (los%nrows.eq.0) then
+            call usage('read_inputs: los file is empty')
         endif
     endif
 
@@ -322,7 +326,9 @@ else
         prestress%ncols = 6 ! sxx syy szz sxy sxz syz (fault locations defined in fault file)
         call read_fltinv_data_file(prestress,ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: problem reading prestress file')
+            call usage('read_inputs: problem reading pre-stress file')
+        elseif (prestress%nrows.eq.0) then
+            call usage('read_inputs: pre-stress file is empty')
         endif
     endif
 endif
@@ -1363,7 +1369,7 @@ slip_mag = 1.0d0
 ! Calculate stress Green's function for each fault-fault pair
 do i = 1,fault%nrows
 
-    ! Station coordinates
+    ! Station (target fault) coordinates
     if (gf_model.eq.'okada_rect') then
         sta(1) = fault%array(i,1)
         sta(2) = fault%array(i,2)
@@ -1383,8 +1389,11 @@ do i = 1,fault%nrows
         if (coord_type.eq.'geographic') then
             call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
                               fault%array(i,7:9),'m')
+            call tri_geometry(nvec,tvec1,tvec2,pt1,pt2,pt3)
+        elseif (coord_type.eq.'cartesian') then
+            call tri_geometry(nvec,tvec1,tvec2,fault%array(i,1:3),fault%array(i,4:6), &
+                              fault%array(i,7:9))
         endif
-        call tri_geometry(nvec,tvec1,tvec2,pt1,pt2,pt3)
     endif
 
     do j = 1,fault%nrows
@@ -1523,6 +1532,10 @@ do i = 1,fault%nrows
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
                 call tri_center(center,tri(:,1),tri(:,2),tri(:,3))
+                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az)
+                dist = dist*radius_earth_m
+                sta_new(1) = dist*dsin(az*d2r)
+                sta_new(2) = dist*dcos(az*d2r)
                 do iTri = 1,3
                     call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az)
                     dist = dist*radius_earth_m
@@ -1530,16 +1543,12 @@ do i = 1,fault%nrows
                     tri_new(2,iTri) = dist*dcos(az*d2r)
                     tri_new(3,iTri) = tri(3,iTri)
                 enddo
-                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az)
-                dist = dist*radius_earth_m
-                sta_new(1) = dist*dsin(az*d2r)
-                sta_new(2) = dist*dcos(az*d2r)
             elseif (coord_type.eq.'cartesian') then
                 tri_new = tri
                 sta_new = sta
             endif
 
-            ! Calculate displacements for both rake angles
+            ! Calculate strains for both rake angles
             slip(1) = -slip_mag*cos(rak1*d2r)
             slip(2) = -slip_mag*sin(rak1*d2r)
             slip(3) = 0.0d0
@@ -2846,7 +2855,13 @@ endif
 
 
 ! Calculate slip in each fault
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_objective: starting psc_slip'
+endif
 call psc_slip(model,n,slip)
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_objective: finished psc_slip'
+endif
 
 
 ! Compute the fit to observations
@@ -2913,8 +2928,14 @@ enddo
 ! enddo
 
 ! Calculate chi-squared
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_objective: starting misfit_chi2'
+endif
 call misfit_chi2(obs,pre,cov_matrix,nobs,anneal_psc_objective)
 anneal_psc_objective = -0.5d0*anneal_psc_objective
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_objective: finished misfit_chi2'
+endif
 
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_objective: objective=',anneal_psc_objective
@@ -3459,7 +3480,7 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-los') then
         i = i + 1
         call get_command_argument(i,los%file)
-    elseif (trim(tag).eq.'-prests') then
+    elseif (trim(tag).eq.'-prests'.or.tag.eq.'-prestress') then
         i = i + 1
         call get_command_argument(i,prestress%file)
     elseif (trim(tag).eq.'-cov') then
