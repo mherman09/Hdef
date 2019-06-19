@@ -20,6 +20,9 @@ paste $1 $2 |\
             if (diff<0) {
                 diff = -diff
             }
+            if (expected<0) {
+                expected = -expected
+            }
             if (expected<1e-8) {
                 if (diff>1.0e-7) {
                     print "FAIL"
