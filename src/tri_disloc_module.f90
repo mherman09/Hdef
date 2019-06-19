@@ -3336,7 +3336,6 @@ else
 endif
 
 call tri_center(center,pt1_in,pt2_in,pt3_in)
-write(0,*) 'tri_geo2cart: center: ',center
 
 ! call ddistaz(dist,az,center(1),center(2),pt1_in(1),pt1_in(2))
 call lola2distaz(center(1),center(2),pt1_in(1),pt1_in(2),dist,az,'radians','radians',ierr)
