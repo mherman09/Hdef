@@ -1121,7 +1121,10 @@ do i = 1,ndsp+nlos
 
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
-                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az)
+                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_disp_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
                 dx = sta(1) - evlo
@@ -1158,7 +1161,10 @@ do i = 1,ndsp+nlos
 
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
-                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az)
+                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_disp_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
                 dx = sta(1) - evlo
@@ -1201,16 +1207,23 @@ do i = 1,ndsp+nlos
             if (coord_type.eq.'geographic') then
                 call tri_center(center,tri(:,1),tri(:,2),tri(:,3))
                 do iTri = 1,3
-                    call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az)
+                    call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az, &
+                                'radians','radians',ierr)
+                    if (ierr.ne.0) then
+                        call usage('calc_disp_gfs: error calculating dist and az')
+                    endif
                     dist = dist*radius_earth_m
-                    tri_new(1,iTri) = dist*dsin(az*d2r)
-                    tri_new(2,iTri) = dist*dcos(az*d2r)
+                    tri_new(1,iTri) = dist*dsin(az)
+                    tri_new(2,iTri) = dist*dcos(az)
                     tri_new(3,iTri) = tri(3,iTri)
                 enddo
-                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az)
+                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az,'radians','radians',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_disp_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
-                sta_new(1) = dist*dsin(az*d2r)
-                sta_new(2) = dist*dcos(az*d2r)
+                sta_new(1) = dist*dsin(az)
+                sta_new(2) = dist*dcos(az)
             elseif (coord_type.eq.'cartesian') then
                 tri_new = tri
                 sta_new = sta
@@ -1431,7 +1444,10 @@ do i = 1,fault%nrows
 
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
-                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az)
+                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_stress_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
                 dx = sta(1) - evlo
@@ -1479,7 +1495,10 @@ do i = 1,fault%nrows
 
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
-                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az)
+                call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_stress_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
                 dx = sta(1) - evlo
@@ -1532,15 +1551,21 @@ do i = 1,fault%nrows
             ! Calculate location of station relative to fault center
             if (coord_type.eq.'geographic') then
                 call tri_center(center,tri(:,1),tri(:,2),tri(:,3))
-                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az)
+                call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az,'radians','radians',ierr)
+                if (ierr.ne.0) then
+                    call usage('calc_stress_gfs: error calculating dist and az')
+                endif
                 dist = dist*radius_earth_m
-                sta_new(1) = dist*dsin(az*d2r)
-                sta_new(2) = dist*dcos(az*d2r)
+                sta_new(1) = dist*dsin(az)
+                sta_new(2) = dist*dcos(az)
                 do iTri = 1,3
-                    call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az)
+                    call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az,'radians','radians',ierr)
+                    if (ierr.ne.0) then
+                        call usage('calc_stress_gfs: error calculating dist and az')
+                    endif
                     dist = dist*radius_earth_m
-                    tri_new(1,iTri) = dist*dsin(az*d2r)
-                    tri_new(2,iTri) = dist*dcos(az*d2r)
+                    tri_new(1,iTri) = dist*dsin(az)
+                    tri_new(2,iTri) = dist*dcos(az)
                     tri_new(3,iTri) = tri(3,iTri)
                 enddo
             elseif (coord_type.eq.'cartesian') then

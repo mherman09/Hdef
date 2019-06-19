@@ -3320,8 +3320,11 @@ implicit none
 ! Arguments
 double precision :: pt1(3),pt2(3),pt3(3),pt1_in(3),pt2_in(3),pt3_in(3)
 character(len=*) :: depthUnits
+
 ! Local variables
+integer :: ierr
 double precision :: center(3), dist, az, radius
+
 
 radius = 0.0d0
 if (trim(depthUnits).eq.'m') then
@@ -3333,23 +3336,33 @@ else
 endif
 
 call tri_center(center,pt1_in,pt2_in,pt3_in)
+write(0,*) 'tri_geo2cart: center: ',center
 
 ! call ddistaz(dist,az,center(1),center(2),pt1_in(1),pt1_in(2))
-call lola2distaz(center(1),center(2),pt1_in(1),pt1_in(2),dist,az)
+call lola2distaz(center(1),center(2),pt1_in(1),pt1_in(2),dist,az,'radians','radians',ierr)
+if (ierr.ne.0) then
+    write(0,*) 'tri_geo2cart: error calculating distance and azimuth for pt1'
+endif
 dist = dist*radius
 pt1(1) = dist*dsin(az)
 pt1(2) = dist*dcos(az)
 pt1(3) = pt1_in(3)
 
 ! call ddistaz(dist,az,center(1),center(2),pt2_in(1),pt2_in(2))
-call lola2distaz(center(1),center(2),pt2_in(1),pt2_in(2),dist,az)
+call lola2distaz(center(1),center(2),pt2_in(1),pt2_in(2),dist,az,'radians','radians',ierr)
+if (ierr.ne.0) then
+    write(0,*) 'tri_geo2cart: error calculating distance and azimuth for pt2'
+endif
 dist = dist*radius
 pt2(1) = dist*dsin(az)
 pt2(2) = dist*dcos(az)
 pt2(3) = pt2_in(3)
 
 ! call ddistaz(dist,az,center(1),center(2),pt3_in(1),pt3_in(2))
-call lola2distaz(center(1),center(2),pt3_in(1),pt3_in(2),dist,az)
+call lola2distaz(center(1),center(2),pt3_in(1),pt3_in(2),dist,az,'radians','radians',ierr)
+if (ierr.ne.0) then
+    write(0,*) 'tri_geo2cart: error calculating distance and azimuth for pt3'
+endif
 dist = dist*radius
 pt3(1) = dist*dsin(az)
 pt3(2) = dist*dcos(az)

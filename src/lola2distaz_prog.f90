@@ -23,7 +23,7 @@ use lola2distaz_prog, only: input_file, &
 implicit none
 
 ! Local variables
-integer :: luin, luout, ios, nline
+integer :: ierr, luin, luout, ios, nline
 double precision :: lon1, lat1, dist, az, lon2, lat2
 character(len=512) :: input_line
 
@@ -87,7 +87,10 @@ do
     endif
 
     ! Compute longitude and latitude
-    call lola2distaz(lon1,lat1,lon2,lat2,dist,az)
+    call lola2distaz(lon1,lat1,lon2,lat2,dist,az,'radians','degrees',ierr)
+    if (ierr.ne.0) then
+        call usage('lola2distaz: error calculating dist and az')
+    endif
     dist = dist*radius_earth_km
 
     ! Write distance/azimuth

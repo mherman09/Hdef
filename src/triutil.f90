@@ -469,7 +469,6 @@ subroutine calc_displacement(disp,x,y,z)
 ! displacement uz is defined positive up.
 !----
 
-use trig, only: d2r
 use geom, only: lola2distaz
 use tri_disloc, only: tri_disloc_disp, tri_center           ! Triangular dislocation subroutines
 use earth, only: radius_earth_m
@@ -488,7 +487,7 @@ double precision :: disp(3), x, y, z
 double precision :: sta_coord(3), tri_coord(3,4), slip(3), tri_coord_new(3,4)
 double precision :: center(3), dist, az
 double precision :: disptmp(3)
-integer :: iFlt, iTri
+integer :: iFlt, iTri, ierr
 
 ! Initialize displacement
 disp = 0.0d0
@@ -519,13 +518,20 @@ do iFlt = 1,nfaults
     if (coord_type.eq.'geographic') then
         ! Convert lon lat dep(km) to x(m) y(m) z(m) from triangle center
         call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
-        call lola2distaz(center(1),center(2),x,y,dist,az)
-        sta_coord(1) = dist*radius_earth_m*dsin(az*d2r)
-        sta_coord(2) = dist*radius_earth_m*dcos(az*d2r)
+        call lola2distaz(center(1),center(2),x,y,dist,az,'radians','radians',ierr)
+        if (ierr.ne.0) then
+            call usage('calc_displacement: error computing distance and azimuth')
+        endif
+        sta_coord(1) = dist*radius_earth_m*dsin(az)
+        sta_coord(2) = dist*radius_earth_m*dcos(az)
         do iTri = 1,3
-            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az)
-            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az*d2r)
-            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az*d2r)
+            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az,&
+                        'radians','radians',ierr)
+            if (ierr.ne.0) then
+                call usage('calc_displacement: error computing distance and azimuth')
+            endif
+            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az)
+            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az)
             tri_coord_new(3,iTri) = tri_coord(3,iTri)*1.0d3
         enddo
     else
@@ -552,7 +558,6 @@ subroutine calc_strain(strain,x,y,z)
 ! strain z coordinate is defined positive up.
 !----
 
-use trig, only: d2r
 use tri_disloc, only: tri_disloc_strain, tri_center       ! Triangular dislocation subroutines
 use geom, only: lola2distaz
 use earth, only: radius_earth_m
@@ -571,7 +576,7 @@ double precision :: strain(3,3), x, y, z
 double precision :: sta_coord(3), tri_coord(3,4), slip(3), tri_coord_new(3,4)
 double precision :: center(3), dist, az
 double precision :: straintmp(3,3)
-integer :: iFlt, iTri
+integer :: iFlt, iTri, ierr
 
 ! Initialize displacement
 strain = 0.0d0
@@ -600,13 +605,20 @@ do iFlt = 1,nfaults
     if (coord_type.eq.'geographic') then
         ! Convert lon lat dep(km) to x(m) y(m) z(m) from triangle center
         call tri_center(center,tri_coord(:,1),tri_coord(:,2),tri_coord(:,3))
-        call lola2distaz(center(1),center(2),x,y,dist,az)
-        sta_coord(1) = dist*radius_earth_m*dsin(az*d2r)
-        sta_coord(2) = dist*radius_earth_m*dcos(az*d2r)
+        call lola2distaz(center(1),center(2),x,y,dist,az,'radians','radians',ierr)
+        if (ierr.ne.0) then
+            call usage('calc_strain: error computing distance and azimuth')
+        endif
+        sta_coord(1) = dist*radius_earth_m*dsin(az)
+        sta_coord(2) = dist*radius_earth_m*dcos(az)
         do iTri = 1,3
-            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az)
-            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az*d2r)
-            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az*d2r)
+            call lola2distaz(center(1),center(2),tri_coord(1,iTri),tri_coord(2,iTri),dist,az,&
+                        'radians','radians',ierr)
+            if (ierr.ne.0) then
+                call usage('calc_strain: error computing distance and azimuth')
+            endif
+            tri_coord_new(1,iTri) = dist*radius_earth_m*dsin(az)
+            tri_coord_new(2,iTri) = dist*radius_earth_m*dcos(az)
             tri_coord_new(3,iTri) = tri_coord(3,iTri)*1.0d3
         enddo
     else

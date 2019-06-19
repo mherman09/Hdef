@@ -186,9 +186,12 @@ elseif (isXDefined.and.isYDefined.and..not.isZDefined) then
                     angle = atan2(dx,dy)                 ! angle clockwise from +y axis
                     dist = sqrt(dx*dx+dy*dy)             ! distance from origin
                 elseif (coord_type.eq.'geographic') then
-                    call lola2distaz(x0,y0,x,y,dist,angle)
+                    call lola2distaz(x0,y0,x,y,dist,angle,'radians','radians',ierr)
+                    if (ierr.ne.0) then
+                        call usage('grid: error calculating dist and az')
+                    endif
                     dist = dist*radius_earth_km
-                    angle = angle*d2r
+                    angle = angle
                 endif
 
                 ddip = dist*dsin(angle-strike*d2r)   ! horizontal, down-dip distance

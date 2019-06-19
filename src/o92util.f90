@@ -550,7 +550,8 @@ do iSta = 1,nstations
 
         ! Station location relative to fault at origin (ENZ coordinates)
         if (coord_type.eq.'geographic') then
-            call lola2distaz(evlo,evla,stations(iSta,1),stations(iSta,2),dist,az)
+            call lola2distaz(evlo,evla,stations(iSta,1),stations(iSta,2),dist,az, &
+                        'radians','radians',ierr)
 
             ! Check distance for coordinate type errors; if user forgot the -xy flag to use
             ! Cartesian coordinates, then the calculated distance will be much higher than
@@ -563,8 +564,8 @@ do iSta = 1,nstations
                 coordTypeWarning = .true.
             endif
 
-            sta_coord(1) = dist*radius_earth_m*sin(az*d2r)
-            sta_coord(2) = dist*radius_earth_m*cos(az*d2r)
+            sta_coord(1) = dist*radius_earth_m*sin(az)
+            sta_coord(2) = dist*radius_earth_m*cos(az)
 
         elseif (coord_type.eq.'cartesian') then
             sta_coord(1) = (stations(iSta,1) - evlo)*1.0d3

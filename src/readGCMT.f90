@@ -413,6 +413,7 @@ implicit none
 logical :: keepEvent
 
 ! Local variables
+integer :: ierr
 double precision :: dist, az, jd
 
 
@@ -437,7 +438,11 @@ if (geo_mode.eq.'rect') then
         return
     endif
 elseif (geo_mode.eq.'circle') then
-    call lola2distaz(lon0,lat0,centroid_lon,centroid_lat,dist,az)
+    call lola2distaz(lon0,lat0,centroid_lon,centroid_lat,dist,az, &
+                     'radians','radians',ierr)
+    if (ierr.ne.0) then
+        call usage('readGCMT: error computing distance')
+    endif
     if (dist*radius_earth_km.le.dist_max) then
         ! Keep event based on location
     else

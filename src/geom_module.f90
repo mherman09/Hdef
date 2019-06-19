@@ -18,7 +18,7 @@ public :: pnpoly
 contains
 !--------------------------------------------------------------------------------------------------!
 
-subroutine lola2distaz(lon1,lat1,lon2,lat2,dist,az)
+subroutine lola2distaz(lon1,lat1,lon2,lat2,dist,az,dist_unit,az_unit,ierr)
 !----
 ! Given the latitude and longitude of two points, compute the great circle distance between them
 ! and the azimuth from point 1 to point 2 measured clockwise from north.
@@ -32,6 +32,9 @@ subroutine lola2distaz(lon1,lat1,lon2,lat2,dist,az)
 ! Outputs
 !     dist: distance between points along sphere, in radians
 !     az: azimuth pointing from point 1 to point 2, clockwise from north, in degrees
+!     dist_unit: radians
+!     az_unit: degrees, radians
+!     ierr: error status
 !----
 
 use io, only: stderr
@@ -40,20 +43,26 @@ implicit none
 
 ! Arguments
 double precision :: dist, az, lon1, lat1, lon2, lat2
+character(len=*) :: dist_unit, az_unit
+integer :: ierr
 
 ! Local variables
 double precision :: lon1r, lat1r, lon2r, lat2r, colat1, colat2, dlon, dlat, a
 
+
+ierr = 0
 dist = 0.0d0
 az = 0.0d0
 
 if (abs(lat1).gt.90.0d0) then
     write(stderr,*) 'distaz2lola: input latitude 1 is greater than 90'
+    ierr = 1
     return
 endif
 
 if (abs(lat2).gt.90.0d0) then
     write(stderr,*) 'distaz2lola: input latitude 2 is greater than 90'
+    ierr = 1
     return
 endif
 
@@ -82,6 +91,14 @@ else
     dist = 2.0d0*datan2(dsqrt(a),dsqrt(1.0d0-a))
 endif
 
+if (dist_unit.eq.'radians') then
+    dist = dist
+else
+    write(stderr,*) 'lola2distaz: no dist_unit named ',trim(dist_unit)
+    ierr = 2
+    return
+endif
+
 ! Calculate azimuth
 if (dist.lt.1.0d-6) then
     az = 0.0d0
@@ -90,7 +107,16 @@ else
     az = datan2(dsin(dlon)*dcos(lat2r), dcos(lat1r)*dsin(lat2r)-dsin(lat1r)*dcos(lat2r)*dcos(dlon))
 endif
 
-az = az*r2d
+if (az_unit.eq.'degrees') then
+    az = az*r2d
+elseif (az_unit.eq.'radians') then
+    az = az
+else
+    write(stderr,*) 'lola2distaz: no az_unit named ',trim(az_unit)
+    ierr = 2
+    return
+endif
+
 
 return
 end subroutine
@@ -107,13 +133,13 @@ subroutine distaz2lola(lon1,lat1,dist,az,lon2,lat2,dist_unit,az_unit,ierr)
 !     lat1: starting latitude, in degrees
 !     dist: distance between points along sphere, in dist_unit
 !     az: azimuth pointing from point 1 to point 2, clockwise from north, in az_unit
-!     dist_unit: radians, meters, kilometers
+!     dist_unit: radians
 !     az_unit: degrees, radians
-!     ierr: error status
 !
 ! Outputs
 !     lon2: ending latitude, in degrees
 !     lat2: ending latitude, in degrees
+!     ierr: error status
 !----
 
 use io, only: stderr
