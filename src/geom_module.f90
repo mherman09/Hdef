@@ -9,6 +9,8 @@ public :: strdip2updip
 public :: normal2strike
 public :: normal2updip
 
+public :: perspective
+
 ! public :: nvec2sdvec
 public :: pnpoly
 
@@ -306,6 +308,93 @@ end
 ! end subroutine
 
 !--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+subroutine perspective(point_x,point_y,point_z,view_x,view_y,view_z,look_x,look_y,look_z,x,y)
+!----
+! Project a point in 3-D onto a 2-D plane, given viewing coordinates and the look vector of the
+! viewer. The center of the plane corresponds to the vanishing point of the look direction.
+!----
+
+use algebra, only: dot_product, cross_product, normalize
+
+implicit none
+
+! Arguments
+double precision :: point_x, point_y, point_z, view_x, view_y, view_z, look_x, look_y, look_z
+double precision :: x, y
+
+! Local variables
+double precision :: vec(3), look_vec(3), dot, proj, ang_from_vanish, updip(3), strike(3), azimuth
+
+
+! Calculate the angle between the look vector and the vector from the viewing location to the
+! point of interest
+
+! Vector viewer->point (point of interest vector)
+vec(1) = point_x - view_x
+vec(2) = point_y - view_y
+vec(3) = point_z - view_z
+
+! Look vector
+look_vec(1) = look_x
+look_vec(2) = look_y
+look_vec(3) = look_z
+
+! Dot product of point of interest vector and look vector
+call dot_product(vec,look_vec,dot)
+if (dot.lt.0.0d0) then
+    ! point is behind the viewer
+    x = 1e10
+    y = 1e10
+    return
+endif
+
+! Projection of point of interest vector on look vector direction
+proj = dot/sqrt(look_x**2+look_y**2+look_z**2)
+
+! Angle from vanishing point to point of interest
+ang_from_vanish = proj/sqrt(vec(1)**2+vec(2)**2+vec(3)**2)
+ang_from_vanish = acos(ang_from_vanish)
+
+! Vector parallel to plane
+vec = vec - proj*look_vec/sqrt(look_x**2+look_y**2+look_z**2)
+
+! Up-dip and along-strike vectors
+if (look_vec(3).ge.0.0d0) then
+    call normal2updip(look_vec,updip)
+    call normal2strike(look_vec,strike)
+    strike = -strike
+else
+    call normal2updip(-look_vec,updip)
+    call normal2strike(-look_vec,strike)
+endif
+call normalize(updip)
+call normalize(strike)
+
+! Project parallel vector onto strike and updip vectors
+call dot_product(vec,strike,x)
+call dot_product(vec,updip,y)
+azimuth = atan2(y,x)
+
+! Apparent position of projected point for viewer
+x = tan(ang_from_vanish)*cos(azimuth)
+y = tan(ang_from_vanish)*sin(azimuth)
+
+
+return
+end subroutine
+
+
+
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
 
 subroutine pnpoly(PX,PY,XX,YY,N,INOUT,eps)
 
@@ -322,7 +411,7 @@ subroutine pnpoly(PX,PY,XX,YY,N,INOUT,eps)
 !   PY      - Y-COORDINATE OF POINT IN QUESTION.
 !   XX      - N LONG VECTOR CONTAINING X-COORDINATES OF
 !             VERTICES OF POLYGON.
-!   YY      - N LONG VECTOR CONTAING Y-COORDINATES OF
+!   YY      - N LONG VECTOR CONTAINING Y-COORDINATES OF
 !             VERTICES OF POLYGON.
 !   N       - NUMBER OF VERTICES IN THE POLYGON.
 !   INOUT   - THE SIGNAL RETURNED:
