@@ -10,6 +10,8 @@ double precision :: look_x
 double precision :: look_y
 double precision :: look_z
 
+double precision :: zoom_scale
+
 end module
 
 !==================================================================================================!
@@ -26,14 +28,17 @@ use perspective_prog, only: input_file, &
                             viewer_z, &
                             look_x, &
                             look_y, &
-                            look_z
+                            look_z, &
+                            zoom_scale
 
 implicit none
 
 ! Local variables
-integer :: luin, luout, nline, ios
+integer :: i, luin, luout, nline, ios
 character(len=512) :: input_line
+character(len=64) :: ch64
 double precision :: x, y, z, xproj, yproj
+logical :: isExtraData
 
 
 ! Parse command line
@@ -62,7 +67,7 @@ else
 endif
 
 
-! Calculate the distance and azimuth
+! Calculate the apparent position of the point
 nline = 0
 do
     ! Read input line
@@ -71,6 +76,14 @@ do
         exit
     else
         nline = nline + 1
+    endif
+
+    ! Special cases
+    if (index(input_line,'>').eq.1) then
+        write(luout,'(A)') trim(input_line)
+        cycle
+    elseif (index(input_line,'#').eq.1) then
+        cycle
     endif
 
     ! Read input coordinates
@@ -83,8 +96,28 @@ do
     ! Compute projected points
     call perspective(x,y,z,viewer_x,viewer_y,viewer_z,look_x,look_y,look_z,xproj,yproj)
 
-    ! Write projected points
-    write(luout,*) xproj,yproj
+    ! Is there extra data in the line?
+    read(input_line,*) ch64
+    i = index(input_line,trim(ch64))
+    input_line(i:i+len_trim(ch64)-1) = ''
+    read(input_line,*) ch64
+    i = index(input_line,trim(ch64))
+    input_line(i:i+len_trim(ch64)-1) = ''
+    read(input_line,*) ch64
+    i = index(input_line,trim(ch64))
+    input_line(i:i+len_trim(ch64)-1) = ''
+    if (input_line.ne.'') then
+        isExtraData = .true.
+    else
+        isExtraData = .false.
+    endif
+
+    ! Write projected points (and extra data if available)
+    if (isExtraData) then
+        write(luout,*) zoom_scale*xproj,zoom_scale*yproj,trim(input_line)
+    else
+        write(luout,*) zoom_scale*xproj,zoom_scale*yproj
+    endif
 enddo
 
 
@@ -110,7 +143,8 @@ use perspective_prog, only: input_file, &
                             viewer_z, &
                             look_x, &
                             look_y, &
-                            look_z
+                            look_z, &
+                            zoom_scale
 
 implicit none
 
@@ -129,6 +163,7 @@ viewer_z = 0.0d0
 look_x = 0.0d0
 look_y = 0.0d0
 look_z = 0.0d0
+zoom_scale = 1.0d0
 
 
 ! Number of arguments
@@ -166,6 +201,12 @@ do while (i.le.narg)
         j = index(tag,',')
         tag(j:j) = ' '
         read(tag,*) look_x,look_y,look_z
+    elseif (tag.eq.'-scale') then
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) zoom_scale
+    else
+        call usage('perspective: no option '//trim(tag))
     endif
 
     i = i + 1
@@ -191,10 +232,11 @@ if (str.ne.'') then
     write(stderr,*)
 endif
 
-write(stderr,*) 'Usage: perspective -viewer vx,vy,vz -look lx,ly,lz [-f IFILE] [-o OFILE]'
+write(stderr,*) 'Usage: perspective -viewer vx,vy,vz -look lx,ly,lz [-scale S] [-f IFILE] [-o OFILE]'
 write(stderr,*)
-write(stderr,*) '-viewer vx,vy,vz       Viewer position'
-write(stderr,*) '-look lx,ly,lz         Look vector (from viewer to vanishing point)'
+write(stderr,*) '-viewer VX,VY,VZ       Viewer position'
+write(stderr,*) '-look LX,LY,LZ         Look vector (from viewer to center of view vanishing point)'
+write(stderr,*) '-scale S               Scale output dimensions (default: 1.0)'
 write(stderr,*) '-f IFILE               Input file: x y z'
 write(stderr,*) '-o OFILE               Output file: projected x y'
 
