@@ -80,6 +80,7 @@ all: \
     $(BIN)/mtutil \
     $(BIN)/numint \
     $(BIN)/o92util \
+    $(BIN)/perspective \
     $(BIN)/platemotion \
     $(BIN)/rangen \
     $(BIN)/readGCMT \
@@ -177,6 +178,12 @@ $(BIN)/o92util: src/o92util.f90 \
                 $(INCLUDE_DIR)/okada92.o \
                 $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+
+$(BIN)/perspective: src/perspective_prog.f90 \
+                    $(INCLUDE_DIR)/algebra.o \
+                    $(INCLUDE_DIR)/geom.o \
+                    $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 $(BIN)/platemotion: src/platemotion.f90 \
                     $(INCLUDE_DIR)/algebra.o \

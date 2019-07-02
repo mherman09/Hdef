@@ -1,0 +1,58 @@
+.TH PERSPECTIVE 1 "June 2019" "Version 2019.06.01" "User Manuals"
+
+.SH NAME
+perspective \- determine apparent position of point relative to viewer
+
+.SH SYNOPSIS
+.P
+.B perspective
+.BI -viewer " vx" , vy , vz
+.BI -look " lx" , ly , lz
+.BI [-scale " scale" ]
+.BI [-f " input_file" ]
+.BI [-o " output_file" ]
+
+.SH DESCRIPTION
+.B perspective
+calculates the apparent position
+.IR "" ( px' , py' )
+of a set of points for a viewer,
+given the viewer's position and look direction. The points
+.IR "" ( px , py , pz )
+and viewer position
+.IR "" ( vx , vy , vz )
+are in Cartesian coordinates, and the look direction
+.IR "" ( lx , ly , lz )
+is a vector from the viewer to the center of view vanishing point.
+Input lines starting with # are ignored.
+Input lines starting with > are printed as is.
+Trailing characters beyond the required
+.IR "" ( px , py , pz )
+are also printed.
+
+.SH OPTIONS
+.TP
+.BI -viewer " vx" , vy , vz
+Location of viewer
+
+.TP
+.BI -look " lx" , ly , lz
+Look vector, from viewer to center of view vanishing point
+
+.TP
+.BI -scale " scale"
+Scale apparent positions of points (default: 1.0)
+
+.TP
+.BI -f " input_file"
+Read
+.I px py pz
+from an input file. Default reads from standard input.
+
+.TP
+.BI -o " output_file"
+Print
+.I px' py' trail
+to an output file. Default prints to standard output.
+
+.RS
