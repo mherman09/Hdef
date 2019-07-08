@@ -78,19 +78,25 @@ endif
 
 ! Create list of RGB colors
 do i = 1,ncolors
-    ! Interpolate location in CIE-LAB color space
-    l = light1  + (light2  - light1 )*(i-1)/(ncolors-1)
-    if (option.eq.'spiral') then
-        c = chroma1 + (chroma2 - chroma1)*(i-1)/(ncolors-1)
-        h = hue1    + (hue2    - hue1   )*(i-1)/(ncolors-1)
-    elseif (option.eq.'linear') then
-        call lch2lab(chroma1,hue1,a1,b1)
-        call lch2lab(chroma2,hue2,a2,b2)
-        a = a1     + (a2     - a1    )*(i-1)/(ncolors-1)
-        b = b1     + (b2     - b1    )*(i-1)/(ncolors-1)
-        call lab2lch(a,b,c,h)
+    if (ncolors.eq.1) then
+        l = light1
+        c = chroma1
+        h = hue1
     else
-        call usage('!! Error: No color map option named '//trim(option))
+        ! Interpolate location in CIE-LAB color space
+        l = light1  + (light2  - light1 )*(i-1)/(ncolors-1)
+        if (option.eq.'spiral') then
+            c = chroma1 + (chroma2 - chroma1)*(i-1)/(ncolors-1)
+            h = hue1    + (hue2    - hue1   )*(i-1)/(ncolors-1)
+        elseif (option.eq.'linear') then
+            call lch2lab(chroma1,hue1,a1,b1)
+            call lch2lab(chroma2,hue2,a2,b2)
+            a = a1     + (a2     - a1    )*(i-1)/(ncolors-1)
+            b = b1     + (b2     - b1    )*(i-1)/(ncolors-1)
+            call lab2lch(a,b,c,h)
+        else
+            call usage('!! Error: No color map option named '//trim(option))
+        endif
     endif
     ! Determine maximum chroma possible for RGB representation at LH coordinate
     call maxchroma(l,h,cmax)
