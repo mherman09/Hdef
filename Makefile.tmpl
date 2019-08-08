@@ -128,7 +128,7 @@ $(BIN)/fitutil: src/fitutil.f90 \
                 $(INCLUDE_DIR)/io.o \
                 $(INCLUDE_DIR)/solver.o \
                 $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/fltinv: src/fltinv.f90 \
                $(INCLUDE_DIR)/algebra.o \
@@ -142,7 +142,7 @@ $(BIN)/fltinv: src/fltinv.f90 \
                $(INCLUDE_DIR)/solver.o \
                $(INCLUDE_DIR)/trig.o \
                $(INCLUDE_DIR)/tri_disloc.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $(SUPERLU) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) $(SUPERLU) -o $@
 
 $(BIN)/grid: src/grid.f90 \
              $(INCLUDE_DIR)/algebra.o \
@@ -162,7 +162,7 @@ $(BIN)/lola2distaz: src/lola2distaz_prog.f90 \
 $(BIN)/mtutil: src/mtutil.f90 \
                $(INCLUDE_DIR)/eq.o \
                $(INCLUDE_DIR)/io.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/numint: src/numint.f
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -177,7 +177,7 @@ $(BIN)/o92util: src/o92util.f90 \
                 $(INCLUDE_DIR)/io.o \
                 $(INCLUDE_DIR)/okada92.o \
                 $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/perspective: src/perspective_prog.f90 \
                     $(INCLUDE_DIR)/algebra.o \
@@ -205,10 +205,10 @@ $(BIN)/readGCMT: src/readGCMT.f90 \
                  $(INCLUDE_DIR)/geom.o \
                  $(INCLUDE_DIR)/io.o \
                  $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/readkik: src/readkik.f
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/sphfinrot: src/sphfinrot.f90 \
                   $(INCLUDE_DIR)/algebra.o \
@@ -234,7 +234,7 @@ $(BIN)/triutil: src/triutil.f90 \
                 $(INCLUDE_DIR)/io.o \
                 $(INCLUDE_DIR)/trig.o \
                 $(INCLUDE_DIR)/tri_disloc.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $^ -o $@
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 $(BIN)/vec2los: src/vec2los.f90 \
                 $(INCLUDE_DIR)/io.o \
