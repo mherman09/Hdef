@@ -121,6 +121,7 @@ type(fltinv_data) :: val
 ! Local variables
 integer :: i, j, ios, ierr
 character(len=32) :: fmt_str
+character(len=512) :: input_line
 
 
 ierr = 0
@@ -164,9 +165,11 @@ endif
 ! Read the file, in free format
 open(unit=21,file=val%file,status='old')
 do i = 1,val%nrows
-    read(21,*,iostat=ios) (val%array(i,j),j=1,val%ncols)
-    if (ios.ne.0) then
+    read(21,'(A)',iostat=ios,err=1002,end=1002) input_line
+    read(input_line,*,iostat=ios) (val%array(i,j),j=1,val%ncols)
+    1002 if (ios.ne.0) then
         write(stderr,*) 'read_fltinv_data_file: read error on file ',trim(val%file),' at line ',i
+        write(stderr,*) 'offending line: ',trim(input_line)
         ierr = 1
         return
     endif
@@ -957,6 +960,16 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
                 nn = ndisp_dof
                 mm = ndisp_dof
             else
+                if (index(disp_components,nchar).le.0) then
+                    write(stderr,*) 'read_inputs: first component (',nchar,') is not used in inversion'
+                    write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                    cycle
+                endif
+                if (index(disp_components,mchar).le.0) then
+                    write(stderr,*) 'read_inputs: second component (',mchar,') is not used in inversion'
+                    write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                    cycle
+                endif
                 nn = (index(disp_components,nchar)-1)*displacement%nrows
                 mm = (index(disp_components,mchar)-1)*displacement%nrows
             endif
