@@ -37,7 +37,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
     -gf:model okada_rect \
     -o inversion.tmp
 echo 1.00000000E+00 -1.29382228E-16 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 fault, three-component disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 fault, three-component disp" || exit 1
 
 #echo ----------
 #echo Finished Test \#1
@@ -86,7 +86,7 @@ cat > answer.tmp << EOF
  -1.50000000E+00 -1.04931971E-10
  -9.84807752E-01 -1.73648177E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
 
 #echo Least squares solution + only horizontal displacements:
 ../bin/fltinv \
@@ -102,7 +102,7 @@ cat > answer.tmp << EOF
  -1.50000000E+00 -4.37814461E-10
  -9.84807753E-01 -1.73648176E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, horizontal disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, horizontal disp" || exit 1
 
 #echo Least squares solution + only vertical displacements:
 ../bin/fltinv \
@@ -118,7 +118,7 @@ cat > answer.tmp << EOF
  -5.45459440E+00 -2.36128333E-01
   2.57384507E+00  3.57080123E-01
 EOF
-#test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, vertical disp" || exit 1
+#./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, vertical disp" || exit 1
 
 #echo "Least squares solution + fixed rake (actual rake value):"
 cat > rake.tmp << EOF
@@ -140,7 +140,7 @@ cat > answer.tmp << EOF
  -1.50000000E+00  1.83697020E-16
  -9.84807753E-01 -1.73648178E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (input value)" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (input value)" || exit 1
 
 #echo "Least squares solution + fixed rake (all 180) + gels:"
 cat > rake.tmp << EOF
@@ -163,7 +163,7 @@ cat > answer.tmp << EOF
  -1.72650372E+00  2.11435726E-16
   7.41870420E-01 -9.08529235E-17
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180)" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180)" || exit 1
 
 #echo "Least squares solution + fixed rake (all 180) + nnls:"
 ../bin/fltinv \
@@ -180,7 +180,7 @@ cat > answer.tmp << EOF
  -1.55525804E+00  1.90464178E-16
  -0.00000000E+00  0.00000000E+00
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180), nnls" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180), nnls" || exit 1
 
 #echo "Least squares solution + rotated rakes (135,225) + nnls:"
 cat > rake.tmp << EOF
@@ -203,7 +203,7 @@ cat > answer.tmp << EOF
  -1.50000000E+00 -1.04934617E-10
  -9.84807752E-01 -1.73648177E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, rotated rakes, nnls" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, rotated rakes, nnls" || exit 1
 
 #echo "Least squares solution + 2 fixed slip magnitudes (ss1=-2.0, ss4=-1.0):"
 cat > slip.tmp << EOF
@@ -225,7 +225,7 @@ cat > answer.tmp << EOF
  -1.50516777E+00 -1.59398437E-02
  -1.00000000E+00 -1.17235180E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 2 fixed slip components" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 2 fixed slip components" || exit 1
 
 #echo Least squares solution + damping = 0.1:
 ../bin/fltinv \
@@ -241,7 +241,7 @@ cat > answer.tmp << EOF
  -1.59822646E+00 -5.72336702E-02
  -6.59136975E-01  5.83208843E-02
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=0.1" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=0.1" || exit 1
 
 #echo Least squares solution + damping = 1.0:
 ../bin/fltinv \
@@ -257,7 +257,7 @@ cat > answer.tmp << EOF
  -7.77428978E-02  2.83172661E-02
  -1.97073766E-02  7.18457860E-03
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=1.0" || exit 1
 
 #echo Least squares solution + smoothing = 0.1:
 cat > smooth.tmp << EOF
@@ -279,7 +279,7 @@ cat > answer.tmp << EOF
  -1.43169386E+00  1.08545384E-02
  -1.30348164E+00 -2.30878153E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
 
 #echo Least squares solution + smoothing = 1.0:
 ../bin/fltinv \
@@ -295,7 +295,7 @@ cat > answer.tmp << EOF
  -1.59821957E+00  1.31165833E-01
  -1.59819277E+00  1.30912070E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
 
 #echo Least squares solution + damping + smoothing:
 ../bin/fltinv \
@@ -312,7 +312,7 @@ cat > answer.tmp << EOF
  -1.48264150E+00  9.85831333E-03
  -1.05925719E+00 -2.01563018E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
 
 #echo ----------
 #echo Finished Test \#2
@@ -362,7 +362,7 @@ cat > answer.tmp << EOF
  -1.50042575E+00 -1.21322744E-04
  -9.83059196E-01 -1.73130858E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 16 los disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 16 los disp" || exit 1
 
 #echo ----------
 #echo Finished Test \#3
@@ -411,7 +411,7 @@ cat > answer.tmp << EOF
  -1.50029127E+00 -8.30644105E-05
  -9.83739243E-01 -1.73386437E-01
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 9 3-comp disp, 16 los disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 9 3-comp disp, 16 los disp" || exit 1
 
 #echo ----------
 #echo Finished Test \#4
@@ -516,7 +516,7 @@ cat > answer.tmp << EOF
   2.56686931E-01  1.46217560E+00
  -3.69135504E-01  1.00378397E+00
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: 4 dip-slip faults, 25 observations, covariance matrix" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: 4 dip-slip faults, 25 observations, covariance matrix" || exit 1
 
 #echo ----------
 #echo Finished Test \#5
@@ -559,7 +559,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' flt.tmp > fltinv_flt.tmp
     -gf:model okada_rect \
     -o inversion.tmp
 echo -1.00000000E+00  0.00000000E+00 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 ss fault, pre-stresses from coincident fault" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 ss fault, pre-stresses from coincident fault" || exit 1
 
 #echo ----------
 #echo Finished Test \#6
@@ -607,7 +607,7 @@ cat > answer.tmp << EOF
   1.73043144E-01  6.59943338E-05
   1.73043144E-01 -6.59943338E-05
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "lsqr, minimize shear traction on 2 strike-slip faults" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "lsqr, minimize shear traction on 2 strike-slip faults" || exit 1
 
 #echo ----------
 #echo Finished Test \#7
@@ -727,7 +727,7 @@ echo 0.25 1 > step.tmp
     -anneal:seed 1 \
     -o inversion.tmp
 echo 1.18729953E+00 -1.69601249E-01 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 1 fault, three-component disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 1 fault, three-component disp" || exit 1
 
 #echo ----------
 #echo Finished Test \#8
@@ -863,7 +863,7 @@ cat > answer.tmp << EOF
   2.47535983E-01  1.45810405E+00
  -3.11359215E-01  1.03791256E+00
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 4 dip-slip faults, 25 observations, covariance matrix, annealing" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 4 dip-slip faults, 25 observations, covariance matrix, annealing" || exit 1
 
 #echo ----------
 #echo Finished Test \#9
@@ -930,7 +930,7 @@ cat > answer.tmp << EOF
  -1.35046650E-01  2.16526690E-11
  -8.70859505E-02  1.45560087E-02
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, pre-stresses, fix central fault slip, 8 surrounding unlocked faults" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, pre-stresses, fix central fault slip, 8 surrounding unlocked faults" || exit 1
 
 
 # Calculate displacements at grid of stations around faults
@@ -979,7 +979,7 @@ cat > answer.tmp << EOF
  -1.35046650E-01  2.16526690E-11
  -8.70859505E-02  1.45560087E-02
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: simulated annealing + pseudo-coupling" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: simulated annealing + pseudo-coupling" || exit 1
 
 grep Iteration anneal.log | awk '{print $6}' | head -20 > fit.tmp
 cat > answer.tmp << EOF
@@ -1004,7 +1004,7 @@ cat > answer.tmp << EOF
 -1.9555864370221204E-002
 -4.6156206640372330E-002
 EOF
-test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 10 fits" || exit 1
+./test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 10 fits" || exit 1
 rm anneal.log
 
 #echo ----------
@@ -1053,7 +1053,7 @@ cat > answer.tmp << EOF
   7.00000000E-01  1.10000000E+00
   2.00000000E-01  1.40000000E+00
 EOF
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
 
 #echo ----------
 #echo Finished Test \#11
@@ -1105,7 +1105,7 @@ awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
     -haf haf.tmp \
     -o inversion.tmp
 echo   7.97433674E-17  9.99999930E-01 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular dip-slip fault with pre-stresses" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular dip-slip fault with pre-stresses" || exit 1
 
 #echo ----------
 #echo Finished Test \#12
@@ -1164,7 +1164,7 @@ echo vp 6800 vs 3926 dens 3000 > haf.tmp
     -haf haf.tmp \
     -o inversion.tmp
 echo -4.57250048E-02 -1.53447831E-01 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, minimize shear traction on 1 other triangular fault" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, minimize shear traction on 1 other triangular fault" || exit 1
 
 #echo ----------
 #echo Finished Test \#13
@@ -1177,19 +1177,19 @@ echo Test \#14: 1 triangular dip-slip fault, pre-stresses on itself, geographic 
 echo ----------
 # One triangular fault, using geographic coordinates
 #
-#       *(3.0,42.0,2)
+#       *(3.00, 42.00, 2.0)
 #      /    --__
-#     /         *(3.2,41.6,5)
+#     /         *(3.05, 41.92, 5.0)
 #    /      --
-#    *(2.9,41.3,1.8)
+#    *(2.97, 41.85, 1.8)
 #
-echo 3.0 42.0 2.0 > pt1.tmp
-echo 3.2 41.6 5.0 > pt2.tmp
-echo 2.9 41.3 1.8 > pt3.tmp
+echo 3.00 42.00 2.0 > pt1.tmp
+echo 3.05 41.92 5.0 > pt2.tmp
+echo 2.97 41.85 1.8 > pt3.tmp
 paste pt1.tmp pt2.tmp pt3.tmp > tri.tmp
 
 # Triangle center
-awk '{print ($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri.tmp > center.tmp
+awk '{printf("%.8f %.8f %.8f\n"),($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri.tmp > center.tmp
 
 # One meter normal slip
 echo 0 -1 0 > slip.tmp
@@ -1217,13 +1217,186 @@ awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
     -geo \
     -haf haf.tmp \
     -o inversion.tmp
-cat inversion.tmp
-echo -1.06105159E-04  1.00004793E+00 > answer.tmp
-test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular fault with self-prestress, geographic coordinates" || exit 1
+echo 5.06302972E-09  1.00000001E+00 > answer.tmp
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular fault with self-prestress, geographic coordinates" || exit 1
 
-
+rm *.tmp
 #echo ----------
 #echo Finished Test \#14
+#echo ----------
+#echo
+
+
+
+
+echo ----------------------------------------------------------
+echo Test \#15: 1 triangular dip-slip fault, pre-stresses on adjacent fault, geographic coordinates
+echo ----------
+# Two triangular faults, using geographic coordinates
+#  
+# -73.0 -72.8
+#   1*---* -31.7
+#    |1 /|3
+#    | / |
+#    |/ 2|4
+#   2*---* -32.0
+#
+echo -73.0 -31.7 6.0 > pt1.tmp
+echo -73.0 -32.0 6.0 > pt2.tmp
+echo -72.8 -31.7 8.3 > pt3.tmp
+echo -72.8 -32.0 8.3 > pt4.tmp
+paste pt1.tmp pt2.tmp pt3.tmp > tri1.tmp
+paste pt2.tmp pt3.tmp pt4.tmp > tri2.tmp
+
+# One meter normal slip
+echo 0 -1 0 > slip.tmp
+paste tri1.tmp slip.tmp > triutil_flt.tmp
+
+# Compute stress at adjacent triangle center
+awk '{printf("%.8f %.8f %.8f\n"),($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri2.tmp > center.tmp
+cp center.tmp triutil_sta.tmp
+echo lame 40e9 shear 40e9 > haf.tmp
+../bin/triutil \
+    -flt triutil_flt.tmp \
+    -sta triutil_sta.tmp \
+    -strain triutil_stn.tmp \
+    -stress triutil_sts.tmp \
+    -haf haf.tmp \
+    -geo
+
+# Prepare fltinv files
+awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri2.tmp > fltinv_flt.tmp
+awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
+../bin/fltinv \
+    -mode lsqr \
+    -flt fltinv_flt.tmp \
+    -gf:model triangle \
+    -prests fltinv_sts.tmp \
+    -geo \
+    -haf haf.tmp \
+    -o inversion.tmp -v 1
+echo inversion with pre-stresses
+cat inversion.tmp
+
+cat tri1.tmp tri2.tmp | awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' > fltinv_flt.tmp
+cat tri1.tmp tri2.tmp | awk '{print 0,0,0,0,0,0}' > fltinv_sts.tmp
+cat > fltinv_slip.tmp << EOF
+0 -1
+99999 99999
+EOF
+../bin/fltinv \
+    -mode lsqr \
+    -flt fltinv_flt.tmp \
+    -flt:slip fltinv_slip.tmp \
+    -gf:model triangle \
+    -prests fltinv_sts.tmp \
+    -geo \
+    -haf haf.tmp \
+    -o inversion.tmp -v 1
+
+cat > answer.tmp << EOF
+  0.00000000E+00 -1.00000000E+00
+ -2.89142383E-02 -2.93023235E-01
+EOF
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: 2 triangular faults, one locked, geographic coordinates" || exit 1
+
+rm *.tmp
+#echo ----------
+#echo Finished Test \#15
+#echo ----------
+#echo
+exit
+
+
+
+
+echo ----------------------------------------------------------
+echo Test \#16:
+echo ----------
+# Triangular faults, using geographic coordinates
+#
+#   *-*-*-*-*-*
+#   |\|\|\|\|\|
+#   *-*-*-*-*-*
+#   |\|\|\|\|\|
+#   *-*-*-*-*-*
+#   |\|\|\|\|\|
+#   *-*-*-*-*-*
+#   |\|\|\|\|\|
+#   *-*-*-*-*-*
+#   |\|\|\|\|\|
+#   *-*-*-*-*-*
+#
+WID=4
+WID2=2
+LEN=6
+grid -x 2.1 18.1 -dx 4 -y 3 27 -dy 6 |\
+    awk '{print $1*cos(30*0.0174533),$2,$1*sin(30*0.0174533)}' |\
+    awk '{
+        print $1+2*cos(30*0.0174533),$2+3,$3+2*cos(30*0.0174533)
+        print $1+2*cos(30*0.0174533),$2-3,$3+2*cos(30*0.0174533)
+        print $1-2*cos(30*0.0174533),$2-3,$3-2*cos(30*0.0174533)
+        print $1-2*cos(30*0.0174533),$2+3,$3-2*cos(30*0.0174533)
+    }'
+exit
+#echo -73.0 -31.7 6.0 > pt1.tmp
+#echo -73.0 -32.0 6.0 > pt2.tmp
+#echo -72.8 -31.7 8.3 > pt3.tmp
+#echo -72.8 -32.0 8.3 > pt4.tmp
+#paste pt1.tmp pt2.tmp pt3.tmp > tri1.tmp
+#paste pt2.tmp pt3.tmp pt4.tmp > tri2.tmp
+#
+## One meter normal slip
+#echo 0 -1 0 > slip.tmp
+#paste tri1.tmp slip.tmp > triutil_flt.tmp
+#
+## Compute stress at adjacent triangle center
+#awk '{printf("%.8f %.8f %.8f\n"),($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri2.tmp > center.tmp
+#cp center.tmp triutil_sta.tmp
+#echo lame 40e9 shear 40e9 > haf.tmp
+#../bin/triutil \
+#    -flt triutil_flt.tmp \
+#    -sta triutil_sta.tmp \
+#    -strain triutil_stn.tmp \
+#    -stress triutil_sts.tmp \
+#    -haf haf.tmp \
+#    -geo
+#
+## Prepare fltinv files
+#awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri2.tmp > fltinv_flt.tmp
+#awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
+#../bin/fltinv \
+#    -mode lsqr \
+#    -flt fltinv_flt.tmp \
+#    -gf:model triangle \
+#    -prests fltinv_sts.tmp \
+#    -geo \
+#    -haf haf.tmp \
+#    -o inversion.tmp -v 1
+#cat inversion.tmp
+#
+#cat tri1.tmp tri2.tmp | awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' > fltinv_flt.tmp
+#cat tri1.tmp tri2.tmp | awk '{print 0,0,0,0,0,0}' > fltinv_sts.tmp
+#cat > fltinv_slip.tmp << EOF
+#0 -1
+#99999 99999
+#EOF
+#../bin/fltinv \
+#    -mode lsqr \
+#    -flt fltinv_flt.tmp \
+#    -flt:slip fltinv_slip.tmp \
+#    -gf:model triangle \
+#    -prests fltinv_sts.tmp \
+#    -geo \
+#    -haf haf.tmp \
+#    -o inversion.tmp -v 1
+#cat inversion.tmp
+#
+#echo 5.06302972E-09  1.00000001E+00 > answer.tmp
+#./test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular fault with self-prestress, geographic coordinates" || exit 1
+
+#echo ----------
+#echo Finished Test \#16
 #echo ----------
 #echo
 

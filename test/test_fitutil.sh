@@ -15,7 +15,7 @@ cat > answer.tmp << EOF
   -1.2000000000000004 
 EOF
 ../bin/fitutil -f xy.tmp -poly 1 -label_coeff 0 > poly_coeff.tmp
-test_values.sh poly_coeff.tmp answer.tmp 1 "fitutil: 1st order polynomial" || exit 1
+./test_values.sh poly_coeff.tmp answer.tmp 1 "fitutil: 1st order polynomial" || exit 1
 
 # Fit sinusoid
 PERIOD="6.3"
@@ -52,7 +52,7 @@ cat > answer.tmp << EOF
    2.0999999661540500 
 EOF
 ../bin/fitutil -f xy.tmp -sin $PERIOD -label_coeff 0 -o sin_coeff.tmp
-test_values.sh sin_coeff.tmp answer.tmp 1 "fitutil: sinusoid" || exit 1
+./test_values.sh sin_coeff.tmp answer.tmp 1 "fitutil: sinusoid" || exit 1
 
 # Fit exponential with free exponential constant
 A="4.6"
@@ -69,14 +69,14 @@ cat > answer.tmp << EOF
  4.59998641E+00
 -1.19999901E+00
 EOF
-test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, find exponential constant" || exit 1
+./test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, find exponential constant" || exit 1
 
 # Fit exponential with fixed exponential constant
 ../bin/fitutil -f xy.tmp -exp $C -label_coeff n > exp_coeff.tmp
 cat > answer.tmp << EOF
    4.5999901531556864
 EOF
-test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, fixed exponential constant" || exit 1
+./test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, fixed exponential constant" || exit 1
 
 # Fit linear + sinusoid + exponential, print predicted values
 C0=-5.2
@@ -117,7 +117,7 @@ cat > answer.tmp << EOF
   0.60000024366333293     
    4.1999987142469690 
 EOF
-test_values.sh multi.tmp answer.tmp 1 "fitutil: linear + sinusoid + exponential" || exit 1
+./test_values.sh multi.tmp answer.tmp 1 "fitutil: linear + sinusoid + exponential" || exit 1
 
 #####
 #	CLEAN UP

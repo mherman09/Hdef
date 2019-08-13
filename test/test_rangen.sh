@@ -14,7 +14,7 @@ cat > answer.tmp << EOF
    2.6463254730091719     
    2.7922254384972267
 EOF
-test_values.sh uniform.tmp answer.tmp 1 "rangen: uniform distribution" || exit 1
+./test_values.sh uniform.tmp answer.tmp 1 "rangen: uniform distribution" || exit 1
 
 
 ../bin/rangen -normal 8.6 1.5 -npts $N -seed 2742 > normal.tmp
@@ -30,7 +30,7 @@ cat > answer.tmp << EOF
    10.429223977511743     
    8.1593962443817283
 EOF
-test_values.sh normal.tmp answer.tmp 1 "rangen: normal distribution" || exit 1
+./test_values.sh normal.tmp answer.tmp 1 "rangen: normal distribution" || exit 1
 
 
 

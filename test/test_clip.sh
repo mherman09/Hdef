@@ -186,7 +186,7 @@ cat > answer.tmp << EOF
     6.0000000000000000        8.0000000000000000
     6.0000000000000000        9.0000000000000000
 EOF
-test_values.sh outside.tmp answer.tmp 2 "clip: points outside polygon" || exit 1
+./test_values.sh outside.tmp answer.tmp 2 "clip: points outside polygon" || exit 1
 
 ../bin/clip polygon.tmp -f points.tmp -on 1.0e-2 -o on.tmp
 cat > answer.tmp << EOF
@@ -201,7 +201,7 @@ cat > answer.tmp << EOF
     4.0000000000000000        4.0000000000000000
     5.0000000000000000        6.0000000000000000
 EOF
-test_values.sh on.tmp answer.tmp 2 "clip: points on polygon" || exit 1
+./test_values.sh on.tmp answer.tmp 2 "clip: points on polygon" || exit 1
 
 PSFILE="test_clip.ps"
 PROJ="-Jx0.5i -P"
