@@ -6,9 +6,12 @@
 ! Subroutines in module:
 !     - load_array            Load a sub-array into a main array
 !     - load_constraints      Load x constraints into A and b
-!     - solve_dgels           Implement LAPACK general least-squares solver
 !     - solve_nnls            Implement non-negative least squares solver
+!     - solve_jacobi          Implement Numerical Recipes symmetric eigensystem solver
+!     - solve_dgels           Implement LAPACK general least-squares solver
 !     - solve_dgesv           Implement LAPACK general matrix solver
+!     - solve_dsyev           Implement LAPACK symmetric matrix eigensystem solver
+!     - solve_dsysv           Implement LAPACK symmetric matrix solver
 !     - solve_dgssv           Implement SuperLU sparse matrix solver
 !     - nnls                  Non-negative least squares solver
 !     - g1                    Subroutine used by nnls (orthogonal rotation matrix)
@@ -35,10 +38,12 @@ public :: load_constraints
 
 ! Solver subroutines
 public :: solve_nnls
+public :: solve_jacobi
 
 #ifdef USE_LAPACK
 public :: solve_dgels
 public :: solve_dgesv
+public :: solve_dsyev
 public :: solve_dsysv
 #endif
 
@@ -359,6 +364,13 @@ double precision, allocatable :: work(:)
 double precision :: alocal(nrows,ncols), blocal(nrows,1)
 
 ierr = 0
+
+if (ncols.gt.nrows) then
+    write(stderr,*) 'solve_dgels: ncols is greater than nrows'
+    write(stderr,*) 'Only works for overdetermined systems (nrows>=ncols)'
+    ierr = 1
+    return
+endif
 
 ! Use local arrays for inversion
 alocal = Ain
@@ -900,6 +912,45 @@ end subroutine
 
 #endif
 
+!
+! !--------------------------------------------------------------------------------------------------!
+!
+! subroutine jacobi(a,n,d,v,nrot)
+! !----
+! ! Numerical Recipes subroutine JACOBI:
+! !
+! ! Computes all eigenvalues and eigenvectors of a real symmetric matrix a, which is of size n by n,
+! ! stored in a physical np by np array. On output, elements of a above the diagonal are destroyed. d
+! ! returns the eigenvalues of a in its first n elements. v is a matrix with the same logical and
+! ! physical dimensions as a, whose columns contain, on output, the normalized eigenvectors of a.
+! ! nrot returns the number of Jacobi rotations that were required.
+! !----
+! implicit none
+!
+! ! Arguments
+! integer :: n, nrot
+! double precision :: a(n,n), d(n), v(n,n)
+!
+! ! Local variables
+! integer :: i, ip, iq, j
+! double precision :: c, g, h, s, sm, t, tau, theta, tresh, b(:), z(:)
+!
+!
+! ! Initialize v as the identity matrix
+! v = 0.0d0
+! do ip = 1,n
+!     v(ip,ip) = 1.0d0
+! enddo
+! !
+! !
+! !
+! !
+! !
+!
+! return
+! end subroutine
+!
+!
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 ! NON-NEGATIVE LEAST SQUARES SUBROUTINES - EDIT AT YOUR OWN RISK                                   !
