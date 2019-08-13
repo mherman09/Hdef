@@ -131,6 +131,7 @@ use o92util, only: ffm_file, &
                    isFaultFileDefined, &
                    empirical_relation, &
                    shearmod, &
+                   coord_type, &
                    nfaults, &
                    faults
 
@@ -260,7 +261,8 @@ endif
 
 
 ! Check coordinates
-if (maxval(abs(faults(:,1))).gt.360.0d0 .or. maxval(abs(faults(:,2))).gt.90.0d0) then
+if (coord_type.eq.'geographic'.and. &
+        (maxval(abs(faults(:,1))).gt.360.0d0 .or. maxval(abs(faults(:,2))).gt.90.0d0)) then
     write(stderr,*) 'read_faults: found fault coordinates outside geographic range; ',&
                     'did you mean to use the -xy flag?'
 endif
@@ -289,7 +291,8 @@ use io, only: stderr, line_count, fileExists
 use o92util, only: station_file, &
                    nstations, &
                    stations, &
-                   isStationFileDefined
+                   isStationFileDefined, &
+                   coord_type
 
 implicit none
 
@@ -322,7 +325,8 @@ close(13)
 
 
 ! Check coordinates
-if (maxval(abs(stations(:,1))).gt.360.0d0 .or. maxval(abs(stations(:,2))).gt.90.0d0) then
+if (coord_type.eq.'geographic'.and. &
+        (maxval(abs(stations(:,1))).gt.360.0d0 .or. maxval(abs(stations(:,2))).gt.90.0d0)) then
     write(stderr,*) 'read_stations: found station coordinates outside geographic range; ',&
                     'did you mean to use the -xy flag?'
 endif
