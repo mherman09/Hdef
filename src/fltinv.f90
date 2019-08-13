@@ -22,6 +22,7 @@ type(fltinv_data) :: rake_constraint             ! Fault rake angle constraints
 ! Observation constraints on fault slip
 type(fltinv_data) :: displacement                ! Three-component displacement observations
 character(len=3) :: disp_components              ! Components of 3-D displacement to invert for
+character(len=512) :: disp_misfit_file           ! RMS misfit to 3-D displacements
 type(fltinv_data) :: los                         ! Line-of-sight displacement observations
 type(fltinv_data) :: prestress                   ! Stress field at each sub-fault
 character(len=512) :: cov_file                   ! File with data covariance data
@@ -75,7 +76,6 @@ double precision, allocatable :: fault_slip(:,:)
 ! double precision :: los_weight                   ! Weight to line-of-sight data in inversion
 ! double precision :: stress_weight                ! Weight to stress data in inversion
 
-! character(len=512) :: disp_misfit_file
 ! character(len=512) :: los_misfit_file
 
 !--------------------------------------------------------------------------------------------------!
@@ -806,7 +806,9 @@ if (rake_constraint%file.ne.'none') then
     ! If there is only 1 value, set the full constraint array to that value
     if (rake_constraint%nrows.eq.1) then
         dp1 = rake_constraint%array(1,1)
-        dp2 = rake_constraint%array(1,2)
+        if (rake_constraint%ncols.eq.2) then
+            dp2 = rake_constraint%array(1,2)
+        endif
         if (allocated(rake_constraint%array)) then
             deallocate(rake_constraint%array)
         endif
@@ -816,7 +818,9 @@ if (rake_constraint%file.ne.'none') then
         endif
         rake_constraint%nrows = fault%nrows
         rake_constraint%array(:,1) = dp1
-        rake_constraint%array(:,2) = dp2
+        if (rake_constraint%ncols.eq.2) then
+            rake_constraint%array(:,2) = dp2
+        endif
     endif
 else
     if (inversion_mode.eq.'anneal') then
@@ -3248,49 +3252,77 @@ use fltinv, only: output_file, &
                   inversion_mode, &
                   fault, &
                   rake_constraint, &
+                  displacement, &
+                  disp_components, &
+                  disp_misfit_file, &
+                  gf_disp, &
                   fault_slip
 
 implicit none
 
 ! Local variables
-integer :: i, ounit
-double precision :: slip_mag
+integer :: i, ierr, ounit, icmp, idsp, iflt, ndsp, nflt, nobs
+double precision :: slip_mag, rms
+double precision, allocatable :: pre(:), obs(:)
 
 
 if (verbosity.ge.1) then
     write(stdout,*) 'write_solution: starting'
 endif
-!
-! ! Print RMS misfit if specified
-! if (disp_misfit_file.ne.'none') then
-!     if (verbosity.ge.1) then
-!         write(stderr,'(A)') 'write_solution says: writing displacement RMS misfit to '// &
-!                             trim(disp_misfit_file)
-!     endif
-!
-!     write(0,*) 'write_solution: opening misfit file'
-!     open(unit=81,file=disp_misfit_file,status='unknown')
-!
-!     ! If rake is constrained, make an array of the correct size to use with misfit function
-!     if (inversion_mode.eq.'lsqr'.and.rake_constraint%file.ne.'none' &
-!                                                            .and.rake_constraint%nfields.eq.1) then
-!         write(0,*) 'write_solution: writing misfit for fixed rake'
-!         do i = 1,fault%nrecords
-!             tmp_slip_array(i,1) = fault_slip(i,1) ! Green's functions already calculated for this rake
-!             tmp_slip_array(i,2) = 0.0d0
-!         enddo
-!         write(81,*) disp_misfit_l2norm(tmp_slip_array)/dsqrt(dble(fault%nrecords))
-!
-!     ! Otherwise, just use the misfit function directly
-!     else
-!         write(0,*) 'write_solution: writing misfit for free rake'
-!         write(81,*) disp_misfit_l2norm(fault_slip)/dsqrt(dble(fault%nrecords))
-!     endif
-!
-!     write(0,*) 'write_solution: closing misfit file'
-!     close(81)
-! endif
-!
+
+
+! Print RMS misfit to three-component displacements
+if (disp_misfit_file.ne.'none') then
+
+    ! Open misfit file
+    open(unit=81,file=disp_misfit_file,status='unknown')
+
+    ndsp = displacement%nrows
+    nobs = len_trim(disp_components)*displacement%nrows
+    nflt = fault%nrows
+
+    ! Load predicted three-component displacements
+    if (.not.allocated(pre)) then
+        allocate(pre(ndsp*len_trim(disp_components)),stat=ierr)
+        if (ierr.ne.0) then
+            call usage('write_solution: error allocating memory to pre')
+        endif
+    endif
+    pre = 0.0d0
+
+    do i = 1,len_trim(disp_components)
+        read(disp_components(i:i),*) icmp
+        do idsp = 1,ndsp
+            do iflt = 1,nflt
+                pre((i-1)*ndsp+idsp) = pre((i-1)*ndsp+idsp) + &
+                                       gf_disp%array((icmp-1)*ndsp+idsp,     iflt)*fault_slip(iflt,1)
+                pre((i-1)*ndsp+idsp) = pre((i-1)*ndsp+idsp) + &
+                                       gf_disp%array((icmp-1)*ndsp+idsp,nflt+iflt)*fault_slip(iflt,2)
+            enddo
+        enddo
+    enddo
+
+    ! Load observed three-component displacements
+    if (.not.allocated(obs)) then
+        allocate(obs(nobs),stat=ierr)
+        if (ierr.ne.0) then
+            call usage('write_solution: error allocating memory to obs')
+        endif
+    endif
+    obs = 0.0d0
+
+    do i = 1,len_trim(disp_components)
+        read(disp_components(i:i),*) icmp
+        obs((i-1)*ndsp+1:i*ndsp) = displacement%array(1:ndsp,3+icmp)
+    enddo
+
+    call misfit_rms(obs,pre,nobs,rms)
+    write(81,*) rms
+
+    close(81)
+
+endif
+
 ! ! Line-of-sight RMS misfit
 ! if (los_misfit_file.ne.'none') then
 !     if (verbosity.ge.1) then
@@ -3382,6 +3414,7 @@ use fltinv, only: output_file, &
                   rake_constraint, &
                   displacement, &
                   disp_components, &
+                  disp_misfit_file, &
                   los, &
                   prestress, &
                   cov_file, &
@@ -3464,7 +3497,7 @@ max_flip = 10
 verbosity = 0
 debug = .false.
 
-! disp_misfit_file = 'none'
+disp_misfit_file = 'none'
 ! los_misfit_file = 'none'
 !
 ! stress_weight = 1.0d-9
@@ -3518,6 +3551,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-los') then
         i = i + 1
         call get_command_argument(i,los%file)
+    elseif (trim(tag).eq.'-disp:misfit') then
+        i = i + 1
+        call get_command_argument(i,disp_misfit_file)
     elseif (trim(tag).eq.'-prests'.or.tag.eq.'-prestress') then
         i = i + 1
         call get_command_argument(i,prestress%file)
@@ -3528,9 +3564,6 @@ do while (i.le.narg)
 !         i = i + 1
 !         call get_command_argument(i,tag)
 !         read(tag,*) los_weight
-!     elseif (trim(tag).eq.'-disp:misfit') then
-!         i = i + 1
-!         call get_command_argument(i,disp_misfit_file)
 !     elseif (trim(tag).eq.'-los:misfit') then
 !         i = i + 1
 !         call get_command_argument(i,los_misfit_file)
@@ -3676,6 +3709,7 @@ if (verbosity.ge.2) then
     write(stdout,*)
     write(stdout,'(" displacement%file:      ",A)') trim(displacement%file)
     write(stdout,'(" disp_components:        ",A)') trim(disp_components)
+    write(stdout,'(" disp_misfit_file:       ",A)') trim(disp_misfit_file)
     write(stdout,'(" los%file:               ",A)') trim(los%file)
     write(stdout,'(" prestress%file:         ",A)') trim(prestress%file)
     write(stdout,'(" cov_file:               ",A)') trim(cov_file)
@@ -3688,7 +3722,6 @@ if (verbosity.ge.2) then
     write(stdout,*)
     write(stdout,'(" halfspace_file:         ",A)') trim(halfspace_file)
     write(stdout,*)
-!     write(stdout,'(" disp_misfit_file:       ",A)') trim(disp_misfit_file)
 !     write(stdout,'(" stress_weight:          ",1PE14.6)') stress_weight
 !     write(stdout,'(" sts_dist:               ",1PE14.6)') sts_dist
 !     write(stdout,'(" los_weight:             ",1PE14.6)') los_weight
@@ -3747,10 +3780,10 @@ write(stderr,*)
 write(stderr,*) 'Input Options'
 write(stderr,*) '-disp DISP_FILE              Input displacements'
 write(stderr,*) '-disp:components COMPNTS     Specify displacement components'
+write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
 write(stderr,*) '-los LOS_FILE                Input line-of-sight displacements'
 write(stderr,*) '-prests PRESTS_FILE          Input pre-stresses'
 write(stderr,*) '-cov COVAR_FILE              Displacement and LOS covariances'
-! write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
 ! write(stderr,*) '-prests:weight WEIGHT        Stress weighting factor'
 ! write(stderr,*) '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
 ! write(stderr,*) '-los:weight LOS_WEIGHT       LOS observation weighting factor'
