@@ -1763,6 +1763,10 @@ double precision :: damping_squared, smoothing_squared
 logical, allocatable :: isSlipFixed(:)
 
 
+! Initialize solution
+fault_slip = 0.0d0
+
+
 ! Determine dimensions of the model matrix, A, and set the locations of components of the array
 
 ! Initialize model matrix dimensions to zero
