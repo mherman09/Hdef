@@ -6,6 +6,7 @@ double precision :: x2
 double precision :: mean
 double precision :: stdev
 integer :: npts
+character(len=512) :: seed_file
 
 end module
 
@@ -21,7 +22,8 @@ use rangen, only: ran_mode, &
                   x2, &
                   mean, &
                   stdev, &
-                  npts
+                  npts, &
+                  seed_file
 
 implicit none
 
@@ -44,6 +46,12 @@ do i = 1,npts
     endif
 enddo
 
+if (seed_file.ne.'') then
+    open(unit=24,file=seed_file,status='unknown')
+    write(24,*) iseed
+    close(24)
+endif
+
 end
 
 !--------------------------------------------------------------------------------------------------!
@@ -57,12 +65,13 @@ use rangen, only: ran_mode, &
                   x2, &
                   mean, &
                   stdev, &
-                  npts
+                  npts, &
+                  seed_file
 
 implicit none
 
 ! Local variables
-integer :: i, narg
+integer :: i, narg, ierr
 character(len=512) :: tag
 
 ! Initialize control parameters
@@ -72,6 +81,7 @@ x2 = 1.0d0
 mean = 0.0d0
 stdev = 1.0d0
 npts = 100
+seed_file = ''
 iseed = timeseed()
 
 ! Number of arguments
@@ -113,9 +123,16 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) iseed
+    elseif (trim(tag).eq.'-printseed') then
+        i = i + 1
+        call get_command_argument(i,seed_file,status=ierr)
 
     else
         call usage('rangen: no option '//trim(tag))
+    endif
+
+    if (ierr.ne.0) then
+        call usage('rangen: error parsing command line arguments')
     endif
 
     i = i + 1
@@ -141,11 +158,13 @@ if (str.ne.'') then
 endif
 
 write(stderr,*) 'Usage: rangen -uniform X1 X2 | -normal MEAN STD  [-n NPTS] [-seed SEED]'
+write(stderr,*) '              [-printseed FILE]'
 write(stderr,*)
 write(stderr,*) '-uniform X1 X2        Uniform distribution between X1 and X2'
 write(stderr,*) '-normal MEAN STD      Gaussian distribution centered on MEAN with std dev STD'
 write(stderr,*) '-n NPTS               Number of points to generate (default: 100)'
 write(stderr,*) '-seed SEED            Random number seed'
+write(stderr,*) '-printseed FILE       Print output random number seed (to keep chain going)'
 write(stderr,*)
 
 stop
