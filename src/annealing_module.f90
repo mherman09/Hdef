@@ -25,13 +25,13 @@
 !     T_start:      Starting temperature
 !     T_min:        Minimum temperature
 !     cool:         Cooling factor
-!     log_file:     Log file for annealing results
-!     saveRejected: Write rejected models to log file
+!     *write_log:   Write  annealing results to log file
 !
 ! *The user must supply the following external routine names in the argument list:
 !     - subroutine init(model_init, nparam)
 !     - subroutine propose(model_current, model_proposed, nparam)
 !     - function objective(model, nparam)
+!     - subroutine write_log()
 !
 ! Examples of these "driver" routines are provided in the unit test for this module
 ! (unit_test_annealing.f90).
@@ -73,8 +73,7 @@ subroutine anneal_int_array(nparam, &
                             T_start, &
                             T_min, &
                             cool, &
-                            log_file, &
-                            saveRejected)
+                            write_log)
 !----
 ! Simulated annealing algorithm with an integer model array
 !----
@@ -104,6 +103,13 @@ interface
         integer :: model(n)
         double precision :: objective
     end function
+    subroutine write_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        integer :: model_current(n)
+        integer :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 ! Arguments: annealing controls
@@ -112,13 +118,10 @@ integer :: reset_it
 double precision :: T_start
 double precision :: T_min
 double precision :: cool
-character(len=*) ::log_file
-logical :: saveRejected
 
 ! Local variables
 integer :: i
 integer :: ierr
-integer :: iparam
 double precision :: T
 double precision :: obj_current
 double precision :: obj_proposed
@@ -142,13 +145,7 @@ model_best = model_current
 obj_best = obj_current
 
 ! Open log file and write first entry
-if (log_file.ne.'') then
-    open(unit=28,file=log_file,status='unknown')
-    write(28,*) 'Iteration 0  Temperature ',T,' Objective ',obj_current
-    do iparam = 1,nparam
-        write(28,*) model_current(iparam)
-    enddo
-endif
+call write_log(0,T,obj_current,model_current,model_current,nparam,'init')
 
 ! Run the annealing search
 do i = 1,max_it
@@ -178,27 +175,10 @@ do i = 1,max_it
     if (ran_uniform.lt.ptrans) then
         model_current = model_proposed
         obj_current = obj_proposed
-
-        ! Save accepted models to the log file
-        if (log_file.ne.'') then
-            write(28,*) 'Iteration ',i,' Temperature ',T,' Objective ',obj_current
-            do iparam = 1,nparam
-                write(28,*) model_current(iparam)
-            enddo
-        endif
-    else
-        if (verbosity.ge.3) then
-            write(stdout,*) 'anneal: model rejected'
-        endif
-
-        if (saveRejected.and.log_file.ne.'') then
-            ! Save unaccepted models to the log file
-            write(28,*) 'Iteration ',i,' Temperature ',T,' Objective ',obj_proposed,' (rejected)'
-            do iparam = 1,nparam
-                write(28,*) model_proposed(iparam)
-            enddo
-        endif
     endif
+
+    ! Save results in log file
+    call write_log(i,T,obj_current,model_current,model_proposed,nparam,'append')
 
     ! Update temperature
     T = T*cool
@@ -214,10 +194,8 @@ do i = 1,max_it
     endif
 enddo
 
-if (log_file.ne.'') then
-    close(28)
-endif
-
+! Close log file
+call write_log(i,T,obj_current,model_current,model_proposed,nparam,'close')
 
 return
 end subroutine anneal_int_array
@@ -234,8 +212,7 @@ subroutine anneal_dp_array( nparam, &
                             T_start, &
                             T_min, &
                             cool, &
-                            log_file, &
-                            saveRejected)
+                            write_log)
 !----
 ! Simulated annealing algorithm with a double precision model array
 !----
@@ -265,6 +242,13 @@ interface
         double precision :: model(n)
         double precision :: objective
     end function
+    subroutine write_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        double precision :: model_current(n)
+        double precision :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 ! Arguments: annealing controls
@@ -273,13 +257,10 @@ integer :: reset_it
 double precision :: T_start
 double precision :: T_min
 double precision :: cool
-character(len=*) ::log_file
-logical :: saveRejected
 
 ! Local variables
 integer :: i
 integer :: ierr
-integer :: iparam
 double precision :: T
 double precision :: obj_current
 double precision :: obj_proposed
@@ -303,13 +284,7 @@ model_best = model_current
 obj_best = obj_current
 
 ! Open log file and write first entry
-if (log_file.ne.'') then
-    open(unit=28,file=log_file,status='unknown')
-    write(28,*) 'Iteration 0  Temperature ',T,' Objective ',obj_current
-    do iparam = 1,nparam
-        write(28,*) model_current(iparam)
-    enddo
-endif
+call write_log(0,T,obj_current,model_current,model_current,nparam,'init')
 
 ! Run the annealing search
 do i = 1,max_it
@@ -339,27 +314,10 @@ do i = 1,max_it
     if (ran_uniform.lt.ptrans) then
         model_current = model_proposed
         obj_current = obj_proposed
-
-        ! Save accepted models to the log file
-        if (log_file.ne.'') then
-            write(28,*) 'Iteration ',i,' Temperature ',T,' Objective ',obj_current
-            do iparam = 1,nparam
-                write(28,*) model_current(iparam)
-            enddo
-        endif
-    else
-        if (verbosity.ge.3) then
-            write(stdout,*) 'anneal: model rejected'
-        endif
-
-        if (saveRejected.and.log_file.ne.'') then
-            ! Save unaccepted models to the log file
-            write(28,*) 'Iteration ',i,' Temperature ',T,' Objective ',obj_proposed,' (rejected)'
-            do iparam = 1,nparam
-                write(28,*) model_proposed(iparam)
-            enddo
-        endif
     endif
+
+    ! Save results in log file
+    call write_log(i,T,obj_current,model_current,model_proposed,nparam,'append')
 
     ! Update temperature
     T = T*cool
@@ -375,9 +333,8 @@ do i = 1,max_it
     endif
 enddo
 
-if (log_file.ne.'') then
-    close(28)
-endif
+! Close log file
+call write_log(i,T,obj_current,model_current,model_proposed,nparam,'close')
 
 
 return

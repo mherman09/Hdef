@@ -2163,7 +2163,6 @@ use fltinv, only: fault, &
                   temp_start, &
                   temp_minimum, &
                   cooling_factor, &
-                  anneal_log_file, &
                   fault_slip
 
 implicit none
@@ -2184,6 +2183,13 @@ interface
         double precision :: model(n)
         double precision :: anneal_objective
     end function
+    subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        double precision :: model_current(n)
+        double precision :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 ! Local variables
@@ -2211,8 +2217,7 @@ call anneal(nflt_dof, &
             temp_start, &
             temp_minimum, &
             cooling_factor, &
-            anneal_log_file, &
-            saveRejected)
+            anneal_log)
 
 ! Save results for printing
 do i = 1,fault%nrows
@@ -2545,6 +2550,58 @@ return
 end function
 
 
+!--------------------------------------------------------------------------------------------------!
+
+subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,string)
+
+use fltinv, only: anneal_log_file
+
+implicit none
+
+! Arguments
+integer :: it, n
+double precision :: temp, obj, model_current(n), model_proposed(n)
+character(len=*) :: string
+
+! Local variables
+integer :: i
+
+
+if (anneal_log_file.eq.'') then
+    return
+endif
+
+
+! Update annealing-with-pseudo-coupling log file
+if (string.eq.'init') then
+    ! Open the log file
+    open(unit=29,file=anneal_log_file,status='unknown')
+
+    ! Write locked/unlocked, fault slip results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i)
+    enddo
+
+elseif (string.eq.'append') then
+    ! Write locked/unlocked, fault slip, old model results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i),model_proposed(i)
+    enddo
+
+elseif (string.eq.'close') then
+    ! Close the log file
+    close(29)
+
+else
+    call usage('anneal_log: no string option named '//trim(string))
+endif
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
 
 
 
@@ -2562,7 +2619,6 @@ use fltinv, only: fault, &
                   temp_start, &
                   temp_minimum, &
                   cooling_factor, &
-                  anneal_log_file, &
                   fault_slip
 
 implicit none
@@ -2583,6 +2639,13 @@ interface
         integer :: model(n)
         double precision :: anneal_psc_objective
     end function
+    subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        integer :: model_current(n)
+        integer :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 ! Local variables
@@ -2611,8 +2674,7 @@ call anneal(nflt, &
             temp_start, &
             temp_minimum, &
             cooling_factor, &
-            anneal_log_file, &
-            saveRejected)
+            anneal_psc_log)
 
 ! Save results for printing
 fault_slip = 0.0d0
@@ -2990,6 +3052,65 @@ endif
 
 return
 end function
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,string)
+
+use fltinv, only: anneal_log_file
+
+implicit none
+
+! Arguments
+integer :: it, n, model_current(n), model_proposed(n)
+double precision :: temp, obj
+character(len=*) :: string
+
+! Local variables
+integer :: i
+double precision :: slip(n,2)
+
+
+if (anneal_log_file.eq.'') then
+    return
+endif
+
+
+! Update annealing-with-pseudo-coupling log file
+if (string.eq.'init') then
+    ! Open the log file
+    open(unit=28,file=anneal_log_file,status='unknown')
+
+    ! Compute slip for sub-faults
+    call psc_slip(model_current,n,slip)
+
+    ! Write locked/unlocked, fault slip results to log file
+    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(28,*) model_current(i),slip(i,1),slip(i,2)
+    enddo
+
+elseif (string.eq.'append') then
+    ! Compute slip for sub-faults
+    call psc_slip(model_current,n,slip)
+
+    ! Write locked/unlocked, fault slip, old model results to log file
+    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(28,*) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
+    enddo
+
+elseif (string.eq.'close') then
+    ! Close the log file
+    close(28)
+
+else
+    call usage('anneal_psc_log: no string option named '//trim(string))
+endif
+
+
+return
+end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 

@@ -30,12 +30,18 @@ interface                                                           ! The driver
         integer :: model(n)
         double precision :: driver1_objective
     end function
+    subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        integer :: model_current(n)
+        integer :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 integer :: n, maxit, resetit                                        ! These variable types must be exactly
 integer :: model_best(2)                                            ! the same as in the corresponding
 double precision :: tstart, tmin, cool                              ! version of anneal.
-character(len=32) :: logfile
 logical :: saveRejected
 
 n = 2
@@ -45,14 +51,13 @@ resetit = -1
 tstart = 1.0d0
 tmin = -1.0d0
 cool = 0.99d0
-logfile = 'driver1.log'
 saveRejected = .true.
 
 ! Call anneal with specific driver routines
 call anneal(n, model_best, &
             driver1_init, driver1_propose, driver1_objective, &
             maxit, resetit, tstart, tmin, cool, &
-            logfile, saveRejected)
+            driver1_log)
 
 return
 end subroutine
@@ -105,6 +110,34 @@ driver1_objective = -0.5d0*driver1_objective
 return
 end function
 
+subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,string)
+integer :: it, n
+double precision :: temp, obj
+integer :: model_current(n)
+integer :: model_proposed(n)
+character(len=*) :: string
+character(len=32) :: logfile
+logfile = 'driver1.log'
+if (string.eq.'init') then
+    ! Open the log file
+    open(unit=29,file=logfile,status='unknown')
+    ! Write locked/unlocked, fault slip results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i)
+    enddo
+elseif (string.eq.'append') then
+    ! Write locked/unlocked, fault slip, old model results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i),model_proposed(i)
+    enddo
+elseif (string.eq.'close') then
+    ! Close the log file
+    close(29)
+endif
+end subroutine
+
 !--------------------------------------------------------------------------------------------------!
 ! EXAMPLE #2: FIND A DOUBLE PRECISION POINT IN TWO DIMENSIONS
 ! - Objective function: obj = -0.5*((x-x0)**2/sx+(y-y0)**2/sy)
@@ -131,12 +164,18 @@ interface
         double precision :: model(n)
         double precision :: driver2_objective
     end function
+    subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,string)
+        integer :: it, n
+        double precision :: temp, obj
+        double precision :: model_current(n)
+        double precision :: model_proposed(n)
+        character(len=*) :: string
+    end subroutine
 end interface
 
 integer :: n, maxit, resetit
 double precision :: model_best(2)
 double precision :: tstart, tmin, cool
-character(len=32) :: logfile
 logical :: saveRejected
 
 n = 2
@@ -146,14 +185,13 @@ resetit = -1
 tstart = 1.0d0
 tmin = -1.0d0
 cool = 0.99d0
-logfile = 'driver2.log'
 saveRejected = .true.
 
 ! Call anneal with specific driver routines
 call anneal(n, model_best, &
             driver2_init, driver2_propose, driver2_objective, &
             maxit, resetit, tstart, tmin, cool, &
-            logfile, saveRejected)
+            driver2_log)
 
 return
 end subroutine
@@ -202,6 +240,35 @@ driver2_objective = -0.5d0*driver2_objective
 return
 end function
 
+subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,string)
+integer :: it, n
+double precision :: temp, obj
+double precision :: model_current(n)
+double precision :: model_proposed(n)
+character(len=*) :: string
+character(len=32) :: logfile
+logfile = 'driver2.log'
+if (string.eq.'init') then
+    ! Open the log file
+    open(unit=29,file=logfile,status='unknown')
+    ! Write locked/unlocked, fault slip results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i)
+    enddo
+elseif (string.eq.'append') then
+    ! Write locked/unlocked, fault slip, old model results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i),model_proposed(i)
+    enddo
+elseif (string.eq.'close') then
+    ! Close the log file
+    close(29)
+endif
+end subroutine
+
+
 !--------------------------------------------------------------------------------------------------!
 ! EXAMPLE #3: FIND A DOUBLE PRECISION POINT IN TWO DIMENSIONS, WITH DRIVERS IN A MODULE
 ! - Objective function: obj = -0.5*((x-x0)**2/x0+(y-y0)**2/y0)
@@ -209,6 +276,8 @@ end function
 ! - Proposal: model_proposed = model_current + gaussian random number
 !--------------------------------------------------------------------------------------------------!
 module driver3_module
+
+character(len=32) :: logfile
 
 contains
 
@@ -237,7 +306,6 @@ implicit none
 integer :: n, maxit, resetit
 double precision :: model_best(2)
 double precision :: tstart, tmin, cool
-character(len=32) :: logfile
 logical :: saveRejected
 
 n = 2
@@ -254,7 +322,7 @@ saveRejected = .true.
 call anneal(n, model_best, &
             driver3_init, driver3_propose, driver3_objective, &
             maxit, resetit, tstart, tmin, cool, &
-            logfile, saveRejected)
+            driver3_log)
 
 return
 end subroutine
@@ -293,6 +361,32 @@ driver3_objective = driver3_objective + (model(2)-6.0d0)**2/8.0d0
 driver3_objective = -0.5d0*driver3_objective
 return
 end function
+
+subroutine driver3_log(it,temp,obj,model_current,model_proposed,n,string)
+integer :: it, n
+double precision :: temp, obj
+double precision :: model_current(n)
+double precision :: model_proposed(n)
+character(len=*) :: string
+if (string.eq.'init') then
+    ! Open the log file
+    open(unit=29,file=logfile,status='unknown')
+    ! Write locked/unlocked, fault slip results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i)
+    enddo
+elseif (string.eq.'append') then
+    ! Write locked/unlocked, fault slip, old model results to log file
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    do i = 1,n
+        write(29,*) model_current(i),model_proposed(i)
+    enddo
+elseif (string.eq.'close') then
+    ! Close the log file
+    close(29)
+endif
+end subroutine
 
 end module
 
