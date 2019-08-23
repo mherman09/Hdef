@@ -297,6 +297,13 @@ endif
 
 
 !----
+! Check that coordinate type is specified
+!----
+if (coord_type.ne.'cartesian'.and.coord_type.ne.'geographic') then
+    call usage('read_inputs: no coordinate type specified: use -xy or -geo option')
+endif
+
+!----
 ! Observations are required to constrain the fault slip
 !----
 if (displacement%file.eq.'none'.and.los%file.eq.'none'.and.prestress%file.eq.'none') then
@@ -3593,7 +3600,7 @@ gf_model = 'none'
 call init_fltinv_data(gf_disp)
 call init_fltinv_data(gf_los)
 call init_fltinv_data(gf_stress)
-coord_type = 'cartesian'
+coord_type = ''
 
 halfspace_file = 'none'
 
@@ -3714,9 +3721,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-gf:stress') then
         i = i + 1
         call get_command_argument(i,gf_stress%file)
-    elseif (trim(tag).eq.'-xy') then
+    elseif (trim(tag).eq.'-xy'.or.trim(tag).eq.'-cartesian') then
         coord_type = 'cartesian'
-    elseif (trim(tag).eq.'-geo') then
+    elseif (trim(tag).eq.'-geo'.or.trim(tag).eq.'-geographic') then
         coord_type = 'geographic'
 
     ! Half-space options
