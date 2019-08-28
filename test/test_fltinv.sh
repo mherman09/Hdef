@@ -32,6 +32,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 #echo "Least squares solution:"
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -76,6 +77,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 #echo "Least squares solution:"
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -91,6 +93,7 @@ EOF
 #echo Least squares solution + only horizontal displacements:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -107,6 +110,7 @@ EOF
 #echo Least squares solution + only vertical displacements:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -129,6 +133,7 @@ cat > rake.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -151,6 +156,7 @@ cat > rake.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -168,6 +174,7 @@ EOF
 #echo "Least squares solution + fixed rake (all 180) + nnls:"
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -191,6 +198,7 @@ cat > rake.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -214,6 +222,7 @@ cat > slip.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -230,6 +239,7 @@ EOF
 #echo Least squares solution + damping = 0.1:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -246,6 +256,7 @@ EOF
 #echo Least squares solution + damping = 1.0:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -268,6 +279,7 @@ cat > smooth.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -284,6 +296,7 @@ EOF
 #echo Least squares solution + smoothing = 1.0:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -300,6 +313,7 @@ EOF
 #echo Least squares solution + damping + smoothing:
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -352,6 +366,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.
 
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -los fltinv_los.tmp \
     -gf:model okada_rect \
@@ -400,11 +415,12 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.
 
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -los fltinv_los.tmp \
     -gf:model okada_rect \
-    -o inversion.tmp 
+    -o inversion.tmp
 cat > answer.tmp << EOF
  -1.96965424E+00  3.47308462E-01
  -1.49992902E+00 -2.38168890E-04
@@ -506,6 +522,7 @@ mv j fltinv_disp.tmp
 
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -553,6 +570,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' flt.tmp > fltinv_flt.tmp
 # Linear least squares solution
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -lsqr:mode gesv \
     -flt fltinv_flt.tmp \
     -prests stress.tmp \
@@ -598,6 +616,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' sta.tmp > flt.tmp
 # Linear least squares solution
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -lsqr:mode gesv \
     -flt flt.tmp \
     -prests stress.tmp \
@@ -711,6 +730,7 @@ echo 0.25 1 > step.tmp
 #echo "Least squares solution:"
 ../bin/fltinv \
     -mode anneal \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -842,6 +862,7 @@ cat > step.tmp << EOF
 EOF
 ../bin/fltinv \
     -mode anneal \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model okada_rect \
@@ -912,6 +933,7 @@ awk '{print 0,0,0,0,0,0}' o92_flt.tmp > fltinv_sts.tmp
 echo vp 6800 vs 3926 dens 3000 > haf.tmp
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -flt:slip fltinv_slip.tmp \
     -haf haf.tmp \
@@ -955,6 +977,7 @@ EOF
 rm inversion.tmp
 ../bin/fltinv \
     -mode anneal-psc \
+    -xy \
     -flt fltinv_flt.tmp \
     -flt:slip fltinv_slip_psc.tmp \
     -disp fltinv_disp_psc.tmp \
@@ -1043,6 +1066,7 @@ awk '{c=1e3;print $1*c,$2*c,$3*c,$4*c,$5*c,$6*c,$7*c,$8*c,$9*c}' tri_flt.tmp > f
 #echo "Least squares solution:"
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -flt fltinv_flt.tmp \
     -disp fltinv_disp.tmp \
     -gf:model triangle \
@@ -1098,8 +1122,9 @@ echo shearmod 40e9 lame 40e9 > haf.tmp
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4*1e3,$5*1e3,$6*1e3,$7*1e3,$8*1e3,$9*1e3}' tri.tmp > fltinv_flt.tmp
 awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
 ../bin/fltinv \
-    -flt fltinv_flt.tmp \
     -mode lsqr \
+    -xy \
+    -flt fltinv_flt.tmp \
     -gf:model triangle \
     -prests fltinv_sts.tmp \
     -haf haf.tmp \
@@ -1157,6 +1182,7 @@ awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts2.tmp > fltinv_sts2.tmp
 echo vp 6800 vs 3926 dens 3000 > haf.tmp
 ../bin/fltinv \
     -mode lsqr \
+    -xy \
     -lsqr:mode gesv \
     -flt fltinv_flt2.tmp \
     -gf:model triangle \
@@ -1233,7 +1259,7 @@ echo ----------------------------------------------------------
 echo Test \#15: 1 triangular dip-slip fault, pre-stresses on adjacent fault, geographic coordinates
 echo ----------
 # Two triangular faults, using geographic coordinates
-#  
+#
 # -73.0 -72.8
 #   1*---* -31.7
 #    |1 /|3
@@ -1404,7 +1430,3 @@ exit
 #	CLEAN UP
 #####
 rm *.tmp
-
-
-
-
