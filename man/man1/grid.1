@@ -57,18 +57,31 @@ Project z-coordinates onto dipping plane with geometry
 .IR dip ,
 (degrees from horizontal) containing the point
 .IR "" ( x0 ", " y0 ", " z0 ).
+Default coordinate type is Cartesian. Define
+.I x0
+and
+.I y0
+as geographic coordinates with
+.BR -geo .
 
 .TP
 .BI -xsec " x0 y0 azimuth "
-Generate geographic points on a vertically dipping plane containing the point
+Generate points on a vertically dipping plane containing the point
 .IR "" ( x0 ", " y0 )
 and with orientation
-.IR azimuth .
+.I azimuth
+measured clockwise from north.
 Treat
 .I x
 as the horizontal distance parallel to the azimuth and
 .I y
 as the horizontal distance perpendicular to the azimuth.
+Default coordinate type is Cartesian. Define
+.I x0
+and
+.I y0
+as geographic coordinates with
+.BR -geo .
 
 .TP
 .BI -R xmin / xmax / ymin / ymax
