@@ -3076,6 +3076,7 @@ character(len=*) :: string
 ! Local variables
 integer :: i
 double precision :: slip(n,2)
+character(len=8) :: rejected_string
 
 
 if (anneal_log_file.eq.'') then
@@ -3098,11 +3099,20 @@ if (string.eq.'init') then
     enddo
 
 elseif (string.eq.'append') then
+    ! Is this a rejected model?
+    rejected_string = ''
+    do i = 1,n
+        if (model_current(i).ne.model_proposed(i)) then
+            rejected_string = 'rejected'
+            exit
+        endif
+    enddo
+
     ! Compute slip for sub-faults
     call psc_slip(model_current,n,slip)
 
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)
     do i = 1,n
         write(28,*) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
     enddo
