@@ -68,6 +68,7 @@ CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
 all: \
     $(INCLUDE_DIR) \
     $(BIN) \
+    $(BIN)/anneal_post \
     $(BIN)/clip \
     $(BIN)/colortool \
     $(BIN)/dateutil \
@@ -94,6 +95,10 @@ all: \
 
 $(BIN):
 	mkdir -p $(BIN)
+
+$(BIN)/anneal_post: src/anneal_post.f90 \
+             $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 $(BIN)/clip: src/clip.f90 \
              $(INCLUDE_DIR)/algebra.o \
