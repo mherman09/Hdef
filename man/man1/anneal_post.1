@@ -1,0 +1,102 @@
+.TH ANNEAL_POST 1 "September 2019" "Version 2019.09.01" "User Manuals"
+
+.SH NAME
+anneal_post \- parse output annealing log file from fltinv
+
+.SH SYNOPSIS
+.P
+.B anneal_post
+.BI -f " anneal_log_file"
+.BI -nit " niterations"
+.BI -nburn " niterations_burnin"
+.BI -best " best_slip_file"
+.BI -plocked " probability_locked_file"
+.BI -slip:mean " mean_slip_file"
+.BI -slip:marg " iflt slip_marg1d_file"
+.BI -flocked[:subset " subset_file" ] " fraction_locked_file"
+
+.SH DESCRIPTION
+.B anneal_post
+reads the output file produced by
+.B fltinv
+and prints relevant results of the search.
+It is especially designed for searches that implement the Metropolis-Hastings algorithm
+(annealing temperature = 1) to generate probabilistic estimates of fault slip.
+
+.SH OPTIONS
+.TP
+.BI -f " anneal_log_file"
+The annealing log file produced by
+.BR fltinv .
+This should have the format:
+
+.IR "" "Iteration " it_number " Temperature " temp " Objective " objective
+.BR [ (rejected) ]
+.br
+.IR 1 | 0
+.I slip_ss slip_ds
+.IR 1 | 0
+.br
+\[char46]
+.br
+\[char46]
+.br
+\[char46]
+
+where the first field indicates the current model locking state (1=locked)
+and the fourth field indicates the proposed model locking state.
+The first and fourth columns are equal if the proposed model is accepted
+and different if the proposed model is rejected.
+
+.TP
+.BI -nit " niterations"
+The number of iterations to read. A warning will be printed if you have not read
+all of the iterations available.
+
+.TP
+.BI -nburn " niterations_burnin"
+The number of iterations starting from the beginning to discard, i.e., the "burn-in" stage
+of the search.
+
+.TP
+.BI -best " best_slip_file"
+The locking state, strike-slip, and dip-slip for the best-fitting (lowest objective function)
+solution.
+
+.TP
+.BI -plocked " probability_locked_file"
+The probability of each sub-fault being locked. For each sub-fault in the
+search, the probability is:
+
+.IR plocked = nlocked / niterations
+
+where
+.I nlocked
+is the number of iterations in which that sub-fault is locked in the search and
+.I niterations
+is the total number of iterations in the search minus the number of burn-in steps.
+
+.TP
+.BI -slip:mean " mean_slip_file"
+The mean strike-slip and dip-slip for each sub-fault.
+
+.TP
+.BI -slip:marg " iflt slip_marg1d_file"
+Dump all of the the strike-slip and dip-slip values of sub-fault
+.I iflt
+to a file. Plotting this in a histogram yields the 1-D marginal slip magnitude
+for the sub-fault.
+This option can be repeated up to 1000 times.
+
+.TP
+.BI -flocked " fraction_locked_file"
+Calculate the fraction of all sub-faults that are locked in each iteration.
+
+.TP
+.BI -flocked:subset " subset_file fraction_locked_file"
+Calculate the fraction of sub-faults listed in
+.I subfault_file
+that are locked in each iteration.
+This option can be repeated up to 10 times.
+
+.RS
