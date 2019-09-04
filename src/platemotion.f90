@@ -47,7 +47,7 @@ if (plates(1).ne.'') then
 endif
 
 ! Convert pole to Cartesian coordinates
-call pole_geo2xyz(pole(1),pole(2),pole(3),xyz_pole(1),xyz_pole(2),xyz_pole(3),'grs80')
+call pole_geo2xyz(pole(1),pole(2),pole(3),xyz_pole(1),xyz_pole(2),xyz_pole(3),'sphere')
 
 
 ! Open input and output streams
@@ -79,11 +79,11 @@ do
     ! Calculate vector from center of Earth to point
     lonr = lon*d2r
     latr = lat*d2r
-    call ellipsoid_geo2xyz(lon,lat,0.0d0,r(1),r(2),r(3),semimajor_grs80,eccentricity_grs80)
-    call normalize(r)
-    ! r(1) = dcos(latr)*dcos(lonr)
-    ! r(2) = dcos(latr)*dsin(lonr)
-    ! r(3) = dsin(latr)
+    ! call ellipsoid_geo2xyz(lon,lat,0.0d0,r(1),r(2),r(3),semimajor_grs80,eccentricity_grs80)
+    ! call normalize(r)
+    r(1) = dcos(latr)*dcos(lonr)
+    r(2) = dcos(latr)*dsin(lonr)
+    r(3) = dsin(latr)
 
     ! Velocity at that point is cross product of angular velocity vector and position vector
     call cross_product(xyz_pole,r,vel)

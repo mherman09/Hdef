@@ -2,7 +2,7 @@ module earth
 
 use trig, only: pi
 
-! Radius of the Earth
+! Radius of the Earth (sphere of equivalent volume)
 double precision, parameter, public :: radius_earth_m = 6371.0d3
 double precision, parameter, public :: radius_earth_km = 6371.0d0
 
@@ -32,7 +32,7 @@ public :: ellipsoid_xyz2geo
 double precision, parameter, public :: masa2degma = 1.0d6/(1.0d3*60.0d0*60.0d0)
 
 !----
-! Plate motion models
+! Plate motion models (Euler poles => spherical Earth)
 !----
 ! ITRF 2005
 ! Altamimi, Z., Collileux, X., Legrand, J., Garayt, B., Boucher, C. (2007). ITRF2005: A new release
@@ -283,7 +283,7 @@ double precision, parameter, public :: morvel56_RI_lon = -104.80d0 ! Rivera
 double precision, parameter, public :: morvel56_RI_lat =   25.69d0
 double precision, parameter, public :: morvel56_RI_vel =   4.966d0
 double precision, parameter, public :: morvel56_SA_lon =  -77.03d0 ! South America
-double precision, parameter, public :: morvel56_SA_lat =   55.97d0
+double precision, parameter, public :: morvel56_SA_lat =   55.98d0
 double precision, parameter, public :: morvel56_SA_vel =   0.653d0
 double precision, parameter, public :: morvel56_SC_lon =  -78.02d0 ! Scotia
 double precision, parameter, public :: morvel56_SC_lat =   57.84d0
@@ -1335,16 +1335,20 @@ do i = 1,2
 enddo
 
 ! Angular velocity of plate2 with respect to plate1: pole2-pole1 = pole
-call pole_geo2xyz(geo_pole(1,1),geo_pole(1,2),geo_pole(1,3),xyz_pole(1,1),xyz_pole(1,2),&
-                  xyz_pole(1,3),'sphere')
-call pole_geo2xyz(geo_pole(2,1),geo_pole(2,2),geo_pole(2,3),xyz_pole(2,1),xyz_pole(2,2),&
-                  xyz_pole(2,3),'sphere')
+call pole_geo2xyz(geo_pole(1,1),geo_pole(1,2),geo_pole(1,3), &
+                  xyz_pole(1,1),xyz_pole(1,2),xyz_pole(1,3), &
+                  'sphere')
+call pole_geo2xyz(geo_pole(2,1),geo_pole(2,2),geo_pole(2,3), &
+                  xyz_pole(2,1),xyz_pole(2,2),xyz_pole(2,3), &
+                  'sphere')
 pole(1) = xyz_pole(2,1) - xyz_pole(1,1)
 pole(2) = xyz_pole(2,2) - xyz_pole(1,2)
 pole(3) = xyz_pole(2,3) - xyz_pole(1,3)
 
 ! Convert back to geographic coordinates and rotational velocity
-call pole_xyz2geo(pole(1),pole(2),pole(3),geo_pole(1,1),geo_pole(1,2),geo_pole(1,3),'sphere')
+call pole_xyz2geo(pole(1),pole(2),pole(3), &
+                  geo_pole(1,1),geo_pole(1,2),geo_pole(1,3), &
+                  'sphere')
 pole(1) = geo_pole(1,1)
 pole(2) = geo_pole(1,2)
 pole(3) = geo_pole(1,3)
