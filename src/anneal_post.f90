@@ -103,6 +103,10 @@ allocate(slip(nit,nflt,2))        ! DP array with strike- and dip-slip of each f
 ! Read search results
 it = 0
 do
+    if (mod(it,nit/100).eq.1) then
+        write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
+    endif
+
     read(21,'(A)',end=1001,iostat=ios) input_line
     if (it.gt.nit) then
         write(stderr,*) 'anneal_post: WARNING: you requested fewer iterations (',nit,') than are in log file'
@@ -119,9 +123,14 @@ do
     enddo
     it = it + 1
 enddo
+ios = 0
+write(*,*) 'anneal_post progress: ',100*it/nit,'%'
+
 1001 if (it.lt.nit) then
     write(stderr,*) 'anneal_post: you requested more iterations (',nit,') than are in log file'
     call usage('')
+else
+    ios = 0
 endif
 1002 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
@@ -200,8 +209,8 @@ if (mean_slip_output_file.ne.'') then
             mean_ss(iflt) = mean_ss(iflt) + slip(it,iflt,1)
             mean_ds(iflt) = mean_ds(iflt) + slip(it,iflt,2)
         enddo
-        mean_ss(iflt) = mean_ss(iflt)/dble(nflt)
-        mean_ds(iflt) = mean_ds(iflt)/dble(nflt)
+        mean_ss(iflt) = mean_ss(iflt)/dble(nit)
+        mean_ds(iflt) = mean_ds(iflt)/dble(nit)
     enddo
 
     ! Write mean slip to file
