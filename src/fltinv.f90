@@ -19,6 +19,15 @@ type(fltinv_data) :: fault                       ! Sub-fault locations and geome
 type(fltinv_data) :: slip_constraint             ! Fault slip magnitude constraints
 type(fltinv_data) :: rake_constraint             ! Fault rake angle constraints
 
+! Euler pole parameters
+character(len=512) :: euler_file                 !
+character(len=512) :: euler_output_file          !
+integer :: npoles                                !
+integer, allocatable :: rigid_pt_array_disp(:)   !
+integer, allocatable :: rigid_pt_array_los(:)    !
+double precision, allocatable :: pole_array(:,:) !
+double precision, allocatable :: gf_euler(:,:)   !
+
 ! Observation constraints on fault slip
 type(fltinv_data) :: displacement                ! Three-component displacement observations
 character(len=3) :: disp_components              ! Components of 3-D displacement to invert for
@@ -72,6 +81,7 @@ integer :: max_flip                              ! Maximum number of faults to f
 
 ! Output variables
 double precision, allocatable :: fault_slip(:,:)
+double precision, allocatable :: euler_pole(:,:)
 
 ! double precision :: los_weight                   ! Weight to line-of-sight data in inversion
 ! double precision :: stress_weight                ! Weight to stress data in inversion
@@ -213,6 +223,7 @@ program main
 #endif
 
 use fltinv, only: output_file, &
+                  euler_output_file, &
                   inversion_mode
 
 implicit none
@@ -226,7 +237,7 @@ implicit none
 
 
 call gcmdln()
-if (output_file.eq.'') then
+if (output_file.eq.''.and.euler_output_file.eq.'') then
     call usage('fltinv: output file name is required')
 endif
 if (inversion_mode.eq.'') then
@@ -236,6 +247,7 @@ endif
 call read_inputs()
 call calc_disp_gfs()
 call calc_stress_gfs()
+call calc_euler_gfs()
 call run_inversion()
 call write_solution()
 
@@ -260,6 +272,12 @@ use fltinv, only: inversion_mode, &
                   fault, &
                   slip_constraint, &
                   rake_constraint, &
+                  euler_file, &
+                  npoles, &
+                  rigid_pt_array_disp, &
+                  rigid_pt_array_los, &
+                  pole_array, &
+                  gf_euler, &
                   displacement, &
                   disp_components, &
                   los, &
@@ -280,6 +298,7 @@ use fltinv, only: inversion_mode, &
                   smoothing_pointers, &
                   smoothing_neighbors, &
                   fault_slip, &
+                  euler_pole, &
                   read_fltinv_data_file
 
 implicit none
@@ -348,11 +367,16 @@ endif
 
 
 !----
-! A fault file is required for number of sub-faults and sub-fault locations/geometries (if used)
+! A fault file or Euler pole file is required.
+! The fault file contains the number of sub-faults (and sub-fault locations/geometries if used)
+! The Euler pole file contains the set of observations points experiencing rigid body rotations
 !----
-if (fault%file.eq.'none') then
-    call usage('read_inputs: no fault file defined')
-else
+if (fault%file.eq.'none'.and.euler_file.eq.'none') then
+    call usage('read_inputs: no fault file or Euler pole defined')
+endif
+
+
+if (fault%file.ne.'none') then
 
     ! The number of columns to read depends on whether fltinv is reading in Green's functions or
     ! whether they need to be calculated. Providing ANY Green's functions via input file overrides
@@ -404,7 +428,7 @@ else
     endif
 endif
 if (verbosity.ge.2) then
-    write(stdout,*) 'read_inputs: finished reading fault and Greens function files'
+    write(stdout,*) 'read_inputs: finished reading fault and fault slip Greens function files'
 endif
 
 
@@ -412,58 +436,61 @@ endif
 ! Check input values
 !----
 ! Input fault depth and dimensions depend on GF model
-if (gf_model.eq.'okada_rect') then
-    if (minval(fault%array(:,3)).lt.0.0d0) then
-        ! Depth is positive down
-        write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
-        call usage('Depth is defined positive down for gf_model '//trim(gf_model))
-    elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
-        ! Depth units are meters
-        write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
-                        'gf_model ',trim(gf_model),')'
-    endif
+if (fault%file.ne.'none') then
+    if (gf_model.eq.'okada_rect') then
+        if (minval(fault%array(:,3)).lt.0.0d0) then
+            ! Depth is positive down
+            write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+        elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
+            ! Depth units are meters
+            write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
+                            'gf_model ',trim(gf_model),')'
+        endif
 
-    ! Fault dimensions are in meters
-    if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
-        write(stderr,*) 'read_inputs: all fault dimensions are less than 100 meters ',&
-                        ' using gf_model ',trim(gf_model)
-    endif
+        ! Fault dimensions are in meters
+        if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
+            write(stderr,*) 'read_inputs: all fault dimensions are less than 100 meters ',&
+                            ' using gf_model ',trim(gf_model)
+        endif
 
-elseif (gf_model.eq.'okada_pt') then
-    if (minval(fault%array(:,3)).lt.0.0d0) then
-        ! Depth is positive down
-        write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
-        call usage('Depth is defined positive down for gf_model '//trim(gf_model))
-    elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
-        ! Depth units are meters
-        write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
-                        'gf_model ',trim(gf_model),')'
-    endif
+    elseif (gf_model.eq.'okada_pt') then
+        if (minval(fault%array(:,3)).lt.0.0d0) then
+            ! Depth is positive down
+            write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+        elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
+            ! Depth units are meters
+            write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
+                            'gf_model ',trim(gf_model),')'
+        endif
 
-    ! Fault areas are in square meters
-    if (maxval(fault%array(:,6)).lt.10000.0d0) then
-        write(stderr,*) 'read_inputs: all fault areas are less than 100x100 square meters ',&
-                        'using gf_model ',trim(gf_model)
-    endif
+        ! Fault areas are in square meters
+        if (maxval(fault%array(:,6)).lt.10000.0d0) then
+            write(stderr,*) 'read_inputs: all fault areas are less than 100x100 square meters ',&
+                            'using gf_model ',trim(gf_model)
+        endif
 
-elseif (gf_model.eq.'triangle') then
-    if (minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.0.0d0) then
-        ! Depth is positive down
-        write(stderr,*) 'read_inputs: found triangle vertex depth of ', &
-                        minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)])
-        call usage('Depth is defined positive down for gf_model '//trim(gf_model))
-    endif
+    elseif (gf_model.eq.'triangle') then
+        if (minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.0.0d0) then
+            ! Depth is positive down
+            write(stderr,*) 'read_inputs: found triangle vertex depth of ', &
+                            minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)])
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+        endif
 
-    if (maxval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.1000.0d0) then
-        ! Depth units are meters
-        write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
-                        'gf_model ',trim(gf_model),')'
-    endif
+        if (maxval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.1000.0d0) then
+            ! Depth units are meters
+            write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
+                            'gf_model ',trim(gf_model),')'
+        endif
 
-elseif (gf_model.eq.'precomputed') then
-    ! Do nothing...the user is on the hook for getting this right
-else
-    call usage('read_inputs: no gf_model named "'//trim(gf_model)//'"')
+    elseif (gf_model.eq.'precomputed') then
+        ! Do nothing...the user is on the hook for getting this right
+
+    else
+        call usage('read_inputs: no gf_model named "'//trim(gf_model)//'"')
+    endif
 endif
 
 
@@ -926,6 +953,81 @@ if (gf_model.eq.'okada_rect'.or.gf_model.eq.'okada_pt'.or.gf_model.eq.'triangle'
         write(stdout,*) 'Shear modulus:   ',shearmod
         write(stdout,*) 'Lames parameter: ',lame
     endif
+endif
+
+
+! Rigid body rotations defined by Euler poles
+if (euler_file.ne.'none') then
+    ! Check that file exists, then open it
+    if (.not.fileExists(euler_file)) then
+        call usage('read_inputs: no Euler pole file named '//trim(euler_file))
+    endif
+    open(unit=68,file=euler_file,status='old')
+
+    ! First line is the number of Euler poles
+    read(68,*) npoles
+    allocate(euler_pole(npoles,3))
+
+    ! Initialize array recording which points are affected by each rigid body rotation
+    if (displacement%file.ne.'none') then
+        allocate(rigid_pt_array_disp(displacement%nrows))
+        rigid_pt_array_disp = 0
+    endif
+    if (los%file.ne.'none') then
+        allocate(rigid_pt_array_los(los%nrows))
+        rigid_pt_array_los = 0
+    endif
+
+    ! Initialize array for prior constraints on Euler pole location
+    if (inversion_mode.eq.'anneal'.or.inversion_mode.eq.'anneal-psc') then
+        allocate(pole_array(npoles,3))
+        pole_array = 0.0d0
+    endif
+
+    ! Read prior constraints on Euler pole locations
+    do i = 1,npoles
+        read(68,'(A)',end=4001,iostat=ios) line
+        if (allocated(pole_array)) then
+            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:3)
+        endif
+    enddo
+    4001 if (ios.ne.0) then
+        call usage('read_inputs: reached euler_file EOF before finished reading')
+    endif
+    4002 if (ios.ne.0) then
+        write(stderr,*) 'read_inputs: error parsing Euler pole lon lat rad from: ',trim(line)
+        call usage('Exiting')
+    endif
+
+    ! Read groups of points experiencing rigid rotations
+    ! nrigid_dof = 0
+    do
+        read(68,'(A)',end=4003,iostat=ios) line
+        read(line,*,end=4004,err=4004,iostat=ios) i,nchar,j
+        if (nchar.eq.'3') then
+            rigid_pt_array_disp(j) = i
+            ! nrigid_dof = nrigid_dof + 3
+        elseif (nchar.eq.'l'.or.nchar.eq.'L') then
+            rigid_pt_array_los(j) = i
+            ! nrigid_dof = nrigid_dof + 1
+        else
+            call usage('read_inputs: no observation type code named '//nchar//'; use "3" or "L"')
+        endif
+    enddo
+    4003 ios = 0
+    4004 if (ios.ne.0) then
+        write(stderr,*) 'read_inputs: error parsing ipole 3|L iobs from: ',trim(line)
+        call usage('exiting')
+    endif
+
+    ! Initialize Greens functions for rotations
+    allocate(gf_euler(2*displacement%nrows+los%nrows,3*npoles))
+    gf_euler = 0.0d0
+
+    ! All done with rigid block file
+    close(68)
+else
+    npoles = 0
 endif
 
 
@@ -1655,7 +1757,7 @@ if (verbosity.ge.1) then
 endif
 if (verbosity.ge.3) then
     write(stdout,*) 'Fault-fault shear traction GFs'
-    write(stdout,'(2A4,6A14)') 'sta','flt','sgf_ss_str','sgf_ss_dip','sgf_ds_str','sgf_ds_dip'
+    write(stdout,'(2A4,4A14)') 'sta','flt','sgf_ss_str','sgf_ss_dip','sgf_ds_str','sgf_ds_dip'
     do i = 1,fault%nrows
         do j = 1,fault%nrows
             write(stdout,'(2I4,1P4E14.6)') i,j, &
@@ -1674,6 +1776,121 @@ return
 end subroutine calc_stress_gfs
 
 
+!--------------------------------------------------------------------------------------------------!
+
+
+subroutine calc_euler_gfs()
+!----
+! Calculate the Green's functions for rigid body rotations at selected observation points.
+!----
+
+use io, only: verbosity, stdout
+use trig, only: d2r
+use earth, only: deg2km
+
+use fltinv, only: euler_file, &
+                  npoles, &
+                  rigid_pt_array_disp, &
+                  rigid_pt_array_los, &
+                  gf_euler, &
+                  coord_type, &
+                  displacement, &
+                  los
+
+implicit none
+
+! Local variables
+integer :: i, j, iblock, ndsp
+double precision :: angular_velocity, lon, lat, dep, r(3)
+
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'calc_euler_gfs: starting'
+endif
+
+if (euler_file.eq.'') then
+    if (verbosity.ge.1) then
+        write(stdout,*) 'calc_euler_gfs: rigid body rotations are not determined in this inversion'
+        write(stdout,*)
+    endif
+    return
+endif
+
+if (coord_type.eq.'cartesian') then
+    write(stdout,*) 'calc_euler_gfs: rigid body rotations are not used in Cartesian coordinate mode'
+    write(stdout,*)
+    return
+endif
+
+
+! Set unit angular velocity for the Green's functions calculation
+angular_velocity = 1.0d0
+
+
+if (displacement%file.ne.'none') then
+    ndsp = displacement%nrows
+    do i = 1,ndsp
+
+        iblock = rigid_pt_array_disp(i)
+
+        if (iblock.ne.0) then
+            lon = displacement%array(i,1)
+            lat = displacement%array(i,2)
+            dep = displacement%array(i,3)
+            if (abs(dep).gt.1.0d0) then
+                call usage('calc_euler_gfs: rigid plate motions only work for surface observations')
+            endif
+
+            r(1) = dcos(lat*d2r)*dcos(lon*d2r)
+            r(2) = dcos(lat*d2r)*dsin(lon*d2r)
+            r(3) = dsin(lat*d2r)
+
+            gf_euler(i     ,iblock         ) = -r(3)*cos(lon*d2r)
+            gf_euler(i+ndsp,iblock         ) =  r(3)*sin(lon*d2r)*sin(lat*d2r) + r(2)*cos(lat*d2r)
+            gf_euler(i     ,iblock+  npoles) = -r(3)*sin(lon*d2r)
+            gf_euler(i+ndsp,iblock+  npoles) = -r(3)*cos(lon*d2r)*sin(lat*d2r) - r(1)*cos(lat*d2r)
+            gf_euler(i     ,iblock+2*npoles) =  r(2)*sin(lon*d2r)              + r(1)*cos(lon*d2r)
+            gf_euler(i+ndsp,iblock+2*npoles) =  r(2)*cos(lon*d2r)*sin(lat*d2r) - &
+                                                                     r(1)*sin(lon*d2r)*sin(lat*d2r)
+
+            gf_euler(i     ,iblock         ) = deg2km*gf_euler(i     ,iblock         )/1.0d3
+            gf_euler(i+ndsp,iblock         ) = deg2km*gf_euler(i+ndsp,iblock         )/1.0d3
+            gf_euler(i     ,iblock+  npoles) = deg2km*gf_euler(i     ,iblock+  npoles)/1.0d3
+            gf_euler(i+ndsp,iblock+  npoles) = deg2km*gf_euler(i+ndsp,iblock+  npoles)/1.0d3
+            gf_euler(i     ,iblock+2*npoles) = deg2km*gf_euler(i     ,iblock+2*npoles)/1.0d3
+            gf_euler(i+ndsp,iblock+2*npoles) = deg2km*gf_euler(i+ndsp,iblock+2*npoles)/1.0d3
+        endif
+    enddo
+endif
+
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'calc_euler_gfs: finished'
+endif
+if (verbosity.ge.3) then
+    write(stdout,*) 'Rigid body rotation GFs'
+    write(stdout,'(2A4,6A14)') 'sta','pol','ang_x_ve','ang_x_vn','ang_y_ve','ang_y_vn','ang_z_ve', &
+                               'ang_z_vn'
+    do i = 1,ndsp
+        iblock = rigid_pt_array_disp(i)
+        do j = 1,npoles
+            write(stdout,'(2I4,1P6E14.6)') i,j, &
+                                           gf_euler(i     ,iblock         ), &
+                                           gf_euler(i+ndsp,iblock         ), &
+                                           gf_euler(i     ,iblock+  npoles), &
+                                           gf_euler(i+ndsp,iblock+  npoles), &
+                                           gf_euler(i     ,iblock+2*npoles), &
+                                           gf_euler(i+ndsp,iblock+2*npoles)
+        enddo
+    enddo
+endif
+if (verbosity.ge.1) then
+    write(stdout,*)
+endif
+
+
+return
+end subroutine calc_euler_gfs
 
 
 
@@ -1743,6 +1960,9 @@ use solver, only: load_array, load_constraints, solve_dgels, solve_dsysv, solve_
 use fltinv, only: fault, &
                   slip_constraint, &
                   rake_constraint, &
+                  euler_file, &
+                  npoles, &
+                  gf_euler, &
                   displacement, &
                   disp_components, &
                   los, &
@@ -1757,12 +1977,13 @@ use fltinv, only: fault, &
                   smoothing_pointers, &
                   smoothing_neighbors, &
                   lsqr_mode, &
-                  fault_slip
+                  fault_slip, &
+                  euler_pole
 
 implicit none
 
 ! Local variables
-integer :: nrows, ncols, ptr_disp, ptr_los, ptr_stress, ptr_damp, ptr_smooth, ptr_nbr
+integer :: nrows, ncols, ptr_disp, ptr_los, ptr_stress, ptr_damp, ptr_smooth, ptr_nbr, ptr_euler
 integer :: nflt, nslip, ndsp, ndsp_dof, nlos, nsts, nnbr, nfixed, nfree
 integer :: i, j, ierr, icomp, iflt, inbr
 double precision, allocatable :: A(:,:), b(:), x(:), atmp(:,:), btmp(:)
@@ -1771,7 +1992,18 @@ logical, allocatable :: isSlipFixed(:)
 
 
 ! Initialize solution
-fault_slip = 0.0d0
+if (fault%file.ne.'none') then
+    if (.not.allocated(fault_slip)) then
+        call usage('invert_lsqr: memory for fault slip output array not allocated')
+    endif
+    fault_slip = 0.0d0
+endif
+if (euler_file.ne.'none') then
+    if (.not.allocated(euler_pole)) then
+        call usage('invert_lsqr: memory for Euler pole output array not allocated')
+    endif
+    euler_pole = 0.0d0
+endif
 
 
 ! Determine dimensions of the model matrix, A, and set the locations of components of the array
@@ -1789,6 +2021,10 @@ else
 endif
 ncols = nslip
 
+! Add rigid body rotations to columns
+ncols = ncols + 3*npoles ! I GUARANTEE THIS IS GOING TO MAKE SOME ARRAY SIZING ISSUES DOWN THE LINE...
+
+
 ! Initialize sub-array pointers and dimensions
 ptr_disp = 0
 ptr_los = 0
@@ -1799,6 +2035,7 @@ ndsp = 0
 ndsp_dof = 0
 nlos = 0
 nsts = 0
+ptr_euler = 0
 
 ! Row dimensions corresponding to three-component displacement data
 if (displacement%file.ne.'none') then
@@ -1838,6 +2075,9 @@ if (smoothing_constant.gt.0.0d0) then
     endif
 endif
 
+! Columns of Euler pole GFs start after fault slip columns
+ptr_euler = nslip + 1
+
 ! Resulting dimensions and locations of sub-arrays
 if (verbosity.ge.2) then
     write(stdout,*) 'invert_lsqr: model array parameters'
@@ -1848,6 +2088,7 @@ if (verbosity.ge.2) then
     write(stdout,*) 'ptr_stress: ', ptr_stress
     write(stdout,*) 'ptr_damp:   ', ptr_damp
     write(stdout,*) 'ptr_smooth: ', ptr_smooth
+    write(stdout,*) 'ptr_euler:  ', ptr_euler
 endif
 
 ! Allocate memory to model matrix, A, and data vector, b
@@ -1894,7 +2135,7 @@ if (displacement%file.ne.'none') then
     enddo
 endif
 
-! Load LOS displacement GFs and data (NEED TO INCORPORATE LOS WEIGHTS!!!!!)
+! Load LOS displacement GFs and data (NEED TO INCORPORATE LOS WEIGHTS!!!!! <-THIS CAN BE DONE W COV MATRIX)
 if (los%file.ne.'none') then
     call load_array(A,nrows,ncols,gf_los%array(:,1:nslip),nlos,nslip,ptr_los,1,'gf_los%array',ierr)
     if (ierr.ne.0) then
@@ -1906,9 +2147,24 @@ if (los%file.ne.'none') then
     endif
 endif
 
+! Load rigid body rotations into model matrix
+if (euler_file.ne.'none') then
+    do i = 1,len_trim(disp_components)
+        read(disp_components(i:i),*) icomp
+        if (icomp.ne.3) then
+            call load_array(A,nrows,ncols, &
+                            gf_euler((icomp-1)*ndsp+1:icomp*ndsp,1:3*npoles),ndsp,3*npoles, &
+                            (i-1)*ndsp+1,ptr_euler,'gf_euler%array',ierr)
+            if (ierr.ne.0) then
+                call usage('invert_lsqr: error loading rigid body rotation GFs into A')
+            endif
+        endif
+    enddo
+endif
+
 ! Load covariance matrix for displacements
 if (displacement%file.ne.'none'.or.los%file.ne.'none') then
-    allocate(atmp(ndsp_dof+nlos,ncols),stat=ierr)
+    allocate(atmp(ndsp_dof+nlos,nslip),stat=ierr)
     if (ierr.ne.0) then
         call usage('invert_lsqr: error allocating memory to atmp for including covariance matrix')
     endif
@@ -1918,7 +2174,7 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     endif
 
     ! Compute cov_matrix^-1*A and cov_matrix^1*b
-    call solve_dsysv_nrhs(cov_matrix,A(1:ndsp_dof+nlos,1:ncols),atmp,ndsp_dof+nlos,ncols,ierr)
+    call solve_dsysv_nrhs(cov_matrix,A(1:ndsp_dof+nlos,1:nslip),atmp,ndsp_dof+nlos,nslip,ierr)
     if (ierr.ne.0) then
         call usage('invert_lsqr: error computing cov_matrix^-1*A')
     endif
@@ -1926,7 +2182,7 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     if (ierr.ne.0) then
         call usage('invert_lsqr: error computing cov_matrix^-1*b')
     endif
-    A(1:ndsp_dof+nlos,1:ncols) = atmp
+    A(1:ndsp_dof+nlos,1:nslip) = atmp
     b(1:ndsp_dof+nlos) = btmp
 
     deallocate(atmp)
@@ -2143,6 +2399,13 @@ if (rake_constraint%ncols.eq.2) then
         endif
     enddo
 endif
+
+! Load solution into euler pole vector
+do i = 1,npoles
+    euler_pole(i,1) = x(j+i-1)
+    euler_pole(i,2) = x(j+i  )
+    euler_pole(i,3) = x(j+i+1)
+enddo
 
 return
 end subroutine invert_lsqr
@@ -3389,22 +3652,27 @@ subroutine write_solution()
 
 use trig, only: d2r
 use io, only: stdout, stderr, verbosity
+use earth, only: pole_xyz2geo
 
 use fltinv, only: output_file, &
                   inversion_mode, &
                   fault, &
                   rake_constraint, &
+                  euler_file, &
+                  euler_output_file, &
+                  npoles, &
                   displacement, &
                   disp_components, &
                   disp_misfit_file, &
                   gf_disp, &
-                  fault_slip
+                  fault_slip, &
+                  euler_pole
 
 implicit none
 
 ! Local variables
 integer :: i, ierr, ounit, icmp, idsp, iflt, ndsp, nflt, nobs
-double precision :: slip_mag, rms
+double precision :: slip_mag, rms, geo_pole(3)
 double precision, allocatable :: pre(:), obs(:)
 
 
@@ -3493,48 +3761,72 @@ endif
 ! endif
 !
 ! Print fault slip solution
-if (verbosity.ge.1) then
-    write(stdout,*) 'write_solution: writing slip solution to '//trim(output_file)
-endif
-if (output_file.eq.'stdout') then
-    ounit = stdout
-else
-    ounit = 99
-    open (unit=ounit,file=output_file,status='unknown')
-endif
-
-do i = 1,fault%nrows
-    slip_mag = dsqrt(fault_slip(i,1)*fault_slip(i,1)+fault_slip(i,2)*fault_slip(i,2))
-
-    if (inversion_mode.eq.'lsqr') then
-        if (rake_constraint%ncols.eq.1) then
-            write(ounit,5001) fault_slip(i,1)*cos(rake_constraint%array(i,1)*d2r), &
-                              fault_slip(i,1)*sin(rake_constraint%array(i,1)*d2r)
-        elseif (rake_constraint%file.ne.'none') then
-            write(ounit,5001) fault_slip(i,1)*cos(rake_constraint%array(i,1)*d2r) + &
-                              fault_slip(i,2)*cos(rake_constraint%array(i,2)*d2r), &
-                              fault_slip(i,1)*sin(rake_constraint%array(i,1)*d2r) + &
-                              fault_slip(i,2)*sin(rake_constraint%array(i,2)*d2r)
-        else
-            write(ounit,5001) fault_slip(i,1:2)
-        endif
-
-    elseif (inversion_mode.eq.'anneal') then
-        write(ounit,5001) fault_slip(i,1:2)
-
-    elseif (inversion_mode.eq.'anneal-psc') then
-        write(ounit,5001) fault_slip(i,1:2)
-
-    else
-        write(stderr,*) 'write_solution: frankly, I do not know how you got this far using an '//&
-                         'inversion mode that does not seem to exist...'
-        write(stderr,*) 'Available inversion modes:'
-        write(stderr,*) '    lsqr'
-        write(stderr,*) '    anneal'
-        call usage(     '    anneal-psc')
+if (fault%file.ne.'none') then
+    if (verbosity.ge.1) then
+        write(stdout,*) 'write_solution: writing slip solution to '//trim(output_file)
     endif
-enddo
-5001 format(1P2E16.8)
+    if (output_file.eq.'stdout') then
+        ounit = stdout
+    else
+        ounit = 99
+        open (unit=ounit,file=output_file,status='unknown')
+    endif
+
+    do i = 1,fault%nrows
+        slip_mag = dsqrt(fault_slip(i,1)*fault_slip(i,1)+fault_slip(i,2)*fault_slip(i,2))
+
+        if (inversion_mode.eq.'lsqr') then
+            if (rake_constraint%ncols.eq.1) then
+                write(ounit,5001) fault_slip(i,1)*cos(rake_constraint%array(i,1)*d2r), &
+                                  fault_slip(i,1)*sin(rake_constraint%array(i,1)*d2r)
+            elseif (rake_constraint%file.ne.'none') then
+                write(ounit,5001) fault_slip(i,1)*cos(rake_constraint%array(i,1)*d2r) + &
+                                  fault_slip(i,2)*cos(rake_constraint%array(i,2)*d2r), &
+                                  fault_slip(i,1)*sin(rake_constraint%array(i,1)*d2r) + &
+                                  fault_slip(i,2)*sin(rake_constraint%array(i,2)*d2r)
+            else
+                write(ounit,5001) fault_slip(i,1:2)
+            endif
+
+        elseif (inversion_mode.eq.'anneal') then
+            write(ounit,5001) fault_slip(i,1:2)
+
+        elseif (inversion_mode.eq.'anneal-psc') then
+            write(ounit,5001) fault_slip(i,1:2)
+
+        else
+            write(stderr,*) 'write_solution: frankly, I do not know how you got this far using an '//&
+                             'inversion mode that does not seem to exist...'
+            write(stderr,*) 'Available inversion modes:'
+            write(stderr,*) '    lsqr'
+            write(stderr,*) '    anneal'
+            call usage(     '    anneal-psc')
+        endif
+    enddo
+    5001 format(1P2E16.8)
+    close(ounit)
+endif
+
+! Print rigid body rotation solution
+if (euler_file.ne.'none') then
+    if (verbosity.ge.1) then
+        write(stdout,*) 'write_solution: writing Euler pole solution to '//trim(euler_output_file)
+    endif
+    if (euler_output_file.eq.'stdout') then
+        ounit = stdout
+    else
+        ounit = 99
+        open (unit=ounit,file=euler_output_file,status='unknown')
+    endif
+    do i = 1,npoles
+        call pole_xyz2geo(euler_pole(i,1),euler_pole(i,2),euler_pole(i,3), &
+                          geo_pole(1),geo_pole(2),geo_pole(3), 'sphere')
+        write(ounit,5002) geo_pole(1:3)
+    enddo
+    5002 format(3F16.4)
+    close(ounit)
+endif
+
 
 if (verbosity.ge.1) then
     write(stdout,*) 'write_solution: finished'
@@ -3554,6 +3846,8 @@ use fltinv, only: output_file, &
                   fault, &
                   slip_constraint, &
                   rake_constraint, &
+                  euler_file, &
+                  euler_output_file, &
                   displacement, &
                   disp_components, &
                   disp_misfit_file, &
@@ -3599,6 +3893,9 @@ inversion_mode = ''
 call init_fltinv_data(fault)
 call init_fltinv_data(slip_constraint)
 call init_fltinv_data(rake_constraint)
+
+euler_file = 'none'
+euler_output_file = ''
 
 call init_fltinv_data(displacement)
 disp_components = '123'
@@ -3682,6 +3979,13 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-flt:rake'.or.trim(tag).eq.'-flt:rake_constraint') then
         i = i + 1
         call get_command_argument(i,rake_constraint%file)
+
+    ! Euler setup file
+    elseif (trim(tag).eq.'-euler') then
+        i = i + 1
+        call get_command_argument(i,euler_file)
+        i = i + 1
+        call get_command_argument(i,euler_output_file)
 
     ! Input options
     elseif (trim(tag).eq.'-disp') then
@@ -3849,6 +4153,8 @@ if (verbosity.ge.2) then
     write(stdout,'(" slip_constraint%file:   ",A)') trim(slip_constraint%file)
     write(stdout,'(" rake_constraint%file:   ",A)') trim(rake_constraint%file)
     write(stdout,*)
+    write(stdout,'(" euler_file:             ",A)') trim(euler_file)
+    write(stdout,*)
     write(stdout,'(" displacement%file:      ",A)') trim(displacement%file)
     write(stdout,'(" disp_components:        ",A)') trim(disp_components)
     write(stdout,'(" disp_misfit_file:       ",A)') trim(disp_misfit_file)
@@ -3918,6 +4224,9 @@ write(stderr,*) 'Fault Options'
 write(stderr,*) '-flt FAULT_FILE              Input fault locations and geometries'
 write(stderr,*) '-flt:slip SLIP_FILE          Slip magnitude constraints'
 write(stderr,*) '-flt:rake RAKE_FILE          Rake angle constraints'
+write(stderr,*)
+write(stderr,*) 'Euler Pole Options'
+write(stderr,*) '-euler EULER_FILE POLE_FILE  Include rigid rotation in the fit [UNDER DEVELOPMENT]'
 write(stderr,*)
 write(stderr,*) 'Input Options'
 write(stderr,*) '-disp DISP_FILE              Input displacements'

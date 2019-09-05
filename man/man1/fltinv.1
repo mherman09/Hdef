@@ -1,4 +1,4 @@
-.TH FLTINV 1 "June 2019" "Version 2019.06.01" "User Manuals"
+.TH FLTINV 1 "September 2019" "Version 2019.09.01" "User Manuals"
 
 .SH NAME
 fltinv \- invert displacement or pre-stresses for fault slip.
@@ -11,6 +11,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI "-flt " fault_file
 .BI [-flt:rake " rake_constraint_file" ]
 .BI [-flt:slip " slip_constraint_file" ]
+.BI [-euler " euler_input_file euler_output_file" ]
 .BI -disp " displacement_file"
 .B |
 .BI -los " los_file"
@@ -170,6 +171,54 @@ minimum and maximum slip magnitudes in each fault
 .IR "" ( "strike_slip dip_slip" ):
 slip magnitudes for locked faults; set to 99999 to keep fault always unlocked
 
+
+
+.TP
+.B RIGID ROTATION (EULER POLE) OPTIONS
+
+.TP
+.BI -euler " euler_input_file euler_output_file"
+Invert for (multiple) rigid body rotations, with output in format:
+.I pole_lon pole_lat
+.IR ang_vel (deg/Ma).
+The file
+.I euler_input_file
+has the format:
+
+.I n
+.br
+.IR "" [ "lon_1 lat_1 rad_1" ]
+.br
+.IR "" [ "lon_2 lat_2 rad_2" ]
+.br
+ ...
+.br
+.IR "" [ "lon_n lat_n rad_n" ]
+.br
+.IR "ipole 3" | "L  iobs"
+ ...
+
+where
+.I n
+is the number of Euler poles to solve for, and
+.IR lon_i ,
+.IR lat_i ,
+.IR rad_i (km)
+define the range for the possible Euler poles in annealing searches
+(these lines are not used and can be left blank in
+.B lsqr
+mode).
+The last data block defines which points correspond to which rigid rotation pole.
+.I i_pole
+is the pole for the point,
+.IR 3 | L
+indicates whether the observation is three-component or line-of-sight,
+and
+.I iobs
+is the index of the observation corresponding to
+.I displacement_file
+or
+.IR los_file .
 
 
 .TP
