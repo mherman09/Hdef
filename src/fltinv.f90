@@ -36,6 +36,7 @@ type(fltinv_data) :: los                         ! Line-of-sight displacement ob
 type(fltinv_data) :: prestress                   ! Stress field at each sub-fault
 character(len=512) :: cov_file                   ! File with data covariance data
 double precision, allocatable :: cov_matrix(:,:) ! Data covariance matrix
+character(len=16) :: input_disp_unit             !
 
 ! Green's function variables
 character(len=16) :: gf_model                    ! Model to compute GFs: okada_rect, okada_pt, triangle, user
@@ -280,6 +281,7 @@ use fltinv, only: inversion_mode, &
                   gf_euler, &
                   displacement, &
                   disp_components, &
+                  input_disp_unit, &
                   los, &
                   prestress, &
                   cov_file, &
@@ -958,6 +960,22 @@ endif
 
 ! Rigid body rotations defined by Euler poles
 if (euler_file.ne.'none') then
+    if (input_disp_unit.eq.'m') then
+        call usage('read_inputs: disp units are m (displacement), incompatible with rotations')
+    elseif (input_disp_unit.eq.'mm') then
+        call usage('read_inputs: disp units are mm (displacement), incompatible with rotations')
+    elseif (input_disp_unit.eq.'m/s') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'m/yr') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'mm/s') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'mm/yr') then
+        ! Velocity: all good
+    else
+        call usage('read_inputs: no disp units named '//trim(input_disp_unit))
+    endif
+
     ! Check that file exists, then open it
     if (.not.fileExists(euler_file)) then
         call usage('read_inputs: no Euler pole file named '//trim(euler_file))
@@ -980,7 +998,7 @@ if (euler_file.ne.'none') then
 
     ! Initialize array for prior constraints on Euler pole location
     if (inversion_mode.eq.'anneal'.or.inversion_mode.eq.'anneal-psc') then
-        allocate(pole_array(npoles,3))
+        allocate(pole_array(npoles,4))
         pole_array = 0.0d0
     endif
 
@@ -988,7 +1006,7 @@ if (euler_file.ne.'none') then
     do i = 1,npoles
         read(68,'(A)',end=4001,iostat=ios) line
         if (allocated(pole_array)) then
-            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:3)
+            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:4)
         endif
     enddo
     4001 if (ios.ne.0) then
@@ -1802,13 +1820,13 @@ implicit none
 ! Local variables
 integer :: i, j, iblock, ndsp
 double precision :: angular_velocity, lon, lat, dep, r(3)
-
+double precision, parameter :: spy = 60.0d0*60.0d0*24.0d0*365.25d0
 
 if (verbosity.ge.1) then
     write(stdout,*) 'calc_euler_gfs: starting'
 endif
 
-if (euler_file.eq.'') then
+if (euler_file.eq.'none') then
     if (verbosity.ge.1) then
         write(stdout,*) 'calc_euler_gfs: rigid body rotations are not determined in this inversion'
         write(stdout,*)
@@ -1845,6 +1863,7 @@ if (displacement%file.ne.'none') then
             r(2) = dcos(lat*d2r)*dsin(lon*d2r)
             r(3) = dsin(lat*d2r)
 
+            ! Angular velocity units of deg/Ma translates to GF units of deg/Ma
             gf_euler(i     ,iblock         ) = -r(3)*cos(lon*d2r)
             gf_euler(i+ndsp,iblock         ) =  r(3)*sin(lon*d2r)*sin(lat*d2r) + r(2)*cos(lat*d2r)
             gf_euler(i     ,iblock+  npoles) = -r(3)*sin(lon*d2r)
@@ -1853,12 +1872,13 @@ if (displacement%file.ne.'none') then
             gf_euler(i+ndsp,iblock+2*npoles) =  r(2)*cos(lon*d2r)*sin(lat*d2r) - &
                                                                      r(1)*sin(lon*d2r)*sin(lat*d2r)
 
-            gf_euler(i     ,iblock         ) = deg2km*gf_euler(i     ,iblock         )/1.0d3
-            gf_euler(i+ndsp,iblock         ) = deg2km*gf_euler(i+ndsp,iblock         )/1.0d3
-            gf_euler(i     ,iblock+  npoles) = deg2km*gf_euler(i     ,iblock+  npoles)/1.0d3
-            gf_euler(i+ndsp,iblock+  npoles) = deg2km*gf_euler(i+ndsp,iblock+  npoles)/1.0d3
-            gf_euler(i     ,iblock+2*npoles) = deg2km*gf_euler(i     ,iblock+2*npoles)/1.0d3
-            gf_euler(i+ndsp,iblock+2*npoles) = deg2km*gf_euler(i+ndsp,iblock+2*npoles)/1.0d3
+            ! Convert Green's functions to units of m/s (i.e., one deg/Ma produces these GFs in m/s)
+            gf_euler(i     ,iblock         ) = deg2km*gf_euler(i     ,iblock         )/1.0d3/spy
+            gf_euler(i+ndsp,iblock         ) = deg2km*gf_euler(i+ndsp,iblock         )/1.0d3/spy
+            gf_euler(i     ,iblock+  npoles) = deg2km*gf_euler(i     ,iblock+  npoles)/1.0d3/spy
+            gf_euler(i+ndsp,iblock+  npoles) = deg2km*gf_euler(i+ndsp,iblock+  npoles)/1.0d3/spy
+            gf_euler(i     ,iblock+2*npoles) = deg2km*gf_euler(i     ,iblock+2*npoles)/1.0d3/spy
+            gf_euler(i+ndsp,iblock+2*npoles) = deg2km*gf_euler(i+ndsp,iblock+2*npoles)/1.0d3/spy
         endif
     enddo
 endif
@@ -1905,7 +1925,8 @@ subroutine run_inversion()
 use io, only: stdout, stderr, verbosity
 use solver, only: load_array, load_constraints
 
-use fltinv, only: inversion_mode
+use fltinv, only: inversion_mode, &
+                  euler_file
 
 implicit none
 
@@ -1922,7 +1943,11 @@ if (inversion_mode.eq.'lsqr') then
 elseif (inversion_mode.eq.'anneal') then
     call invert_anneal()
 elseif (inversion_mode.eq.'anneal-psc') then
-    call invert_anneal_psc()
+    if (euler_file.ne.'none') then
+        call invert_anneal_euler_psc()
+    else
+        call invert_anneal_psc()
+    endif
 else
     write(stderr,*) 'run_inversion: no inversion mode named '//trim(inversion_mode)
     write(stderr,*) 'Options for inversion mode:'
@@ -3557,7 +3582,7 @@ do i = 1,nflt
             slip(i,2) = x(j+nrows/2)
         endif
     endif
-    ! write(0,*) slip(i,:)
+    ! write(0,*) 'psc_slip',i, slip(i,:)
 enddo
 
 
@@ -3851,6 +3876,7 @@ use fltinv, only: output_file, &
                   displacement, &
                   disp_components, &
                   disp_misfit_file, &
+                  input_disp_unit, &
                   los, &
                   prestress, &
                   cov_file, &
@@ -3902,6 +3928,7 @@ disp_components = '123'
 call init_fltinv_data(los)
 call init_fltinv_data(prestress)
 cov_file = 'none'
+input_disp_unit = 'm'
 
 gf_model = 'none'
 call init_fltinv_data(gf_disp)
@@ -4006,6 +4033,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-cov') then
         i = i + 1
         call get_command_argument(i,cov_file)
+    elseif (trim(tag).eq.'-disp:unit') then
+        i = i + 1
+        call get_command_argument(i,input_disp_unit)
 !     elseif (trim(tag).eq.'-los:weight') then
 !         i = i + 1
 !         call get_command_argument(i,tag)
@@ -4161,6 +4191,7 @@ if (verbosity.ge.2) then
     write(stdout,'(" los%file:               ",A)') trim(los%file)
     write(stdout,'(" prestress%file:         ",A)') trim(prestress%file)
     write(stdout,'(" cov_file:               ",A)') trim(cov_file)
+    write(stdout,'(" input_disp_unit:        ",A)') trim(input_disp_unit)
     write(stdout,*)
     write(stdout,'(" gf_model:               ",A)') trim(gf_model)
     write(stdout,'(" gf_disp%file:           ",A)') trim(gf_disp%file)
@@ -4235,6 +4266,7 @@ write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements
 write(stderr,*) '-los LOS_FILE                Input line-of-sight displacements'
 write(stderr,*) '-prests PRESTS_FILE          Input pre-stresses'
 write(stderr,*) '-cov COVAR_FILE              Displacement and LOS covariances'
+write(stderr,*) '-disp:unit UNITS             Units for displacement (or to specify velocity inputs)'
 ! write(stderr,*) '-prests:weight WEIGHT        Stress weighting factor'
 ! write(stderr,*) '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
 ! write(stderr,*) '-los:weight LOS_WEIGHT       LOS observation weighting factor'
