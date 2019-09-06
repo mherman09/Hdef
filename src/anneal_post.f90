@@ -11,6 +11,11 @@ integer :: nmarg1d
 integer :: marg1d_flt(1000)
 character(len=64) :: slip_marg_output_file(1000)
 
+character(len=512) :: mean_pole_output_file
+integer :: nmarg_pole
+integer :: marg_pole(20)
+character(len=64) :: pole_marg_output_file(20)
+
 integer :: nflocked
 character(len=64) :: flocked_subset_file(10)
 character(len=64) :: flocked_output_file(10)
@@ -23,6 +28,7 @@ end module
 program main
 
 use io, only: stdout, stderr
+use earth, only: pole_geo2xyz, pole_xyz2geo
 
 use anneal_post, only: anneal_log_file, &
                        search_iterations, &
@@ -33,6 +39,10 @@ use anneal_post, only: anneal_log_file, &
                        nmarg1d, &
                        marg1d_flt, &
                        slip_marg_output_file, &
+                       mean_pole_output_file, &
+                       nmarg_pole, &
+                       marg_pole, &
+                       pole_marg_output_file, &
                        nflocked, &
                        flocked_subset_file, &
                        flocked_output_file
@@ -44,10 +54,12 @@ character(len=32) :: ch32
 character(len=512) :: input_line
 logical :: fileExists
 logical, allocatable :: isFltInSubset(:)
-integer :: i, ios, iflt, nflt, it, nit, nburnin, nsubset
+integer :: i, ios, iflt, nflt, ipole, npoles, it, nit, nburnin, nsubset, itmp
 integer, allocatable :: locked(:,:), plocked(:)
 double precision :: temp0, obj0, min_chi2, fraction_locked
 double precision, allocatable :: obj(:), slip(:,:,:), mean_ss(:), mean_ds(:)
+double precision :: px, py, pz, plon, plat, pmag
+double precision, allocatable :: poles(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
 
 
 ios = 0
@@ -82,6 +94,7 @@ endif
 
 ! Count number of faults
 nflt = 0
+npoles = 0
 read(21,'(A)') input_line
 read(input_line,*) ch32,it,ch32,temp0,ch32,obj0
 do
@@ -90,24 +103,37 @@ do
     if (ch32.eq.'Iteration') then
         exit
     else
-        nflt = nflt + 1
+        if (index(input_line,'x').eq.0) then
+            nflt = nflt + 1
+        else
+            npoles = npoles + 1
+        endif
     endif
 enddo
+npoles = npoles/3
 rewind(21)
+write(*,*) 'anneal_post: finished counting number of faults and poles'
 
 ! Set up arrays
 allocate(locked(nit,nflt))        ! Int array with locked (1) and unlocked (0) faults for each iteration
 allocate(obj(nit))                ! DP array with objective function values for each iteration
 allocate(slip(nit,nflt,2))        ! DP array with strike- and dip-slip of each fault for each iteration
+allocate(poles(nit,npoles,3))     ! DP array with pole coordinates and rotation rate for each iteration
+write(*,*) 'anneal_post: finished allocating array memory'
 
 ! Read search results
 it = 0
 do
-    if (mod(it,nit/100).eq.1) then
-        write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
+    if (nit.ge.100) then
+        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
+            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
+        endif
+    else
+        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
     endif
 
     read(21,'(A)',end=1001,iostat=ios) input_line
+    ! write(0,*) trim(input_line)
     if (it.gt.nit) then
         write(stderr,*) 'anneal_post: WARNING: you requested fewer iterations (',nit,') than are in log file'
         exit
@@ -117,14 +143,31 @@ do
     endif
     do iflt = 1,nflt
         read(21,'(A)',end=1003,iostat=ios) input_line
+        ! write(0,*) trim(input_line)
         if (it.gt.0) then
             read(input_line,*,end=1004,err=1004,iostat=ios) locked(it,iflt),slip(it,iflt,1:2)
         endif
     enddo
+    do ipole = 1,npoles
+        ! write(0,*) ipole,npoles
+        do i = 1,3
+            read(21,'(A)',end=1005,iostat=ios) input_line
+            ! write(0,*) 'pole line:',trim(input_line)
+            if (it.gt.0) then
+                read(input_line,*,end=1006,err=1006,iostat=ios) itmp
+                if (i.lt.3) then
+                    poles(it,ipole,i) = dble(itmp)/1.0d3
+                else
+                    poles(it,ipole,i) = dble(itmp)/1.0d4
+                endif
+            endif
+        enddo
+    enddo
     it = it + 1
 enddo
 ios = 0
-write(*,*) 'anneal_post progress: ',100*it/nit,'%'
+write(*,*) 'anneal_post: finished reading log file'
+
 
 1001 if (it.lt.nit) then
     write(stderr,*) 'anneal_post: you requested more iterations (',nit,') than are in log file'
@@ -149,6 +192,18 @@ endif
     write(stderr,*) 'fault: ',iflt
     call usage('')
 endif
+1005 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before poles finished reading'
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
+1006 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: error parsing pole info from line ',trim(input_line)
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
 
 
 !----
@@ -156,6 +211,7 @@ endif
 !----
 ! Best fitting model
 if (best_output_file.ne.'') then
+    write(*,*) 'anneal_post: working on best-fitting output file'
     ! Find minimum chi-squared model
     min_chi2 = 1e10
     it = 1
@@ -173,7 +229,15 @@ if (best_output_file.ne.'') then
         write(22,*) locked(it,iflt),slip(it,iflt,:)
     enddo
     close(22)
+
+    ! Write locked/unlocked and slip of best model to file
+    open(unit=22,file='pole_'//best_output_file,status='unknown')
+    do ipole = 1,npoles
+        write(22,*) poles(it,ipole,:)
+    enddo
+    close(22)
 endif
+
 
 ! Probability locked
 if (plocked_output_file.ne.'') then
@@ -197,6 +261,7 @@ if (plocked_output_file.ne.'') then
     deallocate(plocked)
 endif
 
+
 ! Mean slip (AND STANDARD DEVIATION???)
 if (mean_slip_output_file.ne.'') then
     ! Compute mean slip
@@ -206,11 +271,13 @@ if (mean_slip_output_file.ne.'') then
     mean_ds = 0.0d0
     do iflt = 1,nflt
         do it = 1,nit
-            mean_ss(iflt) = mean_ss(iflt) + slip(it,iflt,1)
-            mean_ds(iflt) = mean_ds(iflt) + slip(it,iflt,2)
+            if (it.gt.nburnin) then
+                mean_ss(iflt) = mean_ss(iflt) + slip(it,iflt,1)
+                mean_ds(iflt) = mean_ds(iflt) + slip(it,iflt,2)
+            endif
         enddo
-        mean_ss(iflt) = mean_ss(iflt)/dble(nit)
-        mean_ds(iflt) = mean_ds(iflt)/dble(nit)
+        mean_ss(iflt) = mean_ss(iflt)/dble(nit-nburnin)
+        mean_ds(iflt) = mean_ds(iflt)/dble(nit-nburnin)
     enddo
 
     ! Write mean slip to file
@@ -224,9 +291,13 @@ if (mean_slip_output_file.ne.'') then
     deallocate(mean_ds)
 endif
 
+
 ! 1-D marginal distributions for slip components
 if (nmarg1d.ge.1) then
     do i = 1,nmarg1d
+        if (marg1d_flt(i).gt.nflt) then
+            call usage('anneal_post: requested slip in fault greater than number of faults')
+        endif
         open(unit=25,file=slip_marg_output_file(i),status='unknown')
         do it = nburnin+1,nit
             write(25,*) slip(it,marg1d_flt(i),1:2)
@@ -288,6 +359,60 @@ if (nflocked.ge.1) then
     endif
 endif
 
+
+! Mean Euler pole (AND STANDARD DEVIATION???)
+if (mean_pole_output_file.ne.'') then
+    ! Compute mean rotation vector
+    allocate(mean_px(npoles))
+    allocate(mean_py(npoles))
+    allocate(mean_pz(npoles))
+    mean_px = 0.0d0
+    mean_py = 0.0d0
+    mean_pz = 0.0d0
+    do ipole = 1,npoles
+        do it = 1,nit
+            call pole_geo2xyz(poles(it,ipole,1),poles(it,ipole,2),poles(it,ipole,3), &
+                              px,py,pz,'sphere')
+            mean_px(ipole) = mean_px(ipole) + px
+            mean_py(ipole) = mean_py(ipole) + py
+            mean_pz(ipole) = mean_pz(ipole) + pz
+        enddo
+        mean_px(ipole) = mean_px(ipole)/dble(nit)
+        mean_py(ipole) = mean_py(ipole)/dble(nit)
+        mean_pz(ipole) = mean_pz(ipole)/dble(nit)
+        call pole_xyz2geo(mean_px(ipole),mean_py(ipole),mean_pz(ipole),plon,plat,pmag,'sphere')
+        mean_px(ipole) = plon
+        mean_py(ipole) = plat
+        mean_pz(ipole) = pmag
+    enddo
+
+    ! Write mean Euler pole to file
+    open(unit=27,file=mean_pole_output_file,status='unknown')
+    do ipole = 1,npoles
+        write(27,*) mean_px(ipole),mean_py(ipole),mean_pz(ipole)
+    enddo
+    close(27)
+
+    deallocate(mean_px)
+    deallocate(mean_py)
+    deallocate(mean_pz)
+endif
+
+! Marginal distributions for Euler pole location and angular velocity
+if (nmarg_pole.ge.1) then
+    do i = 1,nmarg_pole
+        if (marg_pole(i).gt.npoles) then
+            call usage('anneal_post: requested information in pole greater than number of poles')
+        endif
+        open(unit=28,file=pole_marg_output_file(i),status='unknown')
+        do it = nburnin+1,nit
+            write(28,*) poles(it,marg_pole(i),1:3)
+        enddo
+        close(28)
+    enddo
+endif
+
+
 !----
 !       CLEAN UP
 !----
@@ -320,6 +445,10 @@ use anneal_post, only: anneal_log_file, &
                        nmarg1d, &
                        marg1d_flt, &
                        slip_marg_output_file, &
+                       mean_pole_output_file, &
+                       nmarg_pole, &
+                       marg_pole, &
+                       pole_marg_output_file, &
                        nflocked, &
                        flocked_subset_file, &
                        flocked_output_file
@@ -336,13 +465,20 @@ search_iterations = 0
 burnin_iterations = 0
 best_output_file = ''
 plocked_output_file = ''
+
 mean_slip_output_file = ''
 nmarg1d = 0
 marg1d_flt = 0
 slip_marg_output_file = ''
+
 nflocked = 0
 flocked_subset_file = ''
 flocked_output_file = ''
+
+mean_pole_output_file = ''
+nmarg_pole = 0
+marg_pole = 0
+pole_marg_output_file = ''
 
 ! Number of arguments
 narg = command_argument_count()
@@ -396,6 +532,25 @@ do while (i.le.narg)
         endif
         slip_marg_output_file(nmarg1d) = tag(1:64)
 
+    elseif (trim(tag).eq.'-pole:mean') then
+        i = i + 1
+        call get_command_argument(i,mean_pole_output_file)
+
+    elseif (trim(tag).eq.'-pole:marg') then
+        nmarg_pole = nmarg_pole + 1
+        if (nmarg_pole.gt.20) then
+            call usage('anneal_post: requested more than 1000 pole marginals')
+        endif
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) marg_pole(nmarg_pole)
+        i = i + 1
+        call get_command_argument(i,tag)
+        if (len_trim(tag).gt.64) then
+            call usage('anneal_post: rotation pole marginal file must be 64 or less characters')
+        endif
+        pole_marg_output_file(nmarg_pole) = tag(1:64)
+
     elseif (trim(tag).eq.'-flocked') then
         nflocked = 1
         i = i + 1
@@ -437,15 +592,18 @@ endif
 
 write(stderr,*) 'Usage: anneal_post -f LOG_FILE -nit NITER [-nburn NBURN]'
 write(stderr,*) '       [-best BEST_FILE] [-plocked PROB_FILE] [-slip:mean SLIP_FILE]'
-write(stderr,*) '       [-slip:marg IFLT FILE] [-flocked[:subset FLT_FILE] FILE]'
+write(stderr,*) '       [-slip:marg IFLT FILE] [-pole:mean POLE_FILE] [-pole:marg IPOL FILE]'
+write(stderr,*) '       [-flocked[:subset FLT_FILE] FILE]'
 write(stderr,*)
 write(stderr,*) '-f LOG_FILE                     Annealing log file from fltinv'
 write(stderr,*) '-nit NITER                      Number of iterations in search'
 write(stderr,*) '-nburn NBURN                    Number of burn-in iterations in search'
-write(stderr,*) '-best BEST_FILE                 Best fitting model (locked ss ds)'
+write(stderr,*) '-best BEST_FILE                 Best fitting model (locked ss ds): also pole_BEST_FILE'
 write(stderr,*) '-plocked PROB_FILE              Probability locked (plocked)'
 write(stderr,*) '-slip:mean SLIP_FILE            Mean slip in each fault'
 write(stderr,*) '-slip:marg IFLT FILE            1-D marginal for IFLT slip (repeat for other faults)'
+write(stderr,*) '-pole:mean POLE_FILE            Mean Euler poles'
+write(stderr,*) '-pole:marg IPOL FILE            Marginals for IPOL rotation pole'
 write(stderr,*) '-flocked FILE                   Fraction of locked faults in each iteration'
 write(stderr,*) '-flocked:subset FLT_FILE FILE   Fraction of locked faults in each iteration from a ',&
                                                  'subset of faults'
