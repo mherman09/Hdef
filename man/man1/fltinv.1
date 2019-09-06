@@ -19,6 +19,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI -prests " prestress_file"
 .BI "[-disp:components [" 1 ][ 2 ][ 3 ]]
 .BI [-cov_file " covariance_file" ]
+.BI [-disp:unit " input_unit" ]
 .BI -gf:model " model"
 .BI [-gf:disp_file " gf_disp_file" ]
 .BI [-gf:los_file " gf_los_file" ]
@@ -187,13 +188,13 @@ has the format:
 
 .I n
 .br
-.IR "" [ "lon_1 lat_1 rad_1" ]
+.IR "" [ "lon_1 lat_1 rad_1 max_rate_1" ]
 .br
-.IR "" [ "lon_2 lat_2 rad_2" ]
+.IR "" [ "lon_2 lat_2 rad_2 max_rate_2" ]
 .br
  ...
 .br
-.IR "" [ "lon_n lat_n rad_n" ]
+.IR "" [ "lon_n lat_n rad_n max_rate_n" ]
 .br
 .IR "ipole 3" | "L  iobs"
  ...
@@ -203,7 +204,8 @@ where
 is the number of Euler poles to solve for, and
 .IR lon_i ,
 .IR lat_i ,
-.IR rad_i (km)
+.IR rad_i (km),
+.IR max_rate_i (deg/Ma),
 define the range for the possible Euler poles in annealing searches
 (these lines are not used and can be left blank in
 .B lsqr
@@ -283,6 +285,23 @@ and
 .I cov
 is the covariance, in square meters.
 
+
+.TP
+.BI -disp:unit " input_unit"
+Define the units of input displacement and los files.
+Can also redefine them as velocities here. Options:
+.I m
+(meters, default),
+.I mm
+(millimeters),
+.I m/s
+(meters/second),
+.I m/yr
+(meters/year),
+.I mm/s
+(millimeters/second),
+.I mm/yr
+(millimeters/year).
 
 
 
