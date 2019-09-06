@@ -97,6 +97,8 @@ $(BIN):
 	mkdir -p $(BIN)
 
 $(BIN)/anneal_post: src/anneal_post.f90 \
+             $(INCLUDE_DIR)/algebra.o \
+             $(INCLUDE_DIR)/earth.o \
              $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
@@ -135,7 +137,7 @@ $(BIN)/fitutil: src/fitutil.f90 \
                 $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
-$(BIN)/fltinv: src/fltinv.f90 \
+$(BIN)/fltinv: src/fltinv.f90 src/fltinv_anneal_psc_euler.f90 \
                $(INCLUDE_DIR)/algebra.o \
                $(INCLUDE_DIR)/annealing.o \
                $(INCLUDE_DIR)/earth.o \
