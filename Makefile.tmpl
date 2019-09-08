@@ -137,7 +137,13 @@ $(BIN)/fitutil: src/fitutil.f90 \
                 $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
-$(BIN)/fltinv: src/fltinv.f90 src/fltinv_anneal_psc_euler.f90 \
+$(BIN)/fltinv: src/fltinv.f90 \
+               src/fltinv_io.f90 \
+               src/fltinv_gf.f90 \
+               src/fltinv_lsqr.f90 \
+               src/fltinv_anneal.f90 \
+               src/fltinv_anneal_psc.f90 \
+               src/fltinv_anneal_psc_euler.f90 \
                $(INCLUDE_DIR)/algebra.o \
                $(INCLUDE_DIR)/annealing.o \
                $(INCLUDE_DIR)/earth.o \
