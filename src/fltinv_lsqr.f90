@@ -20,6 +20,7 @@ use fltinv, only: fault, &
                   gf_euler, &
                   displacement, &
                   disp_components, &
+                  input_disp_unit, &
                   los, &
                   prestress, &
                   cov_matrix, &
@@ -42,8 +43,9 @@ integer :: nrows, ncols, ptr_disp, ptr_los, ptr_stress, ptr_damp, ptr_smooth, pt
 integer :: nflt, nslip, ndsp, ndsp_dof, nlos, nsts, nnbr, nfixed, nfree
 integer :: i, j, ierr, icomp, iflt, inbr
 double precision, allocatable :: A(:,:), b(:), x(:), atmp(:,:), btmp(:)
-double precision :: damping_squared, smoothing_squared
+double precision :: damping_squared, smoothing_squared, factor
 logical, allocatable :: isSlipFixed(:)
+double precision, parameter :: spy = 60.0d0*60.0d0*24.0d0*365.25d0
 
 
 ! Initialize solution
@@ -455,11 +457,23 @@ if (rake_constraint%ncols.eq.2) then
     enddo
 endif
 
-! Load solution into euler pole vector
+! Load solution into euler pole vector, scaling by correct units
+factor = 0.0d0
+if (input_disp_unit.eq.'m/s') then
+    factor = 1.0d0
+elseif (input_disp_unit.eq.'m/yr') then
+    factor = 1.0d0*spy
+elseif (input_disp_unit.eq.'mm/s') then
+    factor = 1.0d3
+elseif (input_disp_unit.eq.'mm/yr') then
+    factor = 1.0d3*spy
+else
+    call usage('invert_lsqr: unit '//trim(input_disp_unit)//' not compatible')
+endif
 do i = 1,npoles
-    euler_pole(i,1) = x(j+i-1)
-    euler_pole(i,2) = x(j+i  )
-    euler_pole(i,3) = x(j+i+1)
+    euler_pole(i,1) = x(j+i-1)/factor
+    euler_pole(i,2) = x(j+i  )/factor
+    euler_pole(i,3) = x(j+i+1)/factor
 enddo
 
 return
