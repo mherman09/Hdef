@@ -458,23 +458,25 @@ if (rake_constraint%ncols.eq.2) then
 endif
 
 ! Load solution into euler pole vector, scaling by correct units
-factor = 0.0d0
-if (input_disp_unit.eq.'m/s') then
-    factor = 1.0d0
-elseif (input_disp_unit.eq.'m/yr') then
-    factor = 1.0d0*spy
-elseif (input_disp_unit.eq.'mm/s') then
-    factor = 1.0d3
-elseif (input_disp_unit.eq.'mm/yr') then
-    factor = 1.0d3*spy
-else
-    call usage('invert_lsqr: unit '//trim(input_disp_unit)//' not compatible')
+if (npoles.gt.0) then
+    factor = 0.0d0
+    if (input_disp_unit.eq.'m/s') then
+        factor = 1.0d0
+    elseif (input_disp_unit.eq.'m/yr') then
+        factor = 1.0d0*spy
+    elseif (input_disp_unit.eq.'mm/s') then
+        factor = 1.0d3
+    elseif (input_disp_unit.eq.'mm/yr') then
+        factor = 1.0d3*spy
+    else
+        call usage('invert_lsqr: unit '//trim(input_disp_unit)//' not compatible')
+    endif
+    do i = 1,npoles
+        euler_pole(i,1) = x(j+i-1)/factor
+        euler_pole(i,2) = x(j+i  )/factor
+        euler_pole(i,3) = x(j+i+1)/factor
+    enddo
 endif
-do i = 1,npoles
-    euler_pole(i,1) = x(j+i-1)/factor
-    euler_pole(i,2) = x(j+i  )/factor
-    euler_pole(i,3) = x(j+i+1)/factor
-enddo
 
 return
 end subroutine invert_lsqr
