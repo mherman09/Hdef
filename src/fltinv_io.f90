@@ -67,7 +67,7 @@ endif
 ! Check that coordinate type is specified
 !----
 if (coord_type.ne.'cartesian'.and.coord_type.ne.'geographic') then
-    call usage('read_inputs: no coordinate type specified: use -xy or -geo option')
+    call usage('read_inputs: no coordinate type specified: use -xy or -geo option (usage:input)')
 endif
 
 
@@ -76,41 +76,53 @@ endif
 !----
 ! Observations are required to constrain the fault slip or Euler pole
 if (displacement%file.eq.'none'.and.los%file.eq.'none'.and.prestress%file.eq.'none') then
-    call usage('read_inputs: no displacement, los, or pre-stress file defined')
+    call usage('read_inputs: no displacement, los, or pre-stress file defined (usage:input)')
 endif
+
 
 ! Read the observation files
 ! The number of columns in each file must be set prior to calling read_fltinv_data_file()
 
+! Three-component displacements
 if (displacement%file.ne.'none') then
+
     displacement%ncols = 6 ! x y z ux uy uz
+
     call read_fltinv_data_file(displacement,ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: problem reading displacement file')
+        call usage('read_inputs: problem reading displacement file (usage:input)')
     elseif (displacement%nrows.eq.0) then
-        call usage('read_inputs: displacement file is empty')
+        call usage('read_inputs: displacement file is empty (usage:input)')
     endif
+
 endif
 
+! Line-of-sight displacements
 if (los%file.ne.'none') then
+
     los%ncols = 6 ! x y z ulos az inc
+
     call read_fltinv_data_file(los,ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: problem reading los file')
+        call usage('read_inputs: problem reading los file (usage:input)')
     elseif (los%nrows.eq.0) then
-        call usage('read_inputs: los file is empty')
+        call usage('read_inputs: los file is empty (usage:input)')
     endif
 endif
 
+! Pre-stresses on faults
 if (prestress%file.ne.'none') then
-    prestress%ncols = 6 ! sxx syy szz sxy sxz syz (fault locations defined in fault file)
+
+    prestress%ncols = 6 ! sxx syy szz sxy sxz syz (correspond to fault locations defined in fault file)
+
     call read_fltinv_data_file(prestress,ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: problem reading pre-stress file')
+        call usage('read_inputs: problem reading pre-stress file (usage:input)')
     elseif (prestress%nrows.eq.0) then
-        call usage('read_inputs: pre-stress file is empty')
+        call usage('read_inputs: pre-stress file is empty (usage:input)')
     endif
 endif
+
 
 if (verbosity.ge.2) then
     write(stdout,*) 'read_inputs: finished reading observation files'
@@ -118,15 +130,15 @@ endif
 
 
 !----
-! A fault file or Euler pole file is required.
-! The fault file contains the number of sub-faults (and sub-fault locations/geometries if used)
-! The Euler pole file contains the set of observations points experiencing rigid body rotations
+! Check for and read model parameter inputs
 !----
+! A fault file or Euler pole file is required
 if (fault%file.eq.'none'.and.euler_file.eq.'none') then
     call usage('read_inputs: no fault file or Euler pole defined')
 endif
 
 
+! The fault file contains the number of sub-faults (and sub-fault locations/geometries if used)
 if (fault%file.ne.'none') then
 
     ! The number of columns to read depends on whether fltinv is reading in Green's functions or
@@ -161,25 +173,126 @@ if (fault%file.ne.'none') then
         write(stderr,*) '    okada_rect'
         write(stderr,*) '    okada_pt'
         write(stderr,*) '    triangle'
-        call usage('Or use options such as -gf:disp_file for precomputed GFs')
+        call usage('Or use options such as -gf:disp_file for precomputed GFs  (usage:gf)')
     endif
 
     ! Read the fault data
     call read_fltinv_data_file(fault,ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: problem reading fault file')
+        call usage('read_inputs: problem reading fault file (usage:fault)')
     endif
 
     ! Allocate memory for the output fault slip array
     if (.not.allocated(fault_slip)) then
         allocate(fault_slip(fault%nrows,2),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to fault_slip')
+            call usage('read_inputs: error allocating memory to fault_slip (usage:none)')
         endif
     endif
 endif
+
 if (verbosity.ge.2) then
     write(stdout,*) 'read_inputs: finished reading fault and fault slip Greens function files'
+endif
+
+
+! The Euler pole file contains the set of observations points experiencing rigid body rotations
+! Rigid body rotations defined by Euler poles
+if (euler_file.ne.'none') then
+
+    ! Rigid body rotatinal velocites have implicit units (unlike displacements, where observation
+    ! units=fault slip units). These units must be defined explicitly.
+    if (input_disp_unit.eq.'m') then
+        call usage('read_inputs: disp units are m (displacement), incompatible with rotations '// &
+                   '(usage:input)')
+    elseif (input_disp_unit.eq.'mm') then
+        call usage('read_inputs: disp units are mm (displacement), incompatible with rotations '// &
+                   '(usage:input)')
+    elseif (input_disp_unit.eq.'m/s') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'m/yr') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'mm/s') then
+        ! Velocity: all good
+    elseif (input_disp_unit.eq.'mm/yr') then
+        ! Velocity: all good
+    else
+        call usage('read_inputs: no disp units named '//trim(input_disp_unit)//' (usage:input)')
+    endif
+
+    ! Check that Euler pole file exists, then open it
+    if (.not.fileExists(euler_file)) then
+        call usage('read_inputs: no Euler pole file named '//trim(euler_file)//' (usage:input)')
+    endif
+    open(unit=68,file=euler_file,status='old')
+
+    ! Parse the Euler pole file
+    ! First line is the number of Euler poles
+    read(68,*) npoles
+    allocate(euler_pole(npoles,3))
+
+    ! Initialize array recording which points are affected by each rigid body rotation
+    if (displacement%file.ne.'none') then
+        allocate(rigid_pt_array_disp(displacement%nrows))
+        rigid_pt_array_disp = 0
+    endif
+    if (los%file.ne.'none') then
+        allocate(rigid_pt_array_los(los%nrows))
+        rigid_pt_array_los = 0
+    endif
+
+    ! Initialize array for prior constraints on Euler pole location
+    if (inversion_mode.eq.'anneal'.or.inversion_mode.eq.'anneal-psc') then
+        allocate(pole_array(npoles,4))
+        pole_array = 0.0d0
+    endif
+
+    ! Read prior constraints on Euler pole locations
+    do i = 1,npoles
+        read(68,'(A)',end=4001,iostat=ios) line
+        if (allocated(pole_array)) then
+            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:4)
+        endif
+    enddo
+    4001 if (ios.ne.0) then
+        call usage('read_inputs: reached end of Euler file before finished reading (usage:none)')
+    endif
+    4002 if (ios.ne.0) then
+        call usage('read_inputs: error parsing Euler pole lon lat rad from: '//trim(line)// &
+                   ' (usage:none)')
+    endif
+
+    ! Read groups of points experiencing rigid rotations
+    do
+        read(68,'(A)',end=4003,iostat=ios) line
+        read(line,*,end=4004,err=4004,iostat=ios) i,nchar,j
+        if (nchar.eq.'3') then
+            rigid_pt_array_disp(j) = i
+        elseif (nchar.eq.'l'.or.nchar.eq.'L') then
+            rigid_pt_array_los(j) = i
+        else
+            call usage('read_inputs: no observation type code named '//nchar//'; use "3" or "L"'// &
+	                   ' (usage:none)')
+        endif
+    enddo
+    4003 ios = 0
+    4004 if (ios.ne.0) then
+        call usage('read_inputs: error parsing ipole 3|L iobs from: '//trim(line)// &
+                   ' (usage:none)')
+    endif
+
+    ! Initialize Greens functions for rotations
+    allocate(gf_euler(2*displacement%nrows+los%nrows,3*npoles))
+    gf_euler = 0.0d0
+
+    ! All done with rigid block file
+    close(68)
+else
+    npoles = 0
+endif
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_inputs: finished reading Euler pole file'
 endif
 
 
@@ -188,50 +301,63 @@ endif
 !----
 ! Input fault depth and dimensions depend on GF model
 if (fault%file.ne.'none') then
+
+    ! Rectangular faults in an elastic half-space (okada_rect)
     if (gf_model.eq.'okada_rect') then
+
+        ! Depth is positive down, units in meters
         if (minval(fault%array(:,3)).lt.0.0d0) then
-            ! Depth is positive down
+            ! Found negative depth
             write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
-            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model)// &
+                       '(usage:none)')
         elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
-            ! Depth units are meters
+            ! All depths are small, using km?
             write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
                             'gf_model ',trim(gf_model),')'
         endif
 
         ! Fault dimensions are in meters
         if (maxval(fault%array(:,6)).lt.100.0d0.and.maxval(fault%array(:,7)).lt.100.0d0) then
+            ! All dimensions are small, using km?
             write(stderr,*) 'read_inputs: all fault dimensions are less than 100 meters ',&
                             ' using gf_model ',trim(gf_model)
         endif
 
+    ! Point source faults in an elastic half-space
     elseif (gf_model.eq.'okada_pt') then
+
+        ! Depth is positive down, units in meters
         if (minval(fault%array(:,3)).lt.0.0d0) then
-            ! Depth is positive down
+            ! Found negative depth
             write(stderr,*) 'read_inputs: found fault depth of ',minval(fault%array(:,3))
-            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model)// &
+                       '(usage:none)')
         elseif (maxval(fault%array(:,3)).lt.1000.0d0) then
-            ! Depth units are meters
+            ! All depths are small, using km?
             write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
                             'gf_model ',trim(gf_model),')'
         endif
 
         ! Fault areas are in square meters
         if (maxval(fault%array(:,6)).lt.10000.0d0) then
+            ! Area is small, using km^2?
             write(stderr,*) 'read_inputs: all fault areas are less than 100x100 square meters ',&
                             'using gf_model ',trim(gf_model)
         endif
 
+    ! Triangular faults in an elastic half-space
     elseif (gf_model.eq.'triangle') then
         if (minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.0.0d0) then
-            ! Depth is positive down
+            ! Found negative depth
             write(stderr,*) 'read_inputs: found triangle vertex depth of ', &
                             minval([fault%array(:,3),fault%array(:,6),fault%array(:,9)])
-            call usage('Depth is defined positive down for gf_model '//trim(gf_model))
+            call usage('Depth is defined positive down for gf_model '//trim(gf_model)// &
+                       '(usage:none)')
         endif
 
         if (maxval([fault%array(:,3),fault%array(:,6),fault%array(:,9)]).lt.1000.0d0) then
-            ! Depth units are meters
+            ! All depths are small, using km?
             write(stderr,*) 'read_inputs: all fault depths are less than +1000 meters (using ', &
                             'gf_model ',trim(gf_model),')'
         endif
@@ -240,7 +366,7 @@ if (fault%file.ne.'none') then
         ! Do nothing...the user is on the hook for getting this right
 
     else
-        call usage('read_inputs: no gf_model named "'//trim(gf_model)//'"')
+        call usage('read_inputs: no gf_model named "'//trim(gf_model)//'"'//' (usage:gf)')
     endif
 endif
 
@@ -283,60 +409,60 @@ elseif (coord_type.eq.'geographic') then
 
     if (displacement%file.ne.'none') then
         if (maxval(displacement%array(:,1)).gt.360.0d0) then
-            call usage('read_inputs: found displacement longitude greater than 360')
+            call usage('read_inputs: found displacement longitude greater than 360 (usage:none)')
         elseif (minval(displacement%array(:,1)).lt.-180.0d0) then
-            call usage('read_inputs: found displacement longitude less than -180')
+            call usage('read_inputs: found displacement longitude less than -180 (usage:none)')
         elseif (maxval(displacement%array(:,2)).gt.90.0d0) then
-            call usage('read_inputs: found displacement latitude greater than 90')
+            call usage('read_inputs: found displacement latitude greater than 90 (usage:none)')
         elseif (minval(displacement%array(:,2)).lt.-90.0d0) then
-            call usage('read_inputs: found displacement latitude less than -90')
+            call usage('read_inputs: found displacement latitude less than -90 (usage:none)')
         endif
     endif
 
     if (los%file.ne.'none') then
         if (maxval(los%array(:,1)).gt.360.0d0) then
-            call usage('read_inputs: found los longitude greater than 360')
+            call usage('read_inputs: found los longitude greater than 360 (usage:none)')
         elseif (minval(los%array(:,1)).lt.-180.0d0) then
-            call usage('read_inputs: found los longitude less than -180')
+            call usage('read_inputs: found los longitude less than -180 (usage:none)')
         elseif (maxval(los%array(:,2)).gt.90.0d0) then
-            call usage('read_inputs: found los latitude greater than 90')
+            call usage('read_inputs: found los latitude greater than 90 (usage:none)')
         elseif (minval(los%array(:,2)).lt.-90.0d0) then
-            call usage('read_inputs: found los latitude less than -90')
+            call usage('read_inputs: found los latitude less than -90 (usage:none)')
         endif
     endif
 
     if (gf_model.eq.'okada_rect'.or.gf_model.eq.'okada_pt') then
         if (maxval(fault%array(:,1)).gt.360.0d0) then
-            call usage('read_inputs: found fault longitude greater than 360')
+            call usage('read_inputs: found fault longitude greater than 360 (usage:none)')
         elseif (minval(fault%array(:,1)).lt.-180.0d0) then
-            call usage('read_inputs: found fault longitude less than -180')
+            call usage('read_inputs: found fault longitude less than -180 (usage:none)')
         elseif (maxval(fault%array(:,2)).gt.90.0d0) then
-            call usage('read_inputs: found fault latitude greater than 90')
+            call usage('read_inputs: found fault latitude greater than 90 (usage:none)')
         elseif (minval(fault%array(:,2)).lt.-90.0d0) then
-            call usage('read_inputs: found fault latitude less than -90')
+            call usage('read_inputs: found fault latitude less than -90 (usage:none)')
         endif
     elseif (gf_model.eq.'triangle') then
         if (maxval(fault%array(:,1)).gt.360.0d0 .or. &
                 maxval(fault%array(:,4)).gt.360.0d0 .or. &
                 maxval(fault%array(:,7)).gt.360.0d0) then
-            call usage('read_inputs: found fault longitude greater than 360')
+            call usage('read_inputs: found fault longitude greater than 360 (usage:none)')
         elseif (minval(fault%array(:,1)).lt.-180.0d0 .or. &
                 minval(fault%array(:,4)).lt.-180.0d0 .or. &
                 minval(fault%array(:,7)).lt.-180.0d0) then
-            call usage('read_inputs: found fault longitude less than -180')
+            call usage('read_inputs: found fault longitude less than -180 (usage:none)')
         elseif (maxval(fault%array(:,2)).gt.90.0d0 .or. &
                 maxval(fault%array(:,5)).gt.90.0d0 .or. &
                 maxval(fault%array(:,8)).gt.90.0d0) then
-            call usage('read_inputs: found fault latitude greater than 90')
+            call usage('read_inputs: found fault latitude greater than 90 (usage:none)')
         elseif (minval(fault%array(:,2)).lt.-90.0d0 .or. &
                 minval(fault%array(:,5)).lt.-90.0d0 .or. &
                 minval(fault%array(:,8)).lt.-90.0d0) then
-            call usage('read_inputs: found fault latitude less than -90')
+            call usage('read_inputs: found fault latitude less than -90 (usage:none)')
         endif
     endif
 
 else
-    call usage('read_inputs: no coordinate type named "'//trim(coord_type)//'"')
+    call usage('read_inputs: no coordinate type named "'//trim(coord_type)//'" (usage:input)')
 endif
 
 
@@ -364,10 +490,12 @@ if (prestress%file.ne.'none') then
             call strdip2normal(fault%array(i,4),fault%array(i,5),nvec)
         elseif (gf_model.eq.'triangle') then
             if (coord_type.eq.'cartesian') then
-                call tri_geometry(nvec,vec,vec,fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
+                call tri_geometry(nvec,vec,vec,fault%array(i,1:3),fault%array(i,4:6), &
+                                  fault%array(i,7:9))
             elseif (coord_type.eq.'geographic') then
                 ! Triangle points: lon lat dep(m) to x y z
-                call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9),'m')
+                call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
+                                  fault%array(i,7:9),'m')
                 call tri_geometry(nvec,vec,vec,pt1,pt2,pt3)
             endif
         else
@@ -375,7 +503,7 @@ if (prestress%file.ne.'none') then
             write(stderr,*) 'Available models:'
             write(stderr,*) '    okada_rect'
             write(stderr,*) '    okada_pt'
-            call usage(     '    triangle')
+            call usage(     '    triangle (usage:input)')
         endif
 
         ! Compute traction vector
@@ -412,13 +540,13 @@ if (displacement%file.ne.'none') then
         ! Read pre-computed three-component displacement Green's functions
         call read_fltinv_data_file(gf_disp,ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: problem reading gf_disp file')
+            call usage('read_inputs: problem reading gf_disp file (usage:none)')
         endif
 
         ! Verify that there are the correct number of rows in the array
         if (gf_disp%nrows .ne. 3*displacement%nrows) then
             call usage('read_inputs: number of lines in three-component displacement GF file '// &
-                       'must be 3*ndisplacements (one line per displacement DOF)')
+                       'must be 3*ndisplacements (one line per displacement DOF) (usage:none)')
         endif
     else
         ! Displacement Green's functions need to be calculated; allocate memory to array
@@ -428,7 +556,7 @@ if (displacement%file.ne.'none') then
         endif
         allocate(gf_disp%array(gf_disp%nrows,gf_disp%ncols),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to gf_disp%array')
+            call usage('read_inputs: error allocating memory to gf_disp%array (usage:none)')
         endif
     endif
 endif
@@ -442,13 +570,13 @@ if (los%file.ne.'none') then
         ! Read pre-computed LOS displacement Green's functions
         call read_fltinv_data_file(gf_los,ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: problem reading gf_los file')
+            call usage('read_inputs: problem reading gf_los file (usage:none)')
         endif
 
         ! Verify that there are the correct number of rows in the array
         if (gf_los%nrows .ne. los%nrows) then
             call usage('read_inputs: number of lines in LOS displacement GF file '// &
-                       'must be ndisplacements (one line per displacement DOF)')
+                       'must be ndisplacements (one line per displacement DOF) (usage:none)')
         endif!
     else
         ! Allocate memory to calculate Green's functions
@@ -458,7 +586,7 @@ if (los%file.ne.'none') then
         endif
         allocate(gf_los%array(gf_los%nrows,gf_los%ncols),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to gf_los%array')
+            call usage('read_inputs: error allocating memory to gf_los%array (usage:none)')
         endif
     endif
 endif
@@ -472,13 +600,13 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
         ! Read pre-computed displacement Green's functions
         call read_fltinv_data_file(gf_stress,ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: problem reading gf_stress file')
+            call usage('read_inputs: problem reading gf_stress file (usage:none)')
         endif
 
         ! Verify that there are the correct number of rows in the array
         if (gf_stress%nrows .ne. 2*fault%nrows) then
             call usage('read_inputs: number of lines in pre-stress GF file must be '//&
-                       '2*nfaults (one line per fault slip DOF)')
+                       '2*nfaults (one line per fault slip DOF) (usage:none)')
         endif
     else
         ! Allocate memory to calculate Green's functions
@@ -488,7 +616,7 @@ if (prestress%file.ne.'none'.or.inversion_mode.eq.'anneal-psc') then
         endif
         allocate(gf_stress%array(gf_stress%nrows,gf_stress%ncols),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to gf_stress%array')
+            call usage('read_inputs: error allocating memory to gf_stress%array (usage:none)')
         endif
     endif
 endif
@@ -515,12 +643,13 @@ if (slip_constraint%file.ne.'none') then
     if (ierr.ne.0) then
         write(stderr,*) 'read_inputs: problem reading slip constraint file'
         write(stderr,*) 'Format:'
-        call usage(     '    slip_ss slip_ds')
+        call usage(     '    slip_ss slip_ds (usage:fault)')
     endif
 
     ! There can be 1 value for all faults or 1 value for each fault
     if (slip_constraint%nrows.ne.1.and.slip_constraint%nrows.ne.fault%nrows) then
-        call usage('read_inputs: number of slip constraints must be 1 or number of faults')
+        call usage('read_inputs: number of slip constraints must be 1 or number of faults '// &
+                   '(usage:none)')
     endif
 
     ! If there is only 1 value, set the full constraint array to that value
@@ -532,7 +661,7 @@ if (slip_constraint%file.ne.'none') then
         endif
         allocate(slip_constraint%array(fault%nrows,slip_constraint%ncols),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to slip_constraint%array')
+            call usage('read_inputs: error allocating memory to slip_constraint%array (usage:none)')
         endif
         slip_constraint%nrows = fault%nrows
         slip_constraint%array(:,1) = dp1
@@ -540,10 +669,11 @@ if (slip_constraint%file.ne.'none') then
     endif
 else
     if (inversion_mode.eq.'anneal') then
-        call usage('read_inputs: a slip constraint file is required for annealing search')
+        call usage('read_inputs: a slip constraint file is required for annealing search '// &
+                   '(usage:fault)')
     elseif (inversion_mode.eq.'anneal-psc') then
         call usage('read_inputs: a slip constraint file is required for annealing+'//&
-                   'pseudo-coupling search')
+                   'pseudo-coupling search (usage:fault)')
     endif
 endif
 
@@ -580,12 +710,13 @@ if (rake_constraint%file.ne.'none') then
     ! Read constraints from file
     call read_fltinv_data_file(rake_constraint,ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: problem reading rake constraint file')
+        call usage('read_inputs: problem reading rake constraint file (usage:fault)')
     endif
 
     ! There can be 1 value for all faults or 1 value for each fault
     if (rake_constraint%nrows.ne.1.and.rake_constraint%nrows.ne.fault%nrows) then
-        call usage('read_inputs: number of rake constraints must be 1 or number of faults')
+        call usage('read_inputs: number of rake constraints must be 1 or number of faults '// &
+                   '(usage:none)')
     endif
 
     ! If there is only 1 value, set the full constraint array to that value
@@ -599,7 +730,7 @@ if (rake_constraint%file.ne.'none') then
         endif
         allocate(rake_constraint%array(fault%nrows,rake_constraint%ncols),stat=ierr)
         if (ierr.ne.0) then
-            call usage('read_inputs: error allocating memory to rake_constraint%array')
+            call usage('read_inputs: error allocating memory to rake_constraint%array (usage:none)')
         endif
         rake_constraint%nrows = fault%nrows
         rake_constraint%array(:,1) = dp1
@@ -609,7 +740,8 @@ if (rake_constraint%file.ne.'none') then
     endif
 else
     if (inversion_mode.eq.'anneal') then
-        call usage('read_inputs: a rake constraint file is required for annealing search')
+        call usage('read_inputs: a rake constraint file is required for annealing search '// &
+                   '(usage:fault)')
     endif
 
     ! Number of rakes to compute is two, even if constraint file is not provided
@@ -625,17 +757,19 @@ if (smoothing_file.ne.'none') then
     !     smoothing_neighbors(nneighbors): single column array with neighbors only
 
     if (.not.fileExists(smoothing_file)) then
-        call usage('read_inputs: no smoothing file found named '//trim(smoothing_file))
+        call usage('read_inputs: no smoothing file found named '//trim(smoothing_file)// &
+                   '(usage:lsqr)')
     endif
     nsmooth = line_count(smoothing_file)
     if (nsmooth.gt.fault%nrows) then
-        call usage('read_inputs: number of faults to smooth is larger than total number of faults')
+        call usage('read_inputs: number of faults to smooth is larger than total number of '// &
+                   'faults (usage:none)')
     endif
 
     ! Read smoothing file and calculate pointers to neighbor array
     allocate(smoothing_pointers(nsmooth,3),stat=ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: error allocating memory to smoothing_pointers')
+        call usage('read_inputs: error allocating memory to smoothing_pointers (usage:none)')
     endif
     open(unit=34,file=smoothing_file,status='old')
     do i = 1,nsmooth
@@ -655,7 +789,7 @@ if (smoothing_file.ne.'none') then
     allocate(smoothing_neighbors(smoothing_pointers(nsmooth,3)+smoothing_pointers(nsmooth,2)),&
              stat=ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: error allocating memory to smoothing_neighbors')
+        call usage('read_inputs: error allocating memory to smoothing_neighbors (usage:none)')
     endif
     rewind(34)
     do i = 1,nsmooth
@@ -666,7 +800,7 @@ if (smoothing_file.ne.'none') then
         if (ios.ne.0) then
             write(stderr,*) 'read_inputs: error parsing smoothing file line ',i
             write(stderr,*) 'Offending line: ',trim(line)
-            call usage('Expected format: iflt nnbr nbr1 nbr2...nbrn')
+            call usage('Expected format: iflt nnbr nbr1 nbr2...nbrn (usage:none)')
         endif
     enddo
     close(34)
@@ -707,97 +841,6 @@ if (gf_model.eq.'okada_rect'.or.gf_model.eq.'okada_pt'.or.gf_model.eq.'triangle'
 endif
 
 
-! Rigid body rotations defined by Euler poles
-if (euler_file.ne.'none') then
-    if (input_disp_unit.eq.'m') then
-        call usage('read_inputs: disp units are m (displacement), incompatible with rotations')
-    elseif (input_disp_unit.eq.'mm') then
-        call usage('read_inputs: disp units are mm (displacement), incompatible with rotations')
-    elseif (input_disp_unit.eq.'m/s') then
-        ! Velocity: all good
-    elseif (input_disp_unit.eq.'m/yr') then
-        ! Velocity: all good
-    elseif (input_disp_unit.eq.'mm/s') then
-        ! Velocity: all good
-    elseif (input_disp_unit.eq.'mm/yr') then
-        ! Velocity: all good
-    else
-        call usage('read_inputs: no disp units named '//trim(input_disp_unit))
-    endif
-
-    ! Check that file exists, then open it
-    if (.not.fileExists(euler_file)) then
-        call usage('read_inputs: no Euler pole file named '//trim(euler_file))
-    endif
-    open(unit=68,file=euler_file,status='old')
-
-    ! First line is the number of Euler poles
-    read(68,*) npoles
-    allocate(euler_pole(npoles,3))
-
-    ! Initialize array recording which points are affected by each rigid body rotation
-    if (displacement%file.ne.'none') then
-        allocate(rigid_pt_array_disp(displacement%nrows))
-        rigid_pt_array_disp = 0
-    endif
-    if (los%file.ne.'none') then
-        allocate(rigid_pt_array_los(los%nrows))
-        rigid_pt_array_los = 0
-    endif
-
-    ! Initialize array for prior constraints on Euler pole location
-    if (inversion_mode.eq.'anneal'.or.inversion_mode.eq.'anneal-psc') then
-        allocate(pole_array(npoles,4))
-        pole_array = 0.0d0
-    endif
-
-    ! Read prior constraints on Euler pole locations
-    do i = 1,npoles
-        read(68,'(A)',end=4001,iostat=ios) line
-        if (allocated(pole_array)) then
-            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:4)
-        endif
-    enddo
-    4001 if (ios.ne.0) then
-        call usage('read_inputs: reached euler_file EOF before finished reading')
-    endif
-    4002 if (ios.ne.0) then
-        write(stderr,*) 'read_inputs: error parsing Euler pole lon lat rad from: ',trim(line)
-        call usage('Exiting')
-    endif
-
-    ! Read groups of points experiencing rigid rotations
-    ! nrigid_dof = 0
-    do
-        read(68,'(A)',end=4003,iostat=ios) line
-        read(line,*,end=4004,err=4004,iostat=ios) i,nchar,j
-        if (nchar.eq.'3') then
-            rigid_pt_array_disp(j) = i
-            ! nrigid_dof = nrigid_dof + 3
-        elseif (nchar.eq.'l'.or.nchar.eq.'L') then
-            rigid_pt_array_los(j) = i
-            ! nrigid_dof = nrigid_dof + 1
-        else
-            call usage('read_inputs: no observation type code named '//nchar//'; use "3" or "L"')
-        endif
-    enddo
-    4003 ios = 0
-    4004 if (ios.ne.0) then
-        write(stderr,*) 'read_inputs: error parsing ipole 3|L iobs from: ',trim(line)
-        call usage('exiting')
-    endif
-
-    ! Initialize Greens functions for rotations
-    allocate(gf_euler(2*displacement%nrows+los%nrows,3*npoles))
-    gf_euler = 0.0d0
-
-    ! All done with rigid block file
-    close(68)
-else
-    npoles = 0
-endif
-
-
 ! Covariance of three-component and/or line-of-sight observations
 if (displacement%file.ne.'none'.or.los%file.ne.'none') then
 
@@ -807,7 +850,7 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     ndof = ndisp_dof + nlos_dof
     allocate(cov_matrix(ndof,ndof),stat=ierr)
     if (ierr.ne.0) then
-        call usage('read_inputs: error allocating memory to cov_matrix')
+        call usage('read_inputs: error allocating memory to cov_matrix (usage:none)')
     endif
 
     ! Initialize covariance matrix as the identity matrix
@@ -833,7 +876,7 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
             if (ios.ne.0) then
                 write(stderr,*) 'read_inputs: error parsing covariance matrix file'
                 write(stderr,*) 'Offending line: ',trim(line)
-                call usage('Expected format: i_obs j_obs i_comp j_comp cov')
+                call usage('Expected format: i_obs j_obs i_comp j_comp cov (usage:none)')
             endif
 
             if (nchar.eq.'L'.or.nchar.eq.'l') then
@@ -1467,77 +1510,131 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 
 subroutine usage(string)
+
 use io, only: stderr
+
 implicit none
+
 character(len=*) :: string
+character(len=8) :: info
+integer :: i
+
+info = 'all'
+i = len_trim(string)+1
+
 if (string.ne.'') then
-    write(stderr,*) trim(string)
+    if (index(string,'(usage:fault)').ne.0) then
+        i = index(string,'(usage:fault)')
+        info = 'fault'
+    elseif (index(string,'(usage:euler)').ne.0) then
+        i = index(string,'(usage:euler)')
+        info = 'euler'
+    elseif (index(string,'(usage:input)').ne.0) then
+        i = index(string,'(usage:input)')
+        info = 'input'
+    elseif (index(string,'(usage:gf)').ne.0) then
+        i = index(string,'(usage:gf)')
+        info = 'gf'
+    elseif (index(string,'(usage:hafspc)').ne.0) then
+        i = index(string,'(usage:hafspc)')
+        info = 'hafspc'
+    elseif (index(string,'(usage:lsqr)').ne.0) then
+        i = index(string,'(usage:lsqr)')
+        info = 'lsqr'
+    elseif (index(string,'(usage:anneal)').ne.0) then
+        i = index(string,'(usage:anneal)')
+        info = 'anneal'
+    elseif (index(string,'(usage:none)').ne.0) then
+        i = index(string,'(usage:none)')
+        info = 'none'
+    endif
+
+    write(stderr,*) string(1:i-1)
     write(stderr,*)
+    if (info.eq.'none') then
+        write(stderr,*) 'See fltinv man page for details'
+        write(stderr,*)
+        stop
+    endif
 endif
+
 write(stderr,*) 'Usage: fltinv ...options...'
 write(stderr,*)
 write(stderr,*) 'General Options'
 write(stderr,*) '-o OUTPUT_FILE               Output fault slip file'
 write(stderr,*) '-mode INVERSION_MODE         Inversion mode'
 write(stderr,*)
-write(stderr,*) 'Fault Options'
-write(stderr,*) '-flt FAULT_FILE              Input fault locations and geometries'
-write(stderr,*) '-flt:slip SLIP_FILE          Slip magnitude constraints'
-write(stderr,*) '-flt:rake RAKE_FILE          Rake angle constraints'
-write(stderr,*)
-write(stderr,*) 'Euler Pole Options'
-write(stderr,*) '-euler EULER_FILE POLE_FILE  Include rigid rotation in the fit [UNDER DEVELOPMENT]'
-write(stderr,*)
-write(stderr,*) 'Input Options'
-write(stderr,*) '-disp DISP_FILE              Input displacements'
-write(stderr,*) '-disp:components COMPNTS     Specify displacement components'
-write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
-write(stderr,*) '-los LOS_FILE                Input line-of-sight displacements'
-write(stderr,*) '-prests PRESTS_FILE          Input pre-stresses'
-write(stderr,*) '-cov COVAR_FILE              Displacement and LOS covariances'
-write(stderr,*) '-disp:unit UNITS             Units for displacement (or to specify velocity inputs)'
-! write(stderr,*) '-prests:weight WEIGHT        Stress weighting factor'
-! write(stderr,*) '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
-! write(stderr,*) '-los:weight LOS_WEIGHT       LOS observation weighting factor'
-! write(stderr,*) '-los:misfit MISFIT_FILE      Output RMS misfit to LOS displacements'
-write(stderr,*)
+if (info.eq.'all'.or.info.eq.'fault') then
+    write(stderr,*) 'Fault Options'
+    write(stderr,*) '-flt FAULT_FILE              Input fault locations and geometries'
+    write(stderr,*) '-flt:slip SLIP_FILE          Slip magnitude constraints'
+    write(stderr,*) '-flt:rake RAKE_FILE          Rake angle constraints'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'euler') then
+    write(stderr,*) 'Euler Pole Options'
+    write(stderr,*) '-euler EULER_FILE POLE_FILE  Include rigid rotation in the fit [UNDER DEVELOPMENT]'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'input') then
+    write(stderr,*) 'Input Options'
+    write(stderr,*) '-disp DISP_FILE              Input displacements'
+    write(stderr,*) '-disp:components COMPNTS     Specify displacement components'
+    write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
+    write(stderr,*) '-los LOS_FILE                Input line-of-sight displacements'
+    write(stderr,*) '-prests PRESTS_FILE          Input pre-stresses'
+    write(stderr,*) '-cov COVAR_FILE              Displacement and LOS covariances'
+    write(stderr,*) '-disp:unit UNITS             Units for displacement (or to specify velocity inputs)'
+    ! write(stderr,*) '-prests:weight WEIGHT        Stress weighting factor'
+    ! write(stderr,*) '-prests:dist_threshold DIST  Set tractions to zero at distances>DIST'
+    ! write(stderr,*) '-los:misfit MISFIT_FILE      Output RMS misfit to LOS displacements'
+    write(stderr,*) '-xy                          Treat input coordinates as Cartesian'
+    write(stderr,*) '-geo                         Treat input coordinates as geographic'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'gf') then
 write(stderr,*) 'Greens Functions Options'
-write(stderr,*) '-gf:model MODEL              Greens functions calculation model'
-write(stderr,*) '-gf:disp GF_DSP_FILE         Pre-computed displacement Greens functions'
-write(stderr,*) '-gf:los GF_LOS_FILE          Pre-computed LOS displacement Greens functions'
-write(stderr,*) '-gf:sts GF_STS_FILE          Pre-computed stress Greens functions'
-write(stderr,*) '-xy                          Treat input coordinates as Cartesian'
-write(stderr,*) '-geo                         Treat input coordinates as geographic'
-write(stderr,*)
-write(stderr,*) 'Half-space Options'
-write(stderr,*) '-haf HALFSPACE_FILE          Elastic half-space parameters'
-write(stderr,*)
-write(stderr,*) 'Regularization Options'
-write(stderr,*) '-damp DAMP                   Damping regularization'
-write(stderr,*) '-smooth SMOOTH SMOOTH_FILE   Smoothing regularization'
-write(stderr,*)
-write(stderr,*) 'Least-Squares Options'
-write(stderr,*) '-lsqr:mode MODE              Solver algorithm'
-write(stderr,*)
-write(stderr,*) 'Simulated Annealing Options'
-write(stderr,*) '-anneal:init_mode OPT [FILE] Mode to initialize solution'
-write(stderr,*) '-anneal:step STEP_FILE       Parameter step size'
-write(stderr,*) '-anneal:max_it N             Number of iterations in search'
-write(stderr,*) '-anneal:reset_it N           Reset temperature every N iterations'
-write(stderr,*) '-anneal:temp_start T0        Starting temperature'
-write(stderr,*) '-anneal:temp_min TMIN        Minimum temperature'
-write(stderr,*) '-anneal:cool COOL_FACT       Cooling factor'
-write(stderr,*) '-anneal:log_file LOG_FILE    File with annealing progress'
-write(stderr,*) '-anneal:seed SEED            Random number generator seed'
-write(stderr,*) '-anneal-psc:min_flip N       Minimum number of faults to flip'
-write(stderr,*) '-anneal-psc:max_flip N       Maximum number of faults to flip'
-! write(stderr,*) '-anneal-psc:pl2u PROB        Probability of flipping locked to unlocked'
-! write(stderr,*) '-anneal-psc:pu2l PROB        Probability of flipping unlocked to locked'
-! write(stderr,*) '-anneal:mcmc NSTEPS LOGFILE  Run MCMC search after annealing search'
-write(stderr,*)
+    write(stderr,*) '-gf:model MODEL              Greens functions calculation model'
+    write(stderr,*) '-gf:disp GF_DSP_FILE         Pre-computed displacement Greens functions'
+    write(stderr,*) '-gf:los GF_LOS_FILE          Pre-computed LOS displacement Greens functions'
+    write(stderr,*) '-gf:sts GF_STS_FILE          Pre-computed stress Greens functions'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'hafspc') then
+    write(stderr,*) 'Half-space Options'
+    write(stderr,*) '-haf HALFSPACE_FILE          Elastic half-space parameters'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'lsqr') then
+    write(stderr,*) 'Regularization Options'
+    write(stderr,*) '-damp DAMP                   Damping regularization'
+    write(stderr,*) '-smooth SMOOTH SMOOTH_FILE   Smoothing regularization'
+    write(stderr,*)
+    write(stderr,*) 'Least-Squares Options'
+    write(stderr,*) '-lsqr:mode MODE              Solver algorithm'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'anneal') then
+    write(stderr,*) 'Simulated Annealing Options'
+    write(stderr,*) '-anneal:init_mode OPT [FILE] Mode to initialize solution'
+    write(stderr,*) '-anneal:step STEP_FILE       Parameter step size'
+    write(stderr,*) '-anneal:max_it N             Number of iterations in search'
+    write(stderr,*) '-anneal:reset_it N           Reset temperature every N iterations'
+    write(stderr,*) '-anneal:temp_start T0        Starting temperature'
+    write(stderr,*) '-anneal:temp_min TMIN        Minimum temperature'
+    write(stderr,*) '-anneal:cool COOL_FACT       Cooling factor'
+    write(stderr,*) '-anneal:log_file LOG_FILE    File with annealing progress'
+    write(stderr,*) '-anneal:seed SEED            Random number generator seed'
+    write(stderr,*) '-anneal-psc:min_flip N       Minimum number of faults to flip'
+    write(stderr,*) '-anneal-psc:max_flip N       Maximum number of faults to flip'
+    write(stderr,*)
+endif
 write(stderr,*) 'Miscellaneous Options'
 write(stderr,*) '-v LEVEL                     Program verbosity'
 write(stderr,*)
+if (info.ne.'all') then
+    write(stderr,*) 'Type "fltinv" without any arguments to see all options'
+endif
 write(stderr,*) 'See man page for details'
 write(stderr,*)
 stop
