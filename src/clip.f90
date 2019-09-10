@@ -7,6 +7,7 @@ logical :: getPointsInsideBoundary
 logical :: getPointsOutsideBoundary
 logical :: getPointsOnBoundary
 double precision :: epsilon
+logical :: printRecord
 
 end module clip
 
@@ -23,12 +24,13 @@ use clip, only: poly_file, &
                 getPointsInsideBoundary, &
                 getPointsOutsideBoundary, &
                 getPointsOnBoundary, &
-                epsilon
+                epsilon, &
+                printRecord
 
 implicit none
 
 ! Local variables
-integer :: i, ios, luin, luout, nclip, inout
+integer :: i, ios, luin, luout, nclip, inout, irecord
 character(len=512) :: line
 double precision :: x, y
 double precision, allocatable :: polygon(:,:)
@@ -83,12 +85,14 @@ endif
 
 
 ! Read input data and clip it
+irecord = 0
 do
     read(luin,'(A)',iostat=ios) line
     if (ios.ne.0) then
         exit
     endif
 
+    irecord = irecord + 1
     read(line,*,iostat=ios) x,y
     if (ios.ne.0) then
         write(stderr,*) 'clip: error reading input file coordinates'
@@ -98,11 +102,23 @@ do
     call pnpoly(x,y,polygon(:,1),polygon(:,2),nclip,inout,epsilon)
 
     if (getPointsInsideBoundary.and.inout.eq.1) then
-        write(luout,*) trim(line)
+        if (printRecord) then
+            write(luout,*) irecord,trim(line)
+        else
+            write(luout,*) trim(line)
+        endif
     elseif (getPointsOutsideBoundary.and.inout.eq.-1) then
-        write(luout,*) trim(line)
+        if (printRecord) then
+            write(luout,*) irecord,trim(line)
+        else
+            write(luout,*) trim(line)
+        endif
     elseif (getPointsOnBoundary.and.inout.eq.0) then
-        write(luout,*) trim(line)
+        if (printRecord) then
+            write(luout,*) irecord,trim(line)
+        else
+            write(luout,*) trim(line)
+        endif
     endif
 enddo
 
@@ -127,7 +143,8 @@ use clip, only: poly_file, &
                 getPointsInsideBoundary, &
                 getPointsOutsideBoundary, &
                 getPointsOnBoundary, &
-                epsilon
+                epsilon, &
+                printRecord
 
 implicit none
 
@@ -143,6 +160,7 @@ getPointsInsideBoundary = .false.
 getPointsOutsideBoundary = .false.
 getPointsOnBoundary = .false.
 epsilon = 1.0d-8
+printRecord = .false.
 
 ! Number of arguments
 narg = command_argument_count()
@@ -179,6 +197,9 @@ do while (i.le.narg)
         call get_command_argument(i,tag)
         read(tag,*) epsilon
 
+    elseif (tag.eq.'-NR') then
+        printRecord = .true.
+
     else
         call usage('clip: no option '//trim(tag))
     endif
@@ -211,6 +232,7 @@ write(stderr,*) '-o FILE           Clipped data (default: stdout)'
 write(stderr,*) '-in               Keep points inside clipping boundary'
 write(stderr,*) '-out              Keep points outside clipping boundary'
 write(stderr,*) '-on EPS           Keep points within EPS of boundary'
+write(stderr,*) '-NR               Print record of clipped lines'
 write(stderr,*)
 
 stop
