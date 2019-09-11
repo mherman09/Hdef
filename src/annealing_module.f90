@@ -266,9 +266,9 @@ double precision :: obj_current
 double precision :: obj_proposed
 double precision :: obj_best
 double precision :: ptrans
+double precision :: ran_uniform
 double precision :: model_current(NPARAM)
 double precision :: model_proposed(NPARAM)
-double precision :: ran_uniform
 
 
 ! Initialize the random number generator with integer based on system time
@@ -335,7 +335,6 @@ enddo
 
 ! Close log file
 call write_log(i,T,obj_current,model_current,model_proposed,nparam,'close')
-
 
 return
 end subroutine anneal_dp_array

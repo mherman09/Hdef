@@ -145,7 +145,7 @@ implicit none
 double precision :: dip
 
 ! Local variables
-double precision, parameter :: dip_max = 89.9999d0
+double precision, parameter :: dip_max = 89.997d0
 
 ! To avoid divide by zero problems, avoid dip of 90 degress
 if (dip.gt.dip_max) then

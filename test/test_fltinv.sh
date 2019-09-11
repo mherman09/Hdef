@@ -100,10 +100,10 @@ EOF
     -disp:components 12 \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.96961551E+00  3.47296356E-01
- -1.50000000E+00 -7.90254736E-10
- -1.50000000E+00 -4.37814461E-10
- -9.84807753E-01 -1.73648176E-01
+ -1.96961560E+00  3.47295266E-01
+ -1.49999504E+00  3.26290455E-06
+ -1.49999990E+00 -1.08904575E-06
+ -9.84812714E-01 -1.73644915E-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, horizontal disp" || exit 1
 
@@ -164,10 +164,10 @@ EOF
     -lsqr:mode gels \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -2.18179681E+00  2.67193048E-16
- -1.24866911E+00  1.52917863E-16
- -1.72650372E+00  2.11435726E-16
-  7.41870420E-01 -9.08529235E-17
+ -2.18026313E+00  2.67005226E-16
+ -1.25371674E+00  1.53536020E-16
+ -1.72480941E+00  2.11228232E-16
+  7.35844003E-01 -9.01149003E-17
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180)" || exit 1
 
@@ -229,10 +229,10 @@ EOF
     -flt:slip slip.tmp \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -2.00000000E+00  3.58983687E-01
- -1.37153328E+00 -3.08787060E-02
- -1.50516777E+00 -1.59398437E-02
- -1.00000000E+00 -1.17235180E-01
+ -2.00000000E+00  3.59056487E-01
+ -1.37164031E+00 -3.09765641E-02
+ -1.50515200E+00 -1.60242221E-02
+ -1.00000000E+00 -1.17142278E-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 2 fixed slip components" || exit 1
 
@@ -246,10 +246,10 @@ EOF
     -damp 0.1 \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -2.08639264E+00  4.00049826E-01
- -1.02316429E+00 -2.02031558E-01
- -1.59822646E+00 -5.72336702E-02
- -6.59136975E-01  5.83208843E-02
+ -2.08579403E+00  4.00222223E-01
+ -1.02542077E+00 -2.01476020E-01
+ -1.59764763E+00 -5.74055238E-02
+ -6.61180279E-01  5.77337231E-02
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=0.1" || exit 1
 
@@ -263,10 +263,10 @@ EOF
     -damp 1.0 \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -9.42434826E-02  3.07720984E-03
- -2.42600753E-02  8.46490929E-03
- -7.77428978E-02  2.83172661E-02
- -1.97073766E-02  7.18457860E-03
+ -9.42573327E-02  3.08437760E-03
+ -2.42517153E-02  8.46777249E-03
+ -7.77603451E-02  2.83108205E-02
+ -1.96980984E-02  7.18217238E-03
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=1.0" || exit 1
 
@@ -286,12 +286,12 @@ EOF
     -smooth 0.1 smooth.tmp \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.91136616E+00  3.24205218E-01
- -1.64903145E+00  1.07798352E-01
- -1.43169386E+00  1.08545384E-02
- -1.30348164E+00 -2.30878153E-01
+ -1.91156100E+00  3.24048634E-01
+ -1.64834091E+00  1.07707954E-01
+ -1.43189167E+00  1.10122449E-02
+ -1.30272323E+00 -2.30797720E-01
 EOF
-./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=0.1" || exit 1
 
 #echo Least squares solution + smoothing = 1.0:
 ../bin/fltinv \
@@ -303,10 +303,10 @@ EOF
     -smooth 1.0 smooth.tmp \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.59980137E+00  1.33771124E-01
- -1.59924854E+00  1.33076242E-01
- -1.59821957E+00  1.31165833E-01
- -1.59819277E+00  1.30912070E-01
+ -1.59988382E+00  1.33773112E-01
+ -1.59933238E+00  1.33078461E-01
+ -1.59830262E+00  1.31169871E-01
+ -1.59827693E+00  1.30915893E-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
 
@@ -321,12 +321,12 @@ EOF
     -smooth 0.05 smooth.tmp \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.95959393E+00  3.35800676E-01
- -1.51558421E+00  3.94337069E-02
- -1.48264150E+00  9.85831333E-03
- -1.05925719E+00 -2.01563018E-01
+ -1.95967192E+00  3.35790450E-01
+ -1.51533042E+00  3.93285795E-02
+ -1.48272842E+00  9.86849084E-03
+ -1.05891374E+00 -2.01470950E-01
 EOF
-./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
+./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=0.05 smoothing=0.05" || exit 1
 
 #echo ----------
 #echo Finished Test \#2
@@ -372,10 +372,10 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.
     -gf:model okada_rect \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.96963011E+00  3.47297415E-01
- -1.49967016E+00 -2.69751544E-04
- -1.50042575E+00 -1.21322744E-04
- -9.83059196E-01 -1.73130858E-01
+ -1.96961559E+00  3.47296349E-01
+ -1.49999974E+00 -4.50134408E-07
+ -1.50000043E+00 -1.39591787E-07
+ -9.84805251E-01 -1.73647574E-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 16 los disp" || exit 1
 
@@ -422,10 +422,10 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.
     -gf:model okada_rect \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -1.96965424E+00  3.47308462E-01
- -1.49992902E+00 -2.38168890E-04
- -1.50029127E+00 -8.30644105E-05
- -9.83739243E-01 -1.73386437E-01
+ -1.96961540E+00  3.47296424E-01
+ -1.49999953E+00 -3.83966638E-07
+ -1.50000054E+00 -1.46434557E-07
+ -9.84806772E-01 -1.73647802E-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 9 3-comp disp, 16 los disp" || exit 1
 
@@ -689,7 +689,15 @@ awk 'BEGIN{p=0}{
         p = 0
     }
 }' ../src/annealing_module.f90 > anneal_dp_array.tmp
-diff anneal_int_array.tmp anneal_dp_array.tmp
+PASSFAIL=`diff anneal_int_array.tmp anneal_dp_array.tmp |\
+    grep -v "^<" |\
+    grep -v "^>" |\
+    grep -v "^---" |\
+    awk -Fc '{if(NF!=2){print "FAIL";exit}}END{print "PASS"}'`
+if [ "$PASSFAIL" == "FAIL" ]
+then
+    echo "$0: WARNING: anneal_int_array() and anneal_dp_array() differ in more than variable type!"
+fi
 
 
 
@@ -942,15 +950,15 @@ echo vp 6800 vs 3926 dens 3000 > haf.tmp
     -lsqr:mode gesv \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -9.36179227E-02  2.56503112E-02
- -1.44914261E-01 -2.87180558E-11
- -9.36179227E-02 -2.56503113E-02
- -2.05038774E-01  4.53406569E-03
+ -9.36180539E-02  2.56503115E-02
+ -1.44914388E-01 -2.87198170E-11
+ -9.36180539E-02 -2.56503116E-02
+ -2.05038818E-01  4.53406048E-03
  -1.00000000E+00  0.00000000E+00
- -2.05038774E-01 -4.53406569E-03
- -8.70859505E-02 -1.45560087E-02
- -1.35046650E-01  2.16526690E-11
- -8.70859505E-02  1.45560087E-02
+ -2.05038818E-01 -4.53406048E-03
+ -8.70859154E-02 -1.45560101E-02
+ -1.35046459E-01  2.16533838E-11
+ -8.70859154E-02  1.45560101E-02
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, pre-stresses, fix central fault slip, 8 surrounding unlocked faults" || exit 1
 
@@ -992,15 +1000,15 @@ rm inversion.tmp
     -anneal:seed 12345 \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -9.36179227E-02  2.56503112E-02
- -1.44914261E-01 -2.87180558E-11
- -9.36179227E-02 -2.56503113E-02
- -2.05038774E-01  4.53406569E-03
+ -9.36180539E-02  2.56503115E-02
+ -1.44914388E-01 -2.87198170E-11
+ -9.36180539E-02 -2.56503116E-02
+ -2.05038818E-01  4.53406048E-03
  -1.00000000E+00  0.00000000E+00
- -2.05038774E-01 -4.53406569E-03
- -8.70859505E-02 -1.45560087E-02
- -1.35046650E-01  2.16526690E-11
- -8.70859505E-02  1.45560087E-02
+ -2.05038818E-01 -4.53406048E-03
+ -8.70859154E-02 -1.45560101E-02
+ -1.35046459E-01  2.16533838E-11
+ -8.70859154E-02  1.45560101E-02
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: simulated annealing + pseudo-coupling" || exit 1
 
@@ -1300,9 +1308,9 @@ awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
     -prests fltinv_sts.tmp \
     -geo \
     -haf haf.tmp \
-    -o inversion.tmp -v 1
-echo inversion with pre-stresses
-cat inversion.tmp
+    -o inversion.tmp
+# echo inversion with pre-stresses
+# cat inversion.tmp
 
 cat tri1.tmp tri2.tmp | awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' > fltinv_flt.tmp
 cat tri1.tmp tri2.tmp | awk '{print 0,0,0,0,0,0}' > fltinv_sts.tmp
@@ -1318,7 +1326,7 @@ EOF
     -prests fltinv_sts.tmp \
     -geo \
     -haf haf.tmp \
-    -o inversion.tmp -v 1
+    -o inversion.tmp
 
 cat > answer.tmp << EOF
   0.00000000E+00 -1.00000000E+00
