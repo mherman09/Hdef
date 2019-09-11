@@ -178,7 +178,7 @@ do i = 1,max_it
     endif
 
     ! Save results in log file
-    call write_log(i,T,obj_current,model_current,model_proposed,nparam,'append')
+    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,'append')
 
     ! Update temperature
     T = T*cool
@@ -317,7 +317,7 @@ do i = 1,max_it
     endif
 
     ! Save results in log file
-    call write_log(i,T,obj_current,model_current,model_proposed,nparam,'append')
+    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,'append')
 
     ! Update temperature
     T = T*cool
