@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# TEST FOR GCMT FILE!!!!
+GCMT_FILE=`../bin/readGCMT -mag 9 10 2>&1 | grep "no GCMT file"`
+if [ "$GCMT_FILE" != "" ]
+then
+    echo No GCMT file to test
+    exit
+fi
 
 ../bin/readGCMT -mag 9 10 > gcmt.tmp
 cat > answer.tmp << EOF
@@ -62,5 +69,3 @@ cat > answer.tmp << EOF
 2014-04-13T12:11:30   288.990   -20.580    21.8    5.46    1.1300E+17   -4.2000E+15   -1.0900E+17    4.1300E+16   -1.2100E+17    2.7800E+16
 EOF
 ./test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: date, location" || exit 1
-
-

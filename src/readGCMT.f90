@@ -87,12 +87,17 @@ implicit none
 
 ! Local variables
 integer :: i, ios, luin
-logical :: keepEvent
+logical :: keepEvent, ex
 character(len=128) :: line(5)
 
 call gcmdln()
 
 luin = 11
+inquire(file=gcmt_file,exist=ex)
+if(.not.ex) then
+    write(0,*) 'readGCMT: no GCMT file found named '//trim(gcmt_file)
+    stop
+endif
 open(unit=luin,file=gcmt_file,status='old')
 
 ios = 0
