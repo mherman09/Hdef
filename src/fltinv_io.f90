@@ -241,9 +241,9 @@ if (euler_file.ne.'none') then
         rigid_pt_array_los = 0
     endif
 
-    ! Initialize array for prior constraints on Euler pole location
+    ! Initialize array for prior constraints on Euler pole location and angular velocity
     if (inversion_mode.eq.'anneal'.or.inversion_mode.eq.'anneal-psc') then
-        allocate(pole_array(npoles,4))
+        allocate(pole_array(npoles,5))
         pole_array = 0.0d0
     endif
 
@@ -251,15 +251,18 @@ if (euler_file.ne.'none') then
     do i = 1,npoles
         read(68,'(A)',end=4001,iostat=ios) line
         if (allocated(pole_array)) then
-            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:4)
+            read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:5)
+            if (pole_array(i,4).ge.pole_array(i,5)) then
+                call usage('read_inputs: min pole velocity greater than max pole velocity')
+            endif
         endif
     enddo
     4001 if (ios.ne.0) then
         call usage('read_inputs: reached end of Euler file before finished reading (usage:none)')
     endif
     4002 if (ios.ne.0) then
-        call usage('read_inputs: error parsing Euler pole lon lat rad from: '//trim(line)// &
-                   ' (usage:none)')
+        call usage('read_inputs: error parsing Euler pole lon lat radius(km) min_rate(deg/Ma) '//&
+                   'max_rate(deg/Ma) from: '//trim(line)//' (usage:none)')
     endif
 
     ! Read groups of points experiencing rigid rotations

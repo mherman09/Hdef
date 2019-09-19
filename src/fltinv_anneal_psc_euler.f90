@@ -226,12 +226,15 @@ do i = 1,npoles
     dist = r8_uniform_01(iseed)*pole_array(i,3)/radius_earth_km
     az = r8_uniform_01(iseed)*360.0d0
     call distaz2lola(pole_array(i,1),pole_array(i,2),dist,az,lon,lat,'radians','degrees',ios)
-    rot = r8_uniform_01(iseed)*pole_array(i,4)
     model(nflt+3*i-2) = int(lon*1.0d3)
     model(nflt+3*i-1) = int(lat*1.0d3)
-    model(nflt+3*i-0) = int(rot*1.0d4)
+
+    ! J/K: initialize with center point
     model(nflt+3*i-2) = int(pole_array(i,1)*1.0d3)
     model(nflt+3*i-1) = int(pole_array(i,2)*1.0d3)
+
+    rot = pole_array(i,4) + r8_uniform_01(iseed)*(pole_array(i,5)-pole_array(i,4))
+    model(nflt+3*i-0) = int(rot*1.0d4)
     write(0,*) 'init: ',i,model(nflt+3*i-2:nflt+3*i)
 enddo
 
@@ -376,8 +379,8 @@ do i = 1,npoles
     ! Rotation rate
     rot_current = dble(model_in(nflt+3*i-0))/1.0d4
     rot = 1.0d10
-    do while (rot.gt.pole_array(i,4).or.rot.lt.0.0d0)
-        drot = pole_array(i,4)/25.0d0
+    do while (rot.gt.pole_array(i,5).or.rot.lt.pole_array(i,4))
+        drot = (pole_array(i,5)-pole_array(i,4))/25.0d0
         rot = rot_current + drot
         rot = r8_normal_ab(rot_current,drot,iseed)
     enddo
