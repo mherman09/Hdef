@@ -5,6 +5,7 @@ character(len=512) :: output_file
 character(len=16) :: plates(2)
 double precision :: pole(3)
 character(len=32) :: model_name
+character(len=32) :: convert_mode
 
 end module
 
@@ -18,13 +19,14 @@ program main
 use io, only: stdout, stdin
 use trig, only: d2r
 use algebra, only: cross_product, normalize
-use earth, only: get_pole, pole_geo2xyz, deg2km, semimajor_grs80, eccentricity_grs80, ellipsoid_geo2xyz
+use earth, only: get_pole, pole_geo2xyz, pole_xyz2geo, deg2km
 
 use platemotion, only: input_file, &
                        output_file, &
                        plates, &
                        pole, &
-                       model_name
+                       model_name, &
+                       convert_mode
 
 implicit none
 
@@ -36,6 +38,18 @@ character(len=512) :: input_line
 
 ! Parse command line
 call gcmdln()
+
+
+! Convert and exit if convert mode specified
+if (convert_mode.eq.'xyz2geo') then
+    call pole_xyz2geo(pole(1),pole(2),pole(3),xyz_pole(1),xyz_pole(2),xyz_pole(3),'sphere')
+    write(*,*) xyz_pole(1),xyz_pole(2),xyz_pole(3)
+    stop
+elseif (convert_mode.eq.'geo2xyz') then
+    call pole_geo2xyz(pole(1),pole(2),pole(3),xyz_pole(1),xyz_pole(2),xyz_pole(3),'sphere')
+    write(*,*) xyz_pole(1),xyz_pole(2),xyz_pole(3)
+    stop
+endif
 
 
 ! Calculate pole of rotation between plate pair
@@ -111,7 +125,8 @@ use platemotion, only: input_file, &
                        output_file, &
                        plates, &
                        pole, &
-                       model_name
+                       model_name, &
+                       convert_mode
 
 implicit none
 
@@ -125,6 +140,7 @@ output_file = ''
 plates = ''
 pole = 0.0d0
 model_name = 'MORVEL56'
+convert_mode = ''
 
 ! Number of arguments
 narg = command_argument_count()
@@ -178,6 +194,11 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,output_file)
 
+    elseif (tag.eq.'-geo2xyz') then
+        convert_mode = 'geo2xyz'
+    elseif (tag.eq.'-xyz2geo') then
+        convert_mode = 'xyz2geo'
+
     else
         call usage('platemotion: no command line option '//trim(tag))
     endif
@@ -216,6 +237,8 @@ write(stderr,*) '                       MORVEL (DeMets et al., 2010)'
 write(stderr,*) '                       MORVEL56 (Argus et al., 2011)'
 write(stderr,*) '                       NUVEL1A  (DeMets et al., 1994)'
 write(stderr,*) '-list MODEL        List plates in MODEL (use ALL or leave blank to see all models)'
+write(stderr,*) '-geo2xyz           Convert Euler pole in geographic coordinates to Cartesian'
+write(stderr,*) '-xyz2geo           Convert Euler pole in Cartesian coordinates to geographic (assumes LON/LAT/VEL is X/Y/Z)'
 write(stderr,*) '-f IFILE           Input file (default: stdin)'
 write(stderr,*) '-o OFILE           Output file (default: stdout)'
 write(stderr,*)
