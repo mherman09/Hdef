@@ -1339,14 +1339,101 @@ rm *.tmp
 #echo Finished Test \#15
 #echo ----------
 #echo
-exit
 
 
 
 
 echo ----------------------------------------------------------
-echo Test \#16:
+echo Test \#16: Euler pole, least-squares
 echo ----------
+# Make a couple of points in North America
+cat > coords.tmp << EOF
+-124 41
+-123 44
+-122 46
+-124 48
+-120 43
+-121 45
+-121 47
+EOF
+
+# Calculate motion with respect to pole
+platemotion -f coords.tmp -pole -101/24/0.42 |\
+    awk '{print $1,$2,0,$3/1e3,$4/1e3,0}' > vel.tmp
+
+# Build Euler pole input file
+cat > euler.tmp << EOF
+1 # One pole
+# DOES NOT MATTER WHAT IS IN THIS LINE FOR LEAST-SQUARES
+EOF
+# Points to model with rigid-body rotations
+awk '{print 1,3,NR}' vel.tmp >> euler.tmp
+
+../bin/fltinv \
+    -mode lsqr \
+    -geo \
+    -disp vel.tmp \
+    -disp:unit m/yr \
+    -euler euler.tmp euler_out.tmp
+
+awk '{print $1}' euler_out.tmp > inversion.tmp
+echo -101 > answer.tmp
+./test_values.sh inversion.tmp answer.tmp 1 "fltinv: Euler pole lon" -zero 100 || exit 1
+awk '{print $2}' euler_out.tmp > inversion.tmp
+echo 24 > answer.tmp
+./test_values.sh inversion.tmp answer.tmp 1 "fltinv: Euler pole lat" -zero 100 || exit 1
+awk '{print $3}' euler_out.tmp > inversion.tmp
+echo 0.42 > answer.tmp
+./test_values.sh inversion.tmp answer.tmp 1 "fltinv: Euler pole vel" -zero 1.0 || exit 1
+
+rm *.tmp
+#echo ----------
+#echo Finished Test \#16
+#echo ----------
+#echo
+
+
+exit
+
+echo ----------------------------------------------------------
+echo Test \#17: Annealing with pseudo-coupling, plus an Euler pole
+echo ----------
+# Stations near North Island, New Zealand
+grid -x 173 177 -dx 1 -y -42 -37 -dy 1 -z 0 > sta.tmp
+
+# Put a couple of triangles near the Hikurangi subduction zone
+cat > tri.tmp << EOF
+178.0 -42.0
+179.0 -40.0
+180.0 -38.0
+181.0 -36.0
+EOF
+
+# Set Euler pole far north of points to move them eastward
+platemotion -f sta.tmp -pole 175.0/3.0/0.13
+
+cat > euler.tmp << EOF
+1
+175.0 0.0 5000
+EOF
+rm *.tmp
+#echo ----------
+#echo Finished Test \#17
+#echo ----------
+#echo
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Triangular faults, using geographic coordinates
 #
 #   *-*-*-*-*-*
