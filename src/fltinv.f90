@@ -68,6 +68,7 @@ type(fltinv_data) :: los                         ! Line-of-sight displacement ob
 type(fltinv_data) :: prestress                   ! Stress field at each sub-fault
 character(len=512) :: cov_file                   ! File with data covariance data
 double precision, allocatable :: cov_matrix(:,:) ! Data covariance matrix
+logical :: isCovMatrixDiagonal                   ! Data covariance matrix
 character(len=16) :: input_disp_unit             !
 
 ! Green's function variables
@@ -408,6 +409,7 @@ subroutine misfit_chi2(obs,pre,cov,n,chi2)
 !-----
 
 use solver, only: solve_dsysv
+use fltinv, only: isCovMatrixDiagonal
 
 implicit none
 
@@ -427,10 +429,16 @@ chi2 = 0.0d0
 dif = obs-pre
 
 ! Calculate dif_trans*cov^(-1)*dif
-call solve_dsysv(cov,dif,vec,n,ierr)
-do i = 1,n
-    chi2 = chi2 + dif(i)*vec(i)
-enddo
+if (isCovMatrixDiagonal) then
+    do i = 1,n
+        chi2 = chi2 + dif(i)*dif(i)/cov(i,1)
+    enddo
+else
+    call solve_dsysv(cov,dif,vec,n,ierr)
+    do i = 1,n
+        chi2 = chi2 + dif(i)*vec(i)
+    enddo
+endif
 
 return
 end subroutine

@@ -415,6 +415,7 @@ character(len=*) :: string
 
 ! Local variables
 integer :: i
+character(len=8) :: rejected_string
 
 
 if (anneal_log_file.eq.'') then
@@ -434,8 +435,17 @@ if (string.eq.'init') then
     enddo
 
 elseif (string.eq.'append') then
+    ! Is this a rejected model?
+    rejected_string = ''
+    do i = 1,n
+        if (abs(model_current(i)-model_proposed(i)).gt.1.0d-6) then
+            rejected_string = 'rejected'
+            exit
+        endif
+    enddo
+
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)
     do i = 1,n
         write(29,*) model_current(i),model_proposed(i)
     enddo

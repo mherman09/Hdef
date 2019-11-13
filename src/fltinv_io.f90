@@ -32,6 +32,7 @@ use fltinv, only: inversion_mode, &
                   prestress, &
                   cov_file, &
                   cov_matrix, &
+                  isCovMatrixDiagonal, &
                   gf_model, &
                   gf_disp, &
                   gf_los, &
@@ -54,8 +55,10 @@ implicit none
 ! Local variables
 integer :: i, j, ios, ierr, ii, nn, mm, ndisp_dof, nlos_dof, ndof
 double precision :: dist, dp1, dp2, cov, sts(3,3), nvec(3), vec(3), pt1(3), pt2(3), pt3(3)
+double precision, allocatable :: cov_matrix_temp(:)
 character(len=512) :: line
 character(len=1) :: nchar, mchar
+logical :: foundRigidObs
 
 
 if (verbosity.ge.1) then
@@ -270,18 +273,43 @@ if (euler_file.ne.'none') then
         read(68,'(A)',end=4003,iostat=ios) line
         read(line,*,end=4004,err=4004,iostat=ios) i,nchar,j
         if (nchar.eq.'3') then
-            rigid_pt_array_disp(j) = i
+            if (allocated(rigid_pt_array_disp)) then
+                rigid_pt_array_disp(j) = i
+            else
+                call usage('read_inputs: specified rigid rotation for 3D motion but array unallocated')
+            endif
         elseif (nchar.eq.'l'.or.nchar.eq.'L') then
-            rigid_pt_array_los(j) = i
+            if (allocated(rigid_pt_array_los)) then
+                rigid_pt_array_los(j) = i
+            else
+                call usage('read_inputs: specified rigid rotation for LOS motion but array unallocated')
+            endif
         else
             call usage('read_inputs: no observation type code named '//nchar//'; use "3" or "L"'// &
-	                   ' (usage:none)')
+                       ' (usage:none)')
         endif
     enddo
     4003 ios = 0
     4004 if (ios.ne.0) then
         call usage('read_inputs: error parsing ipole 3|L iobs from: '//trim(line)// &
                    ' (usage:none)')
+    endif
+
+    ! Check that some point is constraining the Euler pole rotation
+    foundRigidObs = .false.
+    if (allocated(rigid_pt_array_disp)) then
+        if (maxval(rigid_pt_array_disp).gt.0) then
+            foundRigidObs = .true.
+        endif
+    endif
+    if (allocated(rigid_pt_array_los)) then
+        if (maxval(rigid_pt_array_los).gt.0) then
+            foundRigidObs = .true.
+        endif
+    endif
+    if (.not.foundRigidObs) then
+        call usage('read_inputs: user wants Euler pole but no observations have rigid rotations '//&
+                   '(usage:euler)')
     endif
 
     ! Initialize Greens functions for rotations
@@ -911,6 +939,40 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
             write(stdout,*) 'read_inputs: data covariance matrix is identity matrix'
         endif
     endif
+
+
+    ! If covariance matrix is diagonal, then only store diagonal elements
+    ! Check if matrix is diagonal
+    isCovMatrixDiagonal = .true.
+    do i = 1,ndof
+        do j = 1,ndof
+            ! If off-diagonal term is non-zero, set flag to false and exit
+            if (i.ne.j) then
+                if (abs(cov_matrix(i,j)).gt.1.0d-10) then
+                    isCovMatrixDiagonal = .false.
+                    exit
+                endif
+            endif
+        enddo
+    enddo
+
+    ! If diagonal, resize covariance array
+    if (isCovMatrixDiagonal) then
+        ! Store covariance matrix in a temporary array of length ndof
+        allocate(cov_matrix_temp(ndof))
+        do i = 1,ndof
+            cov_matrix_temp(i) = cov_matrix(i,i)
+        enddo
+
+        ! Re-size the matrix
+        deallocate(cov_matrix)
+        allocate(cov_matrix(ndof,1))
+
+        ! Update the covariance matrix with stored values and get rid of the temporary array
+        cov_matrix(:,1) = cov_matrix_temp
+        deallocate(cov_matrix_temp)
+    endif
+
 
     if (verbosity.ge.3) then
         write(stdout,*) 'Covariance matrix:'

@@ -24,6 +24,7 @@ use fltinv, only: fault, &
                   los, &
                   prestress, &
                   cov_matrix, &
+                  isCovMatrixDiagonal, &
                   gf_disp, &
                   gf_los, &
                   gf_stress, &
@@ -231,13 +232,22 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     endif
 
     ! Compute cov_matrix^-1*A and cov_matrix^1*b
-    call solve_dsysv_nrhs(cov_matrix,A(1:ndsp_dof+nlos,1:nslip),atmp,ndsp_dof+nlos,nslip,ierr)
-    if (ierr.ne.0) then
-        call usage('invert_lsqr: error computing cov_matrix^-1*A')
-    endif
-    call solve_dsysv(cov_matrix,b(1:ndsp_dof+nlos),btmp,ndsp_dof+nlos,ierr)
-    if (ierr.ne.0) then
-        call usage('invert_lsqr: error computing cov_matrix^-1*b')
+    if (isCovMatrixDiagonal) then
+        do i = 1,ndsp_dof+nlos
+            do j = 1,nslip
+                atmp(i,j) = A(i,j)/cov_matrix(i,1)
+            enddo
+            btmp(i) = b(i)/cov_matrix(i,1)
+        enddo
+    else
+        call solve_dsysv_nrhs(cov_matrix,A(1:ndsp_dof+nlos,1:nslip),atmp,ndsp_dof+nlos,nslip,ierr)
+        if (ierr.ne.0) then
+            call usage('invert_lsqr: error computing cov_matrix^-1*A')
+        endif
+        call solve_dsysv(cov_matrix,b(1:ndsp_dof+nlos),btmp,ndsp_dof+nlos,ierr)
+        if (ierr.ne.0) then
+            call usage('invert_lsqr: error computing cov_matrix^-1*b')
+        endif
     endif
     A(1:ndsp_dof+nlos,1:nslip) = atmp
     b(1:ndsp_dof+nlos) = btmp
