@@ -408,7 +408,10 @@ subroutine misfit_chi2(obs,pre,cov,n,chi2)
 !     cov_mat = covariance matrix
 !-----
 
+#ifdef USE_LAPACK
 use solver, only: solve_dsysv
+#endif
+
 use fltinv, only: isCovMatrixDiagonal
 
 implicit none
@@ -434,10 +437,17 @@ if (isCovMatrixDiagonal) then
         chi2 = chi2 + dif(i)*dif(i)/cov(i,1)
     enddo
 else
+
+#ifdef USE_LAPACK
     call solve_dsysv(cov,dif,vec,n,ierr)
     do i = 1,n
         chi2 = chi2 + dif(i)*vec(i)
     enddo
+#else
+    call usage('misfit_chi2: cannot calculate chi-squared for non-diagonal covariance matrix '//&
+               'without LAPACK')
+#endif
+
 endif
 
 return

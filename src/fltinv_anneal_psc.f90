@@ -519,6 +519,8 @@ subroutine psc_slip(locked,n,slip)
 ! Solve for fault slip in unlocked patches surrounding locked patches
 !----
 
+#ifdef USE_LAPACK
+
 use io, only: stderr
 use solver, only: load_array, load_constraints, solve_dgesv
 
@@ -680,6 +682,12 @@ do i = 1,nflt
     ! write(0,*) 'psc_slip',i, slip(i,:)
 enddo
 
+#else
+
+call usage('psc_slip: unable to compute pseudo-coupling slip when compiled without LAPACK '//&
+           '(usage:none)')
+
+#endif
 
 return
 end subroutine psc_slip

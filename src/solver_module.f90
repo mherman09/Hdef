@@ -45,6 +45,7 @@ public :: solve_dgels
 public :: solve_dgesv
 public :: solve_dsyev
 public :: solve_dsysv
+public :: solve_dsysv_nrhs
 #endif
 
 #ifdef USE_SUPERLU

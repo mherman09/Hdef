@@ -8,6 +8,8 @@ subroutine invert_lsqr()
 ! Solve for fault slip by directly solving the set of linear equations Ax=b for x.
 !----
 
+#ifdef USE_LAPACK
+
 use io, only: stdout, stderr, verbosity
 use solver, only: load_array, load_constraints, solve_dgels, solve_dsysv, solve_dsysv_nrhs, &
                   solve_nnls, solve_dgesv
@@ -487,6 +489,12 @@ if (npoles.gt.0) then
         euler_pole(i,3) = x(j+i+1)/factor
     enddo
 endif
+
+#else
+
+call usage('invert_lsqr: this subroutine will not work unless compiled with LAPACK (usage:none)')
+
+#endif
 
 return
 end subroutine invert_lsqr
