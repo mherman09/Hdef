@@ -6,6 +6,7 @@ character(len=16) :: ffm_type
 character(len=512) :: slip_file
 character(len=512) :: time_file
 character(len=512) :: depth_file
+character(len=512) :: area_file
 
 character(len=512) :: clip_file
 character(len=16) :: clip_type
@@ -31,6 +32,7 @@ use ff2gmt, only: input_file, &
                   slip_file, &
                   time_file, &
                   depth_file, &
+                  area_file, &
                   clip_file, &
                   clip_type, &
                   epi_file, &
@@ -91,6 +93,9 @@ endif
 if (depth_file.ne.'') then
     open(unit=23,file=depth_file,status='unknown')
 endif
+if (area_file.ne.'') then
+    open(unit=24,file=area_file,status='unknown')
+endif
 if (epi_file.ne.'') then
     open(unit=31,file=epi_file,status='unknown')
 endif
@@ -121,6 +126,9 @@ do i = 1,ff%nflt
     endif
     if (depth_file.ne.'') then
         write(23,*) evlo,evla,evdp,str,len,wid*cos(dip*d2r)
+    endif
+    if (area_file.ne.'') then
+        write(24,*) len*wid,len,wid
     endif
 enddo
 
@@ -166,6 +174,7 @@ endif
 close(21)
 close(22)
 close(23)
+close(24)
 close(31)
 close(41)
 
@@ -180,6 +189,7 @@ use ff2gmt, only: input_file, &
                   slip_file, &
                   time_file, &
                   depth_file, &
+                  area_file, &
                   clip_file, &
                   clip_type, &
                   epi_file, &
@@ -197,6 +207,7 @@ ffm_type = ''
 slip_file = ''
 time_file = ''
 depth_file = ''
+area_file = ''
 clip_file = ''
 epi_file = ''
 isOutputDefined = .false.
@@ -234,6 +245,10 @@ do while (i.le.narg)
         isOutputDefined = .true.
         i = i + 1
         call get_command_argument(i,depth_file)
+    elseif (trim(tag).eq.'-area') then
+        isOutputDefined = .true.
+        i = i + 1
+        call get_command_argument(i,area_file)
 
     elseif (trim(tag).eq.'-clipseg') then
         isOutputDefined = .true.
@@ -287,6 +302,7 @@ write(stderr,*) 'Other options'
 write(stderr,*) '-clip CLIPFILE     Write outline of FFM to file'
 write(stderr,*) '-clipseg CLIPFILE  Write outline of each segment of FFM to file'
 write(stderr,*) '-epi EPIFILE       Write epicenter to file'
+write(stderr,*) '-area AREAFILE     Sub-fault area, length, and width'
 write(stderr,*)
 
 stop
