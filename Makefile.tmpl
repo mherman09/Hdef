@@ -1,8 +1,8 @@
 ##### Compilers #####
-# C compiler executable
+# C compiler
 CC = gcc
 
-# Fortran compiler executable
+# Fortran compiler
 FC = gfortran
 
 # Fortran compiler warnings
@@ -18,24 +18,26 @@ FOPT  = -O1
 FFLAGS = $(FWARN) $(FOPT)
 
 
+##### Executable directory (where to put compiled codes and scripts) #####
+BIN_DIR   = ./bin
+
+
 ##### Include directory (where to put .o and .mod files) #####
 INCLUDE_DIR = ./include
-INCLUDE_FLAGS = -I$(INCLUDE_DIR) -J$(INCLUDE_DIR)
-
-
-##### Executable directory (where to put compiled codes) #####
-BIN   = ./bin
+INCLUDE_FLAGS = -I$(INCLUDE_DIR) -J$(INCLUDE_DIR)           # Include options
 
 
 ##### External libraries #####
 # LAPACK (linear algebra)
-LAPACK_LIB_DIR = /sw/lib/lapack
-LAPACK_LIB     = -lreflapack -lrefblas -ltmglib
-# LAPACK_LIB     = -llapack -lblas -ltmglib
-LAPACK         = -L$(LAPACK_LIB_DIR) $(LAPACK_LIB)
-CPP_LAPACK = -DUSE_LAPACK
-# LAPACK =
-# CPP_LAPACK =
+LAPACK_LIB_DIR = /sw/lib/lapack                             # Path to LAPACK libraries
+
+LAPACK_LIB     = -lreflapack -lrefblas -ltmglib             # Names of LAPACK libraries (may not
+# LAPACK_LIB     = -llapack -lblas -ltmglib                 # have "ref" prefix)
+
+LAPACK         = -L$(LAPACK_LIB_DIR) $(LAPACK_LIB)          # To compile with LAPACK, uncomment these lines
+CPP_LAPACK     = -DUSE_LAPACK
+# LAPACK         =                                            # To compile without LAPACK, uncomment these lines
+# CPP_LAPACK     =
 
 # SuperLU (sparse linear equation solvers)
 SUPERLU_LIB_DIR = ./ext/SuperLU_5.2.1/lib
@@ -60,343 +62,377 @@ CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
 ####################################################################################################
 ####################################################################################################
 
+.PHONY: all scripts objects clean
 
 
-##################################
-##### COMPILED PROGRAM RULES #####
-##################################
+##############################
+##### HDEF PROGRAM RULES #####
+##############################
 all: \
-    $(INCLUDE_DIR) \
-    $(BIN) \
-    $(BIN)/anneal_post \
-    $(BIN)/clip \
-    $(BIN)/colortool \
-    $(BIN)/dateutil \
-    $(BIN)/distaz2lola \
-    $(BIN)/fitutil \
-    $(BIN)/ff2gmt \
-    $(BIN)/fltinv \
-    $(BIN)/grid \
-    $(BIN)/lola2distaz \
-    $(BIN)/mtutil \
-    $(BIN)/numint \
-    $(BIN)/o92util \
-    $(BIN)/perspective \
-    $(BIN)/platemotion \
-    $(BIN)/rangen \
-    $(BIN)/readGCMT \
-    $(BIN)/readkik \
-    $(BIN)/sphfinrot \
-    $(BIN)/stereo_project \
-    $(BIN)/triutil \
-    $(BIN)/vec2los \
-    $(BIN)/wraplos \
+    anneal_post \
+    clip \
+    colortool \
+    dateutil \
+    distaz2lola \
+    ff2gmt \
+    fitutil \
+    fltinv \
+    grid \
+    lola2distaz \
+    mtutil \
+    numint \
+    o92util \
+    perspective \
+    platemotion \
+    rangen \
+    readGCMT \
+    readkik \
+    sphfinrot \
+    stereo_project \
+    triutil \
+    vec2los \
+    wraplos \
     scripts
 
-$(BIN):
-	mkdir -p $(BIN)
-
-$(BIN)/anneal_post: src/anneal_post.f90 \
-             $(INCLUDE_DIR)/algebra.o \
-             $(INCLUDE_DIR)/earth.o \
-             $(INCLUDE_DIR)/io.o
+# Rules for compiled programs
+anneal_post: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/anneal_post
+$(BIN_DIR)/anneal_post: src/anneal_post.f90 \
+                        $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/clip: src/clip.f90 \
-             $(INCLUDE_DIR)/algebra.o \
-             $(INCLUDE_DIR)/geom.o \
-             $(INCLUDE_DIR)/io.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/colortool: src/colortool.f90
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/dateutil: src/dateutil.f90 \
-                 $(INCLUDE_DIR)/calendar.o \
+clip: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/clip
+$(BIN_DIR)/clip: src/clip.f90 \
+                 $(INCLUDE_DIR)/algebra.o \
+                 $(INCLUDE_DIR)/geom.o \
                  $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/distaz2lola: src/distaz2lola_prog.f90 \
-                    $(INCLUDE_DIR)/algebra.o \
-                    $(INCLUDE_DIR)/earth.o \
-                    $(INCLUDE_DIR)/geom.o \
-                    $(INCLUDE_DIR)/io.o
+colortool: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/colortool
+$(BIN_DIR)/colortool: src/colortool.f90
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/ff2gmt: src/ff2gmt.f90 \
-               $(INCLUDE_DIR)/algebra.o \
-               $(INCLUDE_DIR)/ffm.o \
-               $(INCLUDE_DIR)/geom.o \
-               $(INCLUDE_DIR)/io.o \
-               $(INCLUDE_DIR)/trig.o
+dateutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/dateutil
+$(BIN_DIR)/dateutil: src/dateutil.f90 \
+                     $(INCLUDE_DIR)/calendar.o \
+                     $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/fitutil: src/fitutil.f90 \
-                $(INCLUDE_DIR)/io.o \
-                $(INCLUDE_DIR)/solver.o \
-                $(INCLUDE_DIR)/trig.o
+distaz2lola: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/distaz2lola
+$(BIN_DIR)/distaz2lola: src/distaz2lola_prog.f90 \
+                        $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/geom.o \
+                        $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+ff2gmt: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/ff2gmt
+$(BIN_DIR)/ff2gmt: src/ff2gmt.f90 \
+                   $(INCLUDE_DIR)/algebra.o \
+                   $(INCLUDE_DIR)/ffm.o \
+                   $(INCLUDE_DIR)/geom.o \
+                   $(INCLUDE_DIR)/io.o \
+                   $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+fitutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/fitutil
+$(BIN_DIR)/fitutil: src/fitutil.f90 \
+                    $(INCLUDE_DIR)/io.o \
+                    $(INCLUDE_DIR)/solver.o \
+                    $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
-$(BIN)/fltinv: src/fltinv.f90 \
-               src/fltinv_io.f90 \
-               src/fltinv_gf.f90 \
-               src/fltinv_lsqr.f90 \
-               src/fltinv_anneal.f90 \
-               src/fltinv_anneal_psc.f90 \
-               src/fltinv_anneal_psc_euler.f90 \
-               $(INCLUDE_DIR)/algebra.o \
-               $(INCLUDE_DIR)/annealing.o \
-               $(INCLUDE_DIR)/earth.o \
-               $(INCLUDE_DIR)/elast.o \
-               $(INCLUDE_DIR)/geom.o \
-               $(INCLUDE_DIR)/io.o \
-               $(INCLUDE_DIR)/okada92.o \
-               $(INCLUDE_DIR)/random.o \
-               $(INCLUDE_DIR)/solver.o \
-               $(INCLUDE_DIR)/trig.o \
-               $(INCLUDE_DIR)/tri_disloc.o
+fltinv: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/fltinv
+$(BIN_DIR)/fltinv: src/fltinv.f90 \
+                   src/fltinv_io.f90 \
+                   src/fltinv_gf.f90 \
+                   src/fltinv_lsqr.f90 \
+                   src/fltinv_anneal.f90 \
+                   src/fltinv_anneal_psc.f90 \
+                   src/fltinv_anneal_psc_euler.f90 \
+                   $(INCLUDE_DIR)/algebra.o \
+                   $(INCLUDE_DIR)/annealing.o \
+                   $(INCLUDE_DIR)/earth.o \
+                   $(INCLUDE_DIR)/elast.o \
+                   $(INCLUDE_DIR)/geom.o \
+                   $(INCLUDE_DIR)/io.o \
+                   $(INCLUDE_DIR)/okada92.o \
+                   $(INCLUDE_DIR)/random.o \
+                   $(INCLUDE_DIR)/solver.o \
+                   $(INCLUDE_DIR)/trig.o \
+                   $(INCLUDE_DIR)/tri_disloc.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) $(SUPERLU) -o $@
 
-$(BIN)/grid: src/grid.f90 \
-             $(INCLUDE_DIR)/algebra.o \
-             $(INCLUDE_DIR)/earth.o \
-             $(INCLUDE_DIR)/geom.o \
-             $(INCLUDE_DIR)/io.o \
-             $(INCLUDE_DIR)/trig.o
+grid: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/grid
+$(BIN_DIR)/grid: src/grid.f90 \
+                 $(INCLUDE_DIR)/algebra.o \
+                 $(INCLUDE_DIR)/earth.o \
+                 $(INCLUDE_DIR)/geom.o \
+                 $(INCLUDE_DIR)/io.o \
+                 $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/lola2distaz: src/lola2distaz_prog.f90 \
-                    $(INCLUDE_DIR)/algebra.o \
-                    $(INCLUDE_DIR)/earth.o \
-                    $(INCLUDE_DIR)/geom.o \
-                    $(INCLUDE_DIR)/io.o
+lola2distaz: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/lola2distaz
+$(BIN_DIR)/lola2distaz: src/lola2distaz_prog.f90 \
+                        $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/geom.o \
+                        $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/mtutil: src/mtutil.f90 \
-               $(INCLUDE_DIR)/eq.o \
-               $(INCLUDE_DIR)/io.o
+mtutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/mtutil
+$(BIN_DIR)/mtutil: src/mtutil.f90 \
+                   $(INCLUDE_DIR)/eq.o \
+                   $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
-$(BIN)/numint: src/numint.f
+numint: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/numint
+$(BIN_DIR)/numint: src/numint.f
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/o92util: src/o92util.f90 \
-                $(INCLUDE_DIR)/algebra.o \
-                $(INCLUDE_DIR)/earth.o \
-                $(INCLUDE_DIR)/elast.o \
-                $(INCLUDE_DIR)/eq.o \
-                $(INCLUDE_DIR)/ffm.o \
-                $(INCLUDE_DIR)/geom.o \
-                $(INCLUDE_DIR)/io.o \
-                $(INCLUDE_DIR)/okada92.o \
-                $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
-
-$(BIN)/perspective: src/perspective_prog.f90 \
-                    $(INCLUDE_DIR)/algebra.o \
-                    $(INCLUDE_DIR)/geom.o \
-                    $(INCLUDE_DIR)/io.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/platemotion: src/platemotion.f90 \
+o92util: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/o92util
+$(BIN_DIR)/o92util: src/o92util.f90 \
                     $(INCLUDE_DIR)/algebra.o \
                     $(INCLUDE_DIR)/earth.o \
+                    $(INCLUDE_DIR)/elast.o \
+                    $(INCLUDE_DIR)/eq.o \
+                    $(INCLUDE_DIR)/ffm.o \
+                    $(INCLUDE_DIR)/geom.o \
+                    $(INCLUDE_DIR)/io.o \
+                    $(INCLUDE_DIR)/okada92.o \
+                    $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
+
+perspective: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/perspective
+$(BIN_DIR)/perspective: src/perspective_prog.f90 \
+                        $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/geom.o \
+                        $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+platemotion: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/platemotion
+$(BIN_DIR)/platemotion: src/platemotion.f90 \
+                        $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/io.o \
+                        $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+rangen: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/rangen
+$(BIN_DIR)/rangen: src/rangen.f90 \
+                   $(INCLUDE_DIR)/io.o \
+                   $(INCLUDE_DIR)/random.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+readGCMT: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/readGCMT
+$(BIN_DIR)/readGCMT: src/readGCMT.f90 \
+                     $(INCLUDE_DIR)/algebra.o \
+                     $(INCLUDE_DIR)/calendar.o \
+                     $(INCLUDE_DIR)/earth.o \
+                     $(INCLUDE_DIR)/eq.o \
+                     $(INCLUDE_DIR)/geom.o \
+                     $(INCLUDE_DIR)/io.o \
+                     $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
+
+readkik: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/readkik
+$(BIN_DIR)/readkik: src/readkik.f
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
+
+sphfinrot: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/sphfinrot
+$(BIN_DIR)/sphfinrot: src/sphfinrot.f90 \
+                      $(INCLUDE_DIR)/algebra.o \
+                      $(INCLUDE_DIR)/earth.o \
+                      $(INCLUDE_DIR)/io.o \
+                      $(INCLUDE_DIR)/trig.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+stereo_project: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/stereo_project
+$(BIN_DIR)/stereo_project: src/stereo_project.f90 \
+                           $(INCLUDE_DIR)/algebra.o \
+                           $(INCLUDE_DIR)/earth.o \
+                           $(INCLUDE_DIR)/io.o \
+                           $(INCLUDE_DIR)/map.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+triutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/triutil
+$(BIN_DIR)/triutil: src/triutil.f90 \
+                    $(INCLUDE_DIR)/algebra.o \
+                    $(INCLUDE_DIR)/geom.o \
+                    $(INCLUDE_DIR)/earth.o \
+                    $(INCLUDE_DIR)/elast.o \
+                    $(INCLUDE_DIR)/eq.o \
+                    $(INCLUDE_DIR)/geom.o \
+                    $(INCLUDE_DIR)/io.o \
+                    $(INCLUDE_DIR)/trig.o \
+                    $(INCLUDE_DIR)/tri_disloc.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
+
+vec2los: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/vec2los
+$(BIN_DIR)/vec2los: src/vec2los.f90 \
                     $(INCLUDE_DIR)/io.o \
                     $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
-$(BIN)/rangen: src/rangen.f90 \
-               $(INCLUDE_DIR)/io.o \
-               $(INCLUDE_DIR)/random.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/readGCMT: src/readGCMT.f90 \
-                 $(INCLUDE_DIR)/algebra.o \
-                 $(INCLUDE_DIR)/calendar.o \
-                 $(INCLUDE_DIR)/earth.o \
-                 $(INCLUDE_DIR)/eq.o \
-                 $(INCLUDE_DIR)/geom.o \
-                 $(INCLUDE_DIR)/io.o \
-                 $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
-
-$(BIN)/readkik: src/readkik.f
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
-
-$(BIN)/sphfinrot: src/sphfinrot.f90 \
-                  $(INCLUDE_DIR)/algebra.o \
-                  $(INCLUDE_DIR)/earth.o \
-                  $(INCLUDE_DIR)/io.o \
-                  $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/stereo_project: src/stereo_project.f90 \
-                       $(INCLUDE_DIR)/algebra.o \
-                       $(INCLUDE_DIR)/earth.o \
-                       $(INCLUDE_DIR)/io.o \
-                       $(INCLUDE_DIR)/map.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/triutil: src/triutil.f90 \
-                $(INCLUDE_DIR)/algebra.o \
-                $(INCLUDE_DIR)/geom.o \
-                $(INCLUDE_DIR)/earth.o \
-                $(INCLUDE_DIR)/elast.o \
-                $(INCLUDE_DIR)/eq.o \
-                $(INCLUDE_DIR)/geom.o \
-                $(INCLUDE_DIR)/io.o \
-                $(INCLUDE_DIR)/trig.o \
-                $(INCLUDE_DIR)/tri_disloc.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
-
-$(BIN)/vec2los: src/vec2los.f90 \
-                $(INCLUDE_DIR)/io.o \
-                $(INCLUDE_DIR)/trig.o
-	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
-
-$(BIN)/wraplos: src/wraplos.f90 \
-                $(INCLUDE_DIR)/io.o \
-                $(INCLUDE_DIR)/trig.o
+wraplos: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/wraplos
+$(BIN_DIR)/wraplos: src/wraplos.f90 \
+                    $(INCLUDE_DIR)/io.o \
+                    $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 
+# Rules for scripts
 scripts: \
-    $(BIN)/coul_dip.sh \
-    $(BIN)/coul_hor.sh \
-    $(BIN)/coul_xsec.sh \
-    $(BIN)/gmtcpt.sh \
-    $(BIN)/simplify_ffm.sh \
-    $(BIN)/surf_disp.sh \
-    $(BIN)/ternary.sh \
-    $(BIN)/trg_schem.sh
+    $(BIN_DIR)/coul_dip.sh \
+    $(BIN_DIR)/coul_hor.sh \
+    $(BIN_DIR)/coul_xsec.sh \
+    $(BIN_DIR)/gmtcpt.sh \
+    $(BIN_DIR)/simplify_ffm.sh \
+    $(BIN_DIR)/surf_disp.sh \
+    $(BIN_DIR)/ternary.sh \
+    $(BIN_DIR)/trg_schem.sh
 
-$(BIN)/coul_dip.sh: ./scripts/coul_dip.sh
-	cp $^ $@
-$(BIN)/coul_hor.sh: ./scripts/coul_hor.sh
-	cp $^ $@
-$(BIN)/coul_xsec.sh: ./scripts/coul_xsec.sh
-	cp $^ $@
-$(BIN)/gmtcpt.sh: ./scripts/gmtcpt.sh
-	cp $^ $@
-$(BIN)/simplify_ffm.sh: ./scripts/simplify_ffm.sh
-	cp $^ $@
-$(BIN)/surf_disp.sh: ./scripts/surf_disp.sh
-	cp $^ $@
-$(BIN)/ternary.sh: ./scripts/ternary.sh
-	cp $^ $@
-$(BIN)/trg_schem.sh: ./scripts/trg_schem.sh
-	cp $^ $@
+$(BIN_DIR)/coul_dip.sh: ./scripts/coul_dip.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/coul_hor.sh: ./scripts/coul_hor.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/coul_xsec.sh: ./scripts/coul_xsec.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/gmtcpt.sh: ./scripts/gmtcpt.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/simplify_ffm.sh: ./scripts/simplify_ffm.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/surf_disp.sh: ./scripts/surf_disp.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/ternary.sh: ./scripts/ternary.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+$(BIN_DIR)/trg_schem.sh: ./scripts/trg_schem.sh $(BIN_DIR_MARKER_FILE)
+	cp $< $@
+
+
+
 
 ####################################
 ##### MODULE AND OBJECT RULES ######
 ####################################
-INCLUDE_FILES = \
-    $(INCLUDE_DIR)/algebra.o \
-    $(INCLUDE_DIR)/annealing.o \
-    $(INCLUDE_DIR)/calendar.o \
-    $(INCLUDE_DIR)/earth.o \
-    $(INCLUDE_DIR)/elast.o \
-    $(INCLUDE_DIR)/eq.o \
-    $(INCLUDE_DIR)/error_exit.o \
-    $(INCLUDE_DIR)/ffm.o \
-    $(INCLUDE_DIR)/geom.o \
-    $(INCLUDE_DIR)/io.o \
-    $(INCLUDE_DIR)/map.o \
-    $(INCLUDE_DIR)/okada92.o \
-    $(INCLUDE_DIR)/random.o \
-    $(INCLUDE_DIR)/solver.o \
-    $(INCLUDE_DIR)/test.o \
-    $(INCLUDE_DIR)/trig.o \
-    $(INCLUDE_DIR)/tri_disloc.o
-
-objects: $(INCLUDE_FILES)
-
-$(INCLUDE_DIR):
-	mkdir -p $(INCLUDE_DIR)
-
-
 $(INCLUDE_DIR)/algebra.o: src/algebra_module.f90 \
                           $(INCLUDE_DIR)/io.o \
-                          $(INCLUDE_DIR)/trig.o
+                          $(INCLUDE_DIR)/trig.o \
+                         $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/annealing.o: src/annealing_module.f90 \
                             $(INCLUDE_DIR)/io.o \
-                            $(INCLUDE_DIR)/random.o
+                            $(INCLUDE_DIR)/random.o \
+                            $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/calendar.o: src/calendar_module.f90 \
-                           $(INCLUDE_DIR)/io.o
+                           $(INCLUDE_DIR)/io.o \
+                           $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/earth.o: src/earth_module.f90 \
                         $(INCLUDE_DIR)/algebra.o \
                         $(INCLUDE_DIR)/io.o \
-                        $(INCLUDE_DIR)/trig.o
+                        $(INCLUDE_DIR)/trig.o \
+                        $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/elast.o: src/elast_module.f90 \
                         $(INCLUDE_DIR)/algebra.o \
                         $(INCLUDE_DIR)/geom.o \
-                        $(INCLUDE_DIR)/io.o
+                        $(INCLUDE_DIR)/io.o \
+                        $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
 $(INCLUDE_DIR)/eq.o: src/eq_module.f90 \
                      $(INCLUDE_DIR)/io.o \
-                     $(INCLUDE_DIR)/trig.o
+                     $(INCLUDE_DIR)/trig.o \
+                     $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
-$(INCLUDE_DIR)/error_exit.o: src/error_exit.c
+$(INCLUDE_DIR)/error_exit.o: src/error_exit.c \
+                             $(INCLUDE_DIR_MARKER_FILE)
 	$(CC) $<  -c -o $@
 
 $(INCLUDE_DIR)/ffm.o: src/ffm_module.f90 \
                       $(INCLUDE_DIR)/geom.o \
                       $(INCLUDE_DIR)/io.o \
-                      $(INCLUDE_DIR)/trig.o
+                      $(INCLUDE_DIR)/trig.o \
+                      $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/geom.o: src/geom_module.f90 \
                        $(INCLUDE_DIR)/algebra.o \
                        $(INCLUDE_DIR)/io.o \
-                       $(INCLUDE_DIR)/trig.o
+                       $(INCLUDE_DIR)/trig.o \
+                       $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
-$(INCLUDE_DIR)/io.o: src/io_module.f90
+$(INCLUDE_DIR)/io.o: src/io_module.f90 \
+                     $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/okada92.o: src/okada92_module.f90 \
                           $(INCLUDE_DIR)/io.o \
-                          $(INCLUDE_DIR)/trig.o
+                          $(INCLUDE_DIR)/trig.o \
+                          $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/map.o: src/map_module.f90 \
                       $(INCLUDE_DIR)/earth.o \
                       $(INCLUDE_DIR)/io.o \
-                      $(INCLUDE_DIR)/trig.o
+                      $(INCLUDE_DIR)/trig.o \
+                      $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
-$(INCLUDE_DIR)/random.o: src/random_module.f90
+$(INCLUDE_DIR)/random.o: src/random_module.f90 \
+                     $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
 $(INCLUDE_DIR)/solver.o: src/solver_module.f90 \
-                         $(INCLUDE_DIR)/io.o
+                         $(INCLUDE_DIR)/io.o \
+                         $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
 $(INCLUDE_DIR)/test.o: src/test_module.f90 \
-                       $(INCLUDE_DIR)/error_exit.o
+                       $(INCLUDE_DIR)/error_exit.o \
+                       $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
-$(INCLUDE_DIR)/trig.o: src/trig_module.f90
+$(INCLUDE_DIR)/trig.o: src/trig_module.f90 \
+                     $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/tri_disloc.o: src/tri_disloc_module.f90 \
                              $(INCLUDE_DIR)/earth.o \
                              $(INCLUDE_DIR)/geom.o \
                              $(INCLUDE_DIR)/io.o \
-                             $(INCLUDE_DIR)/trig.o
+                             $(INCLUDE_DIR)/trig.o \
+                             $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/%.o: $(INCLUDE_DIR)/%.mod
+
+
+
+##################################
+##### DIRECTORY MARKER FILES #####
+##################################
+# Marker files to indicate that directories have been made/updated
+BIN_DIR_MARKER_FILE = $(BIN_DIR)/.readme
+$(BIN_DIR_MARKER_FILE):
+	mkdir -p $(BIN_DIR)
+	date +%Y-%m-%dT%H:%M:%S > $(BIN_DIR_MARKER_FILE)
+
+INCLUDE_DIR_MARKER_FILE = $(INCLUDE_DIR)/.readme
+$(INCLUDE_DIR_MARKER_FILE):
+	mkdir -p $(INCLUDE_DIR)
+	date +%Y-%m-%dT%H:%M:%S > $(INCLUDE_DIR_MARKER_FILE)
+
+
 
 
 ###########################
@@ -554,7 +590,6 @@ test_tri_disloc: src/unit_test_tri_disloc.f90 \
 ##### CLEAN UP #####
 ####################
 # Clean bin directory
-.PHONY: clean
 clean:
-	-rm $(BIN)/*
+	-rm $(BIN_DIR)/*
 	-rm $(INCLUDE_DIR)/*
