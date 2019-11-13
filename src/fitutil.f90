@@ -24,6 +24,8 @@ end module
 
 program main
 
+#ifdef USE_LAPACK
+
 use io, only: stdin, stdout, stderr, fileExists, line_count
 use trig, only: pi
 use solver, only: solve_dgels
@@ -52,11 +54,6 @@ integer, parameter :: NROWS_STDIN = 100000
 character(len=512) :: line
 double precision, allocatable :: obs(:,:), A(:,:), b(:), x(:)
 double precision :: pre, amp, pha
-
-
-#ifndef USE_LAPACK
-    call usage('fitutil: does not work if compiled without LAPACK libraries')
-#endif
 
 
 ! Parse command line
@@ -294,6 +291,11 @@ endif
 if (luout.ne.stdout) then
     close(12)
 endif
+
+#else
+    call usage('fitutil: does not work if compiled without LAPACK libraries')
+#endif
+
 
 end
 
