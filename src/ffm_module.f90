@@ -55,6 +55,7 @@ logical :: ex
 integer :: i, j, n, nx, ny, ios, iseg
 character(len=1) :: dum
 character(len=16) :: dx_char, dy_char
+character(len=512) :: input_line
 double precision :: lon, lat, dep, strike, dip, rake, slip, dx, dy, trup
 
 ! As we begin our journey, everything seems okay...
@@ -81,10 +82,31 @@ read (34,*) dum,dum,dum,dum,usgs_param_data%nseg
 ! Count the total number of sub-faults
 usgs_param_data%nflt = 0
 do iseg = 1,usgs_param_data%nseg
-    read(34,*) dum,dum,dum,dum,nx,dum,dum,dum,ny
+    ! First line defines number of sub-faults in segment
+    read(34,'(A)',iostat=ios) input_line
+    if (ios.ne.0) then
+        write(stderr,*) 'read_usgs_param: error reading first line of seg, ',iseg
+        ierr = 1
+        return
+    endif
+
+    ! Parse line to get number of sub-faults
+    read(input_line,*,iostat=ios) dum,dum,dum,dum,nx,dum,dum,dum,ny
+    if (ios.ne.0) then
+        write(stderr,*) 'read_usgs_param: error parsing line: '
+        write(stderr,*) trim(input_line)
+        write(stderr,*) 'as: _  _  _  _  nx  _  _  _  ny'
+        ierr = 1
+        return
+    endif
+
+    ! Skip 8 lines of segment header and segment sub-faults to get to next header
     usgs_param_data%nflt = usgs_param_data%nflt + nx*ny
     do j = 1,8+nx*ny
-        read(34,*)
+        read(34,'(A)',iostat=ios) input_line
+        if (ios.ne.0) then
+            write(stderr,*) 'read_usgs_param: reached end of file before expected'
+        endif
     enddo
 enddo
 rewind(34)
@@ -105,13 +127,29 @@ allocate(usgs_param_data%seg(usgs_param_data%nflt))
 n = 0
 
 ! First line with number of segments
-read (34,*) dum,dum,dum,dum,usgs_param_data%nseg
+read (34,'(A)',iostat=ios) input_line
+read (input_line,*) dum,dum,dum,dum,usgs_param_data%nseg
 
 ! Read details of each segment
 do iseg = 1,usgs_param_data%nseg
 
     ! Sub-fault dimensions
-    read (34,*) dum,dum,dum,dum,nx,dum,dx_char,dum,ny,dum,dy_char
+    read (34,'(A)',iostat=ios) input_line
+    !write(0,*) 'Segment:',iseg,' header: ',trim(input_line)
+    if (ios.ne.0) then
+        write(stderr,*) 'read_usgs_param: error reading first line of seg ',iseg
+        ierr = 1
+        return
+    endif
+
+    read (input_line,*,iostat=ios) dum,dum,dum,dum,nx,dum,dx_char,dum,ny,dum,dy_char
+    if (ios.ne.0) then
+        write(stderr,*) 'read_usgs_param: error parsing line: '
+        write(stderr,*) trim(input_line)
+        write(stderr,*) 'as: _  _  _  _  nx  _  dx_char  _  ny _ dy_char'
+        ierr = 1
+        return
+    endif
     j = index(dx_char,'km')
     dx_char(j:j+1) = ''
     read(dx_char,*) dx
@@ -122,7 +160,14 @@ do iseg = 1,usgs_param_data%nseg
     usgs_param_data%subflt(n+1:n+nx*ny,9) = dx*1.0d3
 
     ! Hypocenter
-    read (34,*) (dum,j=1,10),usgs_param_data%hylo,dum,usgs_param_data%hyla
+    read (34,'(A)') input_line
+    read (input_line,*,iostat=ios) (dum,j=1,10),usgs_param_data%hylo,dum,usgs_param_data%hyla
+    if (ios.ne.0) then
+        write(0,*) 'read_usgs_param: could not read hypocenter for segment,',iseg,' but continuing...'
+        usgs_param_data%hylo = -9999.0d0
+        usgs_param_data%hyla = -9999.0d0
+    endif
+    !write(0,*) 'Segment:',iseg,' hypocenter: ',trim(input_line)
 
     ! Not sure what this block is actually...
     do j = 1,7
@@ -131,7 +176,15 @@ do iseg = 1,usgs_param_data%nseg
 
     ! Sub-fault locations and slip
     do i = n+1,n+nx*ny
-        read (34,*) lat,lon,dep,slip,rake,strike,dip,trup
+        read (34,'(A)',iostat=ios) input_line
+        read (input_line,*,iostat=ios) lat,lon,dep,slip,rake,strike,dip,trup
+        if (ios.ne.0) then
+            write(stderr,*) 'read_usgs_param: error parsing line: '
+            write(stderr,*) trim(input_line)
+            write(stderr,*) 'as: lat lon dep slip rake strike dip trup'
+            ierr = 1
+            return
+        endif
         usgs_param_data%subflt(i,1) = lon
         usgs_param_data%subflt(i,2) = lat
         usgs_param_data%subflt(i,3) = dep*1.0d3
