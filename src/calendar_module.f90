@@ -36,6 +36,7 @@ integer :: date(7), ierr
 
 ! Local variables
 integer :: j, ios
+double precision :: dp
 
 ! Initialize
 date = 0
@@ -63,7 +64,8 @@ elseif (date_format.eq.'YYYY-MM-DDTHH:MM:SS') then
         ios = 1
     endif
 elseif (date_format.eq.'YYYY MM DD HH MM SS') then
-    read(date_string,*,iostat=ios) (date(j),j=1,6)
+    read(date_string,*,iostat=ios) (date(j),j=1,5),dp
+    date(6) = int(dp)
 elseif (date_format.eq.'YYYYMMDDHHMMSS') then
     if (len(trim(date_string)).eq.14) then
         read(date_string,'(I4,I2,I2,I2,I2,I2)',iostat=ios) (date(j),j=1,6)
