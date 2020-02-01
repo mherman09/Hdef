@@ -64,6 +64,9 @@ CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
 
 .PHONY: all scripts objects clean
 
+# Marker files to indicate that directories have been made/updated
+BIN_DIR_MARKER_FILE = $(BIN_DIR)/.readme
+INCLUDE_DIR_MARKER_FILE = $(INCLUDE_DIR)/.readme
 
 ##############################
 ##### HDEF PROGRAM RULES #####
@@ -89,6 +92,7 @@ all: \
     readkik \
     sphfinrot \
     stereo_project \
+    tri_tool \
     triutil \
     vec2los \
     wraplos \
@@ -256,6 +260,11 @@ $(BIN_DIR)/stereo_project: src/stereo_project.f90 \
                            $(INCLUDE_DIR)/map.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
+tri_tool: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/tri_tool
+$(BIN_DIR)/tri_tool: src/tri_tool.f90 \
+                     $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
 triutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/triutil
 $(BIN_DIR)/triutil: src/triutil.f90 \
                     $(INCLUDE_DIR)/algebra.o \
@@ -421,13 +430,10 @@ $(INCLUDE_DIR)/%.o: $(INCLUDE_DIR)/%.mod
 ##################################
 ##### DIRECTORY MARKER FILES #####
 ##################################
-# Marker files to indicate that directories have been made/updated
-BIN_DIR_MARKER_FILE = $(BIN_DIR)/.readme
 $(BIN_DIR_MARKER_FILE):
 	mkdir -p $(BIN_DIR)
 	date +%Y-%m-%dT%H:%M:%S > $(BIN_DIR_MARKER_FILE)
 
-INCLUDE_DIR_MARKER_FILE = $(INCLUDE_DIR)/.readme
 $(INCLUDE_DIR_MARKER_FILE):
 	mkdir -p $(INCLUDE_DIR)
 	date +%Y-%m-%dT%H:%M:%S > $(INCLUDE_DIR_MARKER_FILE)
@@ -459,9 +465,9 @@ test_annealing: src/unit_test_annealing.f90 \
                 $(INCLUDE_DIR)/error_exit.o \
                 $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_annealing.log
+	./$@ > test_annealing.log
 	@echo "test_annealing passed"
-	rm $@ test_annealing.log include/driver*.mod
+	rm $@ test_annealing.log $(INCLUDE_DIR)/driver*.mod
 	@echo
 
 test_calendar: src/unit_test_calendar.f90 \
@@ -470,7 +476,7 @@ test_calendar: src/unit_test_calendar.f90 \
                $(INCLUDE_DIR)/error_exit.o \
                $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_calendar.log
+	./$@ > test_calendar.log
 	@echo "test_calendar passed"
 	rm $@ test_calendar.log
 	@echo
@@ -483,7 +489,7 @@ test_earth: src/unit_test_earth.f90 \
             $(INCLUDE_DIR)/io.o \
             $(INCLUDE_DIR)/trig.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) -o $@
-	$@ > test_earth.log
+	./$@ > test_earth.log
 	@echo "test_earth passed"
 	rm $@ test_earth.log
 	@echo
@@ -494,7 +500,7 @@ test_eq: src/unit_test_eq.f90 \
          $(INCLUDE_DIR)/error_exit.o \
          $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) -o $@
-	$@ > test_eq.log
+	./$@ > test_eq.log
 	@echo "test_eq passed"
 	rm $@ test_eq.log
 	@echo
@@ -510,7 +516,7 @@ test_ffm: src/unit_test_ffm.f90 \
           $(INCLUDE_DIR)/error_exit.o \
           $(INCLUDE_DIR)/io.o
 	@$(FC) -ffree-line-length-0 $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_ffm.log
+	./$@ > test_ffm.log
 	@echo "test_ffm passed"
 	rm $@ test_ffm.log
 	@echo
@@ -522,7 +528,7 @@ test_geom: src/unit_test_geom.f90 \
            $(INCLUDE_DIR)/error_exit.o \
            $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_geom.log
+	./$@ > test_geom.log
 	@echo "test_geom passed"
 	rm $@ test_geom.log
 	@echo
@@ -533,7 +539,7 @@ test_map: src/unit_test_map.f90 \
            $(INCLUDE_DIR)/io.o \
            $(INCLUDE_DIR)/map.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_map.log
+	./$@ > test_map.log
 	@echo "test_map passed"
 	rm $@ test_map.log
 	@echo
@@ -545,7 +551,7 @@ test_okada92: src/unit_test_okada92.f90 \
               $(INCLUDE_DIR)/error_exit.o \
               $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_okada92.log
+	./$@ > test_okada92.log
 	@echo "test_okada92 passed"
 	rm $@ test_okada92.log
 	@echo
@@ -556,7 +562,7 @@ test_random: src/unit_test_random.f90 \
              $(INCLUDE_DIR)/error_exit.o \
              $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_random.log
+	./$@ > test_random.log
 	@echo "test_random passed"
 	rm $@ test_random.log
 	@echo
@@ -567,7 +573,7 @@ test_solver: src/unit_test_solver.f90 \
              $(INCLUDE_DIR)/error_exit.o \
              $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) $(SUPERLU) -o $@
-	$@ > test_solver.log
+	./$@ > test_solver.log
 	@echo "test_solver passed"
 	rm $@ test_solver.log
 	@echo
@@ -581,7 +587,7 @@ test_tri_disloc: src/unit_test_tri_disloc.f90 \
                  $(INCLUDE_DIR)/error_exit.o \
                  $(INCLUDE_DIR)/io.o
 	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
-	$@ > test_tri_disloc.log
+	./$@ > test_tri_disloc.log
 	@echo "test_tri_disloc passed"
 	rm $@ test_tri_disloc.log
 	@echo
