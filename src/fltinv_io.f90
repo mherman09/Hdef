@@ -971,6 +971,15 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
         ! Update the covariance matrix with stored values and get rid of the temporary array
         cov_matrix(:,1) = cov_matrix_temp
         deallocate(cov_matrix_temp)
+
+        if (verbosity.ge.1) then
+            write(stdout,*) 'read_inputs: covariance matrix is diagonal'
+        endif
+
+    else
+        if (verbosity.ge.1) then
+            write(stdout,*) 'read_inputs: covariance matrix is not diagonal'
+        endif
     endif
 
 
