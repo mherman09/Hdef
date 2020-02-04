@@ -26,7 +26,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI [-gf:stress_file " gf_stress_file" ]
 .B [-geo]
 .BI [-haf " halfspace_file"]
-.BI [-damping " damping_constant"]
+.BI [-damp " damping_constant"]
 .BI [-smoothing " smoothing_constant smoothing_file"]
 .BI [-lsqr:mode " gels" | nnls | gesv ]
 .BI [-anneal:init_mode " mean" | min | max | rand | user | unlocked | locked ]
@@ -450,7 +450,7 @@ is the value in Pa.
 .B REGULARIZATION OPTIONS
 
 .TP
-.BI "-damping " damping_constant
+.BI "-damp " damping_constant
 Minimize the L1 length of the fault slip solution with a weighting factor of
 .IR damping_constant * damping_constant
 
