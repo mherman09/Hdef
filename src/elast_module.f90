@@ -170,7 +170,8 @@ double precision :: poisson, shearmod, lame
 ! Local variables
 integer :: i, j, ios
 character(len=512) :: input_line
-character(len=32) :: lbl(3)
+character(len=32) :: lbl(4)
+character(len=8) :: halfspace_file_mode
 double precision :: val(3)
 
 
@@ -194,18 +195,50 @@ val = 0.0d0
 
 
 ! Open the file and read the half-space elastic moduli
+halfspace_file_mode = 'modern'
 open(unit=15,file=halfspace_file,status='old')
 read(15,'(A)') input_line
 
-! First check for three inputs, in case use entered vp, vs, dens
-read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2), lbl(3), val(3)
-
-! Then check for two inputs
-if (ios.ne.0) then
-    read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2)
+! For back-compatibility, can read parameters in these formats (print warning):
+!     vp vs dens
+!     "lame" lame shear_mod
+read(input_line,*,end=1501,err=1500,iostat=ios) lbl(1:4)
+1501 if (ios.ne.0) then
+    halfspace_file_mode = 'legacy'
+    ! Found fewer than 4 inputs
+    if (lbl(1).eq.'lame'.or.lbl(1).eq.'Lame') then
+        read(lbl(2),*,err=1500,iostat=ios) val(1)
+        read(lbl(3),*,err=1500,iostat=ios) val(2)
+        lbl(1) = 'lame'
+        lbl(2) = 'shearmod'
+        lbl(3:4) = ''
+        write(stderr,*) 'read_halfspace: WARNING: you are using a legacy half-space format ("lame" lame shear)'
+        write(stderr,*) 'In the future, you should use labeled inputs, e.g.: lame 40e9 shearmod 40e9'
+    else
+        read(lbl(1),*,err=1500,iostat=ios) val(1)
+        read(lbl(2),*,err=1500,iostat=ios) val(2)
+        read(lbl(3),*,err=1500,iostat=ios) val(3)
+        lbl(1) = 'vp'
+        lbl(2) = 'vs'
+        lbl(3) = 'dens'
+        write(stderr,*) 'read_halfspace: WARNING: you are using a legacy half-space format (vp vs dens)'
+        write(stderr,*) 'In the future, you should use labeled inputs, e.g.: vp 6800 vs 3926 dens 3000'
+    endif
 endif
 
-if (ios.ne.0) then
+! Read in updated format, which can take three (labeled) inputs for a minimum of 4 items on line
+! Examples: shear 40e9 lame 35e9
+!           vp 6500 vs 3700 dens 3000
+if (halfspace_file_mode.eq.'modern') then
+    read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2), lbl(3), val(3)
+
+    ! Then check for two inputs
+    if (ios.ne.0) then
+        read(input_line,*,iostat=ios) lbl(1), val(1), lbl(2), val(2)
+    endif
+endif
+
+1500 if (ios.ne.0) then
     write(stderr,*) 'read_halfspace: error reading modulus labels and values'
     call usage('offending line: '//trim(input_line))
 endif
