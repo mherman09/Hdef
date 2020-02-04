@@ -662,12 +662,19 @@ allocate(flt_data%subflt(flt_data%nflt,9))
 ! Read the file
 open(unit=32,file=flt_file,status='old')
 do iflt = 1,flt_data%nflt
-    read(32,*) (flt_data%subflt(iflt,j),j=1,9)
+    read(32,*,end=9001,iostat=ierr) (flt_data%subflt(iflt,j),j=1,9)
     flt_data%subflt(iflt,3) = flt_data%subflt(iflt,3)*1.0d3 ! Depth km->m
     flt_data%subflt(iflt,8) = flt_data%subflt(iflt,8)*1.0d3 ! Width km->m
     flt_data%subflt(iflt,9) = flt_data%subflt(iflt,9)*1.0d3 ! Length km->m
 enddo
 close(32)
+
+9001 if (ierr.ne.0) then
+    write(stderr,*) 'read_flt: at line ',iflt,', reached end of line early'
+    write(stderr,*) 'Did you mean to use -mag?'
+    ierr = 1
+    return
+endif
 
 return
 end subroutine
