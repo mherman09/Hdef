@@ -1,64 +1,72 @@
+!--------------------------------------------------------------------------------------------------!
+! O92UTIL
+!
+! Utility for computing displacements, strains, and stresses in an elastic half-space resulting from
+! point source and rectangular shear dislocations. Most of the heavy lifting is done in the module
+! OKADA92_MODULE.F90.
+!
+! References
+! Okada, Y. (1992) Internal deformation due to shear and tensile faults in a half-space. Bulletin of
+! the Seismological Society of America, vol. 82, no. 2, pp. 1018-1040.
+!--------------------------------------------------------------------------------------------------!
+
 module o92util
 
-! Program controls from command line
-character(len=512) :: ffm_file                    ! source faults
-character(len=512) :: fsp_file
-character(len=512) :: mag_file
-character(len=512) :: flt_file
-logical :: isFaultFileDefined
-character(len=16) :: fault_type
-character(len=16) :: empirical_relation
-double precision :: slip_threshold
+! Fault inputs
+character(len=512) :: ffm_file                    ! source faults: USGS .param format
+character(len=512) :: fsp_file                    ! source faults: SRCMOD FSP format
+character(len=512) :: mag_file                    ! source faults: ... mag format
+character(len=512) :: flt_file                    ! source faults: ... slip wid len format
+logical :: isFaultFileDefined                     ! input fault tag
+character(len=16) :: fault_type                   ! point or finite source tag
+character(len=16) :: empirical_relation           ! conversion from magnitude to slip wid len
+double precision :: slip_threshold                ! minimum slip to calculate (NOT USED)
 
-character(len=512) :: station_file     ! station locations (stlo stla stdp)
-logical :: isStationFileDefined
-double precision :: auto_depth
-integer :: auto_n
-logical :: autoStations
-character(len=512) :: target_file      ! target/receiver fault geometry (str dip rak fric)
-logical :: isTargetFileDefined
+! Station/target/receiver inputs
+character(len=512) :: station_file                ! station locations
+logical :: isStationFileDefined                   ! station location tag
+double precision :: auto_depth                    ! depth of automatically generated station grid
+integer :: auto_n                                 ! number of automatically generated stations (1d)
+logical :: autoStations                           ! automatic station tag
+character(len=512) :: target_file                 ! target/receiver fault geometry
+logical :: isTargetFileDefined                    ! target fault tag
 
-character(len=512) :: halfspace_file         ! half-space parameters
-double precision :: poisson
-double precision :: lame
-double precision :: shearmod
+! Elastic half-space inputs
+character(len=512) :: halfspace_file              ! elastic half-space parameters
+double precision :: poisson                       ! poisson's ratio
+double precision :: lame                          ! lame parameter
+double precision :: shearmod                      ! shear modulus
 
-character(len=512) :: displacement_file      ! displacement
-character(len=512) :: disp_file_save
-character(len=512) :: strain_file      ! strain tensor
-character(len=512) :: stress_file      ! stress tensor
-character(len=512) :: estress_file      ! effective shear stress (maximum shear stress)
-character(len=512) :: normal_file      ! normal stress
-character(len=512) :: shear_file      ! shear stress
-character(len=512) :: coulomb_file     ! Coulomb stress
-logical :: isOutputFileDefined
-logical :: iWantDisp
-logical :: iWantStrain
-logical :: iWantStress
-logical :: iWantTraction
-character(len=16) :: coord_type         ! cartesian-m, cartesian-km, geographic
-logical :: iWantProg
+! Outputs
+character(len=512) :: displacement_file           ! output: displacement
+character(len=4) :: disp_output_mode              ! enz, amz
+character(len=512) :: disp_file_save              ! temporary displacement file
+character(len=512) :: strain_file                 ! output: strain tensor
+character(len=512) :: stress_file                 ! output: stress tensor
+character(len=512) :: estress_file                ! output: effective (maximum) shear stress
+character(len=512) :: normal_file                 ! output: normal stress
+character(len=512) :: shear_file                  ! output: shear stress (resolved, maximum)
+character(len=512) :: coulomb_file                ! output: coulomb stress
+logical :: isOutputFileDefined                    ! output file tag
+logical :: iWantDisp                              ! displacement calculation tag
+logical :: iWantStrain                            ! strain calculation tag
+logical :: iWantStress                            ! stress calculation tag
+logical :: iWantTraction                          ! traction calculation tag
+character(len=16) :: coord_type                   ! cartesian-m, cartesian-km, geographic
+logical :: iWantProg                              ! progress indicator tag
 
 ! Program variables
-integer :: nfaults
-integer :: nstations
-double precision, allocatable :: faults(:,:)
-double precision, allocatable :: stations(:,:)
-double precision, allocatable :: targets(:,:)
+integer :: nfaults                                ! Number of fault sources
+integer :: nstations                              ! Number of stations/targets/receivers
+double precision, allocatable :: faults(:,:)      ! Fault parameter array
+double precision, allocatable :: stations(:,:)    ! Station location array
+double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 
 end module
 
 !==================================================================================================!
 
 program main
-!----
-! Utility for computing displacements, strains, and stresses in an elastic half-space resulting from
-! point source and rectangular shear dislocations. Most of the heavy lifting is done in the code
-! found in okada92_module.f90.
-!
-! Please cite: Okada, Y. (1992) Internal deformation due to shear and tensile faults in a
-! half-space. Bulletin of the Seismological Society of America, vol. 82, no. 2, pp. 1018-1040.
-!----
 
 use o92util, only: isOutputFileDefined, &
                    autoStations
@@ -433,7 +441,7 @@ subroutine calc_deformation()
 !----
 
 use io, only: stderr, verbosity, progress_indicator
-use trig, only: d2r
+use trig, only: d2r, r2d
 use algebra, only: rotate_vector_angle_axis, rotate_matrix_angle_axis
 use earth, only: radius_earth_m
 use elast, only: strain2stress, stress2traction, max_shear_stress, traction_components
@@ -446,6 +454,7 @@ use o92util, only: iWantDisp, &
                    iWantStress, &
                    iWantTraction, &
                    displacement_file, &
+                   disp_output_mode, &
                    strain_file, &
                    stress_file, &
                    estress_file, &
@@ -636,7 +645,16 @@ do iSta = 1,nstations
 
     ! Displacement: ux, uy, uz
     if (displacement_file.ne.'') then
-        write(101,*) stations(iSta,:),disp
+        if (disp_output_mode.eq.'enz') then
+            write(101,*) stations(iSta,:),disp
+        elseif (disp_output_mode.eq.'amz') then
+            write(101,*) stations(iSta,:), &
+                         atan2(disp(1),disp(2))*r2d, &
+                         sqrt(disp(1)*disp(1)+disp(2)*disp(2)), &
+                         disp(3)
+        else
+            write(stderr,*) 'calc_deformation: no displacement output mode named "',trim(disp_output_mode),'"'
+        endif
     endif
 
     ! Strain tensor: exx, eyy, ezz, exy, exz, eyz
@@ -931,6 +949,7 @@ use o92util, only: ffm_file, &
                    lame, &
                    shearmod, &
                    displacement_file, &
+                   disp_output_mode, &
                    strain_file, &
                    stress_file, &
                    estress_file, &
@@ -975,6 +994,7 @@ lame = 40.0d9
 shearmod = 40.0d9
 
 displacement_file = ''
+disp_output_mode = 'enz'
 strain_file = ''
 stress_file = ''
 estress_file = ''
@@ -1126,6 +1146,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-geographic'.or.trim(tag).eq.'-geo') then
         coord_type = 'geographic'
 
+    elseif (tag.eq.'-az') then
+        disp_output_mode = 'amz'
+
     elseif (trim(tag).eq.'-v'.or.trim(tag).eq.'-verbose'.or.trim(tag).eq.'-verbosity') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -1162,6 +1185,7 @@ if (verbosity.eq.3) then
     write(stdout,*) 'lame:                     ',lame
     write(stdout,*) 'shearmod:                 ',shearmod
     write(stdout,*) 'displacement_file:        ',trim(displacement_file)
+    write(stdout,*) 'disp_output_mode:         ',trim(disp_output_mode)
     write(stdout,*) 'strain_file:              ',trim(strain_file)
     write(stdout,*) 'stress_file:              ',trim(stress_file)
     write(stdout,*) 'estress_file:             ',trim(estress_file)
@@ -1226,6 +1250,7 @@ write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires 
 write(stderr,*)
 write(stderr,*) 'Miscellaneous options'
 write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
+write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
 write(stderr,*) '-prog                Turn on progress indicator'
 write(stderr,*) '-v LVL               Turn on verbose mode'
 write(stderr,*)
