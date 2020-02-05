@@ -82,7 +82,7 @@ mean = 0.0d0
 stdev = 1.0d0
 npts = 100
 seed_file = ''
-iseed = timeseed()
+iseed = timeseed()*100
 
 ! Number of arguments
 narg = command_argument_count()
