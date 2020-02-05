@@ -203,7 +203,7 @@ endif
 ! Rigid body rotations defined by Euler poles
 if (euler_file.ne.'none') then
 
-    ! Rigid body rotatinal velocites have implicit units (unlike displacements, where observation
+    ! Rigid body rotational velocites correspond to units (unlike displacements, where observation
     ! units=fault slip units). These units must be defined explicitly.
     if (input_disp_unit.eq.'m') then
         call usage('read_inputs: disp units are m (displacement), incompatible with rotations '// &
@@ -228,10 +228,16 @@ if (euler_file.ne.'none') then
         call usage('read_inputs: no Euler pole file named '//trim(euler_file)//' (usage:input)')
     endif
     open(unit=68,file=euler_file,status='old')
+    if (verbosity.ge.2) then
+        write(stderr,*) 'read_inputs: reading Euler pole file named ',trim(euler_file)
+    endif
 
     ! Parse the Euler pole file
     ! First line is the number of Euler poles
-    read(68,*) npoles
+    read(68,*,iostat=ios) npoles
+    if (ios.ne.0) then
+        call usage('read_inputs: error reading Euler pole file 1st line: npoles (usage:input)')
+    endif
     allocate(euler_pole(npoles,3))
 
     ! Initialize array recording which points are affected by each rigid body rotation
@@ -250,7 +256,7 @@ if (euler_file.ne.'none') then
         pole_array = 0.0d0
     endif
 
-    ! Read prior constraints on Euler pole locations
+    ! Read prior constraints on Euler pole locations: lon lat rad min_rate max_rate
     do i = 1,npoles
         read(68,'(A)',end=4001,iostat=ios) line
         if (allocated(pole_array)) then
@@ -318,12 +324,15 @@ if (euler_file.ne.'none') then
 
     ! All done with rigid block file
     close(68)
-else
-    npoles = 0
-endif
 
-if (verbosity.ge.2) then
-    write(stdout,*) 'read_inputs: finished reading Euler pole file'
+    if (verbosity.ge.2) then
+        write(stdout,*) 'read_inputs: finished reading Euler pole file'
+    endif
+else
+    if (verbosity.ge.2) then
+        write(stdout,*) 'read_inputs: no Euler poles being used'
+    endif
+    npoles = 0
 endif
 
 
@@ -514,6 +523,10 @@ endif
 !----
 if (prestress%file.ne.'none') then
 
+    if (verbosity.ge.2) then
+        write(stdout,*) 'read_inputs: calculating shear tractions from pre-stresses'
+    endif
+
     do i = 1,fault%nrows
 
         ! Get fault normal vector
@@ -562,6 +575,10 @@ endif
 !----
 ! Set up Green's functions arrays
 !----
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_inputs: allocating memory to Greens function arrays'
+endif
+
 ! Three-component displacements
 if (displacement%file.ne.'none') then
     ! Assign maximum possible dimensions for three-component displacement Green's functions
@@ -1096,6 +1113,7 @@ if (disp_misfit_file.ne.'none') then
 
 endif
 
+
 ! ! Line-of-sight RMS misfit
 ! if (los_misfit_file.ne.'none') then
 !     if (verbosity.ge.1) then
@@ -1122,7 +1140,8 @@ endif
 !     write(0,*) 'write_solution: closing misfit file'
 !     close(81)
 ! endif
-!
+
+
 ! Print fault slip solution
 if (fault%file.ne.'none') then
     if (verbosity.ge.1) then
@@ -1370,9 +1389,6 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-los') then
         i = i + 1
         call get_command_argument(i,los%file)
-    elseif (trim(tag).eq.'-disp:misfit') then
-        i = i + 1
-        call get_command_argument(i,disp_misfit_file)
     elseif (trim(tag).eq.'-prests'.or.tag.eq.'-prestress') then
         i = i + 1
         call get_command_argument(i,prestress%file)
@@ -1397,6 +1413,11 @@ do while (i.le.narg)
 !         i = i + 1
 !         call get_command_argument(i,tag)
 !         read(tag,*) sts_dist
+
+    ! Output options
+    elseif (trim(tag).eq.'-disp:misfit') then
+        i = i + 1
+        call get_command_argument(i,disp_misfit_file)
 
     ! Green's functions options
     elseif (trim(tag).eq.'-gf:model') then
@@ -1597,7 +1618,10 @@ info = 'all'
 i = len_trim(string)+1
 
 if (string.ne.'') then
-    if (index(string,'(usage:fault)').ne.0) then
+    if (index(string,'(usage:general)').ne.0) then
+        i = index(string,'(usage:general)')
+        info = 'general'
+    elseif (index(string,'(usage:fault)').ne.0) then
         i = index(string,'(usage:fault)')
         info = 'fault'
     elseif (index(string,'(usage:euler)').ne.0) then
@@ -1606,6 +1630,9 @@ if (string.ne.'') then
     elseif (index(string,'(usage:input)').ne.0) then
         i = index(string,'(usage:input)')
         info = 'input'
+    elseif (index(string,'(usage:output)').ne.0) then
+        i = index(string,'(usage:output)')
+        info = 'output'
     elseif (index(string,'(usage:gf)').ne.0) then
         i = index(string,'(usage:gf)')
         info = 'gf'
@@ -1634,10 +1661,12 @@ endif
 
 write(stderr,*) 'Usage: fltinv ...options...'
 write(stderr,*)
-write(stderr,*) 'General Options'
-write(stderr,*) '-o OUTPUT_FILE               Output fault slip file'
-write(stderr,*) '-mode INVERSION_MODE         Inversion mode'
-write(stderr,*)
+if (info.eq.'all'.or.info.eq.'general') then
+    write(stderr,*) 'General Options'
+    write(stderr,*) '-o OUTPUT_FILE               Output fault slip file'
+    write(stderr,*) '-mode INVERSION_MODE         Inversion mode'
+    write(stderr,*)
+endif
 if (info.eq.'all'.or.info.eq.'fault') then
     write(stderr,*) 'Fault Options'
     write(stderr,*) '-flt FAULT_FILE              Input fault locations and geometries'
@@ -1654,7 +1683,6 @@ if (info.eq.'all'.or.info.eq.'input') then
     write(stderr,*) 'Input Options'
     write(stderr,*) '-disp DISP_FILE              Input displacements'
     write(stderr,*) '-disp:components COMPNTS     Specify displacement components'
-    write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
     write(stderr,*) '-los LOS_FILE                Input line-of-sight displacements'
     write(stderr,*) '-prests PRESTS_FILE          Input pre-stresses'
     write(stderr,*) '-cov COVAR_FILE              Displacement and LOS covariances'
@@ -1666,8 +1694,13 @@ if (info.eq.'all'.or.info.eq.'input') then
     write(stderr,*) '-geo                         Treat input coordinates as geographic'
     write(stderr,*)
 endif
+if (info.eq.'all'.or.info.eq.'output') then
+    write(stderr,*) 'Output Options'
+    write(stderr,*) '-disp:misfit MISFIT_FILE     Output RMS misfit to displacements'
+    write(stderr,*)
+endif
 if (info.eq.'all'.or.info.eq.'gf') then
-write(stderr,*) 'Greens Functions Options'
+    write(stderr,*) 'Greens Functions Options'
     write(stderr,*) '-gf:model MODEL              Greens functions calculation model'
     write(stderr,*) '-gf:disp GF_DSP_FILE         Pre-computed displacement Greens functions'
     write(stderr,*) '-gf:los GF_LOS_FILE          Pre-computed LOS displacement Greens functions'

@@ -173,6 +173,9 @@ if (val%file.eq.'none') then
     ierr = 1
     return
 endif
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_fltinv_data_file: reading file "',trim(val%file),'"'
+endif
 
 
 ! Check that ncols has been specified
@@ -275,10 +278,10 @@ implicit none
 ! Parse command line arguments
 call gcmdln()
 if (output_file.eq.''.and.euler_output_file.eq.'') then
-    call usage('fltinv: output file name is required')
+    call usage('fltinv: output file name is required (usage:general)')
 endif
 if (inversion_mode.eq.'') then
-    call usage('fltinv: inversion mode is required')
+    call usage('fltinv: inversion mode is required (usage:general)')
 endif
 
 
@@ -337,7 +340,7 @@ else
     write(stderr,*) 'Options for inversion mode:'
     write(stderr,*) '    lsqr'
     write(stderr,*) '    anneal'
-    call usage(     '    anneal-psc')
+    call usage(     '    anneal-psc (usage:general)')
 endif
 
 if (verbosity.ge.1) then
@@ -366,6 +369,8 @@ subroutine misfit_rms(obs,pre,n,rms)
 !     RMS = sqrt(sum((obs-pre)^2)/n)
 !-----
 
+use io, only: stderr
+
 implicit none
 
 ! Arguments
@@ -376,6 +381,11 @@ double precision :: obs(n), pre(n), rms
 integer :: i
 double precision :: dif(n)
 
+
+! Check that n is greater than zero
+if (n.le.0) then
+    write(stderr,*) 'misfit_rms: n is less than or equal to zero'
+endif
 
 ! Initialize RMS misfit
 rms = 0.0d0
@@ -412,6 +422,7 @@ subroutine misfit_chi2(obs,pre,cov,n,chi2)
 use solver, only: solve_dsysv
 #endif
 
+use io, only: stderr
 use fltinv, only: isCovMatrixDiagonal
 
 implicit none
@@ -424,6 +435,11 @@ double precision :: obs(n), pre(n), cov(n,n), chi2
 integer :: i, ierr
 double precision :: dif(n), vec(n)
 
+
+! Check that n is greater than zero
+if (n.le.0) then
+    write(stderr,*) 'misfit_chi2: n is less than or equal to zero'
+endif
 
 ! Initialize chi-squared value
 chi2 = 0.0d0

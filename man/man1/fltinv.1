@@ -20,6 +20,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI "[-disp:components [" 1 ][ 2 ][ 3 ]]
 .BI [-cov_file " covariance_file" ]
 .BI [-disp:unit " input_unit" ]
+.BI [-disp:misfit " misfit_file" ]
 .BI -gf:model " model"
 .BI [-gf:disp_file " gf_disp_file" ]
 .BI [-gf:los_file " gf_los_file" ]
@@ -247,9 +248,10 @@ Useful when only horizontal or vertical data are available or in 2D problems.
 Line-of-sight displacement observations in the format:
 .IR "x y z ulos azimuth inclination" .
 .I Azimuth
-is the look direction from the observer to the site, clockwise from north.
+is the horizontal look direction from the observer to the site, clockwise from north.
 .I Inclination
-is the vertical look direction from observer to site, from 0 at the horizon to 90 at vertical.
+is the vertical look direction from observer to site, from 0 at the horizon to 90 at vertical
+(i.e., the observer is directly above the site).
 The misfit between these displacements and those produced by modeled fault slip will be minimized.
 All values are in SI units, unless the coordinate type is changed to geographic using the
 .B -geo
@@ -290,7 +292,8 @@ is the covariance, in square meters.
 .TP
 .BI -disp:unit " input_unit"
 Define the units of input displacement and los files.
-Can also redefine them as velocities here. Options:
+Can also redefine them as velocities here (yeah, I know the option name is "disp";
+deal with it). Options:
 .I m
 (meters, default),
 .I mm
@@ -304,6 +307,13 @@ Can also redefine them as velocities here. Options:
 .I mm/yr
 (millimeters/year).
 
+
+
+.TP
+.B OUTPUT OPTIONS
+.TP
+.BI -disp:misfit " misfit_file"
+Calculate the root-mean-squared misfit to the observations.
 
 
 .TP
