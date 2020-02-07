@@ -17,7 +17,9 @@ character(len=512) :: ffm_file                    ! source faults: USGS .param f
 character(len=512) :: fsp_file                    ! source faults: SRCMOD FSP format
 character(len=512) :: mag_file                    ! source faults: ... mag format
 character(len=512) :: flt_file                    ! source faults: ... slip wid len format
+character(len=512) :: tns_file                    ! volume source: ... opening wid len
 logical :: isFaultFileDefined                     ! input fault tag
+logical :: isTensileFileDefined                   ! input tensile source tag
 character(len=16) :: fault_type                   ! point or finite source tag
 character(len=16) :: empirical_relation           ! conversion from magnitude to slip wid len
 double precision :: slip_threshold                ! minimum slip to calculate (NOT USED)
@@ -57,8 +59,10 @@ logical :: iWantProg                              ! progress indicator tag
 
 ! Program variables
 integer :: nfaults                                ! Number of fault sources
+integer :: ntensile                               ! Number of tensile sources
 integer :: nstations                              ! Number of stations/targets/receivers
 double precision, allocatable :: faults(:,:)      ! Fault parameter array
+double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 
@@ -68,7 +72,9 @@ end module
 
 program main
 
-use o92util, only: isOutputFileDefined, &
+use o92util, only: isFaultFileDefined, &
+                   isTensileFileDefined, &
+                   isOutputFileDefined, &
                    autoStations
 
 implicit none
@@ -79,7 +85,14 @@ if (.not.isOutputFileDefined) then
 endif
 
 call read_halfspace()
+
+
+if (.not.isFaultFileDefined.and..not.isTensileFileDefined) then
+    call usage('o92util: no fault or tensile source file defined')
+endif
 call read_faults()
+call read_tensile()
+
 
 if (autoStations) then
     call auto_stations()
@@ -156,10 +169,9 @@ double precision :: fth, fss, fno, mom, area
 ! Initialize variables
 areFaultsRead = .false.
 nfaults = 0
-
-! Check that a fault file is defined
-if (.not.isFaultFileDefined) then
-    call usage('read_faults: no fault file defined')
+if(.not.isFaultFileDefined) then
+    ! write(stderr,*) 'read_faults: no faults to read'
+    return
 endif
 
 
@@ -277,6 +289,88 @@ endif
 
 ! do i = 1,nfaults
 !     write(0,*) faults(i,:)
+! enddo
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine read_tensile()
+!----
+! Read the input rectangular tensile source data in the format:
+!     lon lat dep str dip crack wid len
+!----
+
+use io, only: stderr, line_count
+use ffm, only: read_tensile_rect, ffm_data
+use eq, only: empirical, sdr2ter, mag2mom
+
+use o92util, only: tns_file, &
+                   isTensileFileDefined, &
+                   coord_type, &
+                   ntensile, &
+                   tensile
+
+implicit none
+
+! Local variables
+integer :: ierr
+logical :: areFaultsRead
+type(ffm_data) :: tns_data
+
+
+! Initialize variables
+areFaultsRead = .false.
+ntensile = 0
+if(.not.isTensileFileDefined) then
+    ! write(stderr,*) 'read_faults: no faults to read'
+    return
+endif
+
+
+! Read faults in "lon lat dep str dip crack wid len" format
+if (tns_file.ne.'') then
+    call read_tensile_rect(tns_file,tns_data,ierr)
+    if (ierr.eq.0) then
+        areFaultsRead = .true.
+    endif
+    ntensile = ntensile + tns_data%nflt
+endif
+
+
+! Sanity check: make sure something has been read before proceeding
+if (.not.areFaultsRead) then
+    write(stderr,*) 'read_tensile: no sources were read'
+    call usage('check files specified by -tns')
+endif
+
+
+! Allocate memory for master fault array
+if (allocated(tensile)) then
+    deallocate(tensile)
+endif
+allocate(tensile(ntensile,8))
+
+
+! Load the master array with the values read from files
+ntensile = 0
+
+if (tns_file.ne.''.and.tns_data%nflt.gt.0) then
+    tensile(ntensile+1:ntensile+tns_data%nflt,:) = tns_data%subflt
+    ntensile = ntensile + tns_data%nflt
+endif
+
+
+! Check coordinates
+if (coord_type.eq.'geographic'.and. &
+        (maxval(abs(tensile(:,1))).gt.360.0d0 .or. maxval(abs(tensile(:,2))).gt.90.0d0)) then
+    write(stderr,*) 'read_tensile: found source coordinates outside geographic range; ',&
+                    'did you mean to use the -xy flag?'
+endif
+
+! do i = 1,ntensile
+!     write(0,*) tensile(i,:)
 ! enddo
 
 return
@@ -466,8 +560,10 @@ use o92util, only: iWantDisp, &
                    fault_type, &
                    coord_type, &
                    nfaults, &
+                   ntensile, &
                    nstations, &
                    faults, &
+                   tensile, &
                    stations, &
                    targets, &
                    iWantProg
@@ -478,7 +574,7 @@ implicit none
 integer :: ierr, iSta, iFlt, file_unit
 logical :: isThisUnitOpen, coordTypeWarning
 double precision :: evlo, evla, evdp, str, dip, rak, slip_mag, wid, len, slip(3), mom(4)
-double precision :: sta_coord(3), dist, az, warn_dist
+double precision :: sta_coord(3), dist, az, warn_dist, test_dist
 double precision :: disp(3), disptmp(3), stn(3,3), stntmp(3,3), sts(3,3), ests, trac(3), tshr, &
                     tshrmx, tnor, coul
 double precision :: nvec(3), svec(3), tstr, tupd
@@ -537,7 +633,7 @@ endif
 
 
 ! Distance to trigger coordinate type warning
-warn_dist = 500.0d0
+warn_dist = 100.0d0
 coordTypeWarning = .false.
 
 ! Calculate the requested quantities at each station
@@ -547,38 +643,50 @@ do iSta = 1,nstations
     stn = 0.0d0
     sta_coord(3) = stations(iSta,3)*1.0d3
 
-    ! Superimpose deformation quantities produced by all fault sources at each station
-    do iFlt = 1,nfaults
+    ! Superimpose deformation quantities produced by all fault and tensile sources at each station
+    do iFlt = 1,nfaults+ntensile
 
         ! Fault parameters
-        evlo = faults(iFlt,1)
-        evla = faults(iFlt,2)
-        evdp = faults(iFlt,3)
-        str = faults(iFlt,4)
-        dip = faults(iFlt,5)
-        rak = faults(iFlt,6)
-        slip_mag = faults(iFlt,7)
-        wid = faults(iFlt,8)
-        len = faults(iFlt,9)
+        if (iFlt.le.nfaults) then
+            evlo = faults(iFlt,1)
+            evla = faults(iFlt,2)
+            evdp = faults(iFlt,3)
+            str = faults(iFlt,4)
+            dip = faults(iFlt,5)
+            rak = faults(iFlt,6)
+            slip_mag = faults(iFlt,7)
+            wid = faults(iFlt,8)
+            len = faults(iFlt,9)
+        else
+            evlo = tensile(iFlt,1)
+            evla = tensile(iFlt,2)
+            evdp = tensile(iFlt,3)
+            str = tensile(iFlt,4)
+            dip = tensile(iFlt,5)
+            rak = 0.0d0
+            slip_mag = tensile(iFlt,6)
+            wid = tensile(iFlt,7)
+            len = tensile(iFlt,8)
+        endif
 
         ! Station location relative to fault at origin (ENZ coordinates)
         if (coord_type.eq.'geographic') then
             call lola2distaz(evlo,evla,stations(iSta,1),stations(iSta,2),dist,az, &
                         'radians','radians',ierr)
 
-            ! Check distance for coordinate type errors; if user forgot the -xy flag to use
-            ! Cartesian coordinates, then the calculated distance will be much higher than
-            ! expected, for example:
-            !     fault coordinates: (0,0)    }        geographic distance = 111.19 km
-            !     station coordinates: (0,1)  }   =>   Cartesian distance = 1 km
-            if (abs(dist*radius_earth_m).gt.warn_dist*1d3.and..not.coordTypeWarning) then
-                write(stderr,*) 'calc_deformation: found fault-station distance >',warn_dist,'km'
-                write(stderr,*) 'Are your coordinates geographic or did you mean to use the -xy flag?'
-                coordTypeWarning = .true.
-            endif
-
             sta_coord(1) = dist*radius_earth_m*sin(az)
             sta_coord(2) = dist*radius_earth_m*cos(az)
+
+            ! If user input Cartesian coordinates but forgot the -xy flag, then the distance between
+            ! coordinates (measured by pythogorean distance) will typically be larger than 10.
+            if (.not.coordTypeWarning) then
+                test_dist = sqrt((evlo-stations(iSta,1))**2+(evla-stations(iSta,2))**2)
+                if (test_dist.gt.warn_dist) then
+                    write(stderr,*) 'calc_deformation: found large fault-station distance'
+                    write(stderr,*) 'Did you mean to use the -xy flag for Cartesian coordinates?'
+                    coordTypeWarning = .true.
+                endif
+            endif
 
         elseif (coord_type.eq.'cartesian') then
             sta_coord(1) = (stations(iSta,1) - evlo)*1.0d3
@@ -594,10 +702,16 @@ do iSta = 1,nstations
             call usage('calc_deformation: error in rotating station coordinate axes to strike')
         endif
 
-        ! Fault slip vector in strike-slip, dip-slip, and tensile-slip (NOT IMPLEMENTED)
-        slip(1) = slip_mag*cos(rak*d2r)
-        slip(2) = slip_mag*sin(rak*d2r)
-        slip(3) = 0.0d0
+        ! Fault slip vector in strike-slip, dip-slip, and tensile-slip
+        if (iFlt.le.nfaults) then
+            slip(1) = slip_mag*cos(rak*d2r)
+            slip(2) = slip_mag*sin(rak*d2r)
+            slip(3) = 0.0d0
+        else
+            slip(1) = 0.0d0
+            slip(2) = 0.0d0
+            slip(3) = slip_mag
+        endif
         if (fault_type.eq.'point') then
             mom(1) = slip(1)*wid*len*shearmod
             mom(2) = slip(2)*wid*len*shearmod
@@ -933,7 +1047,9 @@ use o92util, only: ffm_file, &
                    fsp_file, &
                    mag_file, &
                    flt_file, &
+                   tns_file, &
                    isFaultFileDefined, &
+                   isTensileFileDefined, &
                    fault_type, &
                    empirical_relation, &
                    slip_threshold, &
@@ -975,7 +1091,9 @@ ffm_file = ''
 fsp_file = ''
 flt_file = ''
 mag_file = ''
+tns_file = ''
 isFaultFileDefined = .false.
+isTensileFileDefined = .false.
 fault_type = 'rect'
 empirical_relation = 'WC'
 slip_threshold = 0.0d0
@@ -1043,6 +1161,11 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,flt_file)
         isFaultFileDefined = .true.
+
+    elseif (tag.eq.'-tns') then
+        i = i + 1
+        call get_command_argument(i,tns_file)
+        isTensileFileDefined = .true.
 
     elseif (trim(tag).eq.'-fn') then
         fault_type = 'rect'
@@ -1170,6 +1293,7 @@ if (verbosity.eq.3) then
     write(stdout,*) 'fsp_file:                 ',trim(fsp_file)
     write(stdout,*) 'flt_file:                 ',trim(flt_file)
     write(stdout,*) 'mag_file:                 ',trim(mag_file)
+    write(stdout,*) 'tns_file:                 ',trim(tns_file)
     write(stdout,*) 'isFaultFileDefined:       ',isFaultFileDefined
     write(stdout,*) 'fault_type:               ',trim(fault_type)
     write(stdout,*) 'empirical_relation:       ',trim(empirical_relation)
@@ -1214,47 +1338,91 @@ implicit none
 
 ! Arguments
 character(len=*) :: str
+character(len=8) :: info
+integer :: i
+
+info = 'all'
+i = len_trim(str)+1
 
 if (str.ne.'') then
-    write(stderr,*) trim(str)
+    if (index(str,'(usage:input)').ne.0) then
+        i = index(str,'(usage:input)')
+        info = 'input'
+    elseif (index(str,'(usage:station)').ne.0) then
+        i = index(str,'(usage:station)')
+        info = 'station'
+    elseif (index(str,'(usage:hafspc)').ne.0) then
+        i = index(str,'(usage:hafspc)')
+        info = 'hafspc'
+    elseif (index(str,'(usage:output)').ne.0) then
+        i = index(str,'(usage:output)')
+        info = 'output'
+    elseif (index(str,'(usage:misc)').ne.0) then
+        i = index(str,'(usage:misc)')
+        info = 'misc'
+    elseif (index(str,'(usage:none)').ne.0) then
+        i = index(str,'(usage:none)')
+        info = 'none'
+    endif
+
+    write(stderr,*) str(1:i-1)
     write(stderr,*)
+    if (info.eq.'none') then
+        write(stderr,*) 'See o92util man page for details'
+        write(stderr,*)
+        stop
+    endif
 endif
 
 write(stderr,*) 'Usage: o92util ...options...'
 write(stderr,*)
-write(stderr,*) 'Input fault options'
-write(stderr,*) '-ffm FFMFILE         Fault file in USGS .param format'
-write(stderr,*) '-fsp FSPFILE         Fault file in SRCMOD FSP format'
-write(stderr,*) '-mag MAGFILE         Fault file in "psmeca -Sa" format (...mag)'
-write(stderr,*) '-flt FLTFILE         Fault file with slip and dimensions (...slip wid len)'
-write(stderr,*) '-fn|-pt              Treat faults as finite rectangular (default) or point'
-write(stderr,*) '-empirical OPT       Empirical scaling relation'
-! write(stderr,*) '-thr THR             Minimum slip threshold'
-write(stderr,*)
-write(stderr,*) 'Input receiver options'
-write(stderr,*) '-sta STAFILE         Station/receiver locations'
-write(stderr,*) '-auto DEPTH N        Generate automatic location grid'
-write(stderr,*) '-trg TRGFILE         Target/receiver geometry'
-write(stderr,*)
-write(stderr,*) 'Input half-space options'
-write(stderr,*) '-haf HAFSPCFILE      Elastic half-space properties'
-write(stderr,*)
-write(stderr,*) 'Output options'
-write(stderr,*) '-disp DSPFILE        Displacement (E N Z)'
-write(stderr,*) '-strain STNFILE      Strain matrix (EE NN ZZ EN EZ NZ)'
-write(stderr,*) '-stress STSFILE      Stress matrix (EE NN ZZ EN EZ NZ)'
-write(stderr,*) '-estress ESTSFILE    Effective (maximum) shear stress'
-write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires -trg)'
-write(stderr,*) '-shear SHRFILE       Shear traction on target faults (requires -trg)'
-write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires -trg)'
-write(stderr,*)
-write(stderr,*) 'Miscellaneous options'
-write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
-write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
-write(stderr,*) '-prog                Turn on progress indicator'
-write(stderr,*) '-v LVL               Turn on verbose mode'
-write(stderr,*)
-write(stderr,*) 'See man page for details'
+if (info.eq.'all'.or.info.eq.'input') then
+    write(stderr,*) 'Input fault options'
+    write(stderr,*) '-ffm FFMFILE         Fault file in USGS .param format'
+    write(stderr,*) '-fsp FSPFILE         Fault file in SRCMOD FSP format'
+    write(stderr,*) '-mag MAGFILE         Fault file in "psmeca -Sa" format (...mag)'
+    write(stderr,*) '-flt FLTFILE         Fault file with slip and dimensions (...slip wid len)'
+    write(stderr,*) '-tns TNSFILE         Tensile source file (IN DEVELOPMENT)'
+    write(stderr,*) '-fn|-pt              Treat faults as finite rectangular (default) or point'
+    write(stderr,*) '-empirical OPT       Empirical scaling relation'
+    ! write(stderr,*) '-thr THR             Minimum slip threshold'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'station') then
+    write(stderr,*) 'Input target/receiver options'
+    write(stderr,*) '-sta STAFILE         Station/receiver locations'
+    write(stderr,*) '-auto DEPTH N        Generate automatic location grid'
+    write(stderr,*) '-trg TRGFILE         Target/receiver geometry'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'hafspc') then
+    write(stderr,*) 'Input half-space options'
+    write(stderr,*) '-haf HAFSPCFILE      Elastic half-space properties'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'output') then
+    write(stderr,*) 'Output options'
+    write(stderr,*) '-disp DSPFILE        Displacement (E N Z)'
+    write(stderr,*) '-strain STNFILE      Strain matrix (EE NN ZZ EN EZ NZ)'
+    write(stderr,*) '-stress STSFILE      Stress matrix (EE NN ZZ EN EZ NZ)'
+    write(stderr,*) '-estress ESTSFILE    Effective (maximum) shear stress'
+    write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires -trg)'
+    write(stderr,*) '-shear SHRFILE       Shear traction on target faults (requires -trg)'
+    write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires -trg)'
+    write(stderr,*)
+endif
+if (info.eq.'all'.or.info.eq.'misc') then
+    write(stderr,*) 'Miscellaneous options'
+    write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
+    write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
+    write(stderr,*) '-prog                Turn on progress indicator'
+    write(stderr,*) '-v LVL               Turn on verbose mode'
+    write(stderr,*)
+endif
+if (info.ne.'all') then
+    write(stderr,*) 'Type "o92util" without any arguments to see all options'
+endif
+write(stderr,*) 'See o92util man page for details'
 write(stderr,*)
 
 stop

@@ -679,6 +679,62 @@ endif
 return
 end subroutine
 
+!--------------------------------------------------------------------------------------------------!
+
+subroutine read_tensile_rect(tensile_file,tensile_data,ierr)
+!----
+! Read tensile dislocations from fault file:
+!     evlo evla evdp(km) str dip crack(m) wid(km) len(km)
+!----
+
+use io, only: stderr, fileExists, line_count
+implicit none
+
+! Arguments
+character(len=*) :: tensile_file
+type(ffm_data) :: tensile_data
+integer :: ierr
+
+! Local variables
+integer :: iflt, j
+
+
+! Yayyy, things are okay! Or are they?
+ierr = 0
+
+! Check that the file exists
+if (.not.fileExists(tensile_file)) then
+    write(stderr,*) 'read_tensile: no tensile source file found named ',trim(tensile_file)
+    ierr = 1
+    return
+endif
+
+! Allocate memory to sub-fault array
+tensile_data%nflt = line_count(tensile_file)
+if (allocated(tensile_data%subflt)) then
+    deallocate(tensile_data%subflt)
+endif
+allocate(tensile_data%subflt(tensile_data%nflt,8))
+
+! Read the file
+open(unit=33,file=tensile_file,status='old')
+do iflt = 1,tensile_data%nflt
+    read(33,*,end=9001,iostat=ierr) (tensile_data%subflt(iflt,j),j=1,8)
+    tensile_data%subflt(iflt,3) = tensile_data%subflt(iflt,3)*1.0d3 ! Depth km->m
+    tensile_data%subflt(iflt,7) = tensile_data%subflt(iflt,7)*1.0d3 ! Width km->m
+    tensile_data%subflt(iflt,8) = tensile_data%subflt(iflt,8)*1.0d3 ! Length km->m
+enddo
+close(33)
+
+9001 if (ierr.ne.0) then
+    write(stderr,*) 'read_tensile: at line ',iflt,', reached end of line early'
+    ierr = 1
+    return
+endif
+
+return
+end subroutine
+
 
 
 end module

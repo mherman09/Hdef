@@ -1,5 +1,28 @@
 #!/bin/bash
 
+HDEF_DIR=".."
+BIN_DIR=`grep "^ *BIN_DIR *=" ../Makefile | tail -1 | sed -e "s/.*=//" | awk '{print $1}' |\
+         awk -F/ '{
+             if($1=="."){
+                 printf("'$HDEF_DIR'/")
+                 for(i=2;i<=NF-1;i++){
+                     printf("%s/"),$i
+                 }
+                 printf("%s"),$NF
+             } else if ($1=="..") {
+                 printf("'$HDEF_DIR'/../")
+                 for(i=2;i<=NF-1;i++){
+                     printf("%s/"),$i
+                 }
+                 printf("%s"),$NF
+             } else {
+                 print $0
+             }
+         }'`
+
+echo ----------------------------------------------------------
+echo Test \#1: Fault file input, strain output
+echo ----------
 # Fault file input, displacement and strain output
 echo 48.7 49.1 11.2 25 76 -132 1.5 4.9 6.4 > flt.tmp
 cat > sta.tmp << EOF
@@ -10,7 +33,7 @@ cat > sta.tmp << EOF
 EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
-../bin/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
 cat > answer.tmp << EOF
    48.299999999999997        48.299999999999997        0.0000000000000000        1.5805317427851058E-004  -2.3604614842163930E-004   2.8040220357723848E-005
    49.299999999999997        48.299999999999997        0.0000000000000000        3.2644282656529915E-004  -6.3753967941883641E-004  -1.2309484389809238E-004
@@ -27,6 +50,9 @@ EOF
 ./test_values.sh strain.tmp answer.tmp 9 "o92util: flt input, strain output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#2: Magnitude file input, displacement and strain output
+echo ----------
 # Magnitude file input, displacement and strain output
 echo 48.7 49.1 11.2 25 18 82 6.3 > mag.tmp
 cat > sta.tmp << EOF
@@ -37,7 +63,7 @@ cat > sta.tmp << EOF
 EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
 cat > answer.tmp << EOF
    48.299999999999997        48.299999999999997        0.0000000000000000       -3.1471847243006943E-005   1.0138365609424706E-004  -1.6531811715356456E-004
    49.299999999999997        48.299999999999997        0.0000000000000000       -5.3677994244703191E-004   7.5597296433854494E-004  -4.8883341397864059E-005
@@ -54,10 +80,13 @@ EOF
 ./test_values.sh strain.tmp answer.tmp 9 "o92util: mag input, strain output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#3: Point source input, displacement and strain output
+echo ----------
 # Point source
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -strain strain.tmp -pt
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -pt
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -pt
 cat > answer.tmp << EOF
    48.299999999999997        48.299999999999997        0.0000000000000000       -3.0677807795151785E-005   9.9948457132295463E-005  -1.6469054604139493E-004
    49.299999999999997        48.299999999999997        0.0000000000000000       -5.3184067908051253E-004   7.5381211757645798E-004  -4.7878637751242039E-005
@@ -74,6 +103,9 @@ EOF
 ./test_values.sh strain.tmp answer.tmp 9 "o92util: mag input, point source, strain output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#4: Empirical relation test
+echo ----------
 # Empirical relation
 cat > sta.tmp << EOF
 48.65 49.05 0.0
@@ -84,7 +116,7 @@ EOF
 # Wells and Coppersmith (1994)
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -empirical WC
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical WC
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical WC
 cat > answer.tmp << EOF
    48.649999999999999        49.049999999999997        0.0000000000000000       -1.1547745841232599E-002  -7.9481644519142063E-003   4.1730288401669376E-002
    48.780000000000001        48.930000000000000        0.0000000000000000       -8.4807481827498393E-003   1.6625010594413223E-002  -1.1450308038497711E-002
@@ -95,7 +127,7 @@ EOF
 # Mai and Beroza (2000)
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -empirical MB
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical MB
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical MB
 cat > answer.tmp << EOF
    48.649999999999999        49.049999999999997        0.0000000000000000       -1.4038214244096674E-002  -1.3447311541476476E-002   3.8753589645552429E-002
    48.780000000000001        48.930000000000000        0.0000000000000000       -7.2708771840655469E-003   1.6619213002717733E-002  -1.0511651393977226E-002
@@ -106,7 +138,7 @@ EOF
 # Blaser et al. (2010)
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -empirical B
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical B
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical B
 cat > answer.tmp << EOF
    48.649999999999999        49.049999999999997        0.0000000000000000       -1.2330973865047428E-002  -7.0260549468734628E-003   3.8469868029580384E-002
    48.780000000000001        48.930000000000000        0.0000000000000000       -8.2202740260977764E-003   1.6284748716892360E-002  -1.1122455936836785E-002
@@ -117,7 +149,7 @@ EOF
 # Yen and Ma (2011)
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -empirical YM
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical YM
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical YM
 cat > answer.tmp << EOF
    48.649999999999999        49.049999999999997        0.0000000000000000       -1.4233823803109721E-002  -8.3630151877001971E-003   3.4459404928559770E-002
    48.780000000000001        48.930000000000000        0.0000000000000000       -7.4249136419277436E-003   1.5976509658513331E-002  -1.0368382032062832E-002
@@ -128,7 +160,7 @@ EOF
 # Allen and Hayes (2017)
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -mag mag.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -empirical AH
-../bin/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical AH
+$BIN_DIR/o92util -mag mag.tmp -sta sta.tmp -disp disp.tmp -empirical AH
 cat > answer.tmp << EOF
    48.649999999999999        49.049999999999997        0.0000000000000000       -1.4931705746988540E-002  -8.0151835536687623E-003   3.2241526451441051E-002
    48.780000000000001        48.930000000000000        0.0000000000000000       -7.1764706694222554E-003   1.5741917055846332E-002  -1.0068232139843005E-002
@@ -138,6 +170,9 @@ EOF
 ./test_values.sh disp.tmp answer.tmp 6 "o92util: mag input, disp output, Allen and Hayes (2017)" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#5: USGS .param format, displacement and strain output
+echo ----------
 # Finite fault model in USGS param format input, disp and strain output
 cat > ffm.tmp << EOF
 #Total number of fault_segments=     1
@@ -369,7 +404,7 @@ cat > sta.tmp << EOF
 EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
-../bin/o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
+$BIN_DIR/o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp
 cat > answer.tmp << EOF
   126.30000000000000       -8.0999999999999996        0.0000000000000000        5.4236426651140955E-006   3.4026851126876733E-003  -4.7317357901842452E-003
    125.30000000000000       -8.0999999999999996        0.0000000000000000       -4.5645170341471746E-002  0.25286924622121287       0.15746336610082426
@@ -386,7 +421,10 @@ EOF
 ./test_values.sh strain.tmp answer.tmp 9 "o92util: ffm input, strain output" || exit 1
 
 
-# Finite fault model in SRCMOD FSP format, disp output
+echo ----------------------------------------------------------
+echo Test \#6: SRCMOD .fsp format, displacement and strain output
+echo ----------
+# Finite fault model in SRCMOD FSP format, disp and strain output
 cat > fsp.tmp << EOF
 % ---------------------------------- FINITE-SOURCE RUPTURE MODEL --------------------------------
 %
@@ -738,7 +776,7 @@ cat > sta.tmp << EOF
 EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -prog
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -prog
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -4.9271672098820289       -1.0506817728466533        1.1206996258297568
   -74.099999999999994       -37.299999999999997        0.0000000000000000       -4.8523384224063166      -0.65649401226543536        2.3548504927992888
@@ -756,11 +794,14 @@ EOF
 
 
 
+echo ----------------------------------------------------------
+echo Test \#7: Stress output
+echo ----------
 # Stress output, half-space parameters
 #echo lame 45e9 30e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp
 echo lame 45e9 shear 30e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -4623490.3260502396       -2187755.6174448822       -1.5059486031532288E-006  -436357.11541625799        3.4510474554539409E-009  -3.6547700208579752E-009
   -74.099999999999994       -37.299999999999997        0.0000000000000000       -682949.32409030583        2132304.6958643897        4.6137720346450806E-006  -1765224.1957737862       -9.6188382193551955E-009   6.2938130715826246E-010
@@ -770,11 +811,14 @@ EOF
 ./test_values.sh stress.tmp answer.tmp 9 "o92util: fsp input, stress output" -zero 1e-4 || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#8: Maximum shear stress output
+echo ----------
 # Maximum shear stress output
 #echo lame 45e9 30e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -estress estress.tmp
 echo lame 45e9 shear 30e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -estress estress.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -estress estress.tmp
 cat > answer.tmp << EOF
 -74.000000000000000       -37.200000000000003        0.0000000000000000        2353656.2408470074
 -74.099999999999994       -37.299999999999997        0.0000000000000000        2296188.7647509635
@@ -784,12 +828,15 @@ EOF
 ./test_values.sh estress.tmp answer.tmp 4 "o92util: fsp input, estress output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#9: Normal traction output
+echo ----------
 # Normal traction
 echo 35 45 -90 0.5 > trg.tmp
 #echo lame 20e9 20e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -normal normal.tmp
 echo poisson 0.25 shear 20e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -normal normal.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -normal normal.tmp
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -995829.93792141357
   -74.099999999999994       -37.299999999999997        0.0000000000000000        643407.55667240557
@@ -799,13 +846,16 @@ EOF
 ./test_values.sh normal.tmp answer.tmp 4 "o92util: fsp input, normal output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#10: Shear traction output
+echo ----------
 # Shear traction
 echo 35 25 -90 0.5 > trg.tmp
 #echo lame 20e9 20e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -shear shear.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -shearmax shearmax.tmp
 echo poisson 0.25 shear 20e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -shear shear.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -shear shear.tmp
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -762849.99023592379        845205.24650152226
   -74.099999999999994       -37.299999999999997        0.0000000000000000        492878.78344786272        737186.82118636766
@@ -815,12 +865,15 @@ EOF
 ./test_values.sh shear.tmp answer.tmp 5 "o92util: fsp input, shear output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#11: Coulomb stress change output
+echo ----------
 # Coulomb stress change
 echo -17 15 106 0.5 > trg.tmp
 #echo lame 45e9 42e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
 echo lame 45e9 shear 42e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000        1225836.8941970295
   -74.099999999999994       -37.299999999999997        0.0000000000000000        485816.35736134095
@@ -830,6 +883,9 @@ EOF
 ./test_values.sh coul.tmp answer.tmp 4 "o92util: fsp input, coulomb output" || exit 1
 
 
+echo ----------------------------------------------------------
+echo Test \#12: Target fault geometry test
+echo ----------
 # Target fault geometry
 cat > trg.tmp << EOF
 -17 15 106 0.5
@@ -840,7 +896,7 @@ EOF
 #echo lame 45e9 42e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
 echo lame 45e9 shear 42e9 > haf.tmp
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp
 cat > answer.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000        1225836.8941970295
   -74.099999999999994       -37.299999999999997        0.0000000000000000        576938.41842525115
@@ -853,7 +909,7 @@ cat > trg.tmp << EOF
 1 2 3 4
 9 2 3 4
 EOF
-../bin/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp 2>&1 |\
+$BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -trg trg.tmp -haf haf.tmp -coul coul.tmp 2>&1 |\
     sed -n -e "1p" |\
     awk '{
         if(/read_targets/){
@@ -864,6 +920,9 @@ EOF
     }'
 
 
+echo ----------------------------------------------------------
+echo Test \#13: Cartesian coordinate test
+echo ----------
 # Cartesian coordinates
 cat > sta.tmp << EOF
 -10 -10 0
@@ -876,7 +935,7 @@ cat > flt.tmp << EOF
 EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -flt flt.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -xy
-../bin/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp -xy
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp -xy
 cat > answer.tmp << EOF
   -10.000000000000000       -10.000000000000000        0.0000000000000000        3.2670517217273716E-002   2.2127722330856248E-002  -2.7147705233220441E-002
    5.0000000000000000       -15.000000000000000        0.0000000000000000        2.0294966584747873E-002  -4.2637709325634689E-002   3.6785032026075110E-002
@@ -887,8 +946,34 @@ EOF
 
 # Half-space parameters are checked implicitly in other tests
 
+echo ----------------------------------------------------------
+echo Test \#14: Automatic station test
+echo ----------
 # Test auto stations
 echo 0 0 10 40 20 80 1 6 4 > flt.tmp
-../bin/o92util -flt flt.tmp -auto 0 10 -disp disp.tmp
+$BIN_DIR/o92util -flt flt.tmp -auto 0 10 -disp disp.tmp
+
+echo ----------------------------------------------------------
+echo Test \#15: Tensile source, displacement output
+echo ----------
+# Station coordinates
+cat > sta.tmp << EOF
+36.2 48.2 0.0
+36.1 48.4 0.0
+36.5 48.1 0.0
+36.4 47.8 0.0
+EOF
+# Tensile source
+echo 36.3 48.2 15 45 90 0.5 8.8 16.3 > tns.tmp
+# Half-space elasticity
+echo lame 40e9 40e9 > haf.tmp
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp
+cat > answer.tmp << EOF
+   36.200000000000003        48.200000000000003        0.0000000000000000        4.8211922140861619E-009  -9.2962362137340984E-009  -1.2318530148426677E-008
+   36.100000000000001        48.399999999999999        0.0000000000000000        4.8476427280200898E-009  -9.4384305304864179E-009  -1.2210717511036504E-008
+   36.500000000000000        48.100000000000001        0.0000000000000000        4.7610847480744825E-009  -9.0788986058960397E-009  -1.2363592203856339E-008
+   36.399999999999999        47.799999999999997        0.0000000000000000        4.7670269964526054E-009  -9.0097626356377033E-009  -1.2533562505917477E-008
+EOF
+./test_values.sh disp.tmp answer.tmp 6 "o92util: tns input, displacement output"
 
 rm *.tmp

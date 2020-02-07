@@ -50,7 +50,25 @@ is converted using the specified empirical relation.
 Fault file:
 .I evlo evla evdp(km) strike dip rake slip(m) width(km)
 .IR length(km) ,
-where width is the down-dip dimension and length is the along-strike dimension
+where
+.I width
+is the down-dip dimension and
+.I length
+is the along-strike dimension
+
+.TP
+.BI -tns " tensile_file"
+Tensile source file:
+.I evlo evla evdp(km) strike dip opening(m) width(km)
+.IR length(km) ,
+where
+.I opening
+is positive for volume increase,
+.I width
+is the down-dip dimension, and
+.I length
+is the along-strike dimension.
+NOTE: THIS OPTION IS IN DEVELOPMENT AND MAY CHANGE AT ANY TIME!
 
 .TP
 .B -fn|-pt
