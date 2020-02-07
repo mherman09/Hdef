@@ -1,14 +1,16 @@
 #!/bin/bash
 
+BIN_DIR=`./define_bin_dir.sh`
+
 # TEST FOR GCMT FILE!!!!
-GCMT_FILE=`../bin/readGCMT -mag 9 10 2>&1 | grep "no GCMT file"`
+GCMT_FILE=`$BIN_DIR/readGCMT -mag 9 10 2>&1 | grep "no GCMT file"`
 if [ "$GCMT_FILE" != "" ]
 then
     echo No GCMT file to test
     exit
 fi
 
-../bin/readGCMT -mag 9 10 > gcmt.tmp
+$BIN_DIR/readGCMT -mag 9 10 > gcmt.tmp
 cat > answer.tmp << EOF
 2004-12-26T00:58:50    94.260     3.090    28.6    9.03    1.0400E+22   -4.2700E+21   -6.1000E+21    2.9800E+22   -2.4000E+22    4.2600E+21
 2011-03-11T05:46:23   143.050    37.520    20.0    9.12    1.7300E+22   -2.8100E+21   -1.4500E+22    2.1200E+22    4.5500E+22   -6.5700E+21
@@ -16,7 +18,7 @@ EOF
 ./test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: magnitude" || exit 1
 
 
-../bin/readGCMT -date 2014-03-14T00:00:00 2014-04-14T00:00:00 -rect -75 -65 -21 -18 > gcmt.tmp
+$BIN_DIR/readGCMT -date 2014-03-14T00:00:00 2014-04-14T00:00:00 -rect -75 -65 -21 -18 > gcmt.tmp
 cat > answer.tmp << EOF
 2014-03-16T21:16:29   289.080   -19.940    12.0    6.70    9.3000E+18   -6.8000E+18   -2.5000E+18    3.5200E+18   -8.7500E+18    2.9500E+18
 2014-03-17T01:34:55   288.990   -19.840    22.3    5.19    6.0900E+16   -3.8500E+15   -5.7000E+16   -3.5700E+16    1.2000E+15   -1.2700E+16

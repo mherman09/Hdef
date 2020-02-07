@@ -1,24 +1,6 @@
 #!/bin/bash
 
-HDEF_DIR=".."
-BIN_DIR=`grep "^ *BIN_DIR *=" ../Makefile | tail -1 | sed -e "s/.*=//" | awk '{print $1}' |\
-         awk -F/ '{
-             if($1=="."){
-                 printf("'$HDEF_DIR'/")
-                 for(i=2;i<=NF-1;i++){
-                     printf("%s/"),$i
-                 }
-                 printf("%s"),$NF
-             } else if ($1=="..") {
-                 printf("'$HDEF_DIR'/../")
-                 for(i=2;i<=NF-1;i++){
-                     printf("%s/"),$i
-                 }
-                 printf("%s"),$NF
-             } else {
-                 print $0
-             }
-         }'`
+BIN_DIR=`./define_bin_dir.sh`
 
 echo ----------------------------------------------------------
 echo Test \#1: Fault file input, strain output
@@ -967,7 +949,7 @@ EOF
 echo 36.3 48.2 15 45 90 0.5 8.8 16.3 > tns.tmp
 # Half-space elasticity
 echo lame 40e9 40e9 > haf.tmp
-$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -disp disp.tmp
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp
 cat > answer.tmp << EOF
    36.200000000000003        48.200000000000003        0.0000000000000000        4.8211922140861619E-009  -9.2962362137340984E-009  -1.2318530148426677E-008
    36.100000000000001        48.399999999999999        0.0000000000000000        4.8476427280200898E-009  -9.4384305304864179E-009  -1.2210717511036504E-008

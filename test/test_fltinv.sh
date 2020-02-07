@@ -1,4 +1,6 @@
-#!/bin/bash
+$BIN_DIR#!/bin/bash
+
+BIN_DIR=`./define_bin_dir.sh`
 
 echo ---------------------------------------------------------
 echo Test \#1: 1 strike-slip fault, 4 3-component displacements
@@ -18,7 +20,7 @@ cat > o92_sta.tmp << EOF
 EOF
 
 # Calculate "observed" displacements with no noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 
 # Prepare displacement observation and fault geometry files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
@@ -30,7 +32,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 
 # Linear least squares solution
 #echo "Least squares solution:"
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -60,10 +62,10 @@ cat > o92_flt.tmp << EOF
 EOF
 
 # Station locations
-../bin/grid -x -6 6 -dx 6 -y -6 6 -dy 6 -z 0.0 -o o92_sta.tmp
+$BIN_DIR/grid -x -6 6 -dx 6 -y -6 6 -dy 6 -z 0.0 -o o92_sta.tmp
 
 # Calculate "observed" displacements with no noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 
 # Prepare displacement observation and fault geometry files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
@@ -75,7 +77,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 
 # Linear least squares solutions
 #echo "Least squares solution:"
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -91,7 +93,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
 
 #echo Least squares solution + only horizontal displacements:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -108,7 +110,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, horizontal disp" || exit 1
 
 #echo Least squares solution + only vertical displacements:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -131,7 +133,7 @@ cat > rake.tmp << EOF
 180
 190
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -154,7 +156,7 @@ cat > rake.tmp << EOF
 180
 180
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -172,7 +174,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180)" || exit 1
 
 #echo "Least squares solution + fixed rake (all 180) + nnls:"
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -196,7 +198,7 @@ cat > rake.tmp << EOF
 135 225
 135 225
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -220,7 +222,7 @@ cat > slip.tmp << EOF
 99999 99999
  -1.0 99999
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -237,7 +239,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 2 fixed slip components" || exit 1
 
 #echo Least squares solution + damping = 0.1:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -254,7 +256,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, damping=0.1" || exit 1
 
 #echo Least squares solution + damping = 1.0:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -277,7 +279,7 @@ cat > smooth.tmp << EOF
 3 2 1 4
 4 2 2 3
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -294,7 +296,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=0.1" || exit 1
 
 #echo Least squares solution + smoothing = 1.0:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -311,7 +313,7 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, smoothing=1.0" || exit 1
 
 #echo Least squares solution + damping + smoothing:
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -347,10 +349,10 @@ cat > o92_flt.tmp << EOF
 EOF
 
 # Station locations
-../bin/grid -x -6 6 -dx 4 -y -6 6 -dy 4 -z 0.0 -o o92_sta.tmp
+$BIN_DIR/grid -x -6 6 -dx 4 -y -6 6 -dy 4 -z 0.0 -o o92_sta.tmp
 
 # Calculate "observed" displacements with no noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 
 # Prepare displacement observation and fault geometry files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
@@ -359,12 +361,12 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 # Calculate line-of-sight displacements
 AZ="45"
 INC="35"
-../bin/vec2los -f o92_disp.tmp -o o92_los.tmp -a $AZ -i $INC
+$BIN_DIR/vec2los -f o92_disp.tmp -o o92_los.tmp -a $AZ -i $INC
 
 # Prepare displacement and fault files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.tmp
 
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -399,21 +401,21 @@ EOF
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.tmp
 
 # Station locations
-../bin/grid -x -6 6 -dx 6 -y -6 6 -dy 6 -z 0.0 -o o92_sta_disp.tmp
-../bin/grid -x -6 6 -dx 4 -y -6 6 -dy 4 -z 0.0 -o o92_sta_los.tmp
+$BIN_DIR/grid -x -6 6 -dx 6 -y -6 6 -dy 6 -z 0.0 -o o92_sta_disp.tmp
+$BIN_DIR/grid -x -6 6 -dx 4 -y -6 6 -dy 4 -z 0.0 -o o92_sta_los.tmp
 
 # Calculate "observed" displacements with no noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta_disp.tmp -disp o92_disp.tmp -xy
-../bin/o92util -flt o92_flt.tmp -sta o92_sta_los.tmp -disp o92_disp_los.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta_disp.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta_los.tmp -disp o92_disp_los.tmp -xy
 AZ="45"
 INC="35"
-../bin/vec2los -f o92_disp_los.tmp -o o92_los.tmp -a $AZ -i $INC
+$BIN_DIR/vec2los -f o92_disp_los.tmp -o o92_los.tmp -a $AZ -i $INC
 
 # Prepare displacement observation and files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,'"$AZ"','"$INC"'}' o92_los.tmp > fltinv_los.tmp
 
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -452,10 +454,10 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 #echo
 
 # Station locations
-../bin/grid -x -2 6 -nx 5 -y -7 7 -ny 5 -z 0.0 -o o92_sta.tmp
+$BIN_DIR/grid -x -2 6 -nx 5 -y -7 7 -ny 5 -z 0.0 -o o92_sta.tmp
 
 # Calculate "observed" displacements with small noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
 
 # Covariance matrix: iobs jobs icmp jcmp cov
@@ -520,7 +522,7 @@ paste fltinv_disp.tmp noise.tmp |\
     awk '{print $1,$2,$3,$4+$7,$5+$8,$6+$9}' > j
 mv j fltinv_disp.tmp
 
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -557,7 +559,7 @@ echo 0  1 10 > sta.tmp
 echo shearmod 40e9 lame 40e9 > haf.tmp
 
 # Calculate pre-stresses
-../bin/o92util -flt flt.tmp -sta sta.tmp -stress stress.tmp -xy -haf haf.tmp
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -stress stress.tmp -xy -haf haf.tmp
 
 # Prepare fltinv input files
 awk '{print $4,$5,$6,$7,$8,$9}' stress.tmp > j; mv j stress.tmp
@@ -568,7 +570,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' flt.tmp > fltinv_flt.tmp
 #echo -1 0
 
 # Linear least squares solution
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -lsqr:mode gesv \
@@ -602,7 +604,7 @@ echo 0  -2 10   0  90   0    0   2   2 >> sta.tmp
 echo lame 40e9 shearmod 40e9 > haf.tmp
 
 # Calculate pre-stresses
-../bin/o92util -flt flt.tmp -sta sta.tmp -stress stress.tmp -xy -haf haf.tmp
+$BIN_DIR/o92util -flt flt.tmp -sta sta.tmp -stress stress.tmp -xy -haf haf.tmp
 
 # Prepare fltinv input files
 awk '{print $4,$5,$6,$7,$8,$9}' stress.tmp > j; mv j stress.tmp
@@ -614,7 +616,7 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' sta.tmp > flt.tmp
 #echo 0.173 0.000
 
 # Linear least squares solution
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -lsqr:mode gesv \
@@ -719,7 +721,7 @@ cat > o92_sta.tmp << EOF
 EOF
 
 # Calculate "observed" displacements with no noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 
 # Prepare displacement observation and fault geometry files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
@@ -736,7 +738,7 @@ echo 0.25 1 > step.tmp
 
 # Linear least squares solution
 #echo "Least squares solution:"
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode anneal \
     -xy \
     -flt fltinv_flt.tmp \
@@ -782,10 +784,10 @@ awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$8*1e3,$9*1e3}' o92_flt.tmp > fltinv_flt.
 #echo
 
 # Station locations
-../bin/grid -x -2 6 -nx 5 -y -7 7 -ny 5 -z 0.0 -o o92_sta.tmp
+$BIN_DIR/grid -x -2 6 -nx 5 -y -7 7 -ny 5 -z 0.0 -o o92_sta.tmp
 
 # Calculate "observed" displacements with small noise
-../bin/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
+$BIN_DIR/o92util -flt o92_flt.tmp -sta o92_sta.tmp -disp o92_disp.tmp -xy
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp.tmp > fltinv_disp.tmp
 
 # Covariance matrix: iobs jobs icmp jcmp cov
@@ -868,7 +870,7 @@ cat > step.tmp << EOF
 0.05 2
 0.05 2
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode anneal \
     -xy \
     -flt fltinv_flt.tmp \
@@ -939,7 +941,7 @@ awk '{print 0,0,0,0,0,0}' o92_flt.tmp > fltinv_sts.tmp
 
 # Calculate fault slip surrounding central fault
 echo vp 6800 vs 3926 dens 3000 > haf.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -966,8 +968,8 @@ EOF
 # Calculate displacements at grid of stations around faults
 paste o92_flt.tmp inversion.tmp |\
     awk '{print $1,$2,$3,$4,$5,atan2($11,$10)/0.0174533,sqrt($10*$10+$11*$11),$8,$9}' > o92_flt_psc.tmp
-../bin/grid -x -4.5 5.2 -nx 5 -y -3.6 2.9 -ny 5 -z 0.0 -o o92_sta_psc.tmp
-../bin/o92util -flt o92_flt_psc.tmp -sta o92_sta_psc.tmp -haf haf.tmp -disp o92_disp_psc.tmp -xy
+$BIN_DIR/grid -x -4.5 5.2 -nx 5 -y -3.6 2.9 -ny 5 -z 0.0 -o o92_sta_psc.tmp
+$BIN_DIR/o92util -flt o92_flt_psc.tmp -sta o92_sta_psc.tmp -haf haf.tmp -disp o92_disp_psc.tmp -xy
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' o92_disp_psc.tmp > fltinv_disp_psc.tmp
 
 # Search for fault slip using simulated annealing with pseudo-coupling
@@ -983,7 +985,7 @@ cat > fltinv_slip_psc.tmp << EOF
 -1 0
 EOF
 rm inversion.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode anneal-psc \
     -xy \
     -flt fltinv_flt.tmp \
@@ -1057,10 +1059,10 @@ cat > tri_flt.tmp << EOF
 EOF
 
 # Station locations
-../bin/grid -x 70.0 80.0 -nx 3 -y 30.0 40.0 -ny 3 -z 0.0 -o tri_sta.tmp
+$BIN_DIR/grid -x 70.0 80.0 -nx 3 -y 30.0 40.0 -ny 3 -z 0.0 -o tri_sta.tmp
 
 # Calculate "observed" displacements with no noise
-../bin/triutil -flt tri_flt.tmp -sta tri_sta.tmp -disp tri_disp.tmp -xy
+$BIN_DIR/triutil -flt tri_flt.tmp -sta tri_sta.tmp -disp tri_disp.tmp -xy
 
 # Prepare displacement observation and fault geometry files for fltinv
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4,$5,$6}' tri_disp.tmp > fltinv_disp.tmp
@@ -1072,7 +1074,7 @@ awk '{c=1e3;print $1*c,$2*c,$3*c,$4*c,$5*c,$6*c,$7*c,$8*c,$9*c}' tri_flt.tmp > f
 
 # Linear least squares solutions
 #echo "Least squares solution:"
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -1118,7 +1120,7 @@ echo 0 -1 0 > slip.tmp
 paste tri.tmp slip.tmp > triutil_flt.tmp
 cp center.tmp triutil_sta.tmp
 echo shearmod 40e9 lame 40e9 > haf.tmp
-../bin/triutil \
+$BIN_DIR/triutil \
     -flt triutil_flt.tmp \
     -sta triutil_sta.tmp \
     -strain triutil_stn.tmp \
@@ -1129,7 +1131,7 @@ echo shearmod 40e9 lame 40e9 > haf.tmp
 # Prepare fltinv files
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4*1e3,$5*1e3,$6*1e3,$7*1e3,$8*1e3,$9*1e3}' tri.tmp > fltinv_flt.tmp
 awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -flt fltinv_flt.tmp \
@@ -1176,7 +1178,7 @@ echo 0 -1 0 > slip1.tmp
 paste tri1.tmp slip1.tmp > triutil_flt1.tmp
 echo lame 40e9 shear 40e9 > haf.tmp
 cp center2.tmp triutil_sta2.tmp
-../bin/triutil \
+$BIN_DIR/triutil \
     -flt triutil_flt1.tmp \
     -sta triutil_sta2.tmp \
     -strain triutil_stn2.tmp \
@@ -1188,7 +1190,7 @@ cp center2.tmp triutil_sta2.tmp
 awk '{print $1*1e3,$2*1e3,$3*1e3,$4*1e3,$5*1e3,$6*1e3,$7*1e3,$8*1e3,$9*1e3}' tri2.tmp > fltinv_flt2.tmp
 awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts2.tmp > fltinv_sts2.tmp
 echo vp 6800 vs 3926 dens 3000 > haf.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -xy \
     -lsqr:mode gesv \
@@ -1232,7 +1234,7 @@ echo 0 -1 0 > slip.tmp
 paste tri.tmp slip.tmp > triutil_flt.tmp
 cp center.tmp triutil_sta.tmp
 echo lame 40e9 shear 40e9 > haf.tmp
-../bin/triutil \
+$BIN_DIR/triutil \
     -flt triutil_flt.tmp \
     -sta triutil_sta.tmp \
     -strain triutil_stn.tmp \
@@ -1243,7 +1245,7 @@ echo lame 40e9 shear 40e9 > haf.tmp
 # Prepare fltinv files
 awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri.tmp > fltinv_flt.tmp
 awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -flt fltinv_flt.tmp \
     -gf:model triangle \
@@ -1290,7 +1292,7 @@ paste tri1.tmp slip.tmp > triutil_flt.tmp
 awk '{printf("%.8f %.8f %.8f\n"),($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri2.tmp > center.tmp
 cp center.tmp triutil_sta.tmp
 echo lame 40e9 shear 40e9 > haf.tmp
-../bin/triutil \
+$BIN_DIR/triutil \
     -flt triutil_flt.tmp \
     -sta triutil_sta.tmp \
     -strain triutil_stn.tmp \
@@ -1301,7 +1303,7 @@ echo lame 40e9 shear 40e9 > haf.tmp
 # Prepare fltinv files
 awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri2.tmp > fltinv_flt.tmp
 awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -flt fltinv_flt.tmp \
     -gf:model triangle \
@@ -1318,7 +1320,7 @@ cat > fltinv_slip.tmp << EOF
 0 -1
 99999 99999
 EOF
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -flt fltinv_flt.tmp \
     -flt:slip fltinv_slip.tmp \
@@ -1358,7 +1360,7 @@ cat > coords.tmp << EOF
 EOF
 
 # Calculate motion with respect to pole
-platemotion -f coords.tmp -pole -101/24/0.42 |\
+$BIN_DIR/platemotion -f coords.tmp -pole -101/24/0.42 |\
     awk '{print $1,$2,0,$3/1e3,$4/1e3,0}' > vel.tmp
 
 # Build Euler pole input file
@@ -1369,7 +1371,7 @@ EOF
 # Points to model with rigid-body rotations
 awk '{print 1,3,NR}' vel.tmp >> euler.tmp
 
-../bin/fltinv \
+$BIN_DIR/fltinv \
     -mode lsqr \
     -geo \
     -disp vel.tmp \
@@ -1475,7 +1477,7 @@ exit
 #awk '{printf("%.8f %.8f %.8f\n"),($1+$4+$7)/3,($2+$5+$8)/3,($3+$6+$9)/3}' tri2.tmp > center.tmp
 #cp center.tmp triutil_sta.tmp
 #echo lame 40e9 shear 40e9 > haf.tmp
-#../bin/triutil \
+#$BIN_DIR/triutil \
 #    -flt triutil_flt.tmp \
 #    -sta triutil_sta.tmp \
 #    -strain triutil_stn.tmp \
@@ -1486,7 +1488,7 @@ exit
 ## Prepare fltinv files
 #awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri2.tmp > fltinv_flt.tmp
 #awk '{print $4,$5,$6,$7,$8,$9}' triutil_sts.tmp > fltinv_sts.tmp
-#../bin/fltinv \
+#$BIN_DIR/fltinv \
 #    -mode lsqr \
 #    -flt fltinv_flt.tmp \
 #    -gf:model triangle \
@@ -1502,7 +1504,7 @@ exit
 #0 -1
 #99999 99999
 #EOF
-#../bin/fltinv \
+#$BIN_DIR/fltinv \
 #    -mode lsqr \
 #    -flt fltinv_flt.tmp \
 #    -flt:slip fltinv_slip.tmp \

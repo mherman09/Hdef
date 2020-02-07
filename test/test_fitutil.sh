@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BIN_DIR=`./define_bin_dir.sh`
+
 # Fit quadratic polynomial
 C0="4.6"
 C1="-1.2"
@@ -11,10 +13,10 @@ cat > xy.tmp << EOF
 5.0000000000000000 -1.4
 EOF
 cat > answer.tmp << EOF
-   4.6000000000000014     
-  -1.2000000000000004 
+   4.6000000000000014
+  -1.2000000000000004
 EOF
-../bin/fitutil -f xy.tmp -poly 1 -label_coeff 0 > poly_coeff.tmp
+$BIN_DIR/fitutil -f xy.tmp -poly 1 -label_coeff 0 > poly_coeff.tmp
 ./test_values.sh poly_coeff.tmp answer.tmp 1 "fitutil: 1st order polynomial" || exit 1
 
 # Fit sinusoid
@@ -48,10 +50,10 @@ cat > xy.tmp << EOF
 7.0000000000000000 2.59296
 EOF
 cat > answer.tmp << EOF
-   7.6999993020947040     
-   2.0999999661540500 
+   7.6999993020947040
+   2.0999999661540500
 EOF
-../bin/fitutil -f xy.tmp -sin $PERIOD -label_coeff 0 -o sin_coeff.tmp
+$BIN_DIR/fitutil -f xy.tmp -sin $PERIOD -label_coeff 0 -o sin_coeff.tmp
 ./test_values.sh sin_coeff.tmp answer.tmp 1 "fitutil: sinusoid" || exit 1
 
 # Fit exponential with free exponential constant
@@ -64,7 +66,7 @@ cat > xy.tmp << EOF
 4.0000000000000000 0.0378568
 5.0000000000000000 0.0114023
 EOF
-../bin/fitutil -f xy.tmp -exp -label_coeff n > exp_coeff.tmp
+$BIN_DIR/fitutil -f xy.tmp -exp -label_coeff n > exp_coeff.tmp
 cat > answer.tmp << EOF
  4.59998641E+00
 -1.19999901E+00
@@ -72,7 +74,7 @@ EOF
 ./test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, find exponential constant" || exit 1
 
 # Fit exponential with fixed exponential constant
-../bin/fitutil -f xy.tmp -exp $C -label_coeff n > exp_coeff.tmp
+$BIN_DIR/fitutil -f xy.tmp -exp $C -label_coeff n > exp_coeff.tmp
 cat > answer.tmp << EOF
    4.5999901531556864
 EOF
@@ -109,13 +111,13 @@ cat > xy.tmp << EOF
 16.000000000000000 3.55706
 17.000000000000000 6.17427
 EOF
-../bin/fitutil -f xy.tmp -poly 1 -sin $T -exp $CEXP -label_coeff 0 -pre pre.tmp > multi.tmp
+$BIN_DIR/fitutil -f xy.tmp -poly 1 -sin $T -exp $CEXP -label_coeff 0 -pre pre.tmp > multi.tmp
 cat > answer.tmp << EOF
-  -5.1999990119741932     
-  0.59999992890469644     
-   1.4999997983110380     
-  0.60000024366333293     
-   4.1999987142469690 
+  -5.1999990119741932
+  0.59999992890469644
+   1.4999997983110380
+  0.60000024366333293
+   4.1999987142469690
 EOF
 ./test_values.sh multi.tmp answer.tmp 1 "fitutil: linear + sinusoid + exponential" || exit 1
 
