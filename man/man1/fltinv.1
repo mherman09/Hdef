@@ -18,7 +18,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .B |
 .BI -prests " prestress_file"
 .BI "[-disp:components [" 1 ][ 2 ][ 3 ]]
-.BI [-cov_file " covariance_file" ]
+.BI [-cov " covariance_file" ]
 .BI [-disp:unit " input_unit" ]
 .BI [-disp:misfit " misfit_file" ]
 .BI -gf:model " model"
@@ -271,7 +271,7 @@ LAPACK routine dgesv instead of with a least-squares approach, because the syste
 of equations is properly determined and well behaved. All values are in SI units.
 
 .TP
-.BI -cov_file " covariance_file"
+.BI -cov " covariance_file"
 File with displacement covariance data in the format:
 .IR "idisp jdisp icmp jcmp cov" ,
 where
