@@ -98,12 +98,13 @@ HDIP=`echo $HEIGHT 1.15 2 | awk '{print $1*$2/$3}'`
 HRAK=`echo $HEIGHT 0.95 2 | awk '{print $1*$2/$3}'`
 FONT1=`echo 11 $WID 1 | awk '{print $1*$2/$3}'`
 FONT2=`echo 10 $WID 1 | awk '{print $1*$2/$3}'`
+
 gmt pstext $PROJ $LIMS -F+f+j $SHIFT -N -K -O >> $PSFILE << EOF
-$WID2 $H1 $FONT1,0 CB Target Fault
-$WID2 $H2 $FONT1,0 CB Kinematics
-$X1 $HSTR $FONT2,2 LB Strike: $TSTR\260
-$X1 $HDIP $FONT2,2 LB Dip: $TDIP\260
-$X1 $HRAK $FONT2,2 LB Rake: $TRAK\260
+ $WID2 $H1 $FONT1,0 CB Target Fault
+ $WID2 $H2 $FONT1,0 CB Kinematics
+ $X1 $HSTR $FONT2,2 LB Strike: $TSTR\260
+ $X1 $HDIP $FONT2,2 LB Dip: $TDIP\260
+ $X1 $HRAK $FONT2,2 LB Rake: $TRAK\260
 EOF
 
 XF="$WID2"  # center of fault in x direction

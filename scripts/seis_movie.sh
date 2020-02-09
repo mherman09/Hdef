@@ -47,13 +47,13 @@ if [ "$SEIS_FILE" == "" ]; then echo "No seismicity file defined" 1>&2; usage; f
 if [ ! -f "$SEIS_FILE" ]; then echo "No seismicity file found named \"$SEIS_FILE\"" 1>&2; usage; fi
 
 
-awk '{print "'"$TSTART"'",$1}' $SEIS_FILE | dateutil -ndays -long > nday.tmp
+awk '{print "'"$TSTART"'",$1}' $SEIS_FILE | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" > nday.tmp
 if [ $COLOR_BY == "MEC" ]
 then
     awk '{print $6,$7,$8}' $SEIS_FILE | mtutil -sdr -ternary ternary.tmp
 fi
 
-TOTAL_DAYS=`dateutil -c $TSTART $TEND -ndays -long`
+TOTAL_DAYS=`echo $TSTART $TEND | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS"`
 NFRAMES=`grid -x $DT $TOTAL_DAYS -dx $DT | wc | awk '{print $1}'`
 
 DO_FADE=`echo $FADE_DURATION | awk '{if($1<=0){print "N"}else{print "Y"}}'`
@@ -67,6 +67,7 @@ gmt set MAP_FRAME_TYPE plain
 
 PROJ="-JM6i -P"
 LIMS="-R137/146/34/42"
+LIMS="-R-117.8/-117.3/35.5/36.0"
 
 if [ $COLOR_BY == "DEP" ]
 then
@@ -266,9 +267,9 @@ do
         fi
     fi
 
-    gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE
-    dateutil -c $TSTART $DAY -date -long |\
-        awk '{printf("0.05 0.05 20,0 LB %04d-%02d-%02d %02d:00:00\n"),$1,$2,$3,$4}' |\
+    gmt psbasemap $PROJ $LIMS -Bxa0.1 -Bya0.1 -K -O >> $PSFILE
+    echo $TSTART $DAY | dateutil -date -format "YYYY-MM-DDTHH:MM:SS" |\
+        awk '{print "0.05 0.05 20,0 LB",substr($1,1,19)}' |\
         gmt pstext -JX1i -R0/1/0/1 -F+f+j -Gwhite@20 -N -K -O >> $PSFILE
     echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
 

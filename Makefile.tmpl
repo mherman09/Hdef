@@ -313,11 +313,14 @@ $(BIN_DIR)/gmtcpt.sh: ./scripts/gmtcpt.sh $(BIN_DIR_MARKER_FILE)
 $(BIN_DIR)/simplify_ffm.sh: ./scripts/simplify_ffm.sh $(BIN_DIR_MARKER_FILE)
 	cp $< $@
 $(BIN_DIR)/surf_disp.sh: ./scripts/surf_disp.sh $(BIN_DIR_MARKER_FILE)
-	cp $< $@
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
+	chmod a+x $@
 $(BIN_DIR)/ternary.sh: ./scripts/ternary.sh $(BIN_DIR_MARKER_FILE)
-	cp $< $@
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
+	chmod a+x $@
 $(BIN_DIR)/trg_schem.sh: ./scripts/trg_schem.sh $(BIN_DIR_MARKER_FILE)
-	cp $< $@
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
+	chmod a+x $@
 
 
 

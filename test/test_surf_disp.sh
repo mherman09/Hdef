@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BIN_DIR=`./define_bin_dir.sh`
+
 cat > fsp.tmp << EOF
 % ---------------------------------- FINITE-SOURCE RUPTURE MODEL --------------------------------
 %
@@ -344,6 +346,4 @@ cat > fsp.tmp << EOF
 %--------------------------------------------------------------------------------------------------
 EOF
 
-../bin/surf_disp.sh FSP fsp.tmp -o test_surf_disp
-
-
+${BIN_DIR}/surf_disp.sh FSP fsp.tmp -o test_surf_disp

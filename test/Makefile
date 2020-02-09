@@ -68,7 +68,7 @@ test_stereo_project: test_stereo_project.sh $(BIN_DIR)/stereo_project test_value
 test_surf_disp: test_surf_disp.sh $(BIN_DIR)/surf_disp.sh test_values.sh
 	./test_surf_disp.sh
 
-test_ternary: test_ternary.sh $(BIN_DIR)/ternary test_values.sh
+test_ternary: test_ternary.sh $(BIN_DIR)/ternary.sh test_values.sh
 	./test_ternary.sh
 
 test_trg_schem: test_trg_schem.sh $(BIN_DIR)/trg_schem.sh test_values.sh

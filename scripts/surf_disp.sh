@@ -23,8 +23,7 @@ fi
 # Horizontal displacements below DISP_THR will be faded
 DISP_THR="0.05" # meters
 
-# HDEF_DIR="../bin/"
-HDEF_DIR=
+BIN_DIR="BIN_DIR_CHANGEME"
 
 ###############################################################################
 #	PARSE COMMAND LINE
@@ -223,16 +222,16 @@ then
     D="10"  # Large initial increment, to get map limits without taking much time
     if [ $SRC_TYPE == "FFM" ]
     then
-        ${HDEF_DIR}o92util -ffm source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
+        ${BIN_DIR}/o92util -ffm source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
     elif [ $SRC_TYPE == "FSP" ]
     then
-        ${HDEF_DIR}o92util -fsp source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
+        ${BIN_DIR}/o92util -fsp source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
     elif [ $SRC_TYPE == "MT" ]
     then
-        ${HDEF_DIR}o92util -mag source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
+        ${BIN_DIR}/o92util -mag source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
     elif [ $SRC_TYPE == "FLT" ]
     then
-        ${HDEF_DIR}o92util -flt source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
+        ${BIN_DIR}/o92util -flt source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp
     else
         echo "surf_disp.sh: no source type named \"$SRC_TYPE\"" 1>&2
         usage
@@ -294,11 +293,11 @@ fi
 
 
 # Locations of displacement computations
-${HDEF_DIR}grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.tmp
+${BIN_DIR}/grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.tmp
 if [ -z $GPS_FILE ]
 then
     # Create (NN x NN) point horizontal grid for vectors
-    ${HDEF_DIR}grid -x $W $E -nx $NN_SAMP -y $S $N -ny $NN_SAMP -z $Z -o sta_samp.tmp
+    ${BIN_DIR}/grid -x $W $E -nx $NN_SAMP -y $S $N -ny $NN_SAMP -z $Z -o sta_samp.tmp
 else
     # Take points from GPS file for vectors
     awk '{print $1,$2,0}' $GPS_FILE > sta_samp.tmp
@@ -309,20 +308,20 @@ fi
 #####
 if [ $SRC_TYPE == "FFM" ]
 then
-    ${HDEF_DIR}o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
-    ${HDEF_DIR}o92util -ffm source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
+    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
+    ${BIN_DIR}/o92util -ffm source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
 elif [ $SRC_TYPE == "FSP" ]
 then
-    ${HDEF_DIR}o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
-    ${HDEF_DIR}o92util -fsp source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
+    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
+    ${BIN_DIR}/o92util -fsp source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
 elif [ $SRC_TYPE == "MT" ]
 then
-    ${HDEF_DIR}o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog -empirical ${EMPREL}
-    ${HDEF_DIR}o92util -mag source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog -empirical $EMPREL
+    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog -empirical ${EMPREL}
+    ${BIN_DIR}/o92util -mag source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog -empirical $EMPREL
 elif [ $SRC_TYPE == "FLT" ]
 then
-    ${HDEF_DIR}o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
-    ${HDEF_DIR}o92util -flt source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
+    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog
+    ${BIN_DIR}/o92util -flt source.tmp -sta sta_samp.tmp -haf haf.tmp -disp disp_samp.tmp -prog
 else
     echo "surf_disp.sh: no source type named $SRC_TYPE" 1>&2
     usage
@@ -376,9 +375,9 @@ then
     esac
     if [ $SEG -eq 0 ]
     then
-        ${HDEF_DIR}ff2gmt $OPT -slip slip.tmp -clip clip.tmp -epi epi.tmp
+        ${BIN_DIR}/ff2gmt $OPT -slip slip.tmp -clip clip.tmp -epi epi.tmp
     else
-        ${HDEF_DIR}ff2gmt $OPT -slip slip.tmp -clipseg clip.tmp -epi epi.tmp
+        ${BIN_DIR}/ff2gmt $OPT -slip slip.tmp -clipseg clip.tmp -epi epi.tmp
     fi
     MAXSLIP=`awk '{print $3}' slip.tmp |\
              awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' |\

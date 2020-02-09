@@ -76,18 +76,20 @@ case $MODE in
     5) OPT="-Sci -C$CPT"
        if [ "$CPT" == "" ]
        then
-           echo "ternary.sh: no color palette defined" 1>&2
+           echo "ternary.sh: no color palette defined; plotting without colors" 1>&2
            MODE=4
            OPT="-Sci -Ggrey"
        elif [ ! -f "$CPT" ]
        then
-           echo "ternary.sh: no color palette file named $CPT found" 1>&2
+           echo "ternary.sh: no color palette file named $CPT found; plotting without colors" 1>&2
            MODE=4
            OPT="-Sci -Ggrey"
        fi
        ;;
-    *) echo "No option for this many fields in input file" 1>&2; usage;;
+    *) echo "ternary.sh: No option for this many fields in input file" 1>&2; usage;;
 esac
+
+BIN_DIR="BIN_DIR_CHANGEME"
 
 #####
 #	SET UP TRIANGLE COORDINATES
@@ -143,7 +145,7 @@ do
     TDIPR=`echo $TDIP $D2R | awk '{print $1*$2}'`
     FTH=`echo $TDIPR | awk '{print sin($1)*sin($1)}'`
     LFTOVR=`echo $FTH | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
-    grid -x 0 $LFTOVR -dx 0.005 -p |\
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
         awk '{print $0}END{print '"$LFTOVR"'}' |\
         awk 'BEGIN{
             tdipr = '"$TDIPR"'
@@ -185,7 +187,7 @@ do
     BDIPR=`echo $BDIP $D2R | awk '{print $1*$2}'`
     FSS=`echo $BDIPR | awk '{print sin($1)*sin($1)}'`
     LFTOVR=`echo $FSS | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
-    grid -x 0 $LFTOVR -dx 0.005 -p |\
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
         awk '{print $0}END{print '"$LFTOVR"'}' |\
         awk 'BEGIN{
             bdipr = '"$BDIPR"'
@@ -227,7 +229,7 @@ do
     PDIPR=`echo $PDIP $D2R | awk '{print $1*$2}'`
     FNO=`echo $PDIPR | awk '{print sin($1)*sin($1)}'`
     LFTOVR=`echo $FNO | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
-    grid -x 0 $LFTOVR -dx 0.005 -p |\
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
         awk '{print $0}END{print '"$LFTOVR"'}' |\
         awk 'BEGIN{
             pdipr = '"$PDIPR"'
