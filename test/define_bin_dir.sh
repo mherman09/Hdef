@@ -1,7 +1,10 @@
 #!/bin/bash
 
 HOME_DIR=`echo $HOME`
-HDEF_DIR=".."
+cd ..
+HDEF_DIR=`pwd`
+cd test
+
 grep "^ *BIN_DIR *=" ../Makefile |\
     tail -1 |\
     sed -e "s/.*=//" |\

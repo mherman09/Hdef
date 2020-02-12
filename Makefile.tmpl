@@ -302,6 +302,7 @@ scripts: \
     $(BIN_DIR)/ternary.sh \
     $(BIN_DIR)/trg_schem.sh
 
+BIN_DIR_CHANGEME := $(shell cd test; ./define_bin_dir.sh)
 $(BIN_DIR)/coul_dip.sh: ./scripts/coul_dip.sh $(BIN_DIR_MARKER_FILE)
 	cp $< $@
 $(BIN_DIR)/coul_hor.sh: ./scripts/coul_hor.sh $(BIN_DIR_MARKER_FILE)
@@ -313,14 +314,15 @@ $(BIN_DIR)/gmtcpt.sh: ./scripts/gmtcpt.sh $(BIN_DIR_MARKER_FILE)
 $(BIN_DIR)/simplify_ffm.sh: ./scripts/simplify_ffm.sh $(BIN_DIR_MARKER_FILE)
 	cp $< $@
 $(BIN_DIR)/surf_disp.sh: ./scripts/surf_disp.sh $(BIN_DIR_MARKER_FILE)
-	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
-	chmod a+x $@
+	echo $(BIN_DIR_CHANGEME)
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR_CHANGEME):" $< > $@
+	@chmod a+x $@
 $(BIN_DIR)/ternary.sh: ./scripts/ternary.sh $(BIN_DIR_MARKER_FILE)
-	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
-	chmod a+x $@
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR_CHANGEME):" $< > $@
+	@chmod a+x $@
 $(BIN_DIR)/trg_schem.sh: ./scripts/trg_schem.sh $(BIN_DIR_MARKER_FILE)
-	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR):" $< > $@
-	chmod a+x $@
+	sed -e "s:BIN_DIR_CHANGEME:$(BIN_DIR_CHANGEME):" $< > $@
+	@chmod a+x $@
 
 
 

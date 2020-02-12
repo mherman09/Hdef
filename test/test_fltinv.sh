@@ -1,4 +1,4 @@
-$BIN_DIR#!/bin/bash
+#!/bin/bash
 
 BIN_DIR=`./define_bin_dir.sh`
 
