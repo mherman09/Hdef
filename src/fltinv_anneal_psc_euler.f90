@@ -34,11 +34,12 @@ interface
         integer :: model(n)
         double precision :: anneal_psc_euler_objective
     end function
-    subroutine anneal_psc_euler_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine anneal_psc_euler_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         integer :: model_current(n)
         integer :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -415,6 +416,7 @@ function anneal_psc_euler_objective(model,n)
 
 use io, only: stdout, verbosity
 use earth, only: pole_geo2xyz
+use misfit, only: misfit_chi2
 
 use fltinv, only: fault, &
                   npoles, &
@@ -424,10 +426,10 @@ use fltinv, only: fault, &
                   input_disp_unit, &
                   los, &
                   cov_matrix, &
+                  isCovMatrixDiagonal, &
                   gf_disp, &
                   gf_los, &
                   gf_euler
-
 implicit none
 
 ! Arguments
@@ -562,7 +564,7 @@ enddo
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_euler_objective: starting misfit_chi2'
 endif
-call misfit_chi2(obs,pre,cov_matrix,nobs,anneal_psc_euler_objective)
+call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_psc_euler_objective)
 anneal_psc_euler_objective = -0.5d0*anneal_psc_euler_objective
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_euler_objective: finished misfit_chi2'
@@ -588,7 +590,7 @@ end function
 
 
 
-subroutine anneal_psc_euler_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine anneal_psc_euler_log(it,temp,obj,model_current,model_proposed,n,isModelAccepted,string)
 
 use fltinv, only: anneal_log_file, &
                   fault
@@ -598,6 +600,7 @@ implicit none
 ! Arguments
 integer :: it, n, model_current(n), model_proposed(n)
 double precision :: temp, obj
+logical :: isModelAccepted
 character(len=*) :: string
 
 ! Local variables
@@ -635,13 +638,11 @@ if (string.eq.'init') then
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
-    rejected_string = ''
-    do i = 1,nflt
-        if (model_current(i).ne.model_proposed(i)) then
-            rejected_string = 'rejected'
-            exit
-        endif
-    enddo
+    if (isModelAccepted) then
+        rejected_string = 'accepted'
+    else
+        rejected_string = 'rejected'
+    endif
 
     ! Compute slip for sub-faults
     call psc_slip(model_current(1:nflt),nflt,slip)

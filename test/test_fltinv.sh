@@ -691,16 +691,15 @@ awk 'BEGIN{p=0}{
         p = 0
     }
 }' ../src/annealing_module.f90 > anneal_dp_array.tmp
-PASSFAIL=`diff anneal_int_array.tmp anneal_dp_array.tmp |\
-    grep -v "^<" |\
-    grep -v "^>" |\
-    grep -v "^---" |\
-    awk -Fc '{if(NF!=2){print "FAIL";exit}}END{print "PASS"}'`
-if [ "$PASSFAIL" == "FAIL" ]
+sed -e "s/dp/int/g" anneal_dp_array.tmp |\
+    sed -e "/model/s/double precision/integer/g" > anneal_dp_array_mod.tmp
+PASSFAIL=`diff anneal_int_array.tmp anneal_dp_array_mod.tmp |\
+    awk '{if(/[A-Z]/||/[a-z]/||/[0-9]/){print "FAIL";exit}}END{print "PASS"}'`
+if [ "$PASSFAIL" != "PASS" ]
 then
     echo "$0: WARNING: anneal_int_array() and anneal_dp_array() differ in more than variable type!"
+    diff anneal_int_array.tmp anneal_dp_array.tmp
 fi
-
 
 
 echo --------------------------------------------------------------

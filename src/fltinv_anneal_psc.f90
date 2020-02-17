@@ -28,11 +28,12 @@ interface
         integer :: model(n)
         double precision :: anneal_psc_objective
     end function
-    subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         integer :: model_current(n)
         integer :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -319,15 +320,16 @@ end subroutine
 function anneal_psc_objective(model,n)
 
 use io, only: stdout, verbosity
+use misfit, only: misfit_chi2
 
 use fltinv, only: fault, &
                   displacement, &
                   disp_components, &
                   los, &
                   cov_matrix, &
+                  isCovMatrixDiagonal, &
                   gf_disp, &
                   gf_los
-
 implicit none
 
 ! Arguments
@@ -428,7 +430,7 @@ enddo
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_objective: starting misfit_chi2'
 endif
-call misfit_chi2(obs,pre,cov_matrix,nobs,anneal_psc_objective)
+call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_psc_objective)
 anneal_psc_objective = -0.5d0*anneal_psc_objective
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_objective: finished misfit_chi2'
@@ -444,8 +446,9 @@ end function
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,isModelAccepted,string)
 
+use io, only: stdout, verbosity
 use fltinv, only: anneal_log_file
 
 implicit none
@@ -453,6 +456,7 @@ implicit none
 ! Arguments
 integer :: it, n, model_current(n), model_proposed(n)
 double precision :: temp, obj
+logical :: isModelAccepted
 character(len=*) :: string
 
 ! Local variables
@@ -461,6 +465,10 @@ double precision :: slip(n,2)
 character(len=8) :: rejected_string
 
 
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_log: starting on iteration',it
+endif
+
 if (anneal_log_file.eq.'') then
     return
 endif
@@ -468,6 +476,10 @@ endif
 
 ! Update annealing-with-pseudo-coupling log file
 if (string.eq.'init') then
+    if (verbosity.ge.3) then
+        write(stdout,*) 'anneal_psc_log: initializing log file'
+    endif
+
     ! Open the log file
     open(unit=28,file=anneal_log_file,status='unknown')
 
@@ -482,13 +494,11 @@ if (string.eq.'init') then
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
-    rejected_string = ''
-    do i = 1,n
-        if (model_current(i).ne.model_proposed(i)) then
-            rejected_string = 'rejected'
-            exit
-        endif
-    enddo
+    if (isModelAccepted) then
+        rejected_string = 'accepted'
+    else
+        rejected_string = 'rejected'
+    endif
 
     ! Compute slip for sub-faults
     call psc_slip(model_current,n,slip)
@@ -500,11 +510,19 @@ elseif (string.eq.'append') then
     enddo
 
 elseif (string.eq.'close') then
+    if (verbosity.ge.3) then
+        write(stdout,*) 'anneal_psc_log: closing log file'
+    endif
+
     ! Close the log file
     close(28)
 
 else
     call usage('anneal_psc_log: no string option named '//trim(string))
+endif
+
+if (verbosity.ge.3) then
+    write(stdout,*) 'anneal_psc_log: finished'
 endif
 
 

@@ -159,8 +159,10 @@ $(BIN_DIR)/fltinv: src/fltinv.f90 \
                    $(INCLUDE_DIR)/annealing.o \
                    $(INCLUDE_DIR)/earth.o \
                    $(INCLUDE_DIR)/elast.o \
+                   $(INCLUDE_DIR)/error_exit.o \
                    $(INCLUDE_DIR)/geom.o \
                    $(INCLUDE_DIR)/io.o \
+                   $(INCLUDE_DIR)/misfit.o \
                    $(INCLUDE_DIR)/okada92.o \
                    $(INCLUDE_DIR)/random.o \
                    $(INCLUDE_DIR)/solver.o \
@@ -387,6 +389,13 @@ $(INCLUDE_DIR)/geom.o: src/geom_module.f90 \
 
 $(INCLUDE_DIR)/io.o: src/io_module.f90 \
                      $(INCLUDE_DIR_MARKER_FILE)
+	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
+
+$(INCLUDE_DIR)/misfit.o: src/misfit_module.f90 \
+                         $(INCLUDE_DIR)/io.o \
+                         $(INCLUDE_DIR)/random.o \
+                         $(INCLUDE_DIR)/solver.o \
+                         $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/okada92.o: src/okada92_module.f90 \

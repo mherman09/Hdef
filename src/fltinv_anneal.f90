@@ -33,11 +33,12 @@ interface
         double precision :: model(n)
         double precision :: anneal_objective
     end function
-    subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         double precision :: model_current(n)
         double precision :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -303,12 +304,15 @@ function anneal_objective(model,n)
 !----
 
 use trig, only: d2r
+use misfit, only: misfit_chi2
+use random, only: r8_normal_ab, iseed
 
 use fltinv, only: fault, &
                   displacement, &
                   disp_components, &
                   los, &
                   cov_matrix, &
+                  isCovMatrixDiagonal, &
                   gf_disp, &
                   gf_los
 
@@ -402,7 +406,7 @@ end function
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
 
 use fltinv, only: anneal_log_file
 
@@ -412,10 +416,12 @@ implicit none
 integer :: it, n
 double precision :: temp, obj, model_current(n), model_proposed(n)
 character(len=*) :: string
+logical :: isAccepted
 
 ! Local variables
-integer :: i
+integer :: i, nflt
 character(len=8) :: rejected_string
+character(len=16) :: str, it_str, temp_str, obj_str, uncert_str
 
 
 if (anneal_log_file.eq.'') then
@@ -436,13 +442,11 @@ if (string.eq.'init') then
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
-    rejected_string = ''
-    do i = 1,n
-        if (abs(model_current(i)-model_proposed(i)).gt.1.0d-6) then
-            rejected_string = 'rejected'
-            exit
-        endif
-    enddo
+    if (isAccepted) then
+        rejected_string = 'accepted'
+    else
+        rejected_string = 'rejected'
+    endif
 
     ! Write locked/unlocked, fault slip, old model results to log file
     write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)

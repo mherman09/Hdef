@@ -1033,6 +1033,7 @@ subroutine write_solution()
 use trig, only: d2r
 use io, only: stdout, stderr, verbosity
 use earth, only: pole_xyz2geo
+use misfit, only: misfit_rms
 
 use fltinv, only: output_file, &
                   inversion_mode, &
@@ -1272,7 +1273,7 @@ use fltinv, only: output_file, &
 implicit none
 
 ! Local variables
-integer :: i, narg
+integer :: i, narg, ios
 character(len=256) :: tag
 ! integer :: char_index
 
@@ -1529,7 +1530,10 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-v') then
         i = i + 1
         call get_command_argument(i,tag)
-        read(tag,*) verbosity
+        read(tag,*,iostat=ios) verbosity
+        if (ios.ne.0) then
+            verbosity = 1
+        endif
     elseif (trim(tag).eq.'-debug') then
         debug = .true.
 
@@ -1655,7 +1659,7 @@ if (string.ne.'') then
     if (info.eq.'none') then
         write(stderr,*) 'See fltinv man page for details'
         write(stderr,*)
-        stop
+        call error_exit(1)
     endif
 endif
 
@@ -1744,5 +1748,5 @@ if (info.ne.'all') then
 endif
 write(stderr,*) 'See man page for details'
 write(stderr,*)
-stop
+call error_exit(1)
 end subroutine usage

@@ -103,11 +103,12 @@ interface
         integer :: model(n)
         double precision :: objective
     end function
-    subroutine write_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine write_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         integer :: model_current(n)
         integer :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -130,6 +131,7 @@ double precision :: ptrans
 double precision :: ran_uniform
 integer :: model_current(NPARAM)
 integer :: model_proposed(NPARAM)
+logical :: isAccepted
 
 
 ! Initialize the random number generator with integer based on system time
@@ -145,7 +147,8 @@ model_best = model_current
 obj_best = obj_current
 
 ! Open log file and write first entry
-call write_log(0,T,obj_current,model_current,model_current,nparam,'init')
+isAccepted = .false.
+call write_log(0,T,obj_current,model_current,model_current,nparam,isAccepted,'init')
 
 ! Run the annealing search
 do i = 1,max_it
@@ -171,14 +174,16 @@ do i = 1,max_it
     ptrans = min(1.0d0,ptrans)
 
     ! Update the current model if transition is made
+    isAccepted = .false.
     ran_uniform = r8_uniform_01(iseed)
     if (ran_uniform.lt.ptrans) then
         model_current = model_proposed
         obj_current = obj_proposed
+        isAccepted = .true.
     endif
 
     ! Save results in log file
-    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,'append')
+    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,isAccepted,'append')
 
     ! Update temperature
     T = T*cool
@@ -195,14 +200,14 @@ do i = 1,max_it
 enddo
 
 ! Close log file
-call write_log(i,T,obj_current,model_current,model_proposed,nparam,'close')
+call write_log(i,T,obj_current,model_current,model_proposed,nparam,isAccepted,'close')
 
 return
 end subroutine anneal_int_array
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine anneal_dp_array( nparam, &
+subroutine anneal_dp_array(nparam, &
                             model_best, &
                             init, &
                             propose, &
@@ -214,7 +219,7 @@ subroutine anneal_dp_array( nparam, &
                             cool, &
                             write_log)
 !----
-! Simulated annealing algorithm with a double precision model array
+! Simulated annealing algorithm with an double precision model array
 !----
 
 use io, only: verbosity, progress_indicator, stdout
@@ -242,11 +247,12 @@ interface
         double precision :: model(n)
         double precision :: objective
     end function
-    subroutine write_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine write_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         double precision :: model_current(n)
         double precision :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -269,6 +275,7 @@ double precision :: ptrans
 double precision :: ran_uniform
 double precision :: model_current(NPARAM)
 double precision :: model_proposed(NPARAM)
+logical :: isAccepted
 
 
 ! Initialize the random number generator with integer based on system time
@@ -284,7 +291,8 @@ model_best = model_current
 obj_best = obj_current
 
 ! Open log file and write first entry
-call write_log(0,T,obj_current,model_current,model_current,nparam,'init')
+isAccepted = .false.
+call write_log(0,T,obj_current,model_current,model_current,nparam,isAccepted,'init')
 
 ! Run the annealing search
 do i = 1,max_it
@@ -310,14 +318,16 @@ do i = 1,max_it
     ptrans = min(1.0d0,ptrans)
 
     ! Update the current model if transition is made
+    isAccepted = .false.
     ran_uniform = r8_uniform_01(iseed)
     if (ran_uniform.lt.ptrans) then
         model_current = model_proposed
         obj_current = obj_proposed
+        isAccepted = .true.
     endif
 
     ! Save results in log file
-    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,'append')
+    call write_log(i,T,obj_proposed,model_current,model_proposed,nparam,isAccepted,'append')
 
     ! Update temperature
     T = T*cool
@@ -334,7 +344,7 @@ do i = 1,max_it
 enddo
 
 ! Close log file
-call write_log(i,T,obj_current,model_current,model_proposed,nparam,'close')
+call write_log(i,T,obj_current,model_current,model_proposed,nparam,isAccepted,'close')
 
 return
 end subroutine anneal_dp_array
