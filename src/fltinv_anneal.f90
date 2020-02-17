@@ -397,7 +397,7 @@ enddo
 
 
 ! Calculate chi-squared
-call misfit_chi2(obs,pre,cov_matrix,nobs,anneal_objective)
+call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_objective)
 anneal_objective = -0.5d0*anneal_objective
 
 return

@@ -30,11 +30,12 @@ interface                                                           ! The driver
         integer :: model(n)
         double precision :: driver1_objective
     end function
-    subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         integer :: model_current(n)
         integer :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -110,11 +111,12 @@ driver1_objective = -0.5d0*driver1_objective
 return
 end function
 
-subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine driver1_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
 integer :: it, n
 double precision :: temp, obj
 integer :: model_current(n)
 integer :: model_proposed(n)
+logical :: isAccepted
 character(len=*) :: string
 character(len=32) :: logfile
 logfile = 'driver1.log'
@@ -164,11 +166,12 @@ interface
         double precision :: model(n)
         double precision :: driver2_objective
     end function
-    subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,string)
+    subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
         integer :: it, n
         double precision :: temp, obj
         double precision :: model_current(n)
         double precision :: model_proposed(n)
+        logical :: isAccepted
         character(len=*) :: string
     end subroutine
 end interface
@@ -240,11 +243,12 @@ driver2_objective = -0.5d0*driver2_objective
 return
 end function
 
-subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine driver2_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
 integer :: it, n
 double precision :: temp, obj
 double precision :: model_current(n)
 double precision :: model_proposed(n)
+logical :: isAccepted
 character(len=*) :: string
 character(len=32) :: logfile
 logfile = 'driver2.log'
@@ -362,11 +366,12 @@ driver3_objective = -0.5d0*driver3_objective
 return
 end function
 
-subroutine driver3_log(it,temp,obj,model_current,model_proposed,n,string)
+subroutine driver3_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
 integer :: it, n
 double precision :: temp, obj
 double precision :: model_current(n)
 double precision :: model_proposed(n)
+logical :: isAccepted
 character(len=*) :: string
 if (string.eq.'init') then
     ! Open the log file
