@@ -454,6 +454,8 @@ if (nflt+3*npoles.ne.n) then
 endif
 
 
+! UPDATE slip_constraint%array TO REFLECT THE RELATIVE MOTION OF THE RIGID BODY
+
 ! Calculate slip in each fault
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_psc_euler_objective: starting psc_slip'
@@ -541,9 +543,12 @@ do i = 1,len_trim(disp_components)
             call pole_geo2xyz(plon,plat,prot,px,py,pz,'sphere')
 
             ! Green's functions are in m/s, convert to input velocity
-            pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,         ipole)*px*factor
-            pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,npoles+  ipole)*py*factor
-            pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,npoles+2*ipole)*pz*factor
+            ! Only add to horizontal velocity (vertical is zero)
+            if (icmp.ne.3) then
+                pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,         ipole)*px*factor
+                pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,npoles+  ipole)*py*factor
+                pre(ipre) = pre(ipre) + gf_euler((icmp-1)*ndsp+idsp,npoles+2*ipole)*pz*factor
+            endif
         endif
     enddo
 enddo
@@ -592,7 +597,9 @@ end function
 
 subroutine anneal_psc_euler_log(it,temp,obj,model_current,model_proposed,n,isModelAccepted,string)
 
+use io, only: verbosity, stdout
 use fltinv, only: anneal_log_file, &
+                  max_iteration, &
                   fault
 
 implicit none
@@ -607,6 +614,7 @@ character(len=*) :: string
 integer :: i, nflt
 double precision, allocatable :: slip(:,:)
 character(len=8) :: rejected_string
+character(len=16) :: str, it_str, temp_str, obj_str, uncert_str
 
 
 if (anneal_log_file.eq.'') then
@@ -616,10 +624,26 @@ endif
 nflt = fault%nrows
 allocate(slip(nflt,2))
 
+
+! Update annealing log file
+write(it_str,'(I8)') it
+write(temp_str,'(1PE12.4)') temp
+write(obj_str,'(1PE12.4)') obj
+write(uncert_str,'(1PE12.4)') -1.0d0
+
+it_str = adjustl(it_str)
+temp_str = adjustl(temp_str)
+obj_str = adjustl(obj_str)
+uncert_str = adjustl(uncert_str)
+
 ! Update annealing-with-pseudo-coupling log file
 if (string.eq.'init') then
+    if (verbosity.ge.3) then
+        write(stdout,*) 'anneal_psc_euler_log: initializing log file'
+    endif
+
     ! Open the log file
-    open(unit=28,file=anneal_log_file,status='unknown')
+    open(unit=27,file=anneal_log_file,status='unknown')
 
     ! Compute slip for sub-faults
     call psc_slip(model_current(1:nflt),nflt,slip)
@@ -627,14 +651,35 @@ if (string.eq.'init') then
     !     write(0,*) 'anneal_psc_euler_log',i,model_current(i),slip(i,:)
     ! enddo
 
+    ! Write header
+    write(str,'(I8)') max_iteration
+    write(27,'(A)') '# niterations='//adjustl(str)
+    write(str,'(I8)') nflt
+    write(27,'(A)') '# nfaults='//adjustl(str)
+    write(str,'(I8)') (n-nflt)/3
+    write(27,'(A)') '# npoles='//adjustl(str)
+    write(27,'(A)') '# format=anneal_psc_euler'
+
+    ! Write iteration parameters, fault slip values
+    write(27,2701) it_str, temp_str, obj_str, uncert_str
+    2701 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12)
+
     ! Write locked/unlocked, fault slip results to log file
-    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
     do i = 1,nflt
-        write(28,*) model_current(i),slip(i,1),slip(i,2)
+        write(27,2702) model_current(i),slip(i,1),slip(i,2)
     enddo
+    2702 format(I4,X,1PE14.6,E14.6)
+
     do i = nflt+1,n
-        write(28,*) model_current(i),' x '
+        if (mod(i-nflt,3).eq.1.or.mod(i-nflt,3).eq.2) then
+            write(27,2703) dble(model_current(i))/1.0d3
+        else
+            write(27,2704) dble(model_current(i))/1.0d4
+        endif
     enddo
+    2703 format(F12.3)
+    2704 format(1PE14.6)
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
@@ -648,17 +693,28 @@ elseif (string.eq.'append') then
     call psc_slip(model_current(1:nflt),nflt,slip)
 
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)
+    write(27,2705) it_str, temp_str, obj_str, uncert_str, trim(rejected_string)
+    2705 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12,X,A)
+
     do i = 1,nflt
-        write(28,*) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
+        write(27,2706) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
     enddo
+    2706 format(I4,X,1PE14.6,E14.6,I4)
+
     do i = nflt+1,n
-        write(28,*) model_current(i),' x ',' x ',model_proposed(i)
+        if (mod(i-nflt,3).eq.1.or.mod(i-nflt,3).eq.2) then
+            write(27,2707) dble(model_current(i))/1.0d3,dble(model_proposed(i))/1.0d3
+        else
+            write(27,2708) dble(model_current(i))/1.0d4,dble(model_proposed(i))/1.0d4
+        endif
     enddo
+    2707 format(F12.3,F12.3)
+    2708 format(1PE14.6,E14.6)
 
 elseif (string.eq.'close') then
     ! Close the log file
-    close(28)
+    close(27)
 
 else
     call usage('anneal_psc_euler_log: no string option named '//trim(string))

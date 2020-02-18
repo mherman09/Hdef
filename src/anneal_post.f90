@@ -1,10 +1,25 @@
+!--------------------------------------------------------------------------------------------------!
+! ANNEAL_POST
+!
+! Post-process a simulated annealing search output file from FLTINV. The precise output format
+! depends on the options used in the annealing search. In general, the format is:
+!
+!     # Header Line 1
+!     # Header Line 2
+!     :
+!     > Iteration i Header
+!     value(s)
+!     value(s)
+!     :
+!
+!--------------------------------------------------------------------------------------------------!
+
 module anneal_post
 
 character(len=512) :: anneal_log_file
 character(len=512) :: best_output_file
 character(len=512) :: plocked_output_file
 character(len=512) :: mean_slip_output_file
-integer :: search_iterations
 integer :: burnin_iterations
 
 integer :: nmarg1d
@@ -19,6 +34,10 @@ character(len=64) :: pole_marg_output_file(20)
 integer :: nflocked
 character(len=64) :: flocked_subset_file(10)
 character(len=64) :: flocked_output_file(10)
+
+character(len=512) :: obj_file
+character(len=512) :: uncert_file
+
 end module
 
 
@@ -28,10 +47,10 @@ end module
 program main
 
 use io, only: stdout, stderr
+use trig, only: d2r
 use earth, only: pole_geo2xyz, pole_xyz2geo
 
 use anneal_post, only: anneal_log_file, &
-                       search_iterations, &
                        burnin_iterations, &
                        best_output_file, &
                        plocked_output_file, &
@@ -45,26 +64,37 @@ use anneal_post, only: anneal_log_file, &
                        pole_marg_output_file, &
                        nflocked, &
                        flocked_subset_file, &
-                       flocked_output_file
+                       flocked_output_file, &
+                       obj_file, &
+                       uncert_file
 
 implicit none
 
 ! Local variables
-character(len=32) :: ch32
+character(len=32) :: log_format
 character(len=512) :: input_line
 logical :: fileExists
+logical :: continueReadingHeader
+logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
-integer :: i, ios, iflt, nflt, ipole, npoles, it, nit, nburnin, nsubset, itmp
+integer :: it, it0, nit
+integer :: i, ios, iflt, nflt, ipole, npoles, nsubset, itmp
 integer, allocatable :: locked(:,:), plocked(:)
-double precision :: temp0, obj0, min_chi2, fraction_locked
-double precision, allocatable :: obj(:), slip(:,:,:), mean_ss(:), mean_ds(:)
+double precision, allocatable :: temp(:)
+double precision, allocatable :: obj(:)
+double precision, allocatable :: uncert(:)
+double precision :: min_obj, fraction_locked
+double precision :: rake
+double precision, allocatable :: slip(:,:,:), mean_ss(:), mean_ds(:)
 double precision :: px, py, pz, plon, plat, pmag
 double precision, allocatable :: poles(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
 
 
 ios = 0
 
+! Parse command line
 call gcmdln()
+
 
 !----
 ! Open annealing log file
@@ -82,48 +112,83 @@ open(unit=21,file=anneal_log_file,status='old')
 !----
 ! Read annealing log file
 !----
-! Number of iterations, burn-in period are set on the command line
-nit = search_iterations
-nburnin = burnin_iterations
-if (nit.lt.1) then
-    call usage('anneal_post: number of iterations must be 1 or greater')
-endif
-if (nit.le.nburnin) then
-    call usage('anneal_post: number of iterations must be greater than burn-in iterations')
-endif
-
-! Count number of faults
+! Set search variables before reading
+nit = 0
 nflt = 0
 npoles = 0
-read(21,'(A)') input_line
-read(input_line,*) ch32,it,ch32,temp0,ch32,obj0
-do
-    read(21,'(A)') input_line
-    read(input_line,*) ch32
-    if (ch32.eq.'Iteration') then
-        exit
+log_format = ''
+
+! Parse log file header
+continueReadingHeader = .true.
+do while (continueReadingHeader)
+
+    read(21,'(A)',end=4001,iostat=ios) input_line
+
+    ! All header lines start with a "#" in the first character and have the format:
+    !     # label=value
+    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
+
+    if (index(input_line,'#').ne.1) then
+        ! Not a header line; finished parsing header
+        continueReadingHeader = .false.
+        backspace(21)
+
     else
-        if (index(input_line,'x').eq.0) then
-            nflt = nflt + 1
+
+        ! Found header line; parse parameter and value
+        if (index(input_line,'niterations').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) nit
+        elseif (index(input_line,'nfaults').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) nflt
+        elseif (index(input_line,'npoles').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) npoles
+        elseif (index(input_line,'format').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) log_format
         else
-            npoles = npoles + 1
+            write(stderr,*) 'anneal_log: read header line:',trim(input_line)
+            call usage('But could not parse a parameter')
         endif
     endif
 enddo
-npoles = npoles/3
-rewind(21)
-write(*,*) 'anneal_post: finished counting number of faults and poles'
+
+4001 if (ios.ne.0) then
+    call usage('anneal_post: reached end of file in header section')
+endif
+if (nit.le.burnin_iterations) then
+    call usage('anneal_post: number of burn-in iterations is greater than total iterations')
+endif
+
+write(stdout,*) 'anneal_post: finished parsing header'
+write(stdout,*) 'niterations=',nit
+write(stdout,*) 'nfaults=',nflt
+write(stdout,*) 'npoles=',npoles
+write(stdout,*) 'log_format= ',log_format
+
 
 ! Set up arrays
-allocate(locked(nit,nflt))        ! Int array with locked (1) and unlocked (0) faults for each iteration
-allocate(obj(nit))                ! DP array with objective function values for each iteration
-allocate(slip(nit,nflt,2))        ! DP array with strike- and dip-slip of each fault for each iteration
-allocate(poles(nit,npoles,3))     ! DP array with pole coordinates and rotation rate for each iteration
+allocate(locked(nit,nflt))        ! Int: Locked (1) and unlocked (0) faults
+allocate(obj(nit))                ! DP: Objective function values
+allocate(slip(nit,nflt,2))        ! DP: Strike- and dip-slip of each fault
+allocate(poles(nit,npoles,3))     ! DP: Pole coordinates and rotation rate
+allocate(temp(nit))               ! DP: Temperature
+allocate(uncert(nit))             ! DP: Model prediction error
+allocate(isAccepted(nit))         ! Logical: Was the proposed model accepted?
 write(*,*) 'anneal_post: finished allocating array memory'
 
+
+
 ! Read search results
-it = 0
-do
+do it = 0,nit
+
+    ! Progress indicator
     if (nit.ge.100) then
         if (mod(it,nit/100).eq.1.and.nit.ge.100) then
             write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
@@ -132,73 +197,104 @@ do
         write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
     endif
 
+
+    ! Read the header for each iteration
+    ! All iteration header lines start with a ">" in the first character and have the format:
+    !     > label=value label=value ...
+    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
     read(21,'(A)',end=1001,iostat=ios) input_line
-    ! write(0,*) trim(input_line)
-    if (it.gt.nit) then
-        write(stderr,*) 'anneal_post: WARNING: you requested fewer iterations (',nit,') than are in log file'
-        exit
-    endif
     if (it.gt.0) then
-        read(input_line,*,end=1002,err=1002,iostat=ios) ch32,it,ch32,temp0,ch32,obj(it)
+        call parse_iteration_header(input_line,it0,temp(it),obj(it),uncert(it),isAccepted(it),ios)
+    else
+        it0 = 0
     endif
-    do iflt = 1,nflt
-        read(21,'(A)',end=1003,iostat=ios) input_line
-        ! write(0,*) trim(input_line)
-        if (it.gt.0) then
-            read(input_line,*,end=1004,err=1004,iostat=ios) locked(it,iflt),slip(it,iflt,1:2)
-        endif
-    enddo
-    do ipole = 1,npoles
-        ! write(0,*) ipole,npoles
-        do i = 1,3
-            read(21,'(A)',end=1005,iostat=ios) input_line
-            ! write(0,*) 'pole line:',trim(input_line)
+    if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
+        write(stderr,*) 'iteration: ',it
+        call usage('')
+    endif
+    if (it0.ne.it) then
+        call usage('anneal_post: iterations in log file are not in sequential order')
+    endif
+    1001 if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: more iterations indicated (',nit,') than in file (',it-1,')'
+        call usage('')
+    endif
+
+
+    ! Read fault information defined by log file format
+    if (log_format.eq.'anneal') then
+
+        ! Slip magnitudes
+        do iflt = 1,nflt
+            read(21,'(A)',end=1002,iostat=ios) input_line
             if (it.gt.0) then
-                read(input_line,*,end=1006,err=1006,iostat=ios) itmp
-                if (i.lt.3) then
-                    poles(it,ipole,i) = dble(itmp)/1.0d3
-                else
-                    poles(it,ipole,i) = dble(itmp)/1.0d4
-                endif
+                read(input_line,*,end=1003,err=1003,iostat=ios) slip(it,iflt,1)
             endif
         enddo
-    enddo
-    it = it + 1
+
+        ! Rake angles
+        do iflt = 1,nflt
+            read(21,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) rake
+                ! Convert to strike- and dip-slip
+                slip(it,iflt,2) = slip(it,iflt,1)*sin(rake*d2r)
+                slip(it,iflt,1) = slip(it,iflt,1)*cos(rake*d2r)
+            endif
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc') then
+        do iflt = 1,nflt
+            read(21,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
+            endif
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc_euler') then
+        do iflt = 1,nflt
+            read(21,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
+            endif
+        enddo
+        do ipole = 1,npoles
+            do i = 1,3
+                read(21,'(A)',end=1004,iostat=ios) input_line
+                if (it.gt.0) then
+                    read(input_line,*,end=1005,err=1005,iostat=ios) poles(it,ipole,i)
+                endif
+            enddo
+        enddo
+
+    else
+        call usage('anneal_post: no log file format named '//trim(log_format))
+    endif
+
 enddo
-ios = 0
-write(*,*) 'anneal_post: finished reading log file'
-
-
-1001 if (it.lt.nit) then
-    write(stderr,*) 'anneal_post: you requested more iterations (',nit,') than are in log file'
-    call usage('')
-else
-    ios = 0
-endif
+write(stdout,*) 'anneal_post: finished reading log file'
 1002 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
-    write(stderr,*) 'iteration: ',it
-    call usage('')
-endif
-1003 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: reached end of anneal log file before faults finished reading'
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
     write(stderr,*) 'iteration: ',it
     write(stderr,*) 'fault: ',iflt
     call usage('')
 endif
-1004 if (ios.ne.0) then
+1003 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: error parsing fault info from line ',trim(input_line)
     write(stderr,*) 'iteration: ',it
     write(stderr,*) 'fault: ',iflt
     call usage('')
 endif
-1005 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: reached end of anneal log file before poles finished reading'
+1004 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading poles'
     write(stderr,*) 'iteration: ',it
     write(stderr,*) 'pole: ',ipole
     call usage('')
 endif
-1006 if (ios.ne.0) then
+1005 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: error parsing pole info from line ',trim(input_line)
     write(stderr,*) 'iteration: ',it
     write(stderr,*) 'pole: ',ipole
@@ -213,12 +309,12 @@ endif
 if (best_output_file.ne.'') then
     write(*,*) 'anneal_post: working on best-fitting output file'
     ! Find minimum chi-squared model
-    min_chi2 = 1e10
+    min_obj = 1e10
     it = 1
     do i = 1,nit
-        if (abs(obj(i)).lt.min_chi2) then
+        if (abs(obj(i)).lt.min_obj) then
             it = i
-            min_chi2 = abs(obj(i))
+            min_obj = abs(obj(i))
         endif
     enddo
 
@@ -247,7 +343,7 @@ if (plocked_output_file.ne.'') then
     ! Calculate number of locked instances in search
     plocked = 0
     do it = 1,nit
-        if (it.gt.nburnin) then
+        if (it.gt.burnin_iterations) then
             plocked = plocked + locked(it,:)
         endif
     enddo
@@ -255,7 +351,7 @@ if (plocked_output_file.ne.'') then
     ! Write locked probability to file
     open(unit=23,file=plocked_output_file,status='unknown')
     do iflt = 1,nflt
-        write(23,*) dble(plocked(iflt))/dble(nit-nburnin)
+        write(23,*) dble(plocked(iflt))/dble(nit-burnin_iterations)
     enddo
     close(23)
     deallocate(plocked)
@@ -271,13 +367,13 @@ if (mean_slip_output_file.ne.'') then
     mean_ds = 0.0d0
     do iflt = 1,nflt
         do it = 1,nit
-            if (it.gt.nburnin) then
+            if (it.gt.burnin_iterations) then
                 mean_ss(iflt) = mean_ss(iflt) + slip(it,iflt,1)
                 mean_ds(iflt) = mean_ds(iflt) + slip(it,iflt,2)
             endif
         enddo
-        mean_ss(iflt) = mean_ss(iflt)/dble(nit-nburnin)
-        mean_ds(iflt) = mean_ds(iflt)/dble(nit-nburnin)
+        mean_ss(iflt) = mean_ss(iflt)/dble(nit-burnin_iterations)
+        mean_ds(iflt) = mean_ds(iflt)/dble(nit-burnin_iterations)
     enddo
 
     ! Write mean slip to file
@@ -299,7 +395,7 @@ if (nmarg1d.ge.1) then
             call usage('anneal_post: requested slip in fault greater than number of faults')
         endif
         open(unit=25,file=slip_marg_output_file(i),status='unknown')
-        do it = nburnin+1,nit
+        do it = burnin_iterations+1,nit
             write(25,*) slip(it,marg1d_flt(i),1:2)
         enddo
         close(25)
@@ -310,7 +406,7 @@ endif
 if (nflocked.ge.1) then
     if (flocked_subset_file(1).eq.'') then
         open(unit=26,file=flocked_output_file(1),status='unknown')
-        do it = nburnin+1,nit
+        do it = burnin_iterations+1,nit
             fraction_locked = 0.0d0
             do iflt = 1,nflt
                 fraction_locked = fraction_locked + dble(locked(it,iflt))
@@ -343,7 +439,7 @@ if (nflocked.ge.1) then
             close(27)
 
             open(unit=26,file=flocked_output_file(i),status='unknown')
-            do it = nburnin+1,nit
+            do it = burnin_iterations+1,nit
                 fraction_locked = 0.0d0
                 do iflt = 1,nflt
                     if (isFltInSubset(iflt)) then
@@ -405,11 +501,31 @@ if (nmarg_pole.ge.1) then
             call usage('anneal_post: requested information in pole greater than number of poles')
         endif
         open(unit=28,file=pole_marg_output_file(i),status='unknown')
-        do it = nburnin+1,nit
+        do it = burnin_iterations+1,nit
             write(28,*) poles(it,marg_pole(i),1:3)
         enddo
         close(28)
     enddo
+endif
+
+
+! Annealing objective versus iteration
+if (obj_file.ne.'') then
+    open(unit=29,file=obj_file,status='unknown')
+    do i = 1,nit
+        write(29,*) i,-obj(i),isAccepted(i)
+    enddo
+    close(29)
+endif
+
+
+! Uncertainty histogram
+if (uncert_file.ne.'') then
+    open(unit=30,file=uncert_file,status='unknown')
+    do i = 1,nit
+        write(30,*) uncert(i)
+    enddo
+    close(30)
 endif
 
 
@@ -434,10 +550,86 @@ end
 
 !--------------------------------------------------------------------------------------------------!
 
+subroutine parse_iteration_header(input_line,it,temp,obj,uncert,isAccepted,ierr)
+!----
+! Parse the iteration header, which is in the format:
+! > Iteration=N Temperature=T Objective=F Model_Uncertainty=U accepted|rejected
+!----
+
+use io, only: stderr
+
+implicit none
+
+! I/O variables
+character(len=*) :: input_line
+integer :: it, ierr
+double precision :: temp, obj, uncert
+logical :: isAccepted
+
+! Local variables
+integer :: i, ios
+character(len=64) :: ch
+
+
+! Initialize values
+ierr = 0
+it = 0
+temp = 0.0d0
+obj = 0.0d0
+uncert = -1.0d0
+isAccepted = .false.
+
+
+! Make sure line is properly labeled as an iteration header
+i = index(input_line,'>')
+if (i.ne.1) then
+    write(stderr,*) 'parse_iteration_header: iteration header line does not start with ">"'
+    call usage('Offending line: '//trim(input_line))
+else
+    input_line(1:i) = ''
+endif
+
+
+! Parse the iteration header
+do
+    ! Read the first entry
+    read(input_line,*,iostat=ios) ch
+    if (ios.ne.0) then
+        exit
+    endif
+
+    if (ch.eq.'accepted') then
+        isAccepted = .true.
+    elseif (ch.eq.'rejected') then
+        isAccepted = .false.
+    else
+        i = index(ch,'=')
+        if (ch(1:i-1).eq.'Iteration') then
+            read(ch(i+1:len(trim(ch))),*) it
+        elseif (ch(1:i-1).eq.'Temperature') then
+            read(ch(i+1:len(trim(ch))),*) temp
+        elseif (ch(1:i-1).eq.'Objective') then
+            read(ch(i+1:len(trim(ch))),*) obj
+        elseif (ch(1:i-1).eq.'Model_Uncertainty') then
+            read(ch(i+1:len(trim(ch))),*) uncert
+        else
+            call usage('parse_iteration_header: could not parse this parameter: '//ch(i:i-1))
+        endif
+    endif
+
+    ! Remove the entry after done parsing
+    i = index(input_line,trim(ch))
+    input_line(1:i+len(trim(ch))) = ''
+enddo
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
 subroutine gcmdln()
 
 use anneal_post, only: anneal_log_file, &
-                       search_iterations, &
                        burnin_iterations, &
                        best_output_file, &
                        plocked_output_file, &
@@ -451,17 +643,22 @@ use anneal_post, only: anneal_log_file, &
                        pole_marg_output_file, &
                        nflocked, &
                        flocked_subset_file, &
-                       flocked_output_file
+                       flocked_output_file, &
+                       obj_file, &
+                       uncert_file
 
 implicit none
 
 ! Local variables
 integer :: i, narg
 character(len=512) :: tag
+logical :: isOutputDefined
+
 
 ! Initialize control parameters
+isOutputDefined = .false.
+
 anneal_log_file = ''
-search_iterations = 0
 burnin_iterations = 0
 best_output_file = ''
 plocked_output_file = ''
@@ -480,6 +677,9 @@ nmarg_pole = 0
 marg_pole = 0
 pole_marg_output_file = ''
 
+obj_file = ''
+uncert_file = ''
+
 ! Number of arguments
 narg = command_argument_count()
 if (narg.eq.0) then
@@ -496,10 +696,6 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,anneal_log_file)
 
-    elseif (trim(tag).eq.'-nit') then
-        i = i + 1
-        call get_command_argument(i,tag)
-        read(tag,*) search_iterations
     elseif (trim(tag).eq.'-nburn') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -508,14 +704,17 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-best') then
         i = i + 1
         call get_command_argument(i,best_output_file)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-plocked') then
         i = i + 1
         call get_command_argument(i,plocked_output_file)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-slip:mean') then
         i = i + 1
         call get_command_argument(i,mean_slip_output_file)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-slip:marg') then
         nmarg1d = nmarg1d + 1
@@ -531,10 +730,12 @@ do while (i.le.narg)
             call usage('anneal_post: slip marginal file must be 64 or less characters')
         endif
         slip_marg_output_file(nmarg1d) = tag(1:64)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-pole:mean') then
         i = i + 1
         call get_command_argument(i,mean_pole_output_file)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-pole:marg') then
         nmarg_pole = nmarg_pole + 1
@@ -550,11 +751,14 @@ do while (i.le.narg)
             call usage('anneal_post: rotation pole marginal file must be 64 or less characters')
         endif
         pole_marg_output_file(nmarg_pole) = tag(1:64)
+        isOutputDefined = .true.
 
     elseif (trim(tag).eq.'-flocked') then
         nflocked = 1
         i = i + 1
         call get_command_argument(i,flocked_output_file(1))
+        isOutputDefined = .true.
+
     elseif (trim(tag).eq.'-flocked:subset') then
         nflocked = nflocked + 1
         if (nmarg1d.gt.10) then
@@ -564,6 +768,17 @@ do while (i.le.narg)
         call get_command_argument(i,flocked_subset_file(nflocked))
         i = i + 1
         call get_command_argument(i,flocked_output_file(nflocked))
+        isOutputDefined = .true.
+
+    elseif (tag.eq.'-obj') then
+        i = i + 1
+        call get_command_argument(i,obj_file)
+        isOutputDefined = .true.
+
+    elseif (tag.eq.'-uncertainty') then
+        i = i + 1
+        call get_command_argument(i,uncert_file)
+        isOutputDefined = .true.
 
     else
         call usage('anneal_post: no option '//trim(tag))
@@ -572,6 +787,10 @@ do while (i.le.narg)
     i = i + 1
 
 enddo
+
+if (.not.isOutputDefined) then
+    call usage('anneal_post: no output file defined')
+endif
 
 return
 end subroutine
@@ -593,7 +812,7 @@ endif
 write(stderr,*) 'Usage: anneal_post -f LOG_FILE -nit NITER [-nburn NBURN]'
 write(stderr,*) '       [-best BEST_FILE] [-plocked PROB_FILE] [-slip:mean SLIP_FILE]'
 write(stderr,*) '       [-slip:marg IFLT FILE] [-pole:mean POLE_FILE] [-pole:marg IPOL FILE]'
-write(stderr,*) '       [-flocked[:subset FLT_FILE] FILE]'
+write(stderr,*) '       [-flocked[:subset FLT_FILE] FILE] [-obj OBJ_FILE]'
 write(stderr,*)
 write(stderr,*) '-f LOG_FILE                     Annealing log file from fltinv'
 write(stderr,*) '-nit NITER                      Number of iterations in search'
@@ -607,7 +826,9 @@ write(stderr,*) '-pole:marg IPOL FILE            Marginals for IPOL rotation pol
 write(stderr,*) '-flocked FILE                   Fraction of locked faults in each iteration'
 write(stderr,*) '-flocked:subset FLT_FILE FILE   Fraction of locked faults in each iteration from a ',&
                                                  'subset of faults'
+write(stderr,*) '-obj OBJ_FILE                   Iteration and objective function'
+write(stderr,*) '-uncertainty UNCERT_FILE        Uncertainty distribution'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

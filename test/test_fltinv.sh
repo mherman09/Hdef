@@ -1014,6 +1014,8 @@ EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: simulated annealing + pseudo-coupling" || exit 1
 
 grep Iteration anneal.log | awk '{print $6}' | head -20 > fit.tmp
+$BIN_DIR/anneal_post -f anneal.log -obj obj.tmp
+awk '{print $2}' obj.tmp | head -20 > fit.tmp
 cat > answer.tmp << EOF
 -4.2736531432366512E-002
 -5.9343060813405443E-002
@@ -1036,7 +1038,7 @@ cat > answer.tmp << EOF
 -1.9555864370221204E-002
 -4.6156206640372330E-002
 EOF
-./test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 10 fits" || exit 1
+./test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 20 fits" || exit 1
 rm anneal.log
 
 #echo ----------
@@ -1394,29 +1396,94 @@ rm *.tmp
 #echo
 
 
-exit
-
 echo ----------------------------------------------------------
 echo Test \#17: Annealing with pseudo-coupling, plus an Euler pole
 echo ----------
 # Stations near North Island, New Zealand
 grid -x 173 177 -dx 1 -y -42 -37 -dy 1 -z 0 > sta.tmp
 
-# Put a couple of triangles near the Hikurangi subduction zone
+# Put 8 triangles near the Hikurangi subduction zone
 cat > tri.tmp << EOF
-178.0 -42.0
-179.0 -40.0
-180.0 -38.0
-181.0 -36.0
+177.10 -38.1 30 177.95 -38.4 15 176.3 -39.3 30
+177.95 -38.4 15 177.20 -39.6 15 176.3 -39.3 30
+177.95 -38.4 15 178.80 -38.7  0 177.2 -39.6 15
+178.80 -38.7  0 178.10 -39.9  0 177.2 -39.6 15
+175.50 -40.5 30 176.45 -40.8 15 176.3 -39.3 30
+176.45 -40.8 15 176.30 -39.3 30 177.2 -39.6 15
+176.45 -40.8 15 177.20 -39.6 15 177.4 -41.1  0
+177.20 -39.6 15 178.10 -39.9  0 177.4 -41.1  0
 EOF
 
-# Set Euler pole far north of points to move them eastward
-platemotion -f sta.tmp -pole 175.0/3.0/0.13
+# Calculate pseudo-coupling slip
+awk '{print $1,$2,$3*1e3,$4,$5,$6*1e3,$7,$8,$9*1e3}' tri.tmp > fltinv_tri.tmp
 
+# Slip constraints
+#   SS    DS
+cat > fltinv_slip.tmp << EOF
+ 99999 99999
+ 99999 99999
+ 99999 99999
+     0   -30
+ 99999 99999
+     0   -30
+ 99999 99999
+ 99999 99999
+EOF
+
+# Pre-stresses
+awk '{print 0,0,0,0,0,0}' fltinv_tri.tmp > fltinv_sts.tmp
+
+# Calculate fault slip surrounding central fault
+echo vp 6800 vs 3926 dens 3000 > haf.tmp
+$BIN_DIR/fltinv \
+    -mode lsqr \
+    -geo \
+    -flt fltinv_tri.tmp \
+    -flt:slip fltinv_slip.tmp \
+    -haf haf.tmp \
+    -prests fltinv_sts.tmp \
+    -gf:model triangle \
+    -lsqr:mode gesv \
+    -o inversion.tmp
+
+# Calculate locking generated velocity
+paste tri.tmp inversion.tmp > tri_slip.tmp
+$BIN_DIR/triutil -flt tri_slip.tmp -sta sta.tmp -haf haf.tmp -disp locking_vel.tmp
+
+# Set Euler pole far north of points to give them E velocity
+platemotion -f sta.tmp -pole 175.0/3.0/0.13 > euler_vel.tmp
+
+# Superimpose Euler velocity and locking signal
+paste locking_vel.tmp euler_vel.tmp |\
+    awk '{print $1,$2,$3*1e3,$4+$9,$5+$10,$6}' > fltinv_vel.tmp
+
+# Fault slip range
+awk '{print 0,-30}' fltinv_tri.tmp > fltinv_slip_constraint.tmp
+# Euler pole range
 cat > euler.tmp << EOF
 1
-175.0 0.0 5000
+175.0 0.0 5000 0 0.2
 EOF
+awk '{print 1,3,NR}' fltinv_vel.tmp >> euler.tmp
+
+$BIN_DIR/fltinv \
+    -mode anneal-psc \
+    -geo \
+    -flt fltinv_tri.tmp \
+    -flt:slip fltinv_slip_constraint.tmp \
+    -disp fltinv_vel.tmp \
+    -disp:unit mm/yr \
+    -gf:model triangle \
+    -anneal:init_mode rand \
+    -anneal:seed 5267146 \
+    -anneal:max_it 1000 \
+    -anneal:temp_start 1 \
+    -anneal:temp_min 1 \
+    -anneal:log_file anneal.log \
+    -euler euler.tmp euler_pole.tmp \
+    -o inversion.tmp
+$BIN_DIR/anneal_post -f anneal.log -obj obj.tmp
+
 rm *.tmp
 #echo ----------
 #echo Finished Test \#17
@@ -1426,6 +1493,7 @@ rm *.tmp
 
 
 
+exit
 
 
 

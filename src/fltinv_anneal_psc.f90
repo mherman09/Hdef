@@ -449,7 +449,9 @@ end function
 subroutine anneal_psc_log(it,temp,obj,model_current,model_proposed,n,isModelAccepted,string)
 
 use io, only: stdout, verbosity
-use fltinv, only: anneal_log_file
+use fltinv, only: fault, &
+                  max_iteration, &
+                  anneal_log_file
 
 implicit none
 
@@ -460,9 +462,10 @@ logical :: isModelAccepted
 character(len=*) :: string
 
 ! Local variables
-integer :: i
+integer :: i, nflt
 double precision :: slip(n,2)
 character(len=8) :: rejected_string
+character(len=16) :: str, it_str, temp_str, obj_str, uncert_str
 
 
 if (verbosity.ge.3) then
@@ -472,6 +475,19 @@ endif
 if (anneal_log_file.eq.'') then
     return
 endif
+
+nflt = fault%nrows
+
+! Update annealing log file
+write(it_str,'(I8)') it
+write(temp_str,'(1PE12.4)') temp
+write(obj_str,'(1PE12.4)') obj
+write(uncert_str,'(1PE12.4)') -1.0d0
+
+it_str = adjustl(it_str)
+temp_str = adjustl(temp_str)
+obj_str = adjustl(obj_str)
+uncert_str = adjustl(uncert_str)
 
 
 ! Update annealing-with-pseudo-coupling log file
@@ -486,11 +502,23 @@ if (string.eq.'init') then
     ! Compute slip for sub-faults
     call psc_slip(model_current,n,slip)
 
+    ! Write header
+    write(str,'(I8)') max_iteration
+    write(28,'(A)') '# niterations='//adjustl(str)
+    write(str,'(I8)') nflt
+    write(28,'(A)') '# nfaults='//adjustl(str)
+    write(28,'(A)') '# format=anneal_psc'
+
+    ! Write iteration parameters, fault slip values
+    write(28,2801) it_str, temp_str, obj_str, uncert_str
+    2801 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12)
+
     ! Write locked/unlocked, fault slip results to log file
-    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
     do i = 1,n
-        write(28,*) model_current(i),slip(i,1),slip(i,2)
+        write(28,2802) model_current(i),slip(i,1),slip(i,2)
     enddo
+    2802 format(I4,X,1PE14.6,E14.6)
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
@@ -504,10 +532,14 @@ elseif (string.eq.'append') then
     call psc_slip(model_current,n,slip)
 
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(28,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)
+    write(28,2803) it_str, temp_str, obj_str, uncert_str, trim(rejected_string)
+    2803 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12,X,A)
+
     do i = 1,n
-        write(28,*) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
+        write(28,2804) model_current(i),slip(i,1),slip(i,2),model_proposed(i)
     enddo
+    2804 format(I4,X,1PE14.6,E14.6,I4)
 
 elseif (string.eq.'close') then
     if (verbosity.ge.3) then
@@ -607,6 +639,20 @@ enddo
 
 if (.not.doInversion) then
     slip = 0.0d0
+    return
+endif
+
+! Also check if all of the faults are locked...
+doInversion = .false.
+do i = 1,nflt
+    if (locked(i).eq.0) then
+        doInversion = .true.
+        exit
+    endif
+enddo
+
+if (.not.doInversion) then
+    slip = slip_constraint%array
     return
 endif
 

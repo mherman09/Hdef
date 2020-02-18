@@ -578,8 +578,8 @@ if (string.eq.'init') then
     enddo
     2901 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
                 A12)
-    2902 format(F10.3)
-    2903 format(F10.1)
+    2902 format(1PE14.6)
+    2903 format(F12.2)
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
@@ -599,8 +599,8 @@ elseif (string.eq.'append') then
     enddo
     2904 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
                 A12,X,A)
-    2905 format(F10.3,X,F10.3)
-    2906 format(F10.1,X,F10.1)
+    2905 format(1PE14.6,X,E14.6)
+    2906 format(F12.2,X,F12.2)
 
 elseif (string.eq.'close') then
     ! Close the log file
