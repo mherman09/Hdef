@@ -39,6 +39,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI [-anneal:cool " cooling_factor" ]
 .BI [-anneal:log_file " anneal_log_file" ]
 .BI [-anneal:seed " seed" ]
+.B [-anneal:model_uncertainty]
 .BI [-anneal-psc:min_flip " nmin" ]
 .BI [-anneal-psc:max_flip " nmax" ]
 .BI [-v " level" ]
@@ -579,6 +580,9 @@ Save a log of solutions and fits in
 .BI -anneal:seed " seed"
 Set the random number generator seed (default: based on date and time)
 
+.TP
+.B [-anneal:model_uncertainty]
+Search for the model uncertainty in addition to the model parameters.
 
 .TP
 .BI -anneal-psc:min_flip " nmin"

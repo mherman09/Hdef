@@ -58,7 +58,7 @@ double precision :: dist, dp1, dp2, cov, sts(3,3), nvec(3), vec(3), pt1(3), pt2(
 double precision, allocatable :: cov_matrix_temp(:)
 character(len=512) :: line
 character(len=1) :: nchar, mchar
-logical :: foundRigidObs
+logical :: foundRigidObs, isErrorMessagePrinted
 
 
 if (verbosity.ge.1) then
@@ -908,6 +908,7 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     enddo
 
     ! Read in the covariance values
+    isErrorMessagePrinted = .false.
     if (cov_file.ne.'none') then
         open(unit=72,file=cov_file,status='old')
         do
@@ -932,13 +933,23 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
                 mm = ndisp_dof
             else
                 if (index(disp_components,nchar).le.0) then
-                    write(stderr,*) 'read_inputs: first component (',nchar,') is not used in inversion'
-                    write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                    if (.not.isErrorMessagePrinted) then
+                        write(stderr,*) 'read_inputs: found a covariance input not used in inversion'
+                        write(stderr,*) 'Line: ',trim(line)
+                        write(stderr,*) 'First component (',nchar,') is not used in inversion'
+                        write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                        isErrorMessagePrinted = .true.
+                    endif
                     cycle
                 endif
                 if (index(disp_components,mchar).le.0) then
-                    write(stderr,*) 'read_inputs: second component (',mchar,') is not used in inversion'
-                    write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                    if (.not.isErrorMessagePrinted) then
+                        write(stderr,*) 'read_inputs: found a covariance input not used in inversion'
+                        write(stderr,*) 'Line: ',trim(line)
+                        write(stderr,*) 'Second component (',mchar,') is not used in inversion'
+                        write(stderr,*) 'It is not being loaded into the covariance matrix.'
+                        isErrorMessagePrinted = .true.
+                    endif
                     cycle
                 endif
                 nn = (index(disp_components,nchar)-1)*displacement%nrows
@@ -1266,6 +1277,7 @@ use fltinv, only: output_file, &
                   cooling_factor, &
                   anneal_log_file, &
                   anneal_seed, &
+                  modelUncertainty, &
                   min_flip, &
                   max_flip, &
                   init_fltinv_data
@@ -1320,6 +1332,7 @@ temp_minimum = 0.00d0
 cooling_factor = 0.98d0
 anneal_log_file = ''
 anneal_seed = 0
+modelUncertainty = .false.
 
 min_flip = 1
 max_flip = 10
@@ -1498,6 +1511,8 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) anneal_seed
+    elseif (tag.eq.'-anneal:model_uncertainty') then
+        modelUncertainty = .true.
     elseif (trim(tag).eq.'-anneal-psc:min_flip') then
         i = i + 1
         call get_command_argument(i,tag)
@@ -1593,6 +1608,7 @@ if (verbosity.ge.2) then
     write(stdout,'(" cooling_factor:         ",1PE14.6)') cooling_factor
     write(stdout,'(" anneal_log_file:        ",A)') trim(anneal_log_file)
     write(stdout,'(" anneal_seed:            ",I14)') anneal_seed
+    write(stdout,'(" modelUncertainty:       ",A)') modelUncertainty
     write(stdout,'(" min_flip:               ",I14)') min_flip
     write(stdout,'(" max_flip:               ",I14)') max_flip
     ! write(stdout,'(" pl2u:                   ",1PE14.6)') pl2u
@@ -1736,6 +1752,7 @@ if (info.eq.'all'.or.info.eq.'anneal') then
     write(stderr,*) '-anneal:cool COOL_FACT       Cooling factor'
     write(stderr,*) '-anneal:log_file LOG_FILE    File with annealing progress'
     write(stderr,*) '-anneal:seed SEED            Random number generator seed'
+    write(stderr,*) '-anneal:model_uncertainty    Search for model uncertainty'
     write(stderr,*) '-anneal-psc:min_flip N       Minimum number of faults to flip'
     write(stderr,*) '-anneal-psc:max_flip N       Maximum number of faults to flip'
     write(stderr,*)

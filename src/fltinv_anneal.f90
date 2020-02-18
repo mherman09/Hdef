@@ -13,7 +13,8 @@ use fltinv, only: fault, &
                   temp_start, &
                   temp_minimum, &
                   cooling_factor, &
-                  fault_slip
+                  fault_slip, &
+                  modelUncertainty
 
 implicit none
 
@@ -51,7 +52,12 @@ logical :: saveRejected
 
 saveRejected = .true.
 
-nflt_dof = 2*fault%nrows
+! Number of parameters to include in search depends on whether searching for model uncertainty
+if (modelUncertainty) then
+    nflt_dof = 2*fault%nrows + 1
+else
+    nflt_dof = 2*fault%nrows
+endif
 allocate(model_best(nflt_dof),stat=ierr)
 if (ierr.ne.0) then
     call usage('invert_anneal: error allocating memory to model_best')
@@ -99,7 +105,8 @@ use fltinv, only: fault, &
                   anneal_init_file, &
                   anneal_step_file, &
                   step, &
-                  anneal_seed
+                  anneal_seed, &
+                  modelUncertainty
 
 implicit none
 
@@ -122,11 +129,19 @@ else
     iseed = -abs(anneal_seed)
 endif
 
-! Check array dimensions; the first nflt entries in the model array are fault slip magnitude and the
-! next nflt entries are rake angles
+! Check array dimensions:
+!     The first nflt entries in the model array are fault slip magnitude
+!     The next nflt entries are rake angles
+!     If searching for model uncertainty, then add to the end of the array
 nflt = fault%nrows
-if (n.ne.2*nflt) then
-    call usage('anneal_init: input n not equal to 2*nflt')
+if (modelUncertainty) then
+    if (n.ne.2*nflt+1) then
+        call usage('anneal_init: looking for model uncertainty, input n not equal to 2*nflt+1')
+    endif
+else
+    if (n.ne.2*nflt) then
+        call usage('anneal_init: not looking for model uncertainty, input n not equal to 2*nflt')
+    endif
 endif
 
 
@@ -203,6 +218,13 @@ else
     close(30)
 endif
 
+
+! If searching for model uncertainty, set the initial value here (between 0 and 1)
+if (modelUncertainty) then
+    model(2*nflt+1) = r8_uniform_01(iseed)
+endif
+
+
 if (verbosity.ge.2) then
     write(stdout,*) 'anneal_init: finished'
 endif
@@ -230,7 +252,8 @@ use random, only: iseed, r8_normal_ab
 use fltinv, only: fault, &
                   slip_constraint, &
                   rake_constraint, &
-                  step
+                  step, &
+                  modelUncertainty
 
 implicit none
 
@@ -248,9 +271,16 @@ endif
 
 
 nflt = fault%nrows
-if (n.ne.2*nflt) then
-    call usage('anneal_propose: input n not equal to 2*nflt')
+if (modelUncertainty) then
+    if (n.ne.2*nflt+1) then
+        call usage('anneal_propose: looking for model uncertainty, input n not equal to 2*nflt+1')
+    endif
+else
+    if (n.ne.2*nflt) then
+        call usage('anneal_propose: not looking for model uncertainty, input n not equal to 2*nflt')
+    endif
 endif
+
 
 do i = 1,nflt
     j = i+nflt
@@ -285,6 +315,16 @@ do i = 1,nflt
     endif
 enddo
 
+
+! If searching for model uncertainty, propose a new value here
+if (modelUncertainty) then
+    model_out(2*nflt+1) = r8_normal_ab(model_in(2*nflt+1),0.05d0,iseed)
+    if (model_out(2*nflt+1).le.1.0d-8) then
+        model_out(2*nflt+1) = 1.0d-8
+    endif
+endif
+
+
 if (verbosity.ge.3) then
     write(stdout,*) 'anneal_propose: finished'
     write(stdout,*) 'Proposed model:'
@@ -300,12 +340,15 @@ end subroutine
 
 function anneal_objective(model,n)
 !----
-! The objective function is -0.5 times the chi-squared misfit
+! The objective function is -0.5 times the chi-squared misfit.
+!
+! If model uncertainty (variance) is included, then the objective function needs to also
+! include the pre-exponential coefficient, which includes a covariance matrix that changes with
+! the model uncertainty value.
 !----
 
 use trig, only: d2r
 use misfit, only: misfit_chi2
-use random, only: r8_normal_ab, iseed
 
 use fltinv, only: fault, &
                   displacement, &
@@ -314,7 +357,8 @@ use fltinv, only: fault, &
                   cov_matrix, &
                   isCovMatrixDiagonal, &
                   gf_disp, &
-                  gf_los
+                  gf_los, &
+                  modelUncertainty
 
 implicit none
 
@@ -326,12 +370,21 @@ double precision :: model(n), anneal_objective
 integer :: i, ierr, idsp, iflt, icmp, nflt, ndsp, ndsp_dof, nlos, nobs
 double precision, allocatable :: obs(:), pre(:)
 double precision :: slip, rake
+double precision, allocatable :: model_cov_matrix(:)
+double precision :: log_cov_matrix_determinant
 
 
 nflt = fault%nrows
-if (n.ne.2*nflt) then
-    call usage('anneal_objective: input n not equal to 2*nflt')
+if (modelUncertainty) then
+    if (n.ne.2*nflt+1) then
+        call usage('anneal_objective: looking for model uncertainty, input n not equal to 2*nflt+1')
+    endif
+else
+    if (n.ne.2*nflt) then
+        call usage('anneal_objective: not looking for model uncertainty, input n not equal to 2*nflt')
+    endif
 endif
+
 
 ndsp = displacement%nrows
 ndsp_dof = len_trim(disp_components)*displacement%nrows
@@ -396,8 +449,62 @@ do i = 1,nlos
 enddo
 
 
-! Calculate chi-squared
-call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_objective)
+if (modelUncertainty) then
+    if (.not.isCovMatrixDiagonal) then
+        call usage('anneal_objective: covariance matrix must be diagonal to estimate model '//&
+                   'uncertainty for now')
+    endif
+    if (los%file.ne.'none') then
+        call usage('anneal_objective: model uncertainty cannot be estimated with LOS data yet')
+    endif
+
+    ! Initialize model prediction error covariance matrix
+    if (.not.allocated(model_cov_matrix)) then
+        allocate(model_cov_matrix(nobs),stat=ierr)
+        if (ierr.ne.0) then
+            call usage('anneal_objective: error allocating memory to model_cov_matrix')
+        endif
+    endif
+    model_cov_matrix = 0.0d0
+
+    ! Load model error prediction covariance matrix
+    do idsp = 1,ndsp
+        ! Model prediction error covariance at each station is (for three-component displacements):
+        !     error_cov(ista) = e^2*(obs(ista,1)^2+obs(ista,2)^2+obs(ista,3)^2)
+        ! where e is the percent error
+        do icmp = 1,len_trim(disp_components)
+            i = (icmp-1)*ndsp + idsp
+            model_cov_matrix(idsp) = model_cov_matrix(idsp) + model(2*nflt+1)**2 * obs(i)**2
+        enddo
+    enddo
+    do icmp = 2,len_trim(disp_components)
+        model_cov_matrix((icmp-1)*ndsp+1:icmp*ndsp) = model_cov_matrix(1:ndsp)
+    enddo
+
+    ! Calculate chi-squared and scale it for (Gaussian) probability
+    cov_matrix(:,1) = cov_matrix(:,1) + model_cov_matrix
+    call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_objective)
+    cov_matrix(:,1) = cov_matrix(:,1) - model_cov_matrix
+
+    ! Scale objective value by determinant of the covariance matrix (including both observation
+    ! and model prediction error covariances) to determine its probability, e.g.:
+    !
+    ! Tarantola, A. (2005). Inverse Problem Theory and Methods for Model Parameter Estimation.
+    !     Philadelphia, PA, USA: Society for Industrial and Applied Mathematics.
+    ! Beck, J.L. (2010). Bayesian system identification based on probability logic. Structural
+    !     Control and Health Monitoring 17, 825–847.
+    ! Minson, S.E., Simons, M., & Beck, J.L. (2013). Bayesian inversion for finite fault earthquake
+    !     source models I—theory and algorithm. Geophysical Journal International 194, 1701–1726.
+    log_cov_matrix_determinant = 0.0d0
+    do i = 1,nobs
+        log_cov_matrix_determinant = log_cov_matrix_determinant + &
+                                     log(cov_matrix(i,1) + model_cov_matrix(i))
+    enddo
+    anneal_objective = anneal_objective + log_cov_matrix_determinant
+
+else
+    call misfit_chi2(obs,pre,cov_matrix,isCovMatrixDiagonal,nobs,anneal_objective)
+endif
 anneal_objective = -0.5d0*anneal_objective
 
 return
@@ -408,7 +515,10 @@ end function
 
 subroutine anneal_log(it,temp,obj,model_current,model_proposed,n,isAccepted,string)
 
-use fltinv, only: anneal_log_file
+use fltinv, only: fault, &
+                  max_iteration, &
+                  anneal_log_file, &
+                  modelUncertainty
 
 implicit none
 
@@ -429,16 +539,47 @@ if (anneal_log_file.eq.'') then
 endif
 
 
-! Update annealing-with-pseudo-coupling log file
+nflt = fault%nrows
+
+! Update annealing log file
+write(it_str,'(I8)') it
+write(temp_str,'(1PE12.4)') temp
+write(obj_str,'(1PE12.4)') obj
+if (modelUncertainty) then
+    write(uncert_str,'(1PE12.4)') model_current(2*nflt+1)
+else
+    write(uncert_str,'(1PE12.4)') -1.0d0
+endif
+it_str = adjustl(it_str)
+temp_str = adjustl(temp_str)
+obj_str = adjustl(obj_str)
+uncert_str = adjustl(uncert_str)
+
+
 if (string.eq.'init') then
     ! Open the log file
     open(unit=29,file=anneal_log_file,status='unknown')
 
-    ! Write locked/unlocked, fault slip results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
-    do i = 1,n
-        write(29,*) model_current(i)
+    ! Write header
+
+    write(str,'(I8)') max_iteration
+    write(29,'(A)') '# niterations='//adjustl(str)
+    write(str,'(I8)') nflt
+    write(29,'(A)') '# nfaults='//adjustl(str)
+    write(29,'(A)') '# format=anneal'
+
+    ! Write iteration parameters, fault slip values
+    write(29,2901) it_str, temp_str, obj_str, uncert_str
+    do i = 1,nflt
+        write(29,2902) model_current(i)
     enddo
+    do i = nflt+1,2*nflt
+        write(29,2903) model_current(i)
+    enddo
+    2901 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12)
+    2902 format(F10.3)
+    2903 format(F10.1)
 
 elseif (string.eq.'append') then
     ! Is this a rejected model?
@@ -448,11 +589,18 @@ elseif (string.eq.'append') then
         rejected_string = 'rejected'
     endif
 
-    ! Write locked/unlocked, fault slip, old model results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,trim(rejected_string)
-    do i = 1,n
-        write(29,*) model_current(i),model_proposed(i)
+    ! Write iteration parameters, fault slip values
+    write(29,2904) it_str, temp_str, obj_str, uncert_str, trim(rejected_string)
+    do i = 1,nflt
+        write(29,2905) model_current(i),model_proposed(i)
     enddo
+    do i = nflt+1,2*nflt
+        write(29,2906) model_current(i),model_proposed(i)
+    enddo
+    2904 format('> Iteration=',A8,X,'Temperature=',A12,X,'Objective=',A12,X,'Model_Uncertainty=',&
+                A12,X,A)
+    2905 format(F10.3,X,F10.3)
+    2906 format(F10.1,X,F10.1)
 
 elseif (string.eq.'close') then
     ! Close the log file

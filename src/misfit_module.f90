@@ -70,13 +70,12 @@ use solver, only: solve_dsysv
 #endif
 
 use io, only: stderr
-use random, only: iseed, r8_normal_ab
 
 implicit none
 
 ! Arguments
 integer :: n
-double precision :: obs(n), pre(n), cov(n,n), chi2, model_uncertainty
+double precision :: obs(n), pre(n), cov(n,n), chi2
 logical :: isCovMatrixDiagonal
 
 ! Local variables
@@ -98,14 +97,7 @@ dif = obs-pre
 ! Calculate dif_trans*cov^(-1)*dif
 if (isCovMatrixDiagonal) then
     do i = 1,n
-        ! if (model_uncertainty.le.0.0d0) then
-            chi2 = chi2 + dif(i)*dif(i)/cov(i,1)
-        ! else
-            ! dif(i) = dif(i) - sign(model_uncertainty*obs(i),dif(i))
-            ! dif(i) = dif(i) + r8_normal_ab(0.0d0,model_uncertainty*obs(i),iseed)
-            ! chi2 = chi2 + dif(i)*dif(i)/ (cov(i,1) + model_uncertainty**2 * obs(i)**2)
-            ! chi2 = chi2 + dif(i)*dif(i)/ (cov(i,1))
-        ! endif
+        chi2 = chi2 + dif(i)*dif(i)/cov(i,1)
     enddo
 else
 

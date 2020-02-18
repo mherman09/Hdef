@@ -110,6 +110,7 @@ character(len=512) :: anneal_log_file            ! Annealing log file
 integer :: anneal_seed                           ! Random number seed for annealing (useful for repeating runs)
 integer :: min_flip                              ! Minimum number of faults to flip locked<->unlocked
 integer :: max_flip                              ! Maximum number of faults to flip locked<->unlocked
+logical :: modelUncertainty                      ! Search for model uncertainty
 
 ! Output variables
 double precision, allocatable :: fault_slip(:,:)
