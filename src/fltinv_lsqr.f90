@@ -54,13 +54,13 @@ double precision, parameter :: spy = 60.0d0*60.0d0*24.0d0*365.25d0
 ! Initialize solution
 if (fault%file.ne.'none') then
     if (.not.allocated(fault_slip)) then
-        call usage('invert_lsqr: memory for fault slip output array not allocated')
+        call usage('invert_lsqr: memory for fault slip output array not allocated (usage:none)')
     endif
     fault_slip = 0.0d0
 endif
 if (euler_file.ne.'none') then
     if (.not.allocated(euler_pole)) then
-        call usage('invert_lsqr: memory for Euler pole output array not allocated')
+        call usage('invert_lsqr: memory for Euler pole output array not allocated (usage:none)')
     endif
     euler_pole = 0.0d0
 endif
@@ -155,7 +155,7 @@ endif
 if (.not.allocated(A)) then
     allocate(A(nrows,ncols),stat=ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error allocating memory to A')
+        call usage('invert_lsqr: error allocating memory to A (usage:none)')
     endif
     if (verbosity.ge.2) then
         write(stdout,*) 'invert_lsqr: memory allocated to A(',nrows,',',ncols,')'
@@ -164,7 +164,7 @@ endif
 if (.not.allocated(b)) then
     allocate(b(nrows),stat=ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error allocating memory to b')
+        call usage('invert_lsqr: error allocating memory to b (usage:none)')
     endif
     if (verbosity.ge.2) then
         write(stdout,*) 'invert_lsqr: memory allocated to b(',nrows,')'
@@ -185,12 +185,14 @@ if (displacement%file.ne.'none') then
                         gf_disp%array((icomp-1)*ndsp+1:icomp*ndsp,1:nslip),ndsp,nslip, &
                         (i-1)*ndsp+1,1,'gf_disp%array',ierr)
         if (ierr.ne.0) then
-            call usage('invert_lsqr: error loading three-component displacement GFs into A')
+            call usage('invert_lsqr: error loading three-component displacement GFs into A '//&
+                       '(usage:none)')
         endif
         call load_array(b,nrows,displacement%array(:,icomp+3),ndsp,(i-1)*ndsp+1, &
                         'displacement%array',ierr)
         if (ierr.ne.0) then
-            call usage('invert_lsqr: error loading three-component displacement observations into b')
+            call usage('invert_lsqr: error loading three-component displacement observations '//&
+                       'into b (usage:none)')
         endif
     enddo
 endif
@@ -199,11 +201,12 @@ endif
 if (los%file.ne.'none') then
     call load_array(A,nrows,ncols,gf_los%array(:,1:nslip),nlos,nslip,ptr_los,1,'gf_los%array',ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error loading line-of-sight displacement GFs into A')
+        call usage('invert_lsqr: error loading line-of-sight displacement GFs into A (usage:none)')
     endif
     call load_array(b,nrows,los%array(:,4),nlos,ptr_los,'los%array',ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error loading line-of-sight displacement observations into b')
+        call usage('invert_lsqr: error loading line-of-sight displacement observations into b '//&
+                   '(usage:none)')
     endif
 endif
 
@@ -216,7 +219,7 @@ if (euler_file.ne.'none') then
                             gf_euler((icomp-1)*ndsp+1:icomp*ndsp,1:3*npoles),ndsp,3*npoles, &
                             (i-1)*ndsp+1,ptr_euler,'gf_euler%array',ierr)
             if (ierr.ne.0) then
-                call usage('invert_lsqr: error loading rigid body rotation GFs into A')
+                call usage('invert_lsqr: error loading rigid body rotation GFs into A (usage:none)')
             endif
         endif
     enddo
@@ -226,11 +229,13 @@ endif
 if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     allocate(atmp(ndsp_dof+nlos,nslip),stat=ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error allocating memory to atmp for including covariance matrix')
+        call usage('invert_lsqr: error allocating memory to atmp for including covariance '//&
+                   'matrix (usage:none)')
     endif
     allocate(btmp(ndsp_dof+nlos),stat=ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error allocating memory to btmp for including covariance matrix')
+        call usage('invert_lsqr: error allocating memory to btmp for including covariance '//&
+                   'matrix (usage:none)')
     endif
 
     ! Compute cov_matrix^-1*A and cov_matrix^1*b
@@ -244,11 +249,11 @@ if (displacement%file.ne.'none'.or.los%file.ne.'none') then
     else
         call solve_dsysv_nrhs(cov_matrix,A(1:ndsp_dof+nlos,1:nslip),atmp,ndsp_dof+nlos,nslip,ierr)
         if (ierr.ne.0) then
-            call usage('invert_lsqr: error computing cov_matrix^-1*A')
+            call usage('invert_lsqr: error computing cov_matrix^-1*A (usage:none)')
         endif
         call solve_dsysv(cov_matrix,b(1:ndsp_dof+nlos),btmp,ndsp_dof+nlos,ierr)
         if (ierr.ne.0) then
-            call usage('invert_lsqr: error computing cov_matrix^-1*b')
+            call usage('invert_lsqr: error computing cov_matrix^-1*b (usage:none)')
         endif
     endif
     A(1:ndsp_dof+nlos,1:nslip) = atmp
@@ -265,7 +270,7 @@ if (prestress%file.ne.'none') then
                     gf_stress%array(1:nslip,1:nslip),nslip,nslip,&
                     ptr_stress,1,'gf_stress%array',ierr)
     if (ierr.ne.0) then
-        call usage('error loading shear stress GFs into model matrix')
+        call usage('error loading shear stress GFs into model matrix (usage:none)')
     endif
     call load_array(b,nrows,prestress%array(1:nflt,1),nflt,ptr_stress,'prestress%array(:,1)',ierr)
     if (rake_constraint%ncols.eq.2) then
@@ -273,7 +278,7 @@ if (prestress%file.ne.'none') then
                         'prestress%array(:,2)',ierr)
     endif
     if (ierr.ne.0) then
-        call usage('error loading pre-stresses into b vector')
+        call usage('error loading pre-stresses into b vector (usage:none)')
     endif
 endif
 
@@ -333,7 +338,7 @@ endif
 ! Fixed slip constraints
 allocate(isSlipFixed(nslip),stat=ierr)
 if (ierr.ne.0) then
-    call usage('invert_lsqr: error allocating memory to isSlipFixed')
+    call usage('invert_lsqr: error allocating memory to isSlipFixed (usage:none)')
 endif
 isSlipFixed = .false.
 
@@ -361,7 +366,8 @@ if (slip_constraint%file.ne.'none') then
                               [slip_constraint%array(:,1),slip_constraint%array(:,2)],isSlipFixed, &
                               ierr)
     else
-        call usage('invert_lsqr: number of columns in rake constraints must be 1 or 2')
+        call usage('invert_lsqr: number of columns in rake constraints must be 1 or 2 in lsqr '//&
+                   'mode (usage:fault)')
     endif
 
     ! Remove stress rows for fixed slip faults; these no longer contribute to the solution
@@ -387,7 +393,7 @@ if (slip_constraint%file.ne.'none') then
         elseif (nrows.eq.ptr_stress+nslip-1) then
             ! Nothing to shift
         else
-            call usage('invert_lsqr: error in indexing rows of model matrix')
+            call usage('invert_lsqr: error in indexing rows of model matrix (usage:none)')
         endif
         nrows = nrows - nfixed
     endif
@@ -407,10 +413,10 @@ if (slip_constraint%file.ne.'none') then
 endif
 
 if (nrows.eq.0) then
-    call usage('invert_lsqr: no rows in model matrix A')
+    call usage('invert_lsqr: no rows in model matrix A (usage:none)')
 endif
 if (ncols.eq.0) then
-    call usage('invert_lsqr: no columns in model matrix A')
+    call usage('invert_lsqr: no columns in model matrix A (usage:none)')
 endif
 
 
@@ -419,13 +425,13 @@ allocate(x(ncols))
 if (lsqr_mode.eq.'gels') then
     call solve_dgels(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ncols,ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error inverting for slip with gels')
+        call usage('invert_lsqr: error inverting for slip with gels (usage:none)')
     endif
 
 elseif (lsqr_mode.eq.'nnls') then
     call solve_nnls(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ncols,ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error inverting for slip with nnls')
+        call usage('invert_lsqr: error inverting for slip with nnls (usage:none)')
     endif
 
 elseif (lsqr_mode.eq.'gesv') then
@@ -433,11 +439,11 @@ elseif (lsqr_mode.eq.'gesv') then
         write(stderr,*) 'invert_lsqr: nrows not equal to ncols'
         write(stderr,*) '    nrows=',nrows
         write(stderr,*) '    ncols=',ncols
-        call usage('Inversion routine gesv requires a square A matrix')
+        call usage('Inversion routine gesv requires a square A matrix (usage:none)')
     endif
     call solve_dgesv(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ierr)
     if (ierr.ne.0) then
-        call usage('invert_lsqr: error inverting for slip with gesv')
+        call usage('invert_lsqr: error inverting for slip with gesv (usage:none)')
     endif
 
 else
@@ -445,7 +451,7 @@ else
     write(stderr,*) 'Available options:'
     write(stderr,*) '    gels'
     write(stderr,*) '    nnls'
-    call usage(     '    gesv')
+    call usage(     '    gesv (usage:lsqr)')
 endif
 
 ! Load solution into fault slip vector
@@ -481,7 +487,7 @@ if (npoles.gt.0) then
     elseif (input_disp_unit.eq.'mm/yr') then
         factor = 1.0d3*spy
     else
-        call usage('invert_lsqr: unit '//trim(input_disp_unit)//' not compatible')
+        call usage('invert_lsqr: unit '//trim(input_disp_unit)//' not compatible (usage:input)')
     endif
     do i = 1,npoles
         euler_pole(i,1) = x(j+i-1)/factor

@@ -262,7 +262,8 @@ if (euler_file.ne.'none') then
         if (allocated(pole_array)) then
             read(line,*,end=4002,err=4002,iostat=ios) pole_array(i,1:5)
             if (pole_array(i,4).ge.pole_array(i,5)) then
-                call usage('read_inputs: min pole velocity greater than max pole velocity')
+                call usage('read_inputs: min pole velocity greater than max pole velocity '//&
+                           '(usage:euler)')
             endif
         endif
     enddo
@@ -282,13 +283,15 @@ if (euler_file.ne.'none') then
             if (allocated(rigid_pt_array_disp)) then
                 rigid_pt_array_disp(j) = i
             else
-                call usage('read_inputs: specified rigid rotation for 3D motion but array unallocated')
+                call usage('read_inputs: specified rigid rotation for 3D motion but array '//&
+                           'unallocated (usage:none)')
             endif
         elseif (nchar.eq.'l'.or.nchar.eq.'L') then
             if (allocated(rigid_pt_array_los)) then
                 rigid_pt_array_los(j) = i
             else
-                call usage('read_inputs: specified rigid rotation for LOS motion but array unallocated')
+                call usage('read_inputs: specified rigid rotation for LOS motion but array '//&
+                           'unallocated (usage:none)')
             endif
         else
             call usage('read_inputs: no observation type code named '//nchar//'; use "3" or "L"'// &
@@ -509,7 +512,8 @@ endif
 ! The number of stresses must be equal to the number of faults
 if (prestress%file.ne.'none') then
     if (prestress%nrows.ne.fault%nrows) then
-        call usage('read_inputs: the number of pre-stresses is not equal to the number of faults')
+        call usage('read_inputs: the number of pre-stresses is not equal to the number of faults'//&
+                   '(usage:none)')
     endif
 endif
 
@@ -1087,7 +1091,7 @@ if (disp_misfit_file.ne.'none') then
     if (.not.allocated(pre)) then
         allocate(pre(ndsp*len_trim(disp_components)),stat=ierr)
         if (ierr.ne.0) then
-            call usage('write_solution: error allocating memory to pre')
+            call usage('write_solution: error allocating memory to pre array (usage:none)')
         endif
     endif
     pre = 0.0d0
@@ -1108,7 +1112,7 @@ if (disp_misfit_file.ne.'none') then
     if (.not.allocated(obs)) then
         allocate(obs(nobs),stat=ierr)
         if (ierr.ne.0) then
-            call usage('write_solution: error allocating memory to obs')
+            call usage('write_solution: error allocating memory to obs array (usage:none)')
         endif
     endif
     obs = 0.0d0
@@ -1194,7 +1198,7 @@ if (fault%file.ne.'none') then
             write(stderr,*) 'Available inversion modes:'
             write(stderr,*) '    lsqr'
             write(stderr,*) '    anneal'
-            call usage(     '    anneal-psc')
+            call usage(     '    anneal-psc (usage:general)')
         endif
     enddo
     5001 format(1P2E16.8)
@@ -1762,6 +1766,7 @@ write(stderr,*) '-v LEVEL                     Program verbosity'
 write(stderr,*)
 if (info.ne.'all') then
     write(stderr,*) 'Type "fltinv" without any arguments to see all options'
+    write(stderr,*)
 endif
 write(stderr,*) 'See man page for details'
 write(stderr,*)

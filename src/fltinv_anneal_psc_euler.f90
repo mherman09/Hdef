@@ -53,7 +53,7 @@ nflt = fault%nrows
 ntotal = nflt+3*npoles
 allocate(locked_pole(ntotal),stat=ierr)
 if (ierr.ne.0) then
-    call usage('invert_anneal_euler_psc: error allocating memory to locked_pole array')
+    call usage('invert_anneal_euler_psc: error allocating memory to locked_pole array (usage:none)')
 endif
 
 ! Call anneal routine with specific driver routines anneal_psc_euler_init, anneal_psc_euler_propose,
@@ -149,7 +149,7 @@ endif
 ! Check array dimensions
 nflt = fault%nrows
 if (nflt+3*npoles.ne.n) then
-    call usage('anneal_psc_euler_init: input n not equal to nflt+3*npoles')
+    call usage('anneal_psc_euler_init: input n not equal to nflt+3*npoles (usage:none)')
 endif
 
 
@@ -196,29 +196,33 @@ elseif (anneal_init_mode(1:4).eq.'rand') then
 elseif (anneal_init_mode.eq.'user') then
     ! Read the initial solution from a file (slip rake)
     if (anneal_init_file.eq.'none') then
-        call usage('anneal_psc_euler_init: no initialization file defined for anneal_init_mode=user')
+        call usage('anneal_psc_euler_init: no initialization file defined for anneal_init_mode='//&
+                   'user (usage:anneal)')
     elseif (.not.fileExists(anneal_init_file)) then
-        call usage('anneal_psc_euler_init: no anneal_init_file found named "'//trim(anneal_init_file)//'"')
+        call usage('anneal_psc_euler_init: no anneal_init_file found named "'//&
+                   trim(anneal_init_file)//'" (usage:anneal)')
     endif
     if (line_count(anneal_init_file).ne.nflt) then
-        call usage('anneal_psc_euler_init: number of lines in anneal_init_file must be equal to nflt')
+        call usage('anneal_psc_euler_init: number of lines in anneal_init_file must be equal '//&
+                   'to nflt (usage:anneal')
     endif
     open(unit=29,file=anneal_init_file,status='old')
     do i = 1,nflt
         read(29,*,iostat=ios) model(i)
         if (ios.ne.0) then
-            call usage('anneal_psc_euler_init: error reading anneal init file')
+            call usage('anneal_psc_euler_init: error reading anneal init file (usage:anneal)')
         endif
     enddo
     close(29)
 
 else
-    write(stderr,*) 'anneal_psc_euler_init: no initialization mode named "'//trim(anneal_init_mode)//'"'
+    write(stderr,*) 'anneal_psc_euler_init: no initialization mode named "'//&
+                    trim(anneal_init_mode)//'"'
     write(stderr,*) 'Options for annealing with pseudo-coupling & rigid rotations initialization:'
     write(stderr,*) '    locked'
     write(stderr,*) '    unlocked'
     write(stderr,*) '    rand'
-    call usage(     '    user')
+    call usage(     '    user (usage:anneal)')
 endif
 
 
@@ -293,7 +297,7 @@ endif
 ! Check array dimensions
 nflt = fault%nrows
 if (nflt+3*npoles.ne.n) then
-    call usage('anneal_psc_euler_propose: input n not equal to nflt+3*npoles')
+    call usage('anneal_psc_euler_propose: input n not equal to nflt+3*npoles (usage:none)')
 endif
 
 
@@ -348,7 +352,7 @@ do i = 1,nflt
 
     else
         write(stderr,*) 'anneal_psc_euler_propose: invalid locking state ',model_out(rand_fault_list(i))
-        call usage('Valid states are 0=unlocked or 1=locked')
+        call usage('Valid states are 0=unlocked or 1=locked (usage:none)')
     endif
 
     ! Only count fault as flipped if it is not always unlocked
@@ -450,7 +454,7 @@ endif
 
 nflt = fault%nrows
 if (nflt+3*npoles.ne.n) then
-    call usage('anneal_psc_euler_objective: input n not equal to nflt+3*npoles')
+    call usage('anneal_psc_euler_objective: input n not equal to nflt+3*npoles (usage:none)')
 endif
 
 
@@ -480,7 +484,7 @@ nobs = ndsp_dof + nlos
 if (.not.allocated(obs)) then
     allocate(obs(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_psc_euler_objective: error allocating memory to obs')
+        call usage('anneal_psc_euler_objective: error allocating memory to obs (usage:none)')
     endif
 endif
 obs = 0.0d0
@@ -502,7 +506,7 @@ endif
 if (.not.allocated(pre)) then
     allocate(pre(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_psc_euler_objective: error allocating memory to pre')
+        call usage('anneal_psc_euler_objective: error allocating memory to pre (usage:none)')
     endif
 endif
 pre = 0.0d0
@@ -518,7 +522,8 @@ elseif (input_disp_unit.eq.'mm/s') then
 elseif (input_disp_unit.eq.'mm/yr') then
     factor = 1.0d3*spy
 else
-    call usage('anneal_psc_euler_objective: unit '//trim(input_disp_unit)//' not compatible')
+    call usage('anneal_psc_euler_objective: unit '//trim(input_disp_unit)//' not compatible '//&
+               '(usage:input)')
 endif
 
 ! Load predicted three-component displacements/velocities
@@ -717,7 +722,7 @@ elseif (string.eq.'close') then
     close(27)
 
 else
-    call usage('anneal_psc_euler_log: no string option named '//trim(string))
+    call usage('anneal_psc_euler_log: no string option named '//trim(string)//' (usage:none)')
 endif
 
 deallocate(slip)

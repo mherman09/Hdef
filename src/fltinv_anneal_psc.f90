@@ -49,7 +49,7 @@ saveRejected = .true.
 nflt = fault%nrows
 allocate(locked(nflt),stat=ierr)
 if (ierr.ne.0) then
-    call usage('invert_anneal_psc: error allocating memory to locked array')
+    call usage('invert_anneal_psc: error allocating memory to locked array (usage:none)')
 endif
 
 ! Call anneal routine with specific driver routines anneal_psc_init, anneal_psc_propose, and
@@ -122,7 +122,7 @@ endif
 ! Check array dimensions
 nflt = fault%nrows
 if (nflt.ne.n) then
-    call usage('anneal_psc_init: input n not equal to nflt')
+    call usage('anneal_psc_init: input n not equal to nflt (usage:none)')
 endif
 
 
@@ -175,18 +175,21 @@ elseif (anneal_init_mode(1:4).eq.'rand') then
 elseif (anneal_init_mode.eq.'user') then
     ! Read the initial solution from a file (slip rake)
     if (anneal_init_file.eq.'none') then
-        call usage('anneal_psc_init: no initialization file defined for anneal_init_mode=user')
+        call usage('anneal_psc_init: no initialization file defined for anneal_init_mode=user '//&
+                   '(usage:anneal)')
     elseif (.not.fileExists(anneal_init_file)) then
-        call usage('anneal_psc_init: no anneal_init_file found named "'//trim(anneal_init_file)//'"')
+        call usage('anneal_psc_init: no anneal_init_file found named "'// &
+                   trim(anneal_init_file)//'" (usage:anneal)')
     endif
     if (line_count(anneal_init_file).ne.nflt) then
-        call usage('anneal_psc_init: number of lines in anneal_init_file must be equal to nflt')
+        call usage('anneal_psc_init: number of lines in anneal_init_file must be equal to nflt '//&
+                   '(usage:anneal)')
     endif
     open(unit=29,file=anneal_init_file,status='old')
     do i = 1,nflt
         read(29,*,iostat=ios) model(i)
         if (ios.ne.0) then
-            call usage('anneal_psc_init: error reading anneal init file')
+            call usage('anneal_psc_init: error reading anneal init file (usage:anneal)')
         endif
     enddo
     close(29)
@@ -197,7 +200,7 @@ else
     write(stderr,*) '    locked'
     write(stderr,*) '    unlocked'
     write(stderr,*) '    rand'
-    call usage(     '    user')
+    call usage(     '    user (usage:anneal)')
 endif
 
 if (verbosity.ge.2) then
@@ -235,7 +238,7 @@ endif
 
 nflt = fault%nrows
 if (nflt.ne.n) then
-    call usage('anneal_psc_propose: input n not equal to nflt')
+    call usage('anneal_psc_propose: input n not equal to nflt (usage:none)')
 endif
 
 
@@ -290,7 +293,7 @@ do i = 1,nflt
 
     else
         write(stderr,*) 'anneal_psc_propose: invalid locking state ',model_out(rand_fault_list(i))
-        call usage('Valid states are 0=unlocked or 1=locked')
+        call usage('Valid states are 0=unlocked or 1=locked (usage:none)')
     endif
 
     ! Only count fault as flipped if it is not always unlocked
@@ -349,7 +352,7 @@ endif
 
 nflt = fault%nrows
 if (nflt.ne.n) then
-    call usage('anneal_psc_objective: input n not equal to nflt')
+    call usage('anneal_psc_objective: input n not equal to nflt (usage:none)')
 endif
 
 
@@ -374,7 +377,7 @@ nobs = ndsp_dof + nlos
 if (.not.allocated(obs)) then
     allocate(obs(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_psc_objective: error allocating memory to obs')
+        call usage('anneal_psc_objective: error allocating memory to obs (usage:none)')
     endif
 endif
 obs = 0.0d0
@@ -396,7 +399,7 @@ endif
 if (.not.allocated(pre)) then
     allocate(pre(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_psc_objective: error allocating memory to pre')
+        call usage('anneal_psc_objective: error allocating memory to pre (usage:none)')
     endif
 endif
 pre = 0.0d0
@@ -550,7 +553,7 @@ elseif (string.eq.'close') then
     close(28)
 
 else
-    call usage('anneal_psc_log: no string option named '//trim(string))
+    call usage('anneal_psc_log: no string option named '//trim(string)//' (usage:none)')
 endif
 
 if (verbosity.ge.3) then
@@ -596,7 +599,7 @@ double precision :: A(2*n,2*n), b(2*n), x(2*n)
 ! Set dimension variables for arrays
 nflt = fault%nrows
 if (n.ne.nflt) then
-    call usage('psc_slip: size of locked fault array is not equal to nflt')
+    call usage('psc_slip: size of locked fault array is not equal to nflt (usage:none)')
 endif
 
 if (rake_constraint%ncols.eq.1) then
@@ -606,7 +609,7 @@ elseif (rake_constraint%ncols.eq.2) then
     nrows = 2*nflt
     ncols = 2*nflt
 else
-    call usage('psc_slip: number of rake constraints must be 1 or 2')
+    call usage('psc_slip: number of rake constraints must be 1 or 2 (usage:fault)')
 endif
 
 
@@ -616,14 +619,14 @@ if (.not.allocated(Asave)) then
     ! Allocate memory for Asave model matrix
     allocate(Asave(nrows,ncols),stat=ierr)
     if (ierr.ne.0) then
-        call usage('psc_slip: error allocating memory to Asave')
+        call usage('psc_slip: error allocating memory to Asave (usage:none)')
     endif
 
     ! Load shear traction Green's functions into model matrix
     call load_array(Asave,nrows,ncols,gf_stress%array(1:nrows,1:ncols),nrows,ncols,1,1,&
                     'gf_stress%array',ierr)
     if (ierr.ne.0) then
-        call usage('psc_slip: error loading shear stress GFs into model matrix')
+        call usage('psc_slip: error loading shear stress GFs into model matrix (usage:none)')
     endif
 endif
 
@@ -689,14 +692,14 @@ enddo
 if (rake_constraint%ncols.eq.1) then
     call load_constraints(A,b,nrows,ncols,slip_constraint%array(:,1),isSlipFixed,ierr)
     if (ierr.ne.0) then
-        call usage('psc_slip: error loading slip constraints into A and b arrays')
+        call usage('psc_slip: error loading slip constraints into A and b arrays (usage:none)')
     endif
 elseif (rake_constraint%ncols.eq.2) then
     call load_constraints(A,b,nrows,ncols, &
                           [slip_constraint%array(:,1),slip_constraint%array(:,2)],isSlipFixed, &
                           ierr)
     if (ierr.ne.0) then
-        call usage('psc_slip: error loading slip constraints into A and b arrays')
+        call usage('psc_slip: error loading slip constraints into A and b arrays (usage:none)')
     endif
 endif
 
@@ -719,11 +722,11 @@ if (nrows.ne.ncols) then
     write(stderr,*) 'psc_slip: nrows not equal to ncols'
     write(stderr,*) '    nrows=',nrows
     write(stderr,*) '    ncols=',ncols
-    call usage('Inversion routine gesv requires a square A matrix')
+    call usage('Inversion routine gesv requires a square A matrix (usage:none)')
 endif
 call solve_dgesv(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ierr)
 if (ierr.ne.0) then
-    call usage('psc_slip: error inverting for slip with gesv')
+    call usage('psc_slip: error inverting for slip with gesv (usage:none)')
 endif
 
 ! Load fault slip into the output array

@@ -130,7 +130,7 @@ do i = 1,ndsp+nlos
             if (coord_type.eq.'geographic') then
                 call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_disp_gfs: error calculating dist and az')
+                    call usage('calc_disp_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
@@ -170,7 +170,7 @@ do i = 1,ndsp+nlos
             if (coord_type.eq.'geographic') then
                 call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_disp_gfs: error calculating dist and az')
+                    call usage('calc_disp_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
@@ -217,7 +217,7 @@ do i = 1,ndsp+nlos
                     call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az, &
                                 'radians','radians',ierr)
                     if (ierr.ne.0) then
-                        call usage('calc_disp_gfs: error calculating dist and az')
+                        call usage('calc_disp_gfs: error calculating dist and az (usage:none)')
                     endif
                     dist = dist*radius_earth_m
                     tri_new(1,iTri) = dist*dsin(az)
@@ -226,7 +226,7 @@ do i = 1,ndsp+nlos
                 enddo
                 call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az,'radians','radians',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_disp_gfs: error calculating dist and az')
+                    call usage('calc_disp_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
                 sta_new(1) = dist*dsin(az)
@@ -249,7 +249,8 @@ do i = 1,ndsp+nlos
             disp2(3) = -disp2(3) ! Returns displacement with positive z down, flip it
 
         else
-            call usage('calc_disp_gfs: no Greens function model named "'//trim(gf_model)//'"')
+            call usage('calc_disp_gfs: no Greens function model named "'//trim(gf_model)//'"'//&
+                       ' (usage:gf)')
         endif
         if (debug) then
             write(stderr,*) 'disp1:',disp1
@@ -281,7 +282,7 @@ do i = 1,ndsp+nlos
     if (verbosity.ge.1) then
         call progress_indicator(i,ndsp+nlos,'calc_disp_gfs',ierr)
         if (ierr.gt.0) then
-            call usage('calc_disp_gfs: error in progress indicator subroutine')
+            call usage('calc_disp_gfs: error in progress indicator subroutine (usage:none)')
         endif
     endif
 enddo
@@ -400,7 +401,7 @@ do i = 1,fault%nrows
         sta(3) = fault%array(i,3)
     elseif (gf_model.eq.'okada_pt') then
         call usage('calc_stress_gfs: cannot compute slip from shear tractions using okada_pt '//&
-                   'GFs because there is a stress singularity at point source')
+                   'GFs because there is a stress singularity at point source (usage:gf)')
     elseif (gf_model.eq.'triangle') then
         call tri_center(sta,fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
     endif
@@ -457,7 +458,7 @@ do i = 1,fault%nrows
             if (coord_type.eq.'geographic') then
                 call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_stress_gfs: error calculating dist and az')
+                    call usage('calc_stress_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
@@ -508,7 +509,7 @@ do i = 1,fault%nrows
             if (coord_type.eq.'geographic') then
                 call lola2distaz(evlo,evla,sta(1),sta(2),dist,az,'radians','degrees',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_stress_gfs: error calculating dist and az')
+                    call usage('calc_stress_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
             elseif (coord_type.eq.'cartesian') then
@@ -564,7 +565,7 @@ do i = 1,fault%nrows
                 call tri_center(center,tri(:,1),tri(:,2),tri(:,3))
                 call lola2distaz(center(1),center(2),sta(1),sta(2),dist,az,'radians','radians',ierr)
                 if (ierr.ne.0) then
-                    call usage('calc_stress_gfs: error calculating dist and az')
+                    call usage('calc_stress_gfs: error calculating dist and az (usage:none)')
                 endif
                 dist = dist*radius_earth_m
                 sta_new(1) = dist*dsin(az)
@@ -572,7 +573,7 @@ do i = 1,fault%nrows
                 do iTri = 1,3
                     call lola2distaz(center(1),center(2),tri(1,iTri),tri(2,iTri),dist,az,'radians','radians',ierr)
                     if (ierr.ne.0) then
-                        call usage('calc_stress_gfs: error calculating dist and az')
+                        call usage('calc_stress_gfs: error calculating dist and az (usage:none)')
                     endif
                     dist = dist*radius_earth_m
                     tri_new(1,iTri) = dist*dsin(az)
@@ -604,7 +605,8 @@ do i = 1,fault%nrows
             strain2(3,2) = -strain2(2,3)
 
         else
-            call usage('calc_stress_gfs: no Greens function model named "'//trim(gf_model)//'"')
+            call usage('calc_stress_gfs: no Greens function model named "'//trim(gf_model)//'"'//&
+                       '(usage:gf)')
         endif
 
         ! Calculate shear tractions on fault from strain tensor
@@ -632,7 +634,7 @@ do i = 1,fault%nrows
     if (verbosity.ge.1) then
         call progress_indicator(i,fault%nrows,'calc_stress_gfs',ierr)
         if (ierr.gt.0) then
-            call usage('calc_stress_gfs: error in progress indicator subroutine')
+            call usage('calc_stress_gfs: error in progress indicator subroutine (usage:none)')
         endif
     endif
 enddo
@@ -724,7 +726,8 @@ if (displacement%file.ne.'none') then
             lat = displacement%array(i,2)
             dep = displacement%array(i,3)
             if (abs(dep).gt.1.0d0) then
-                call usage('calc_euler_gfs: rigid plate motions only work for surface observations')
+                call usage('calc_euler_gfs: rigid plate motions only work for surface '//&
+                           'observations (usage:input)')
             endif
 
             r(1) = dcos(lat*d2r)*dcos(lon*d2r)

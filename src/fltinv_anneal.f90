@@ -60,7 +60,7 @@ else
 endif
 allocate(model_best(nflt_dof),stat=ierr)
 if (ierr.ne.0) then
-    call usage('invert_anneal: error allocating memory to model_best')
+    call usage('invert_anneal: error allocating memory to model_best (usage:none)')
 endif
 
 ! Call anneal routine with specific driver routines anneal_init, anneal_propose, and anneal_objective
@@ -136,11 +136,13 @@ endif
 nflt = fault%nrows
 if (modelUncertainty) then
     if (n.ne.2*nflt+1) then
-        call usage('anneal_init: looking for model uncertainty, input n not equal to 2*nflt+1')
+        call usage('anneal_init: looking for model uncertainty, input n not equal to 2*nflt+1 '//&
+                   '(usage:none)')
     endif
 else
     if (n.ne.2*nflt) then
-        call usage('anneal_init: not looking for model uncertainty, input n not equal to 2*nflt')
+        call usage('anneal_init: not looking for model uncertainty, input n not equal to 2*nflt '//&
+                   '(usage:none)')
     endif
 endif
 
@@ -175,24 +177,28 @@ elseif (anneal_init_mode.eq.'rand') then
 elseif (anneal_init_mode.eq.'user') then
     ! Read the initial solution from a file (slip rake)
     if (anneal_init_file.eq.'none') then
-        call usage('anneal_init: no initialization file defined for anneal_init_mode=user')
+        call usage('anneal_init: no initialization file defined for anneal_init_mode=user '//&
+                   '(usage:anneal)')
     elseif (.not.fileExists(anneal_init_file)) then
-        call usage('anneal_init: no anneal_init_file found named "'//trim(anneal_init_file)//'"')
+        call usage('anneal_init: no anneal_init_file found named "'//trim(anneal_init_file)//'" '//&
+                   '(usage:anneal)')
     endif
     if (line_count(anneal_init_file).ne.nflt) then
-        call usage('anneal_init: number of lines in anneal_init_file must be equal to nflt')
+        call usage('anneal_init: number of lines in anneal_init_file must be equal to nflt '//&
+                   '(usage:anneal)')
     endif
     open(unit=29,file=anneal_init_file,status='old')
     do i = 1,nflt
         read(29,*,iostat=ios) model(i),model(i+nflt)
         if (ios.ne.0) then
-            call usage('anneal_init: error reading anneal init file')
+            call usage('anneal_init: error reading anneal init file (usage:anneal)')
         endif
     enddo
     close(29)
 
 else
-    call usage('anneal_init: no initialization mode named "'//trim(anneal_init_mode)//'"')
+    call usage('anneal_init: no initialization mode named "'//trim(anneal_init_mode)//'" '//&
+               '(usage:anneal)')
 endif
 
 
@@ -203,16 +209,17 @@ if (anneal_step_file.eq.'none') then
     step(nflt+1:2*nflt) = (rake_constraint%array(:,2)-rake_constraint%array(:,1))/50.0d0
 else
     if (.not.fileExists(anneal_step_file)) then
-        call usage('anneal_init: no anneal_step_file found named "'//trim(anneal_step_file)//'"')
+        call usage('anneal_init: no anneal_step_file found named "'//trim(anneal_step_file)//'" '//&
+                   '(usage:anneal)')
     endif
     if (line_count(anneal_step_file).ne.nflt) then
-        call usage('anneal_init: anneal step file must have nflt lines')
+        call usage('anneal_init: anneal step file must have nflt lines (usage:anneal)')
     endif
     open(unit=30,file=anneal_step_file,status='old')
     do i = 1,nflt
         read(30,*,iostat=ios) step(i),step(i+nflt)
         if (ios.ne.0) then
-            call usage('anneal_init: error reading anneal step file')
+            call usage('anneal_init: error reading anneal step file (usage:anneal)')
         endif
     enddo
     close(30)
@@ -273,11 +280,13 @@ endif
 nflt = fault%nrows
 if (modelUncertainty) then
     if (n.ne.2*nflt+1) then
-        call usage('anneal_propose: looking for model uncertainty, input n not equal to 2*nflt+1')
+        call usage('anneal_propose: looking for model uncertainty, input n not equal to 2*nflt+1 '//&
+                   '(usage:none)')
     endif
 else
     if (n.ne.2*nflt) then
-        call usage('anneal_propose: not looking for model uncertainty, input n not equal to 2*nflt')
+        call usage('anneal_propose: not looking for model uncertainty, input n not equal to '//&
+                   '2*nflt (usage:none)')
     endif
 endif
 
@@ -377,11 +386,13 @@ double precision :: log_cov_matrix_determinant
 nflt = fault%nrows
 if (modelUncertainty) then
     if (n.ne.2*nflt+1) then
-        call usage('anneal_objective: looking for model uncertainty, input n not equal to 2*nflt+1')
+        call usage('anneal_objective: looking for model uncertainty, input n not equal to '//&
+                   '2*nflt+1 (usage:none)')
     endif
 else
     if (n.ne.2*nflt) then
-        call usage('anneal_objective: not looking for model uncertainty, input n not equal to 2*nflt')
+        call usage('anneal_objective: not looking for model uncertainty, input n not equal to '//&
+                   '2*nflt (usage:none)')
     endif
 endif
 
@@ -396,7 +407,7 @@ nobs = ndsp_dof + nlos
 if (.not.allocated(obs)) then
     allocate(obs(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_objective: error allocating memory to obs')
+        call usage('anneal_objective: error allocating memory to obs (usage:none)')
     endif
 endif
 obs = 0.0d0
@@ -418,7 +429,7 @@ endif
 if (.not.allocated(pre)) then
     allocate(pre(nobs),stat=ierr)
     if (ierr.ne.0) then
-        call usage('anneal_objective: error allocating memory to pre')
+        call usage('anneal_objective: error allocating memory to pre (usage:none)')
     endif
 endif
 pre = 0.0d0
@@ -452,17 +463,18 @@ enddo
 if (modelUncertainty) then
     if (.not.isCovMatrixDiagonal) then
         call usage('anneal_objective: covariance matrix must be diagonal to estimate model '//&
-                   'uncertainty for now')
+                   'uncertainty for now (usage:input)')
     endif
     if (los%file.ne.'none') then
-        call usage('anneal_objective: model uncertainty cannot be estimated with LOS data yet')
+        call usage('anneal_objective: model uncertainty cannot be estimated with LOS data yet '//&
+                   '(usage:none)')
     endif
 
     ! Initialize model prediction error covariance matrix
     if (.not.allocated(model_cov_matrix)) then
         allocate(model_cov_matrix(nobs),stat=ierr)
         if (ierr.ne.0) then
-            call usage('anneal_objective: error allocating memory to model_cov_matrix')
+            call usage('anneal_objective: error allocating memory to model_cov_matrix (usage:none)')
         endif
     endif
     model_cov_matrix = 0.0d0
@@ -607,7 +619,7 @@ elseif (string.eq.'close') then
     close(29)
 
 else
-    call usage('anneal_log: no string option named '//trim(string))
+    call usage('anneal_log: no string option named '//trim(string)//' (usage:none)')
 endif
 
 return
