@@ -1,4 +1,4 @@
-.TH FLTINV 1 "September 2019" "Version 2019.09.01" "User Manuals"
+.TH FLTINV 1 "February 2020" "Version 2020.02.01" "User Manuals"
 
 .SH NAME
 fltinv \- invert displacement or pre-stresses for fault slip.
@@ -25,7 +25,7 @@ fltinv \- invert displacement or pre-stresses for fault slip.
 .BI [-gf:disp_file " gf_disp_file" ]
 .BI [-gf:los_file " gf_los_file" ]
 .BI [-gf:stress_file " gf_stress_file" ]
-.B [-geo]
+.B -xy|-geo
 .BI [-haf " halfspace_file"]
 .BI [-damp " damping_constant"]
 .BI [-smoothing " smoothing_constant smoothing_file"]
@@ -308,6 +308,23 @@ deal with it). Options:
 .I mm/yr
 (millimeters/year).
 
+.TP
+.B -xy
+Treat
+.I x
+and
+.I y
+as SI units in all input files
+
+.TP
+.B -geo
+Treat
+.I x
+and
+.I y
+as geographic coordinates instead of SI units in all input files
+
+
 
 
 .TP
@@ -426,16 +443,6 @@ where m is the number of faults, ss sts and ds sts are the strike-slip and dip-s
 components of the shear traction resolved onto the fault plane, and ss slp and ds slp
 are strike-slip and dip-slip fault sources.
 
-.TP
-.B -geo
-Treat
-.I x
-and
-.I y
-as geographic coordinates instead of SI units in
-.IR fault_file " and " displacement_file .
-
-
 
 
 
@@ -504,6 +511,32 @@ by Alan Miller.
 .TP
 .B SIMULATED ANNEALING OPTIONS
 
+.P
+The simulated annealing algorithm is a combined parameter exploration and optimization technique
+(Kirkpatrick et al., 1983). The concept is straightforward; start with an initial model (combination
+of parameter values) and set it to be the "current" model. In each iteration, a new model is
+proposed by perturbing the current model. If the "proposed" model results in an improved objective
+function (f, e.g., lower data misfit), then it is accepted as the current model. If the proposed
+model results in a worse objective function, then it can still be accepted with a probability
+proportional to how much worse the objective function has gotten:
+.br
+             f(i)-f(i-1)
+.br
+    p = exp( ----------- )
+.br
+                  T
+.br
+where T is a "temperature" term that controls the acceptance rate. At high T, many worse fitting
+models will be accepted, encouraging exploration of the parameter space. At low T, only improved
+models will be accepted, moving towards the optimum of the objective function. The algorithm
+systematically progresses from high T to low T.
+
+.P
+Model parameter statistics can be derived using the Metropolis-Hastings algorithm (Metropolis et
+al., 1953; Hastings, 1970), which is simply the simulated annealing algorithm setting T=1.
+It is common to use the chi-squared misfit for the objective function. Thus, setting the annealing
+parameters carefully, it is possible to estimate parameters statistics.
+
 .TP
 .BI "-anneal:init_mode " mean | min | max | rand | user | unlocked | locked
 Set the mode to initialize the slip magnitudes and rake angles for mode
@@ -552,7 +585,7 @@ Set the maximum number of iterations in the simulated annealing search
 (default: 1000).
 
 .TP
-.BI -anneal:reset_iteration " reset_iteration"
+.BI -anneal:reset_it " reset_iteration"
 After each
 .I reset_iteration
 steps, the temperature in the annealing search will be set to
@@ -581,8 +614,10 @@ Save a log of solutions and fits in
 Set the random number generator seed (default: based on date and time)
 
 .TP
-.B [-anneal:model_uncertainty]
-Search for the model uncertainty in addition to the model parameters.
+.B -anneal:model_uncertainty
+Search for the model prediction error in addition to the model parameters.
+The model prediction error is presented as a fraction of the observation
+magnitude (Minson et al., 2013).
 
 .TP
 .BI -anneal-psc:min_flip " nmin"
@@ -607,11 +642,30 @@ start/finish, and level 3 prints all intermediate calculations.
 
 
 .SH REFERENCES
+Hastings, W.K. (1970).
+Monte carlo sampling methods using Markov chains and their applications.
+Biometrika 57.
+
 Herman, M.W., Furlong, K.P., Govers, R. (2018).
 The accumulation of slip deficit in subduction zones in the absence of mechanical
 coupling: Implications for the behavior of megathrust earthquakes.
+Jouranl of Geophysical Research 123.
+
+Kirkpatrick, S., Gelatt, C.D., Vecchi, M.P. (1983).
+Optimization by simulated annealing.
+Science 220.
 
 Lawson, C.L., Hanson, R.J. (1995). Solving Least Squares Problems. SIAM.
 
-Sambridge, Mosegaard (2002). Monte Carlo Methods in Geophysical Inverse Problems.
+Metropolis, N., Rosenbluth, A.W., Rosenbluth, M.N., Teller, A.H., & Teller, E. (1953).
+Equation of State Calculations by Fast Computing Machines.
+The Journal of Chemical Physics 21.
+
+Minson, S.E., Simons, M., Beck, J.L. (2013).
+Bayesian inversion for finite fault earthquake source models I-theory and algorithm.
+Geophysical Journal International 194.
+
+Sambridge, M., Mosegaard K. (2002).
+Monte Carlo Methods in Geophysical Inverse Problems.
+Reviews of Geophysics 40.
 .RS
