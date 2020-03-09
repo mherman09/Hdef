@@ -1,0 +1,78 @@
+.TH TRI_TOOL 1 "February 2020" "Version 2020.02.01" "User Manuals"
+
+.SH NAME
+tri_tool \- manipulate a triangular mesh
+
+.SH SYNOPSIS
+.P
+.B tri_tool
+.BI -np " triangle_node_file"
+.BI -ele " triangle_element_file" " |"
+.BI -tri[1|3] " tri_vertex_file"
+.BI [-outline " outline_file" ]
+.BI [-neighbor " neighbor_file" ]
+.BI [-v " verbosity" ]
+
+.SH DESCRIPTION
+.B tri_tool
+reads in the vertices defining a network of triangles, calculates the connectivity making up the
+mesh, and prints parameters of interest for the mesh.
+
+.SH OPTIONS
+.TP
+.B INPUTS
+
+.TP
+.BI -np " triangle_node_file"
+Read node coordinates from a file in
+.B triangle
+(Shewchuck, 1996) output format. Also requires
+.B -ele
+option.
+
+.TP
+.BI -ele " triangle_element_file"
+Read nodes in each triangle from a file in
+.B triangle
+(Shewchuck, 1996) output format. Also requires
+.B -np
+option.
+
+.TP
+.BI -tri1 " tri_vertex_file"
+Read triangle vertices from file
+.IR tri_vertex_file ,
+where all vertices are on one line, in the format:
+.br
+.I x1 y1 x2 y2 x3 y3
+
+.TP
+.BI -tri3 " tri_vertex_file"
+Read triangle vertices from file
+.IR tri_vertex_file ,
+where vertices are on three lines, in the format:
+.br
+.I x1 y1
+.br
+.I x2 y2
+.br
+.I x3 y3
+
+.TP
+.B OUTPUTS
+
+.TP
+.BI -outline " outline_file"
+Print the outline of the triangular mesh to a GMT multi-segment file.
+Selects line segments that only border one triangle.
+
+.TP
+.BI -neighbor " neighbor_file"
+Print the number of neighbors and the neighbor index for each triangle to a format used for
+Laplacian smoothing by
+.BR fltinv .
+
+.TP
+.BI -v " verbosity"
+
+.RS
