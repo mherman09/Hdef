@@ -11,8 +11,9 @@ FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 
 # Fortran compiler optimization
 # FOPT  =
-FOPT  = -O1
-# FOPT  = -O2
+# FOPT  = -O1
+FOPT  = -O2
+# FOPT  = -O3
 
 # Fortran compiler flags
 FFLAGS = $(FWARN) $(FOPT)
@@ -52,7 +53,14 @@ CPP_SUPERLU =
 CPP_UNIT_TEST = -DUNIT_TEST
 # CPP_UNIT_TEST =
 
-CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU)
+
+##### Other pre-processing #####
+CPP_OTHER =
+
+CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU) $(CPP_OTHER)
+
+
+
 
 
 
@@ -81,6 +89,7 @@ all: \
     fitutil \
     fltinv \
     grid \
+    interpolate \
     lola2distaz \
     mtutil \
     numint \
@@ -181,6 +190,12 @@ $(BIN_DIR)/grid: src/grid.f90 \
                  $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
+interpolate: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/interpolate
+$(BIN_DIR)/interpolate: src/interpolate.f90 \
+                        $(INCLUDE_DIR)/interpolation.o \
+                        $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
 lola2distaz: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/lola2distaz
 $(BIN_DIR)/lola2distaz: src/lola2distaz_prog.f90 \
                         $(INCLUDE_DIR)/algebra.o \
@@ -266,6 +281,7 @@ $(BIN_DIR)/stereo_project: src/stereo_project.f90 \
 
 tri_tool: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/tri_tool
 $(BIN_DIR)/tri_tool: src/tri_tool.f90 \
+                     $(INCLUDE_DIR)/error_exit.o \
                      $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
@@ -382,11 +398,21 @@ $(INCLUDE_DIR)/ffm.o: src/ffm_module.f90 \
                       $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
+$(INCLUDE_DIR)/flexure.o: src/flexure_module.f90 \
+                          $(INCLUDE_DIR)/io.o \
+                          $(INCLUDE_DIR)/trig.o \
+                          $(INCLUDE_DIR_MARKER_FILE)
+	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
+
 $(INCLUDE_DIR)/geom.o: src/geom_module.f90 \
                        $(INCLUDE_DIR)/algebra.o \
                        $(INCLUDE_DIR)/io.o \
                        $(INCLUDE_DIR)/trig.o \
                        $(INCLUDE_DIR_MARKER_FILE)
+	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
+
+$(INCLUDE_DIR)/interpolation.o: src/interpolation_module.f90 \
+                                $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/io.o: src/io_module.f90 \
