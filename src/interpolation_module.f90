@@ -70,7 +70,7 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine spline_interpolation(xa,ya,y2a,n,x,y)
+subroutine spline_interpolation(xa,ya,y2a,n,x,y,dy,d2y)
 !----
 ! (From Press et al., Numerical Recipes)
 !
@@ -83,7 +83,7 @@ implicit none
 
 ! Arguments
 integer :: n
-double precision :: x, y, xa(n), y2a(n), ya(n)
+double precision :: x, y, dy, d2y, xa(n), y2a(n), ya(n)
 
 ! Local variables
 integer :: k, khi, klo
@@ -111,14 +111,18 @@ h = xa(khi)-xa(klo)
 
 ! The xa's must be distinct
 if (abs(h).lt.1.0d-10) then
-    write(0,*) 'spline_interpolation: bad xa input in splint'
+    write(0,*) 'spline_interpolation: bad xa input'
 endif
 
-! Evaluate cubic spline polynomial
+! Evaluate cubic spline polynomial value, derivative, and second derivative
 a = (xa(khi)-x)/h
 b = (x-xa(klo))/h
 y = a*ya(klo) + b*ya(khi) + &
         ((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.0d0
+dy = (ya(khi)-ya(klo))/(xa(khi)-xa(klo)) - &
+     (3.0d0*a**2-1.0d0)*(xa(khi)-xa(klo))*y2a(klo)/6.0d0 + &
+     (3.0d0*b**2-1.0d0)*(xa(khi)-xa(klo))*y2a(khi)/6.0d0
+d2y = a*ya(klo) + b*ya(khi)
 
 return
 end subroutine
