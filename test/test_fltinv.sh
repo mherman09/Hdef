@@ -1039,7 +1039,6 @@ cat > answer.tmp << EOF
 -4.6156206640372330E-002
 EOF
 ./test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 20 fits" || exit 1
-rm anneal.log
 
 #echo ----------
 #echo Finished Test \#10
@@ -1492,6 +1491,10 @@ rm *.tmp
 
 
 
+#####
+#	CLEAN UP
+#####
+rm anneal.log
 
 exit
 
