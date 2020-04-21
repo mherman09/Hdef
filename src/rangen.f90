@@ -75,6 +75,7 @@ integer :: i, narg, ierr
 character(len=512) :: tag
 
 ! Initialize control parameters
+ierr = 0
 ran_mode = ''
 x1 = 0.0d0
 x2 = 1.0d0
