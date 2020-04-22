@@ -182,6 +182,8 @@ if (ffm_file.ne.'') then
     call read_usgs_param(ffm_file,param_data,ierr)
     if (ierr.eq.0) then
         areFaultsRead = .true.
+    else
+        call usage('read_faults: error reading fault file in USGS param format')
     endif
     nfaults = nfaults + param_data%nflt
 endif
@@ -191,6 +193,8 @@ if (fsp_file.ne.'') then
     call read_srcmod_fsp(fsp_file,fsp_data,ierr)
     if (ierr.eq.0) then
         areFaultsRead = .true.
+    else
+        call usage('read_faults: error reading fault file in SRCMOD FSP format')
     endif
     nfaults = nfaults + fsp_data%nflt
 endif
@@ -200,6 +204,8 @@ if (mag_file.ne.'') then
     call read_mag(mag_file,mag_data,ierr)
     if (ierr.eq.0) then
         areFaultsRead = .true.
+    else
+        call usage('read_faults: error reading fault file in GMT psmeca -Sa format')
     endif
 
     ! Calculate fault slip, width, and length
@@ -237,6 +243,8 @@ if (flt_file.ne.'') then
     call read_flt(flt_file,flt_data,ierr)
     if (ierr.eq.0) then
         areFaultsRead = .true.
+    else
+        call usage('read_faults: error reading fault file in "lo la dp str dip rak slip wid len" format')
     endif
     nfaults = nfaults + flt_data%nflt
 endif
