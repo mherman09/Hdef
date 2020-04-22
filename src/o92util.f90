@@ -1433,5 +1433,5 @@ endif
 write(stderr,*) 'See o92util man page for details'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine
