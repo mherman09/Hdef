@@ -292,19 +292,30 @@ endforeach()
 
 # Executable tests
 add_custom_target(test-exec
-    DEPENDS test_wraplos
-            test_vec2los
+    DEPENDS
+    test_clip
+    test_vec2los
+    test_wraplos
 )
-add_custom_command(OUTPUT test_wraplos
-    COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh
-    DEPENDS wraplos
-    COMMENT "Testing wraplos")
+add_custom_command(OUTPUT test_clip
+    COMMAND ${CMAKE_SOURCE_DIR}/test/test_clip.sh
+    DEPENDS clip
+    COMMENT "Testing clip")
 add_custom_command(OUTPUT test_vec2los
     COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh
     DEPENDS vec2los
     COMMENT "Testing vec2los")
+add_custom_command(OUTPUT test_wraplos
+    COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh
+    DEPENDS wraplos
+    COMMENT "Testing wraplos")
 
-message(STATUS "Run suite of Hdef unit and executable tests with 'make test'")
-message(STATUS "Run detailed Hdef executable tests with 'make test-exec'")
+message(STATUS "*********************************************************************************")
+message(STATUS "")
+
+message(STATUS "*********************************************************************************")
+message(STATUS "Type 'make' to compile Hdef")
+message(STATUS "Type 'make test' to run unit tests")
+message(STATUS "Type 'make test-exec' to run executable tests")
 message(STATUS "*********************************************************************************")
 message(STATUS "")
