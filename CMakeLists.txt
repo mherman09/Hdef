@@ -168,6 +168,9 @@ add_library(hdef
             src/tri_disloc_module.f90
 )
 
+# Install the hdef library
+install(TARGETS hdef DESTINATION lib)
+
 message(STATUS "*********************************************************************************")
 message(STATUS "")
 
