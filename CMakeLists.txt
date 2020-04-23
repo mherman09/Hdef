@@ -299,19 +299,34 @@ message(STATUS "Setting up tests")
 enable_testing()
 
 # Unit tests
-list(APPEND unit_test_list
-    unit_test_annealing
-    unit_test_calendar
-    unit_test_earth
-    unit_test_eq
-    unit_test_ffm
-    unit_test_geom
-    unit_test_map
-    unit_test_okada92
-    unit_test_random
-    unit_test_solver
-    unit_test_tri_disloc
-)
+if (useLAPACK)
+    list(APPEND unit_test_list
+        unit_test_annealing
+        unit_test_calendar
+        unit_test_earth
+        unit_test_eq
+        unit_test_ffm
+        unit_test_geom
+        unit_test_map
+        unit_test_okada92
+        unit_test_random
+        unit_test_solver
+        unit_test_tri_disloc
+    )
+else()
+    list(APPEND unit_test_list
+        unit_test_annealing
+        unit_test_calendar
+        unit_test_earth
+        unit_test_ffm
+        unit_test_geom
+        unit_test_map
+        unit_test_okada92
+        unit_test_random
+        unit_test_tri_disloc
+    )
+endif()
+
 foreach(unit_test ${unit_test_list})
     # Make the unit test an executable and define as a test
     add_executable(${unit_test} src/${unit_test}.f90)
@@ -330,11 +345,19 @@ endforeach()
 
 
 # Executable tests
-list(APPEND executable_test_list
-    test_clip
-    test_vec2los
-    test_wraplos
-)
+if (useLAPACK)
+    list(APPEND executable_test_list
+        test_clip
+        test_vec2los
+        test_wraplos
+    )
+else()
+    list(APPEND executable_test_list
+        test_clip
+        test_vec2los
+        test_wraplos
+    )
+endif()
 foreach(exec_test ${executable_test_list})
     # Define all executable tests in the main test target
     add_test(NAME ${exec_test} COMMAND ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh)
