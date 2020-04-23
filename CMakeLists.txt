@@ -296,59 +296,59 @@ message(STATUS "Setting up tests")
 enable_testing()
 
 # Unit tests
-list(APPEND unit_test_files
-     unit_test_annealing
-     unit_test_calendar
-     unit_test_earth
-     unit_test_eq
-     unit_test_ffm
-     unit_test_geom
-     unit_test_map
-     unit_test_okada92
-     unit_test_random
-     unit_test_solver
-     unit_test_tri_disloc
+list(APPEND unit_test_list
+    unit_test_annealing
+    unit_test_calendar
+    unit_test_earth
+    unit_test_eq
+    unit_test_ffm
+    unit_test_geom
+    unit_test_map
+    unit_test_okada92
+    unit_test_random
+    unit_test_solver
+    unit_test_tri_disloc
 )
-foreach(executable ${unit_test_files})
-    add_executable(${executable} src/${executable}.f90)
-    add_test(${executable} ${executable})
-    add_dependencies(${executable} hdef)
-    target_link_libraries(${executable} hdef ${LAPACK_LIBRARIES})
-    target_compile_options(${executable} PUBLIC -ffree-line-length-0)
-    install(TARGETS ${executable} DESTINATION test)
+foreach(unit_test ${unit_test_list})
+    # Make the unit test an executable and define as a test
+    add_executable(${unit_test} src/${unit_test}.f90)
+    add_test(${unit_test} ${unit_test})
+
+    # All unit tests depend on hdef and some need link to LAPACK
+    add_dependencies(${unit_test} hdef)
+    target_link_libraries(${unit_test} hdef ${LAPACK_LIBRARIES})
+
+    # Some of the unit tests have very long lines, so make compiler read unlimited length
+    target_compile_options(${unit_test} PUBLIC -ffree-line-length-0)
+
+    # Install the unit tests in the test/ folder
+    install(TARGETS ${unit_test} DESTINATION test)
 endforeach()
 
 
 # Executable tests
-# Run executable tests in "make test" suite
-add_test(NAME test_clip COMMAND ${CMAKE_SOURCE_DIR}/test/test_clip.sh)
-add_test(NAME test_vec2los COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh)
-add_test(NAME test_wraplos COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh)
-
-# Install tests
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_clip.sh DESTINATION test)
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh DESTINATION test)
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh DESTINATION test)
-
-# Run separately to get more information on executable tests
-add_custom_target(test-exec
-    DEPENDS
+list(APPEND executable_test_list
     test_clip
     test_vec2los
     test_wraplos
 )
-add_custom_command(OUTPUT test_clip
-    COMMAND ${CMAKE_SOURCE_DIR}/test/test_clip.sh
-    DEPENDS clip
-    COMMENT "Testing clip")
-add_custom_command(OUTPUT test_vec2los
-    COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh
-    DEPENDS vec2los
-    COMMENT "Testing vec2los")
-add_custom_command(OUTPUT test_wraplos
-    COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh
-    DEPENDS wraplos
-    COMMENT "Testing wraplos")
+foreach(exec_test ${executable_test_list})
+    # Define all executable tests in the main test target
+    add_test(NAME ${exec_test} COMMAND ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh)
+
+    # Install the executable tests in the test/ folder
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh DESTINATION test)
+
+    # Define a command to test executable directly (used in target test-exec)
+    string(REGEX REPLACE test_ "" exec ${exec_test})
+    add_custom_command(OUTPUT ${exec_test}
+        COMMAND ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh
+        DEPENDS ${exec}
+        COMMENT "Testing ${exec}"
+    )
+endforeach()
+# Define a custom test target to test all hdef executables
+add_custom_target(test-exec DEPENDS ${executable_test_list})
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
