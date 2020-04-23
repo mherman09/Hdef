@@ -230,30 +230,6 @@ foreach(executable ${f77_files})
 endforeach()
 
 
-# Unit tests
-enable_testing()
-list(APPEND unit_test_files
-     unit_test_annealing
-     unit_test_calendar
-     unit_test_earth
-     unit_test_eq
-     unit_test_ffm
-     unit_test_geom
-     unit_test_map
-     unit_test_okada92
-     unit_test_random
-     unit_test_solver
-     unit_test_tri_disloc
-)
-foreach(executable ${unit_test_files})
-    add_executable(${executable} src/${executable}.f90)
-    add_test(${executable} ${executable})
-    add_dependencies(${executable} hdef)
-    target_link_libraries(${executable} hdef ${LAPACK_LIBRARIES})
-    target_compile_options(${executable} PUBLIC -ffree-line-length-0)
-endforeach()
-
-
 message(STATUS "*********************************************************************************")
 message(STATUS "")
 
@@ -280,5 +256,55 @@ add_custom_command(
     DEPENDS ff2gmt grid o92util
     COMMENT "Building target surf_disp.sh")
 
+message(STATUS "*********************************************************************************")
+message(STATUS "")
+
+
+#####
+#	TESTS
+#####
+message(STATUS "*********************************************************************************")
+message(STATUS "Setting up tests")
+
+enable_testing()
+
+# Unit tests
+list(APPEND unit_test_files
+     unit_test_annealing
+     unit_test_calendar
+     unit_test_earth
+     unit_test_eq
+     unit_test_ffm
+     unit_test_geom
+     unit_test_map
+     unit_test_okada92
+     unit_test_random
+     unit_test_solver
+     unit_test_tri_disloc
+)
+foreach(executable ${unit_test_files})
+    add_executable(${executable} src/${executable}.f90)
+    add_test(${executable} ${executable})
+    add_dependencies(${executable} hdef)
+    target_link_libraries(${executable} hdef ${LAPACK_LIBRARIES})
+    target_compile_options(${executable} PUBLIC -ffree-line-length-0)
+endforeach()
+
+# Executable tests
+add_custom_target(test-exec
+    DEPENDS test_wraplos
+            test_vec2los
+)
+add_custom_command(OUTPUT test_wraplos
+    COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh
+    DEPENDS wraplos
+    COMMENT "Testing wraplos")
+add_custom_command(OUTPUT test_vec2los
+    COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh
+    DEPENDS vec2los
+    COMMENT "Testing vec2los")
+
+message(STATUS "Run suite of Hdef unit and executable tests with 'make test'")
+message(STATUS "Run detailed Hdef executable tests with 'make test-exec'")
 message(STATUS "*********************************************************************************")
 message(STATUS "")
