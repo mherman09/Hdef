@@ -30,6 +30,9 @@ then
     done
 fi
 
+# Trap result.tmp file
+trap "rm -f result.tmp" 0 1 2 3 8 9
+
 # Compare computed and expected values
 paste $COMPUTED $EXPECTED |\
     awk '{
@@ -37,14 +40,20 @@ paste $COMPUTED $EXPECTED |\
             computed = $i
             expected = $('$NFIELDS'+i)
             diff = computed - expected
+
+            # Absolute value of difference
             if (diff<0) {
                 diff = -diff
             }
+
+            # Absolute value of expected (defined by user)
             if (expected<0) {
                 expected_abs = -expected
             } else {
                 expected_abs = expected
             }
+
+            # Compare calculated difference with allowed threshold difference
             if (expected_abs<'"$THRESHOLD"'/10) {
                 if (diff>'"$THRESHOLD"') {
                     print "FAIL"
@@ -55,7 +64,7 @@ paste $COMPUTED $EXPECTED |\
                     print "PASS"
                 }
             } else {
-                if (diff/expected>'"$THRESHOLD"') {
+                if (diff/expected_abs>'"$THRESHOLD"') {
                     print "FAIL"
                     printf("computed %16.8e\n"),computed > "/dev/stderr"
                     printf("expected %16.8e\n"),expected > "/dev/stderr"
