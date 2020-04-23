@@ -88,7 +88,7 @@ cat > answer.tmp << EOF
  -1.96961551E+00  3.47296355E-01
  -1.50000000E+00 -4.38361161E-10
  -1.50000000E+00 -1.04931971E-10
- -9.84807752E-01 -1.73648177E-01
+ -9.84807752E-01 -1.73647971e-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, three-component disp" || exit 1
 
@@ -184,9 +184,9 @@ $BIN_DIR/fltinv \
     -lsqr:mode nnls \
     -o inversion.tmp
 cat > answer.tmp << EOF
- -2.13317688E+00  2.61238824E-16
- -1.37064417E+00  1.67855500E-16
- -1.55525804E+00  1.90464178E-16
+ -2.13207226e+00  2.61238824E-16
+ -1.37503158e+00  1.67855500E-16
+ -1.55499585e+00  1.90464178E-16
  -0.00000000E+00  0.00000000E+00
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, fixed rake (180), nnls" || exit 1
@@ -211,7 +211,7 @@ cat > answer.tmp << EOF
  -1.96961551E+00  3.47296355E-01
  -1.50000000E+00 -4.38365233E-10
  -1.50000000E+00 -1.04934617E-10
- -9.84807752E-01 -1.73648177E-01
+ -9.84807752E-01 -1.73647971e-01
 EOF
 ./test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, rotated rakes, nnls" || exit 1
 
@@ -1016,7 +1016,7 @@ EOF
 grep Iteration anneal.log | awk '{print $6}' | head -20 > fit.tmp
 $BIN_DIR/anneal_post -f anneal.log -obj obj.tmp
 awk '{print $2}' obj.tmp | head -20 > fit.tmp
-cat > answer.tmp << EOF
+cat > answer_old.tmp << EOF
 -4.2736531432366512E-002
 -5.9343060813405443E-002
 -4.9868570712277106E-002
@@ -1037,6 +1037,28 @@ cat > answer.tmp << EOF
 -2.2437408725433487E-002
 -1.9555864370221204E-002
 -4.6156206640372330E-002
+EOF
+cat > answer.tmp << EOF
+5.9347999999999998E-002
+4.9862999999999998E-002
+7.4039999999999995E-002
+4.7960000000000003E-002
+5.4713999999999999E-002
+5.4771000000000000E-002
+5.7063999999999997E-002
+8.3502000000000007E-002
+7.6480000000000006E-002
+5.7063999999999997E-002
+4.7960000000000003E-002
+2.4826000000000001E-002
+4.0322999999999999E-003
+2.7050000000000001E-002
+2.8895000000000001E-002
+2.4101000000000001E-002
+2.2432000000000001E-002
+1.9557000000000001E-002
+4.6156999999999997E-002
+5.2974000000000000E-002
 EOF
 ./test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 20 fits" || exit 1
 
