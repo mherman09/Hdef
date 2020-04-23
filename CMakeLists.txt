@@ -290,7 +290,14 @@ foreach(executable ${unit_test_files})
     target_compile_options(${executable} PUBLIC -ffree-line-length-0)
 endforeach()
 
+
 # Executable tests
+# Run executable tests in "make test" suite
+add_test(NAME test_clip COMMAND ${CMAKE_SOURCE_DIR}/test/test_clip.sh)
+add_test(NAME test_vec2los COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh)
+add_test(NAME test_wraplos COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh)
+
+# Run separately to get more information on executable tests
 add_custom_target(test-exec
     DEPENDS
     test_clip
