@@ -44,6 +44,9 @@ TEST_BIN_DIR=`echo $0 | xargs dirname`
 #####
 #	RUN TEST
 #####
+trap "rm -f *.tmp" 0 1 2 3 8 9
+
+# Polygon
 cat > polygon.tmp << EOF
 0 0
 3 0
