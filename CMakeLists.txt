@@ -229,6 +229,33 @@ foreach(executable ${f77_files})
     add_executable(${executable} src/${executable}.f)
 endforeach()
 
+# Install executables
+install(TARGETS anneal_post    DESTINATION bin)
+install(TARGETS clip           DESTINATION bin)
+install(TARGETS colortool      DESTINATION bin)
+install(TARGETS dateutil       DESTINATION bin)
+install(TARGETS distaz2lola    DESTINATION bin)
+install(TARGETS ff2gmt         DESTINATION bin)
+install(TARGETS fitutil        DESTINATION bin)
+install(TARGETS fltinv         DESTINATION bin)
+install(TARGETS grid           DESTINATION bin)
+install(TARGETS interpolate    DESTINATION bin)
+install(TARGETS lola2distaz    DESTINATION bin)
+install(TARGETS mtutil         DESTINATION bin)
+install(TARGETS numint         DESTINATION bin)
+install(TARGETS o92util        DESTINATION bin)
+install(TARGETS perspective    DESTINATION bin)
+install(TARGETS platemotion    DESTINATION bin)
+install(TARGETS rangen         DESTINATION bin)
+install(TARGETS readGCMT       DESTINATION bin)
+install(TARGETS readkik        DESTINATION bin)
+install(TARGETS sphfinrot      DESTINATION bin)
+install(TARGETS stereo_project DESTINATION bin)
+install(TARGETS tri_tool       DESTINATION bin)
+install(TARGETS triutil        DESTINATION bin)
+install(TARGETS vec2los        DESTINATION bin)
+install(TARGETS wraplos        DESTINATION bin)
+
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
@@ -288,6 +315,7 @@ foreach(executable ${unit_test_files})
     add_dependencies(${executable} hdef)
     target_link_libraries(${executable} hdef ${LAPACK_LIBRARIES})
     target_compile_options(${executable} PUBLIC -ffree-line-length-0)
+    install(TARGETS ${executable} DESTINATION test)
 endforeach()
 
 
@@ -296,6 +324,11 @@ endforeach()
 add_test(NAME test_clip COMMAND ${CMAKE_SOURCE_DIR}/test/test_clip.sh)
 add_test(NAME test_vec2los COMMAND ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh)
 add_test(NAME test_wraplos COMMAND ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh)
+
+# Install tests
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_clip.sh DESTINATION test)
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_vec2los.sh DESTINATION test)
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_wraplos.sh DESTINATION test)
 
 # Run separately to get more information on executable tests
 add_custom_target(test-exec
