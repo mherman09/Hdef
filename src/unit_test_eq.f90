@@ -46,15 +46,15 @@ mrt =  3.811d21
 mrp = -3.115d21
 mtp =  1.033d21
 call mij2pnt(mrr,mtt,mpp,mrt,mrp,mtp,pnt)
-call test_value(pnt(1),  0.55173391074654210d0,  'mij2pnt: P axis e-component')
-call test_value(pnt(2),  0.61662524753526782d0,  'mij2pnt: P axis n-component')
-call test_value(pnt(3),  0.56157189729757373d0,  'mij2pnt: P axis z-component')
-call test_value(pnt(4),  0.76332257667899917d0,  'mij2pnt: N axis e-component')
-call test_value(pnt(5), -0.64464366270352003d0,  'mij2pnt: N axis n-component')
-call test_value(pnt(6), -4.2109287198004358d-2,  'mij2pnt: N axis z-component')
-call test_value(pnt(7),  0.33604811510326971d0,  'mij2pnt: T axis e-component')
-call test_value(pnt(8),  0.45189362934020239d0,  'mij2pnt: T axis n-component')
-call test_value(pnt(9), -0.82635574185533400d0,  'mij2pnt: T axis z-component')
+call test_value(abs(pnt(1)),  0.55173391074654210d0,  'mij2pnt: P axis e-component')
+call test_value(abs(pnt(2)),  0.61662524753526782d0,  'mij2pnt: P axis n-component')
+call test_value(abs(pnt(3)),  0.56157189729757373d0,  'mij2pnt: P axis z-component')
+call test_value(abs(pnt(4)),  0.76332257667899917d0,  'mij2pnt: N axis e-component')
+call test_value(abs(pnt(5)),  0.64464366270352003d0,  'mij2pnt: N axis n-component')
+call test_value(abs(pnt(6)),  4.2109287198004358d-2,  'mij2pnt: N axis z-component')
+call test_value(abs(pnt(7)),  0.33604811510326971d0,  'mij2pnt: T axis e-component')
+call test_value(abs(pnt(8)),  0.45189362934020239d0,  'mij2pnt: T axis n-component')
+call test_value(abs(pnt(9)),  0.82635574185533400d0,  'mij2pnt: T axis z-component')
 call test_value(pnt(10),-5.3220383822829574d+021,'mij2pnt: P magnitude')
 call test_value(pnt(11), 4.7233928809523143d+019,'mij2pnt: N magnitude')
 call test_value(pnt(12), 5.2738044534734329d+021,'mij2pnt: T magnitude')
@@ -68,12 +68,21 @@ mrt =  5.3130d17
 mrp = -7.6200d16
 mtp = -8.2620d17
 call mij2sdr(mrr,mtt,mpp,mrt,mrp,mtp,str1,dip1,rak1,str2,dip2,rak2)
-call test_value(str1,213.51387373513245d0,'mij2sdr: str1')
-call test_value(dip1,40.404418834012674d0,'mij2sdr: dip1')
-call test_value(rak1,65.379290596519624d0,'mij2sdr: rak1')
-call test_value(str2,64.553919649886069d0,'mij2sdr: str2')
-call test_value(dip2,53.896206591202564d0,'mij2sdr: dip2')
-call test_value(rak2,109.52541253455682d0,'mij2sdr: rak2')
+if (str1.gt.200.0d0) then
+    call test_value(str1,213.51387373513245d0,'mij2sdr: str1')
+    call test_value(dip1,40.404418834012674d0,'mij2sdr: dip1')
+    call test_value(rak1,65.379290596519624d0,'mij2sdr: rak1')
+    call test_value(str2,64.553919649886069d0,'mij2sdr: str2')
+    call test_value(dip2,53.896206591202564d0,'mij2sdr: dip2')
+    call test_value(rak2,109.52541253455682d0,'mij2sdr: rak2')
+else
+    call test_value(str2,213.51387373513245d0,'mij2sdr: str2')
+    call test_value(dip2,40.404418834012674d0,'mij2sdr: dip2')
+    call test_value(rak2,65.379290596519624d0,'mij2sdr: rak2')
+    call test_value(str1,64.553919649886069d0,'mij2sdr: str1')
+    call test_value(dip1,53.896206591202564d0,'mij2sdr: dip1')
+    call test_value(rak1,109.52541253455682d0,'mij2sdr: rak1')
+endif
 
 ! mij2sv
 ! Moment tensor to slip vectors of best-fitting double couple source
@@ -84,12 +93,21 @@ mrt =  5.3130d17
 mrp = -7.6200d16
 mtp = -8.2620d17
 call mij2sv(mrr,mtt,mpp,mrt,mrp,mtp,slip_vec,slip_vec2)
-call test_value(slip_vec(1), 0.34714538840760611d0,'mij2sv: slip_vec_1(1)')
-call test_value(slip_vec(2),-0.72957158138707823d0,'mij2sv: slip_vec_1(2)')
-call test_value(slip_vec(3), 0.58924985103068972d0,'mij2sv: slip_vec_1(3)')
-call test_value(slip_vec2(1),-0.54042032771493020d0,'mij2sv: slip_vec_2(1)')
-call test_value(slip_vec2(2), 0.35788462890633410d0,'mij2sv: slip_vec_2(2)')
-call test_value(slip_vec2(3), 0.76148832018952395d0,'mij2sv: slip_vec_2(3)')
+if (slip_vec(1).gt.0.0d0) then
+    call test_value(slip_vec(1), 0.34714538840760611d0,'mij2sv: slip_vec_1(1)')
+    call test_value(slip_vec(2),-0.72957158138707823d0,'mij2sv: slip_vec_1(2)')
+    call test_value(slip_vec(3), 0.58924985103068972d0,'mij2sv: slip_vec_1(3)')
+    call test_value(slip_vec2(1),-0.54042032771493020d0,'mij2sv: slip_vec_2(1)')
+    call test_value(slip_vec2(2), 0.35788462890633410d0,'mij2sv: slip_vec_2(2)')
+    call test_value(slip_vec2(3), 0.76148832018952395d0,'mij2sv: slip_vec_2(3)')
+else
+    call test_value(slip_vec2(1), 0.34714538840760611d0,'mij2sv: slip_vec_2(1)')
+    call test_value(slip_vec2(2),-0.72957158138707823d0,'mij2sv: slip_vec_2(2)')
+    call test_value(slip_vec2(3), 0.58924985103068972d0,'mij2sv: slip_vec_2(3)')
+    call test_value(slip_vec(1),-0.54042032771493020d0,'mij2sv: slip_vec_1(1)')
+    call test_value(slip_vec(2), 0.35788462890633410d0,'mij2sv: slip_vec_1(2)')
+    call test_value(slip_vec(3), 0.76148832018952395d0,'mij2sv: slip_vec_1(3)')
+endif
 
 ! mij2ter
 ! Moment tensor to fraction thrust, strike-slip, and normal
@@ -198,12 +216,21 @@ mrp = -7.6200d16
 mtp = -8.2620d17
 call mij2pnt(mrr,mtt,mpp,mrt,mrp,mtp,pnt)
 call pnt2sv(pnt,slip_vec,slip_vec2)
-call test_value(slip_vec(1), 0.34714538840760611d0,'pnt2sv: slip_vec_1(1)')
-call test_value(slip_vec(2),-0.72957158138707823d0,'pnt2sv: slip_vec_1(2)')
-call test_value(slip_vec(3), 0.58924985103068972d0,'pnt2sv: slip_vec_1(3)')
-call test_value(slip_vec2(1),-0.54042032771493020d0,'pnt2sv: slip_vec_2(1)')
-call test_value(slip_vec2(2), 0.35788462890633410d0,'pnt2sv: slip_vec_2(2)')
-call test_value(slip_vec2(3), 0.76148832018952395d0,'pnt2sv: slip_vec_2(3)')
+if (slip_vec(1).gt.0.0d0) then
+    call test_value(slip_vec(1), 0.34714538840760611d0,'pnt2sv: slip_vec_1(1)')
+    call test_value(slip_vec(2),-0.72957158138707823d0,'pnt2sv: slip_vec_1(2)')
+    call test_value(slip_vec(3), 0.58924985103068972d0,'pnt2sv: slip_vec_1(3)')
+    call test_value(slip_vec2(1),-0.54042032771493020d0,'pnt2sv: slip_vec_2(1)')
+    call test_value(slip_vec2(2), 0.35788462890633410d0,'pnt2sv: slip_vec_2(2)')
+    call test_value(slip_vec2(3), 0.76148832018952395d0,'pnt2sv: slip_vec_2(3)')
+else
+    call test_value(slip_vec2(1), 0.34714538840760611d0,'pnt2sv: slip_vec_2(1)')
+    call test_value(slip_vec2(2),-0.72957158138707823d0,'pnt2sv: slip_vec_2(2)')
+    call test_value(slip_vec2(3), 0.58924985103068972d0,'pnt2sv: slip_vec_2(3)')
+    call test_value(slip_vec(1),-0.54042032771493020d0,'pnt2sv: slip_vec_1(1)')
+    call test_value(slip_vec(2), 0.35788462890633410d0,'pnt2sv: slip_vec_1(2)')
+    call test_value(slip_vec(3), 0.76148832018952395d0,'pnt2sv: slip_vec_1(3)')
+endif
 
 ! pnt2ter
 ! P, N, and T axes to fraction thrust, strike-slip, and normal
@@ -243,15 +270,15 @@ str1 = 214.0d0
 dip1 = 40.0d0
 rak1 = 65.0d0
 call sdr2pnt(str1,dip1,rak1,pnt)
-call test_value(pnt(1), 0.61670145162508538d0,'sdr2pnt: P axis e-component')
-call test_value(pnt(2),-0.77643201628987624d0,'sdr2pnt: P axis n-component')
-call test_value(pnt(3),-0.12974067844569803d0,'sdr2pnt: P axis z-component')
-call test_value(pnt(4), 0.77519713030606596d0,'sdr2pnt: N axis e-component')
-call test_value(pnt(5), 0.57032765296921284d0,'sdr2pnt: N axis n-component')
-call test_value(pnt(6), 0.27165378227418457d0,'sdr2pnt: N axis z-component')
-call test_value(pnt(7),-0.13692599727134791d0,'sdr2pnt: T axis e-component')
-call test_value(pnt(8),-0.26810388348300168d0,'sdr2pnt: T axis n-component')
-call test_value(pnt(9), 0.95360976239370576d0,'sdr2pnt: T axis z-component')
+call test_value(abs(pnt(1)), 0.61670145162508538d0,'sdr2pnt: P axis e-component')
+call test_value(abs(pnt(2)), 0.77643201628987624d0,'sdr2pnt: P axis n-component')
+call test_value(abs(pnt(3)), 0.12974067844569803d0,'sdr2pnt: P axis z-component')
+call test_value(abs(pnt(4)), 0.77519713030606596d0,'sdr2pnt: N axis e-component')
+call test_value(abs(pnt(5)), 0.57032765296921284d0,'sdr2pnt: N axis n-component')
+call test_value(abs(pnt(6)), 0.27165378227418457d0,'sdr2pnt: N axis z-component')
+call test_value(abs(pnt(7)), 0.13692599727134791d0,'sdr2pnt: T axis e-component')
+call test_value(abs(pnt(8)), 0.26810388348300168d0,'sdr2pnt: T axis n-component')
+call test_value(abs(pnt(9)), 0.95360976239370576d0,'sdr2pnt: T axis z-component')
 call test_value(pnt(10),-1.0d0,'sdr2pnt: P magnitude')
 call test_value(pnt(11), 0.0d0,'sdr2pnt: N magnitude')
 call test_value(pnt(12), 1.0d0,'sdr2pnt: T magnitude')

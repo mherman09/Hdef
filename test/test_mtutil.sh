@@ -81,18 +81,51 @@ $BIN_DIR/mtutil -mij 4.173e+17,7.304e+17,-1.1477e+18,-3.5502e+18,-3.843e+18,1.17
 $TEST_BIN_DIR/test_values.sh answer.tmp mom.tmp 1 "mtutil: mij2mom" || exit 1
 
 # Moment tensor to PNT axes
-echo 0.55173391074654210       0.61662524753526782       0.56157189729757373       0.76332257667899917      -0.64464366270352003       -4.2109287198004358E-002  0.33604811510326971       0.45189362934020239      -0.82635574185533400       -5.3220383822829574E+021   4.7233928809523143E+019   5.2738044534734329E+021 > answer.tmp
+echo "0.55173391074654210       0.61662524753526782       0.56157189729757373       0.76332257667899917      -0.64464366270352003       -4.2109287198004358E-002  0.33604811510326971       0.45189362934020239      -0.82635574185533400       -5.3220383822829574E+021   4.7233928809523143E+019   5.2738044534734329E+021" > answer.tmp
 $BIN_DIR/mtutil -mij 1.923e21,-9.270e20,-9.970e20,3.811e21,-3.115e21,1.033d21 -pnt pnt.tmp
+# Check whether eigenvectors are in correct orientations
+awk '{
+    px = $1
+    py = $2
+    pz = $3
+    nx = $4
+    ny = $5
+    nz = $6
+    tx = $7
+    ty = $8
+    tz = $9
+    pmag = $10
+    nmag = $11
+    tmag = $12
+    if (px<0) {
+        px = -px; py = -py; pz = -pz
+    }
+    if (nx<0) {
+        nx = -nx; ny = -ny; nz = -nz
+    }
+    if (tx<0) {
+        tx = -tx; ty = -ty; tz = -tz
+    }
+    printf("%.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f\n"),
+        px,py,pz,nx,ny,nz,tx,ty,tz,pmag,nmag,tmag
+}' pnt.tmp > j
+mv j pnt.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp pnt.tmp 12 "mtutil: mij2pnt" || exit 1
 
 # Moment tensor to strike, dip, rake
-echo    213.51387373513245        40.404418834012674        65.379290596519624        64.553919649886069        53.896206591202564        109.52541253455682 > answer.tmp
+echo    "213.51387373513245        40.404418834012674        65.379290596519624        64.553919649886069        53.896206591202564        109.52541253455682" > answer.tmp
 $BIN_DIR/mtutil -mij 1.3892d18,-8.1410d17,-5.7510d17,5.3130d17,-7.6200d16,-8.2620d17 -sdr sdr.tmp
+# Check whether nodal planes are in the right order
+awk '{if($1<100){print $4,$5,$6,$1,$2,$3}else{print $0}}' sdr.tmp > j
+mv j sdr.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp sdr.tmp 6 "mtutil: mij2sdr" || exit 1
 
 # Moment tensor to slip vectors
-echo   0.34714538840760611      -0.72957158138707823       0.58924985103068972      -0.54042032771493020       0.35788462890633410       0.76148832018952395 > answer.tmp
+echo   "0.34714538840760611      -0.72957158138707823       0.58924985103068972      -0.54042032771493020       0.35788462890633410       0.76148832018952395" > answer.tmp
 $BIN_DIR/mtutil -mij 1.3892d18,-8.1410d17,-5.7510d17,5.3130d17,-7.6200d16,-8.2620d17 -sv sv.tmp
+# Check whether slip vectors are in the right order
+awk '{if($1<0){print $4,$5,$6,$1,$2,$3}else{print $0}}' sv.tmp > j
+mv j sv.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp sv.tmp 6 "mtutil mij2sv" || exit 1
 
 # Moment tensor to ternary representation
@@ -126,8 +159,11 @@ $BIN_DIR/mtutil -pnt 0.62760373661893987d0,-0.76894766054189612d0,-0.12179098952
 $TEST_BIN_DIR/test_values.sh answer.tmp sdr.tmp 6 "mtutil: pnt2sdr" || exit 1
 
 # PNT axes to slip vectors
-echo 0.34714538840760611      -0.72957158138707823       0.58924985103068972      -0.54042032771493020       0.35788462890633410       0.76148832018952395 > answer.tmp
+echo "0.34714538840760611      -0.72957158138707823       0.58924985103068972      -0.54042032771493020       0.35788462890633410       0.76148832018952395" > answer.tmp
 $BIN_DIR/mtutil -mij 1.3892d18,-8.1410d17,-5.7510d17,5.3130d17,-7.6200d16,-8.2620d17 -pnt | $BIN_DIR/mtutil -pnt -sv sv.tmp
+# Check whether slip vectors are in the right order
+awk '{if($1<0){print $4,$5,$6,$1,$2,$3}else{print $0}}' sv.tmp > j
+mv j sv.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp sv.tmp 6 "mtutil: pnt2sv" || exit 1
 
 # PNT axes to ternary representation
@@ -141,8 +177,35 @@ $BIN_DIR/mtutil -sdr 9,39,167 -mij mij.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp mij.tmp 6 "mtutil: sdr2mij" || exit 1
 
 # Strike, dip, rake to PNT axes
-echo 0.61670145162508538      -0.77643201628987624      -0.12974067844569803       0.77519713030606596       0.57032765296921284       0.27165378227418457      -0.13692599727134791      -0.26810388348300168       0.95360976239370576       -1.0000000000000002        1.6132928326584306E-016   1.0000000000000000 > answer.tmp
+echo "0.61670145162508538      -0.77643201628987624      -0.12974067844569803       0.77519713030606596       0.57032765296921284       0.27165378227418457      0.13692599727134791      0.26810388348300168       -0.95360976239370576       -1.0000000000000002        1.6132928326584306E-016   1.0000000000000000" > answer.tmp
 $BIN_DIR/mtutil -sdr 214,40,65 -pnt pnt.tmp
+# Check whether eigenvectors are in correct orientations
+awk '{
+    px = $1
+    py = $2
+    pz = $3
+    nx = $4
+    ny = $5
+    nz = $6
+    tx = $7
+    ty = $8
+    tz = $9
+    pmag = $10
+    nmag = $11
+    tmag = $12
+    if (px<0) {
+        px = -px; py = -py; pz = -pz
+    }
+    if (nx<0) {
+        nx = -nx; ny = -ny; nz = -nz
+    }
+    if (tx<0) {
+        tx = -tx; ty = -ty; tz = -tz
+    }
+    printf("%.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f %.14f\n"),
+        px,py,pz,nx,ny,nz,tx,ty,tz,pmag,nmag,tmag
+}' pnt.tmp > j
+mv j pnt.tmp
 $TEST_BIN_DIR/test_values.sh answer.tmp pnt.tmp 12 "mtutil: sdr2pnt" || exit 1
 
 # Strike, dip, rake to second nodal plane
