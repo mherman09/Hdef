@@ -65,7 +65,7 @@ endif()
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
 
 # Compilation flags
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall -Wextra -Wunused -Wconversion -fcheck=all -fbacktrace")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall -Wextra -Wunused -Wconversion -fcheck=bounds,do,mem,pointer,recursion -fbacktrace")
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
@@ -348,6 +348,21 @@ endforeach()
 if (useLAPACK)
     list(APPEND executable_test_list
         test_clip
+        test_dateutil
+        test_distaz2lola
+        test_ff2gmt
+        test_fitutil
+        test_fltinv
+        test_grid
+        test_lola2distaz
+        test_mtutil
+        test_o92util
+        test_platemotion
+        test_rangen
+        test_readGCMT
+        test_sphfinrot
+        test_stereo_project
+        test_triutil
         test_vec2los
         test_wraplos
     )
