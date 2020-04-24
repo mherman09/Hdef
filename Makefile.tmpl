@@ -540,6 +540,7 @@ test_earth: src/unit_test_earth.f90 \
 	@echo
 
 test_eq: src/unit_test_eq.f90 \
+         $(INCLUDE_DIR)/algebra.o \
          $(INCLUDE_DIR)/eq.o \
          $(INCLUDE_DIR)/test.o \
          $(INCLUDE_DIR)/error_exit.o \
