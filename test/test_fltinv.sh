@@ -34,6 +34,11 @@ then
     exit 1
 fi
 
+COMPILED_WITH_LAPACK=$(fltinv 2>&1 | grep "does not do much")
+if [ ! "$COMPILED_WITH_LAPACK" == "" ]
+then
+    echo "$0: fltinv compiled without LAPACK; leaving test"; exit
+fi
 
 #####
 #	SET PATH TO TEST_VALUES SCRIPT

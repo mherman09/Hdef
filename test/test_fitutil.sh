@@ -34,6 +34,11 @@ then
     exit 1
 fi
 
+COMPILED_WITH_LAPACK=$(fitutil 2>&1 | grep "does not work")
+if [ ! "$COMPILED_WITH_LAPACK" == "" ]
+then
+    echo "$0: fitutil compiled without LAPACK; leaving test"; exit
+fi
 
 #####
 #	SET PATH TO TEST_VALUES SCRIPT
