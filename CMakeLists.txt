@@ -369,6 +369,19 @@ if (useLAPACK)
 else()
     list(APPEND executable_test_list
         test_clip
+        test_dateutil
+        test_distaz2lola
+        test_ff2gmt
+        test_grid
+        test_lola2distaz
+        test_mtutil
+        test_o92util
+        test_platemotion
+        test_rangen
+        test_readGCMT
+        test_sphfinrot
+        test_stereo_project
+        test_triutil
         test_vec2los
         test_wraplos
     )
