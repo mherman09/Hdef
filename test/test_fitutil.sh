@@ -1,6 +1,51 @@
 #!/bin/bash
 
-BIN_DIR=`./define_bin_dir.sh`
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check if fitutil is set in PATH
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which fitutil | xargs dirname)
+fi
+
+# Check for fitutil in same directory as script
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/fitutil | xargs dirname)
+fi
+
+# Check for fitutil in relative directory ../bin (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../bin/fitutil | xargs dirname)
+fi
+
+# Check for fitutil in relative directory ../build (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../build/fitutil | xargs dirname)
+fi
+
+# Hdef executables are required!
+if [ "$BIN_DIR" == "" ]
+then
+    echo "$0: unable to find Hdef executable fitutil; exiting" 1>&2
+    exit 1
+fi
+
+
+#####
+#	SET PATH TO TEST_VALUES SCRIPT
+#####
+TEST_BIN_DIR=`echo $0 | xargs dirname`
+
+
+#####
+#	RUN TEST
+#####
+trap "rm -f *.tmp" 0 1 2 3 8 9
+
 
 # Fit quadratic polynomial
 C0="4.6"
@@ -17,7 +62,7 @@ cat > answer.tmp << EOF
   -1.2000000000000004
 EOF
 $BIN_DIR/fitutil -f xy.tmp -poly 1 -label_coeff 0 > poly_coeff.tmp
-./test_values.sh poly_coeff.tmp answer.tmp 1 "fitutil: 1st order polynomial" || exit 1
+$TEST_BIN_DIR/test_values.sh poly_coeff.tmp answer.tmp 1 "fitutil: 1st order polynomial" || exit 1
 
 # Fit sinusoid
 PERIOD="6.3"
@@ -54,7 +99,7 @@ cat > answer.tmp << EOF
    2.0999999661540500
 EOF
 $BIN_DIR/fitutil -f xy.tmp -sin $PERIOD -label_coeff 0 -o sin_coeff.tmp
-./test_values.sh sin_coeff.tmp answer.tmp 1 "fitutil: sinusoid" || exit 1
+$TEST_BIN_DIR/test_values.sh sin_coeff.tmp answer.tmp 1 "fitutil: sinusoid" || exit 1
 
 # Fit exponential with free exponential constant
 A="4.6"
@@ -71,14 +116,14 @@ cat > answer.tmp << EOF
  4.59998641E+00
 -1.19999901E+00
 EOF
-./test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, find exponential constant" || exit 1
+$TEST_BIN_DIR/test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, find exponential constant" || exit 1
 
 # Fit exponential with fixed exponential constant
 $BIN_DIR/fitutil -f xy.tmp -exp $C -label_coeff n > exp_coeff.tmp
 cat > answer.tmp << EOF
    4.5999901531556864
 EOF
-./test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, fixed exponential constant" || exit 1
+$TEST_BIN_DIR/test_values.sh exp_coeff.tmp answer.tmp 1 "fitutil: exponential, fixed exponential constant" || exit 1
 
 # Fit linear + sinusoid + exponential, print predicted values
 C0=-5.2
@@ -119,9 +164,4 @@ cat > answer.tmp << EOF
   0.60000024366333293
    4.1999987142469690
 EOF
-./test_values.sh multi.tmp answer.tmp 1 "fitutil: linear + sinusoid + exponential" || exit 1
-
-#####
-#	CLEAN UP
-#####
-rm *.tmp
+$TEST_BIN_DIR/test_values.sh multi.tmp answer.tmp 1 "fitutil: linear + sinusoid + exponential" || exit 1

@@ -1,6 +1,57 @@
 #!/bin/bash
 
-BIN_DIR=`./define_bin_dir.sh`
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check if ff2gmt is set in PATH
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which ff2gmt | xargs dirname)
+fi
+
+# Check for ff2gmt in same directory as script
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/ff2gmt | xargs dirname)
+fi
+
+# Check for ff2gmt in relative directory ../bin (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../bin/ff2gmt | xargs dirname)
+fi
+
+# Check for ff2gmt in relative directory ../build (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../build/ff2gmt | xargs dirname)
+fi
+
+# Hdef executables are required!
+if [ "$BIN_DIR" == "" ]
+then
+    echo "$0: unable to find Hdef executable ff2gmt; exiting" 1>&2
+    exit 1
+fi
+
+
+#####
+#	SET PATH TO TEST_VALUES SCRIPT
+#####
+TEST_BIN_DIR=`echo $0 | xargs dirname`
+
+
+#####
+#	RUN TEST
+#####
+trap "rm -f *.tmp" 0 1 2 3 8 9
+
+
+#####
+#	LOOK FOR GMT EXECUTABLES TO PLOT RESULTS
+#####
+GMT=$(which gmt)
+
 
 #####
 #	TEST SEGMENTED USGS PARAM MODEL
@@ -856,7 +907,7 @@ cat > answer.tmp << EOF
   -70.008099999999999       -18.669000000000000       0.94743170000000010        347.00000000000000        12.000000000000000        9.0630778703664987
   -70.034000000000006       -18.563800000000001        1.0059700000000000        347.00000000000000        12.000000000000000        9.0630778703664987
 EOF
-./test_values.sh answer.tmp slip.tmp 6 "ff2gmt: slip.tmp" || exit 1
+$TEST_BIN_DIR/test_values.sh answer.tmp slip.tmp 6 "ff2gmt: slip.tmp" || exit 1
 cat > answer.tmp << EOF
   -70.872799999999998       -20.887899999999998        94.000000000000000        347.00000000000000        12.000000000000000        9.7236992039767660
   -70.898600000000002       -20.782699999999998        91.599999999999994        347.00000000000000        12.000000000000000        9.7236992039767660
@@ -1259,41 +1310,48 @@ cat > answer.tmp << EOF
   -70.008099999999999       -18.669000000000000        85.000000000000000        347.00000000000000        12.000000000000000        9.0630778703664987
   -70.034000000000006       -18.563800000000001        86.000000000000000        347.00000000000000        12.000000000000000        9.0630778703664987
 EOF
-./test_values.sh answer.tmp trup.tmp 6 "ff2gmt: trup.tmp" || exit 1
-echo   -70.863399999999999       -19.629799999999999 > answer.tmp
-./test_values.sh answer.tmp epi.tmp 2 "ff2gmt: epi.tmp" || exit 1
+$TEST_BIN_DIR/test_values.sh answer.tmp trup.tmp 6 "ff2gmt: trup.tmp" || exit 1
+echo   "-70.863399999999999       -19.629799999999999" > answer.tmp
+$TEST_BIN_DIR/test_values.sh answer.tmp epi.tmp 2 "ff2gmt: epi.tmp" || exit 1
 
-gmt set PS_MEDIA 8.5ix11i
 
-PSFILE="test_ff2gmt.ps"
+if [ "$GMT" != "" ]
+then
+    echo "Found GMT executables; plotting FFMs in test_ff2gmt.pdf"
 
-PROJ="-JM5i -P"
-LIMS="-R-72/-69/-22/-18"
+    gmt set PS_MEDIA 8.5ix11i
 
-gmt makecpt -T0/10/0.1 -Cmagma -D -I > slip.cpt
-echo 0 0 | gmt psxy $PROJ $LIMS -K > $PSFILE
+    PSFILE="test_ff2gmt.ps"
 
-# Slip rectangles
-gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE
+    PROJ="-JM5i -P"
+    LIMS="-R-72/-69/-22/-18"
 
-# Rupture time contours (clipped)
-gmt surface trup.tmp $LIMS -Gtrup.grd -I0.1
-gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE
-gmt grdcontour trup.grd $PROJ $LIMS -W1p -C10 -K -O >> $PSFILE
-gmt psclip -C -K -O >> $PSFILE
-gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE
-awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp | gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE
+    gmt makecpt -T0/10/0.1 -Cmagma -D -I > slip.cpt || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -K > $PSFILE || exit 1
 
-# Epicenter
-gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE
+    # Slip rectangles
+    gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE || exit 1
 
-gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE
-gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE
-echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
+    # Rupture time contours (clipped)
+    gmt surface trup.tmp $LIMS -Gtrup.grd -I0.1 || exit 1
+    gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE || exit 1
+    gmt grdcontour trup.grd $PROJ $LIMS -W1p -C10 -K -O >> $PSFILE || exit 1
+    gmt psclip -C -K -O >> $PSFILE || exit 1
+    gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE || exit 1
+    awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp |\
+        gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE || exit 1
 
-rm *.grd
-rm *.tmp
-rm *.cpt
+    # Epicenter
+    gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE || exit 1
+
+    gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE || exit 1
+    gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE || exit 1
+
+    rm *.grd
+    rm *.cpt
+fi
+
 
 #####
 #	TEST SINGLE-SEGMENT SRCMOD FSP MODEL
@@ -1908,28 +1966,35 @@ cat > fsp.tmp << EOF
 EOF
 $BIN_DIR/ff2gmt -fsp fsp.tmp -slip slip.tmp -trup trup.tmp -clipseg clip.tmp -epi epi.tmp
 
-PROJ="-JM5i -P"
-LIMS="-R138/146/33/42"
+if [ "$GMT" != "" ]
+then
 
-gmt makecpt -T0/50/0.5 -Cmagma -D -I > slip.cpt
-echo 0 0 | gmt psxy $PROJ $LIMS -K >> $PSFILE
+    PROJ="-JM5i -P"
+    LIMS="-R138/146/33/42"
 
-# Slip rectangles
-gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE
+    gmt makecpt -T0/50/0.5 -Cmagma -D -I > slip.cpt || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -K >> $PSFILE || exit 1
 
-# Clip segment
-gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE
-awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp | gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE
+    # Slip rectangles
+    gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE || exit 1
 
-# Epicenter
-gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE
+    # Clip segment
+    gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE
+    awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp |\
+        gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE || exit 1
 
-gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE
-gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE
-echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
+    # Epicenter
+    gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE || exit 1
 
-rm *.tmp
-rm *.cpt
+    gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE || exit 1
+    gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE || exit 1
+
+    rm *.tmp
+    rm *.cpt
+
+fi
+
 
 #####
 #	TEST MULTI-SEGMENT SRCMOD FSP MODEL
@@ -2279,33 +2344,40 @@ cat > fsp.tmp << EOF
 EOF
 $BIN_DIR/ff2gmt -fsp fsp.tmp -slip slip.tmp -trup trup.tmp -clipseg clip.tmp -epi epi.tmp
 
-PROJ="-JM5i -P"
-LIMS="-R-76/-70/-40/-33"
 
-gmt makecpt -T0/20/0.2 -Cmagma -D -I > slip.cpt
-echo 0 0 | gmt psxy $PROJ $LIMS -K >> $PSFILE
+if [ "$GMT" != "" ]
+then
 
-# Slip rectangles
-gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE
+    PROJ="-JM5i -P"
+    LIMS="-R-76/-70/-40/-33"
 
-# Rupture time contours (clipped)
-gmt surface trup.tmp $LIMS -Gtrup.grd -I0.1
-gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE
-gmt grdcontour trup.grd $PROJ $LIMS -W1p -C10 -K -O >> $PSFILE
-gmt psclip -C -K -O >> $PSFILE
-gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE
-awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp | gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE
+    gmt makecpt -T0/20/0.2 -Cmagma -D -I > slip.cpt || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -K >> $PSFILE || exit 1
 
-# Epicenter
-gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE
+    # Slip rectangles
+    gmt psxy slip.tmp $PROJ $LIMS -SJ -Cslip.cpt -W0.5p,105/105/105 -K -O >> $PSFILE || exit 1
 
-gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE
-gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE
-echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
+    # Rupture time contours (clipped)
+    gmt surface trup.tmp $LIMS -Gtrup.grd -I0.1 || exit 1
+    gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE || exit 1
+    gmt grdcontour trup.grd $PROJ $LIMS -W1p -C10 -K -O >> $PSFILE || exit 1
+    gmt psclip -C -K -O >> $PSFILE || exit 1
+    gmt psxy clip.tmp $PROJ $LIMS -W1p -K -O >> $PSFILE || exit 1
+    awk '{print $1,$2,"12,0 CM",NR-1}' clip.tmp |\
+        gmt pstext $PROJ $LIMS -F+f+j -Gwhite -K -O >> $PSFILE || exit 1
 
-ps2pdf $PSFILE
-rm $PSFILE
-rm gmt.*
-rm *.tmp
-rm *.cpt
-rm *.grd
+    # Epicenter
+    gmt psxy epi.tmp $PROJ $LIMS -Sa0.3i -W1p -K -O >> $PSFILE || exit 1
+
+    gmt pscoast $PROJ $LIMS -Dh -A0/0/1 -W1p -K -O >> $PSFILE || exit 1
+    gmt psbasemap $PROJ $LIMS -Bxa1 -Bya1 -K -O >> $PSFILE || exit 1
+    echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE || exit 1
+
+    gmt psconvert $PSFILE -Tf || exit 1
+
+    rm $PSFILE
+    rm gmt.*
+    rm *.cpt
+    rm *.grd
+
+fi

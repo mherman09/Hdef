@@ -1,10 +1,55 @@
 #!/bin/bash
 
-BIN_DIR=`./define_bin_dir.sh`
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check if readGCMT is set in PATH
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in same directory as script
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in relative directory ../bin (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../bin/readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in relative directory ../build (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../build/readGCMT | xargs dirname)
+fi
+
+# Hdef executables are required!
+if [ "$BIN_DIR" == "" ]
+then
+    echo "$0: unable to find Hdef executable readGCMT; exiting" 1>&2
+    exit 1
+fi
+
+
+#####
+#	SET PATH TO TEST_VALUES SCRIPT
+#####
+TEST_BIN_DIR=`echo $0 | xargs dirname`
+
+
+#####
+#	RUN TEST
+#####
+trap "rm -f *.tmp" 0 1 2 3 8 9
+
 
 echo 0 0 | $BIN_DIR/sphfinrot -pole 90 0 -angle 45 > coord.tmp
 echo 0 -45 > answer.tmp
-./test_values.sh coord.tmp answer.tmp 2 "sphfinrot: stdin, stdout" || exit 1
+$TEST_BIN_DIR/test_values.sh coord.tmp answer.tmp 2 "sphfinrot: stdin, stdout" || exit 1
 
 cat > lonlat.tmp << EOF
 0 0
@@ -15,6 +60,4 @@ cat > answer.tmp << EOF
  -9.735610E+00 -3.000000E+01
   4.500000E+01  4.500000E+01
 EOF
-./test_values.sh newlonlat.tmp answer.tmp 2 "sphfinrot: file in, file out" || exit 1
-
-rm *.tmp
+$TEST_BIN_DIR/test_values.sh newlonlat.tmp answer.tmp 2 "sphfinrot: file in, file out" || exit 1

@@ -1,12 +1,57 @@
 #!/bin/bash
 
-BIN_DIR=`./define_bin_dir.sh`
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check if readGCMT is set in PATH
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in same directory as script
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in relative directory ../bin (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../bin/readGCMT | xargs dirname)
+fi
+
+# Check for readGCMT in relative directory ../build (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../build/readGCMT | xargs dirname)
+fi
+
+# Hdef executables are required!
+if [ "$BIN_DIR" == "" ]
+then
+    echo "$0: unable to find Hdef executable readGCMT; exiting" 1>&2
+    exit 1
+fi
+
+
+#####
+#	SET PATH TO TEST_VALUES SCRIPT
+#####
+TEST_BIN_DIR=`echo $0 | xargs dirname`
+
+
+#####
+#	RUN TEST
+#####
+trap "rm -f *.tmp" 0 1 2 3 8 9
+
 
 # TEST FOR GCMT FILE!!!!
 GCMT_FILE=`$BIN_DIR/readGCMT -mag 9 10 2>&1 | grep "no GCMT file"`
 if [ "$GCMT_FILE" != "" ]
 then
-    echo No GCMT file to test
+    echo No GCMT file to test 1>&2
     exit
 fi
 
@@ -15,7 +60,7 @@ cat > answer.tmp << EOF
 2004-12-26T00:58:50    94.260     3.090    28.6    9.03    1.0400E+22   -4.2700E+21   -6.1000E+21    2.9800E+22   -2.4000E+22    4.2600E+21
 2011-03-11T05:46:23   143.050    37.520    20.0    9.12    1.7300E+22   -2.8100E+21   -1.4500E+22    2.1200E+22    4.5500E+22   -6.5700E+21
 EOF
-./test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: magnitude" || exit 1
+$TEST_BIN_DIR/test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: magnitude" || exit 1
 
 
 $BIN_DIR/readGCMT -date 2014-03-14T00:00:00 2014-04-14T00:00:00 -rect -75 -65 -21 -18 > gcmt.tmp
@@ -70,4 +115,4 @@ cat > answer.tmp << EOF
 2014-04-11T00:01:45   289.120   -20.640    14.5    6.12    9.0500E+17    3.7400E+17   -1.2800E+18   -5.1200E+17   -1.1600E+18    1.3500E+17
 2014-04-13T12:11:30   288.990   -20.580    21.8    5.46    1.1300E+17   -4.2000E+15   -1.0900E+17    4.1300E+16   -1.2100E+17    2.7800E+16
 EOF
-./test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: date, location" || exit 1
+$TEST_BIN_DIR/test_values.sh answer.tmp gcmt.tmp 11 "readGCMT: date, location" || exit 1
