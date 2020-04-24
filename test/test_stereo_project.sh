@@ -781,7 +781,7 @@ cat > answer.tmp << EOF
    6545.9906186860926        11180.820701715991
    6373.7177647067301        11037.175949883040
 EOF
-./test_values.sh stereo3.tmp answer.tmp 2 "stereo_project: lon-lat to x-y" || exit 1
+$TEST_BIN_DIR/test_values.sh stereo3.tmp answer.tmp 2 "stereo_project: lon-lat to x-y" || exit 1
 
 # gmt makecpt -Cviridis -T1/`wc lola.tmp | awk '{print $1}'`/1 > junk.cpt
 # gmt makecpt -Cmagma -T1/`wc lola.tmp | awk '{print $1}'`/1 > junk3.cpt
@@ -1162,7 +1162,7 @@ cat > answer.tmp << EOF
    30.347523235500866       0.95471801734279660
    30.005455322794440        1.4988375829024637E-002
 EOF
-./test_values.sh inverse3.tmp answer.tmp 2 "stereo_project: x-y to lon-lat" || exit 1
+$TEST_BIN_DIR/test_values.sh inverse3.tmp answer.tmp 2 "stereo_project: x-y to lon-lat" || exit 1
 
 # PROJ="-JR4i"
 # LIMS="-Rg"
