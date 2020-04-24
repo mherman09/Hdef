@@ -240,7 +240,6 @@ do i = 1,npoles
 
     rot = pole_array(i,4) + r8_uniform_01(iseed)*(pole_array(i,5)-pole_array(i,4))
     model(nflt+3*i-0) = int(rot*1.0d4)
-    write(0,*) 'init: ',i,model(nflt+3*i-2:nflt+3*i)
 enddo
 
 
