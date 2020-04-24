@@ -206,6 +206,7 @@ $(BIN_DIR)/lola2distaz: src/lola2distaz_prog.f90 \
 
 mtutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/mtutil
 $(BIN_DIR)/mtutil: src/mtutil.f90 \
+                   $(INCLUDE_DIR)/algebra.o \
                    $(INCLUDE_DIR)/eq.o \
                    $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
