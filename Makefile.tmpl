@@ -383,6 +383,7 @@ $(INCLUDE_DIR)/elast.o: src/elast_module.f90 \
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
 $(INCLUDE_DIR)/eq.o: src/eq_module.f90 \
+                     $(INCLUDE_DIR)/algebra.o \
                      $(INCLUDE_DIR)/io.o \
                      $(INCLUDE_DIR)/trig.o \
                      $(INCLUDE_DIR_MARKER_FILE)
