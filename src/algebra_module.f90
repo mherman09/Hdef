@@ -346,7 +346,7 @@ double precision :: d(np), v(np,np)
 
 ! local variables
 integer :: i, j, k
-double precision :: p, cross(3), dot
+double precision :: p
 
 do i = 1,n-1
     k = i
