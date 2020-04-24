@@ -5,6 +5,8 @@ public :: dot_product
 public :: cross_product
 public :: rotate_vector_angle_axis
 public :: rotate_matrix_angle_axis
+public :: jacobi
+public :: eig_sort
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -183,6 +185,187 @@ do i = 1,3
                           matrix_tmp(i,2)*rot_matrix_trans(2,j) + &
                           matrix_tmp(i,3)*rot_matrix_trans(3,j)
     enddo
+enddo
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine jacobi(a,n,np,d,v,nrot,ierr)
+!----
+! Computes all eigenvalues and eigenvectors of a real symmetric matrix a, which is of size n by n,
+! stored in a physical np by np array. On output, elements of a above the diagonal are destroyed. d
+! returns the eigenvalues of a in its first n elements. v is a matrix with the same logical and
+! physical dimensions as a, whose columns contain, on output, the normalized eigenvectors of a.
+! nrot returns the number of Jacobi rotations that were required.
+!
+! Numerical Recipes (Press et al.)
+!----
+
+use io, only: stderr
+
+implicit none
+
+! Arguments
+integer :: n, np, nrot, ierr
+double precision :: a(np,np), d(np), v(np,np)
+
+! Local variables
+integer, parameter :: NMAX = 500
+integer :: i, ip, iq, j
+double precision :: c, g, h, s, sm, t, tau, theta, tresh, b(NMAX), z(NMAX)
+double precision, parameter :: eps = 1.0d-12
+
+
+ierr = 0
+
+! Initialize v to the identity matrix
+v = 0.0d0
+do ip = 1,n
+    v(ip,ip) = 1.0d0
+enddo
+
+! Initialize b and d to the diagonal of a
+! Vector z will accumulate terms of the form tapq as in equation (11.1.14)
+do ip = 1,n
+    b(ip) = a(ip,ip)
+    d(ip) = b(ip)
+    z(ip) = 0.0d0
+enddo
+
+nrot = 0
+do i = 1,50
+
+    ! Sum off-diagonal elements
+    sm = 0.0d0
+    do ip = 1,n-1
+        do iq = ip+1,n
+            sm = sm + abs(a(ip,iq))
+        enddo
+    enddo
+
+    ! The normal return, which relies on quadratic convergence
+    if (abs(sm).lt.eps) then
+        return
+    endif
+
+    if (i.lt.4) then
+        tresh = 0.2d0*sm/n**2
+    else
+        tresh = 0.0d0
+    endif
+
+    do ip = 1,n-1
+        do iq = ip+1,n
+
+            g = 100.0d0*abs(a(ip,iq))
+
+            ! After four sweeps, skip the rotation if the off-diagonal element is small
+            if ((i.gt.4) .and. abs(g).lt.eps) then
+                a(ip,iq) = 0.0d0
+            elseif (abs(a(ip,iq)).gt.tresh) then
+                h = d(iq)-d(ip)
+                if (abs(g).lt.eps) then
+                    t = a(ip,iq)/h  ! t = 1/(2theta)
+                else
+                    theta = 0.5d0*h/a(ip,iq) !Equation (11.1.10)
+                    t = 1.0d0/(abs(theta)+sqrt(1.0d0+theta**2))
+                    if (theta.lt.0.0d0) then
+                        t = -t
+                    endif
+                endif
+                c = 1.0d0/sqrt(1.0d0+t**2)
+                s = t*c
+                tau = s/(1.0d0+c)
+                h = t*a(ip,iq)
+                z(ip) = z(ip)-h
+                z(iq) = z(iq)+h
+                d(ip) = d(ip)-h
+                d(iq) = d(iq)+h
+                a(ip,iq) = 0.0d0
+                do j = 1,ip-1 ! Case of rotations 1 < j < p
+                    g = a(j,ip)
+                    h = a(j,iq)
+                    a(j,ip) = g-s*(h+g*tau)
+                    a(j,iq) = h+s*(g-h*tau)
+                enddo
+                do j = ip+1,iq-1 !Case of rotations p < j < q
+                    g = a(ip,j)
+                    h = a(j,iq)
+                    a(ip,j) = g-s*(h+g*tau)
+                    a(j,iq) = h+s*(g-h*tau)
+                enddo
+                do j = iq+1,n !Case of rotations q < j ≤ n
+                    g = a(ip,j)
+                    h = a(iq,j)
+                    a(ip,j) = g-s*(h+g*tau)
+                    a(iq,j) = h+s*(g-h*tau)
+                enddo
+                do j = 1,n
+                    g = v(j,ip)
+                    h = v(j,iq)
+                    v(j,ip) = g-s*(h+g*tau)
+                    v(j,iq) = h+s*(g-h*tau)
+                enddo
+                nrot = nrot + 1
+            endif
+        enddo
+    enddo
+
+    ! Update d with the sum of tapq, and reinitialize z
+    do ip = 1,n
+        b(ip) = b(ip)+z(ip)
+        d(ip) = b(ip)
+        z(ip) = 0.0d0
+    enddo
+enddo
+
+write(stderr,*) 'Warning: jacobi: too many iterations'
+ierr = 1
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine eig_sort(d,v,n,np)
+!----
+! Given the eigenvalues d and eigenvectors v as output from jacobi, this routine sorts the
+! eigenvalues into ascending order, and rearranges the columns of v correspondingly. The method
+! is straight insertion.
+!
+! Numerical Recipes (Press et al.)
+!----
+
+implicit none
+
+! Arguments
+integer :: n, np
+double precision :: d(np), v(np,np)
+
+! local variables
+integer :: i, j, k
+double precision :: p, cross(3), dot
+
+do i = 1,n-1
+    k = i
+    p = d(i)
+    do j = i+1,n
+        if (d(j).le.p) then
+            k = j
+            p = d(j)
+        endif
+    enddo
+    if (k.ne.i) then
+        d(k) = d(i)
+        d(i) = p
+        do j = 1,n
+            p = v(j,i)
+            v(j,i) = v(j,k)
+            v(j,k) = p
+        enddo
+    endif
 enddo
 
 return
