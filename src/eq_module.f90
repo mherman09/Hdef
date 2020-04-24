@@ -131,19 +131,32 @@ subroutine mij2pnt(mrr,mtt,mpp,mrt,mrp,mtp,pnt)
 
 use io, only: stderr
 
+#ifndef USE_LAPACK
+! Without LAPACK, we need the eigen routines from the algebra module
+use algebra, only: jacobi, eig_sort
+#endif
+
+
 implicit none
 
 ! Arguments
 double precision :: mrr, mtt, mpp, mrt, mrp, mtp, pnt(12)
 
 ! Local variables
-double precision :: m_enz(3,3)
+double precision :: m_enz(3,3), eigvals(3)
+
 
 #ifdef USE_LAPACK
 
+! Variables for running LAPACK dysev (double precision symmetric matrix eigen analysis)
 integer :: info, lwork
-double precision :: w(3)
 double precision, allocatable :: work(:)
+
+#else
+
+! Variables for running Numerical Recipes jacobi (symmetric matrix eigen analysis) and eig_sort
+integer :: nrot, ierr
+double precision :: eigvecs(3,3)
 
 #endif
 
@@ -151,10 +164,6 @@ double precision, allocatable :: work(:)
 ! Initialize PNT
 pnt = 0.0d0
 
-! Use LAPACK eigensystem solver if it is available. Otherwise, return zeros.
-! TODO: Algebraically compute eigenvectors and eigenvalues for 3x3 matrix if LAPACK is not installed
-
-#ifdef USE_LAPACK
 
 ! Convert moment tensor from spherical coordinates to local east-north-vertical coordinates, where
 ! r=up, t=south, and p=east
@@ -168,16 +177,21 @@ m_enz(3,1) =  mrp
 m_enz(1,2) = -mtp     ! mtp = -men
 m_enz(2,1) = -mtp
 
+
+! Use LAPACK eigensystem solver if it is available. Otherwise, use Numerical Recipes routine.
+
+#ifdef USE_LAPACK
+
 ! Query the optimal workspace
 allocate(work(1))
 lwork = -1
-call dsyev('Vectors','Upper',3,m_enz,3,w,work,lwork,info)
+call dsyev('Vectors','Upper',3,m_enz,3,eigvals,work,lwork,info)
 lwork = int(work(1))
 deallocate(work)
 allocate(work(lwork))
 
 ! Solve eigenproblem
-call dsyev('Vectors','Upper',3,m_enz,3,w,work,lwork,info)
+call dsyev('Vectors','Upper',3,m_enz,3,eigvals,work,lwork,info)
 
 if (info.ne.0) then
     write(stderr,*) 'mij2pnt: error in dsyev; returning pnt with zeros'
@@ -196,15 +210,36 @@ pnt(8) = m_enz(2,3)
 pnt(9) = m_enz(3,3)
 
 ! Eigenvalues are in the w array
-pnt(10) = w(1)
-pnt(11) = w(2)
-pnt(12) = w(3)
+pnt(10) = eigvals(1)
+pnt(11) = eigvals(2)
+pnt(12) = eigvals(3)
 
 #else
 
-! Return zeros
-write(stderr,*) 'mij2pnt: Hdef installed without LAPACK; returning pnt with zeros'
-pnt = 0.0d0
+! Calculate eigenvalues and eigenvectors with Numerical Recipes routine
+call jacobi(m_enz,3,3,eigvals,eigvecs,nrot,ierr)
+if (ierr.ne.0) then
+    write(stderr,*) 'mij2pnt: error in jacobi; returning pnt with zeros'
+    return
+endif
+
+call eig_sort(eigvals,eigvecs,3,3)
+
+! Eigenvectors are in the mat array
+pnt(1) = eigvecs(1,1)
+pnt(2) = eigvecs(2,1)
+pnt(3) = eigvecs(3,1)
+pnt(4) = eigvecs(1,2)
+pnt(5) = eigvecs(2,2)
+pnt(6) = eigvecs(3,2)
+pnt(7) = eigvecs(1,3)
+pnt(8) = eigvecs(2,3)
+pnt(9) = eigvecs(3,3)
+
+! Eigenvalues are in the vec array
+pnt(10) = eigvals(1)
+pnt(11) = eigvals(2)
+pnt(12) = eigvals(3)
 
 #endif
 
