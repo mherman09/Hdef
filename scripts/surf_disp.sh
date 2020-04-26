@@ -25,8 +25,8 @@ function usage() {
     echo "-vec_scale SCALE    Horizontal vector scale" 1>&2
     echo "-vec_legend LENGTH  Legend vector length (m)" 1>&2
     echo "-fade DISP_THR      Fade displacements below DISP_THR meters (default: 0.05)" 1>&2
-    echo "-nvert N            Number of vertical contour grid points (default: 100/dimension)" 1>&2
-    echo "-nvec N             Number of vectors (default: 20/dimension)" 1>&2
+    echo "-nvert NN           Number of vertical contour grid points (default: 100/dimension)" 1>&2
+    echo "-nvec NN_SAMP       Number of vectors (default: 20/dimension)" 1>&2
     echo "-seg                Plot segmented finite faults" 1>&2
     echo "-novector           Do not plot horizontal vectors" 1>&2
     echo "-gps GPS_FILE       Add observed displacements" 1>&2
@@ -89,14 +89,14 @@ do
         -T*) VERT_CPT_RANGE="$1";;
         -vec_scale) shift;VEC_SCALE="$1" ;;
         -vec_legend) shift;DISP_LBL="$1" ;;
-        -nvert) shift;NN="$1";;
-        -nvec) shift;NN_SAMP="$1";;
+        -fade) shift;DISP_THR="$1";;
+        -nvert) shift;NN="$1";NN=$(echo $NN | awk '{printf("%d"),$1}');;
+        -nvec) shift;NN_SAMP="$1";NN_SAMP=$(echo $NN_SAMP | awk '{printf("%d"),$1}');;
         -seg) SEG="1" ;;
         -novec*) PLOT_VECT="N" ;;
         -gps) shift;GPS_FILE="$1" ;;
         -sta) shift;STA_FILE="$1" ;;
         -emprel) shift;EMPREL="$1";;
-        -fade) shift;DISP_THR="$1";;
         -hdefbin) shift;HDEF_BIN_DIR="$1";;
         -o) shift;OFILE="$1" ;;
         *) echo "surf_disp.sh: no option \"$1\"" 1>&2; usage;;
@@ -196,7 +196,8 @@ EOF
 # IF (MAXIMUM VERTICAL DISPLACEMENT >= THRESHOLD) {USE THIS SATURATION VALUE}
 cat > vert_scale_max.awk << EOF
 {
-  if (\$1>=2) {print 1}
+  if (\$1>=5) {print 2}
+  else if (\$1>=2) {print 1}
   else if (\$1>=1) {print 0.5}
   else if (\$1>=0.5) {print 0.2}
   else if (\$1>=0.2) {print 0.1}
@@ -214,7 +215,8 @@ EOF
 # IF (MAXIMUM VERTICAL DISPLACEMENT >= THRESHOLD) {USE THIS ANNOTATION INCREMENT}
 cat > vert_scale_lbl.awk << EOF
 {
-  if (\$1>=2) {print 1}
+  if (\$1>=5) {print 2}
+  else if (\$1>=2) {print 1}
   else if (\$1>=1) {print 0.5}
   else if (\$1>=0.5) {print 0.2}
   else if (\$1>=0.2) {print 0.1}
@@ -362,6 +364,8 @@ fi
 
 
 # Locations of displacement computations
+if [ $NN -le 1 ]; then echo "NN must be greater than 1" 1>&2; usage; fi
+if [ $NN_SAMP -le 1 ]; then echo "NN_SAMP must be greater than 1" 1>&2; usage; fi
 ${BIN_DIR}/grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.tmp || \
     { echo "surf_disp.sh: error in program grid" 1>&2; exit 1; }
 if [ -z $GPS_FILE ]
@@ -413,6 +417,8 @@ MINMAX=`awk '{print $6}' disp.tmp |\
             if($1<mn){mn=$1}
             if($1>mx){mx=$1}
         }END{print mn,mx}'`
+echo "Minimum vertical displacement: $(echo $MINMAX | awk '{printf("%.3f m\n"),$1}')"
+echo "Maximum vertical displacement: $(echo $MINMAX | awk '{printf("%.3f m\n"),$2}')"
 V1=`echo $MINMAX | awk '{if($1<0){print -$1}else{print $1}}'`
 V2=`echo $MINMAX | awk '{if($2<0){print -$2}else{print $2}}'`
 T=`echo $V1 $V2 | awk '{if($1>$2){print $1}else{print $2}}' | awk -f vert_scale_max.awk`
@@ -591,36 +597,59 @@ fi
 # Legend (all coordinates are in cm from the bottom left)
 if [ $PLOT_VECT == "Y" ]
 then
+    XLEG_ARROW=$(echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6}')
+    XLEG_TEXT=3.0
+    XLEG_TEXT=$(echo $DISP_LBL |\
+                awk '{
+                    if ($1<0.01) {
+                        print 3.1
+                    } else if ($1<0.1) {
+                        print 2.9
+                    } else if ($1<1) {
+                        print 2.7
+                    } else if ($1<10) {
+                        print 2.4
+                    } else {
+                        print 2.6
+                    }
+                }')
+    XLEG=$(echo $XLEG_ARROW $XLEG_TEXT | awk '{if($1>$2){print $1}else{print $2}}')
+    XMID=$(echo $XLEG 0.2 | awk '{print ($1+$2)/2}')
+
+    # Legend box
     echo 0.2 0.2 > legend.tmp
     echo 0.2 1.5 >> legend.tmp
-    echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6,1.5}' >> legend.tmp
-    echo $VEC_SCALE $DISP_LBL | awk '{print $1*$2+0.6,0.2}' >> legend.tmp
+    echo $XLEG 1.5 >> legend.tmp
+    echo $XLEG 0.2 >> legend.tmp
     echo 0.2 0.2 >> legend.tmp
     gmt psxy legend.tmp -JX10c -R0/10/0/10 -W1p -Gwhite -K -O >> $PSFILE || \
         { echo "surf_disp.sh: psxy error plotting legend outline" 1>&2; exit 1; }
+
+    # Legend vector
     echo $VEC_SCALE $DISP_LBL |\
-        awk '{print 0.4,0.5,0,$1*$2}' |\
-        gmt psxy -JX -R -Sv10p+e+a45 -W2p,black -N -K -O >> $PSFILE || \
+        awk '{print '$XMID',0.5,0,$1*$2}' |\
+        gmt psxy -JX -R -Sv10p+e+a45+jc -W2p,black -N -K -O >> $PSFILE || \
         { echo "surf_disp.sh: psxy error plotting legend vector" 1>&2; exit 1; }
     echo $VEC_SCALE $DISP_LBL |\
         awk '{
             if ($2!=1) {
-                print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meters"
+                print '$XMID',1.0,12","0,"CM",$2,"meters"
             } else {
-                print $1*$2*0.5+0.4,1.0,12","0,"CM",$2,"meter"
+                print '$XMID',1.0,12","0,"CM",$2,"meter"
             }
         }' |\
         gmt pstext -JX -R -F+f+j -N -K -O >> $PSFILE || \
         { echo "surf_disp.sh: pstext error plotting legend vector scale" 1>&2; exit 1; }
+
     if [ -z $GPS_FILE ]
     then
         echo $VEC_SCALE $DISP_LBL |\
-            awk '{print $1*$2+0.7,"0.2 10,2 LB Displacements less than '"$DISP_THR"' m are in light grey"}' |\
+            awk '{print '$XLEG'+0.1,"0.2 10,2 LB Displacements less than '"$DISP_THR"' m are in light grey"}' |\
             gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE || \
             { echo "surf_disp.sh: pstext error plotting legend text" 1>&2; exit 1; }
     else
         echo $VEC_SCALE $DISP_LBL |\
-            awk '{print $1*$2+0.7,"0.2 10,2 LB Observed=black; Synthetic=color"}' |\
+            awk '{print '$XLEG'+0.1,"0.2 10,2 LB Observed=black; Synthetic=color"}' |\
             gmt pstext -JX -R -F+f+j -Gwhite -N -K -O >> $PSFILE || \
             { echo "surf_disp.sh: pstext error plotting legend text" 1>&2; exit 1; }
     fi
