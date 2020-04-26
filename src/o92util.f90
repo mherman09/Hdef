@@ -1002,8 +1002,8 @@ do i = 1,501
 enddo
 
 ! Find xmax
-do i = 501,1001
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).le.0.001d0) then
+do i = 1001,501,-1
+    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
         xmax = disp(i,1)
         exit
     endif
@@ -1018,8 +1018,8 @@ do i = 1002,1502
 enddo
 
 ! Find ymax
-do i = 1502,2002
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).le.0.001d0) then
+do i = 2002,1502,-1
+    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
         ymax = disp(i,2)
         exit
     endif
