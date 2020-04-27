@@ -34,6 +34,7 @@ function usage() {
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
     echo "-hdefbin DIR        Directory with Hdef executables" 1>&2
     echo "-o FILENAME         Basename for output file" 1>&2
+    echo "-noclean            Keep all temporary files (useful for debugging)"
     echo 1>&2
     exit 1
 }
@@ -82,6 +83,7 @@ EMPREL="WC"
 DISP_THR="0.05" # Horizontal displacements below DISP_THR meters will be faded
 HDEF_BIN_DIR=""
 OFILE="surf_disp"
+CLEAN="Y"
 while [ "$1" != "" ]
 do
     case $1 in
@@ -99,6 +101,7 @@ do
         -emprel) shift;EMPREL="$1";;
         -hdefbin) shift;HDEF_BIN_DIR="$1";;
         -o) shift;OFILE="$1" ;;
+        -noclean) CLEAN="N";;
         *) echo "surf_disp.sh: no option \"$1\"" 1>&2; usage;;
     esac
     shift
@@ -167,15 +170,20 @@ fi
 ###############################################################################
 function cleanup () {
     rm -f polar_mwh.cpt
+    rm -f vert.cpt
     rm -f vert_scale_max.awk
     rm -f vert_scale_lbl.awk
     rm -f vect_label.awk
     rm -f vect_scale.awk
-    rm -f vert.grd slip.grd
+    rm -f vert.grd
+    rm -f slip.grd
     rm -f gmt.*
     rm -f *.tmp
 }
-trap "cleanup" 0 1 2 3 8 9
+if [ "$CLEAN" == "Y" ]
+then
+    trap "cleanup" 0 1 2 3 8 9
+fi
 
 
 ###############################################################################
@@ -428,8 +436,9 @@ DT=`echo $T | awk -f vert_scale_lbl.awk`
 #	PLOT RESULTS
 #####
 gmt set PS_MEDIA 8.5ix11i
+
 PORTRAIT=`echo $X $Y | awk '{if($1<$2){print "-P"}}'`
-PROJ="-JM5i $PORTRAIT"
+PROJ="-JM5i -P"
 LIMS="-R$W/$E/$S/$N"
 
 # Colored grid of vertical displacements plotted under horizontal displacement vectors
@@ -499,8 +508,7 @@ then
     gmt psxy clip.tmp $PROJ $LIMS -W1p,205/205/205 -K -O -t40 >> $PSFILE || \
         { echo "surf_disp.sh: psxy error" 1>&2; exit 1; }
     rm junk
-else
-    echo
+# else
     # awk '{print $1,$2,$4,$5,$6}' rect.out |\
     #     gmt psxy $PROJ $LIMS -SJ -W1p,205/205/205 -K -O -t40 >> $PSFILE
 fi
@@ -531,7 +539,8 @@ then
 
     # Scale vectors differently depending on maximum horizontal displacement
     MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.tmp |\
-         awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{print $1}'`
+         awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{printf("%.3f"),$1}'`
+    echo "Maximum horizontal displacement: $MAX m"
     if [ -z $DISP_LBL ]
     then
         DISP_LBL=`echo $MAX | awk -f vect_label.awk`
@@ -675,11 +684,4 @@ echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE || \
 #####
 #	CLEAN UP
 #####
-ps2pdf $PSFILE
-#psconvert $PSFILE -Tf
-rm *.awk
-rm *.cpt
-rm gmt.*
-rm *.tmp
-rm *.grd
-rm $PSFILE
+gmt psconvert $PSFILE -Tf
