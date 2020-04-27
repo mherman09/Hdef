@@ -12,6 +12,8 @@ character(len=512) :: clip_file
 character(len=16) :: clip_type
 character(len=512) :: epi_file
 
+character(len=512) :: flt_file
+
 logical :: isOutputDefined
 
 end module
@@ -36,6 +38,7 @@ use ff2gmt, only: input_file, &
                   clip_file, &
                   clip_type, &
                   epi_file, &
+                  flt_file, &
                   isOutputDefined
 
 implicit none
@@ -70,7 +73,7 @@ if (ffm_type.eq.'usgs_param') then
 elseif (ffm_type.eq.'srcmod_fsp') then
     call read_srcmod_fsp(input_file,ff,ierr)
 else
-    call usage('ff2gmt: no ffm_type named '//trim(ffm_type))
+    call usage('ff2gmt: cannot read ffm_type named '//trim(ffm_type))
 endif
 
 if (ierr.ne.0) then
@@ -102,6 +105,9 @@ endif
 if (clip_file.ne.'') then
     open(unit=41,file=clip_file,status='unknown')
 endif
+if (flt_file.ne.'') then
+    open(unit=51,file=flt_file,status='unknown')
+endif
 
 
 ! Write FFM data to files
@@ -129,6 +135,9 @@ do i = 1,ff%nflt
     endif
     if (area_file.ne.'') then
         write(24,*) len*wid,len,wid
+    endif
+    if (flt_file.ne.'') then
+        write(51,*) evlo,evla,evdp,str,dip,rak,slip,wid,len
     endif
 enddo
 
@@ -177,6 +186,7 @@ close(23)
 close(24)
 close(31)
 close(41)
+close(51)
 
 end
 
@@ -193,6 +203,7 @@ use ff2gmt, only: input_file, &
                   clip_file, &
                   clip_type, &
                   epi_file, &
+                  flt_file, &
                   isOutputDefined
 
 implicit none
@@ -210,6 +221,7 @@ depth_file = ''
 area_file = ''
 clip_file = ''
 epi_file = ''
+flt_file = ''
 isOutputDefined = .false.
 
 ! Number of arguments
@@ -265,6 +277,11 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,epi_file)
 
+    elseif (tag.eq.'-flt') then
+        isOutputDefined = .true.
+        i = i + 1
+        call get_command_argument(i,flt_file)
+
     else
         call usage('ff2gmt: no command line option '//trim(tag))
     endif
@@ -303,6 +320,7 @@ write(stderr,*) '-clip CLIPFILE     Write outline of FFM to file'
 write(stderr,*) '-clipseg CLIPFILE  Write outline of each segment of FFM to file'
 write(stderr,*) '-epi EPIFILE       Write epicenter to file'
 write(stderr,*) '-area AREAFILE     Sub-fault area, length, and width'
+write(stderr,*) '-flt FLTFILE       Output for use with o92util -flt option'
 write(stderr,*)
 
 stop
