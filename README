@@ -43,19 +43,19 @@ Programs in Hdef:
 
 COMPILED
 	anneal_post            post-process an annealing run from fltinv
-	clip                   clip an x-y dataset
+	clip                   determine whether x-y points are inside a polygon
 	colortool              generate perceptually linear color maps
 	dateutil               convert from/to dates and number of days
-	distaz2lola            compute coordinates from distance/azimuth from a point
-	ff2gmt                 convert finite fault parameters to GMT format
-	fitutil                least-squares fit to a dataset
-	fltinv                 inversion of geodetic data for fault slip
-	grid                   generate evenly spaced values
-	interpolate            interpolate between input points
+	distaz2lola            compute coordinates given distance/azimuth from a geographic point
+	ff2gmt                 convert finite fault parameters to GMT-usable format
+	fitutil                fit a set of x-y points using least-squares
+	fltinv                 invert geodetic data for fault slip
+	grid                   generate evenly spaced Cartesian and geographic points
+	interpolate            interpolate between x-y points
 	lola2distaz            compute distance/azimuth between coordinate pairs
-	mtutil                 convert between seismic source parameterizations
-	numint                 numerical integration
-	o92util                compute displacement, stress, strain from fault source
+	mtutil                 convert between seismic source characteristics
+	numint                 integrate input function numerically
+	o92util                compute displacement, stress, strain from rectangular fault source
 	perspective            project 3-D object in perspective view
 	platemotion            compute velocity for plate pair or Euler pole
 	rangen                 generate random numbers
@@ -63,18 +63,18 @@ COMPILED
 	readkik                read strong motion in KiK-net format
 	sphfinrot              make finite rotation on sphere
 	stereo_project         compute forward and inverse stereographic projections
-	tri_tool               manipulate triangular mesh
-	triutil                deformation produced by triangular dislocations
-	vec2los                project vector onto line of sight
-	wraplos                wrap input value onto rotations around frequency
+	tri_tool               manipulate triangular meshes
+	triutil                compute displacement, stress, strain from triangular fault source
+	vec2los                project displacement vector onto line of sight
+	wraplos                wrap LOS displacement given observation frequency
 
 BASH SCRIPTS
-	coul_dip.sh            plot Coulomb stress changes on a dipping plane
-	coul_hor.sh            plot Coulomb stress changes on a horizontal plane
+	coul_dip.sh            plot Coulomb stress changes on a dipping plane (map view)
+	coul_hor.sh            plot Coulomb stress changes on a horizontal plane (map view)
 	coul_xsec.sh           plot Coulomb stress changes on a vertical cross-section
 	gmtcpt.sh              make GMT color palette from (nice) existing color maps
-	simplify_ffm.sh        remove slip less than threshold value from FFM
-	surf_disp.sh           plot surface displacements
+	simplify_ffm.sh        remove slip less than threshold value from FFM (pretty outdated...)
+	surf_disp.sh           plot surface displacements (map view)
 	ternary.sh             plot earthquakes on ternary discriminant diagram
 	trg_schem.sh           plot target fault kinematics
 
@@ -87,7 +87,7 @@ INCOMPLETE OR OUTDATED
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Libraries used in Hdef:
+Libraries in Hdef:
 
 	algebra_module.f90
 	annealing_module.f90

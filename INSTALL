@@ -6,8 +6,7 @@ PREREQUISITES
 	- Gfortran can be installed with most package managers (Fink, Homebrew, MacPorts, APT, etc.).
 	- You can also find gfortran at https://gcc.gnu.org/wiki/GFortran.
 - C compiler
-	- A C compiler is required for the testing suite only. I use gcc, and in many (most?) cases, gcc
-      comes with gfortran.
+	- A C compiler is now required! I use gcc, and in many (most?) cases, gcc comes with gfortran.
 - LAPACK
 	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions).
 	- The LAPACK 3.7.1 source code is included in the ext/ directory, per the LAPACK user license.
@@ -28,27 +27,41 @@ PREREQUISITES
 COMPILING HDEF DIRECTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 I did not think too hard about other users installing the software, so this process is a little
-haphazard. Sorry. THERE IS NO LONGER A CONFIGURATION SCRIPT! You now have to edit the Makefile
-directly. You will need to check the following variables for your system:
+haphazard. Sorry.
 
-	- CC: path to gcc
-	- FC: path to gfortran
+NOTE: THERE IS NO LONGER A CONFIGURATION SCRIPT! You now have to edit the Makefile directly!
+
+1. Copy Makefile.tmpl to Makefile.
+
+2. In the Makefile, you will need to check the following variables for your system (these are all
+   at the top of the Makefile, within the first ~40 lines):
+
+	- CC: (path to) gcc
+	- FC: (path to) gfortran
+	- FWARN: gfortran warning flags
 	- FOPT: gfortran optimization flags
+	- BIN_DIR: location to put compiled executables
 	- INCLUDE_DIR: location to place and use .o and .mod files
-	- BIN: location to put compiled executables
-	- LAPACK_LIB_DIR: path to LAPACK libraries
+	- LAPACK_LIB_DIR: path to LAPACK libraries (if using)
 	- LAPACK_LIB: names of static LAPACK libraries; check the LAPACK_LIB_DIR to see the specific
-      names of the libraries: (ref)lapack, (ref)blas
+      names of the libraries: (ref)lapack, (ref)blas (if using)
 	- CPP_LAPACK: compiler pre-processor for LAPACK; must be set to -DUSE_LAPACK to compile codes
       with LAPACK
 
-Once you have set up these variables in the Makefile, type:
+3. Once you have set up these variables in the Makefile for your system, type:
 
-make
+   make
 
-Unit tests of the modules and numerical tests of the executables are run with:
+   to compile the Hdef executables. If all goes well, these will be available in the BIN_DIR you
+   specified in the Makefile.
 
-make test
+4. Unit tests of the Hdef modules and numerical tests of the executables are run with:
+
+   make test
+
+   These *should* be set up to work correctly on all systems, i.e., if the codes are compiled and
+   installed correctly, the tests should complete with no errors. However, the tests are still a bit
+   of a work in progress. So please report testing issues to me if you run into them!
 
 
 QUESTIONS, COMMENTS, OR CONCERNS?
