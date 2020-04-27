@@ -11,7 +11,7 @@ o92util \- compute fault-generated deformation in an elastic half-space
 .BI [-empirical " empirical_relation" ]
 .BI -sta " station_file"
 .B |
-.BI -autosta " depth number"
+.BI -auto " depth number"
 .BI -trg " target_file"
 .BI [-haf " halfspace_file" ]
 .BI -disp|-strain|-stress|-estress|-shear|-normal|-coul " defm_file"
@@ -90,12 +90,28 @@ The options are
 .IR A "llen and " H "ayes (2017)."
 
 .TP
+.BI -thr " thr"
+Set all faults with
+.IR slip_magnitude < slip_threshold
+to have
+.IR slip_magnitude =0.
+If
+.I thr
+is positive, then
+.IR slip_threshold = thr "*max(" slip_magnitude ).
+If
+.I thr
+is negative, then
+.IR slip_threshold "=abs(" thr ).
+
+
+.TP
 .BI -sta " station_file"
 Locations to compute deformation:
 .I stlo stla stdp(km)
 
 .TP
-.BI -autosta " depth number"
+.BI -auto " depth number"
 Automatically generate a horizontal grid of points to calculate deformation on.
 The
 .I depth

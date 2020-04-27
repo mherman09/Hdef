@@ -151,6 +151,7 @@ use o92util, only: ffm_file, &
                    flt_file, &
                    isFaultFileDefined, &
                    empirical_relation, &
+                   slip_threshold, &
                    shearmod, &
                    coord_type, &
                    nfaults, &
@@ -286,6 +287,21 @@ if (mag_file.ne.''.and.mag_data%nflt.gt.0) then
     faults(nfaults+1:nfaults+mag_data%nflt,:) = mag_data%subflt
     nfaults = nfaults + mag_data%nflt
 endif
+
+
+! Set fault segments with low slip magnitude to zero
+if (slip_threshold.lt.0.0d0) then
+    ! Any fault with slip less than abs(slip_threshold) is set to zero
+    slip_threshold = abs(slip_threshold)
+elseif (slip_threshold.gt.0.0d0) then
+    ! Any fault with slip less than slip_threshold*max(slip) is set to zero
+    slip_threshold = slip_threshold*maxval(faults(:,7))
+endif
+do i = 1,nfaults
+    if (abs(faults(i,7)).lt.slip_threshold) then
+        faults(i,7) = 0.0d0
+    endif
+enddo
 
 
 ! Check coordinates
@@ -549,7 +565,7 @@ use earth, only: radius_earth_m
 use elast, only: strain2stress, stress2traction, max_shear_stress, traction_components
 use eq, only: sdr2sv
 use geom, only: lola2distaz, strdip2normal
-use okada92, only: o92_pt_disp, o92_rect_disp, o92_pt_strain, o92_rect_strain
+use okada92, only: o92_pt_disp, o92_rect_disp, o92_pt_strain, o92_rect_strain, depthWarning
 
 use o92util, only: iWantDisp, &
                    iWantStrain, &
@@ -643,6 +659,9 @@ endif
 ! Distance to trigger coordinate type warning
 warn_dist = 100.0d0
 coordTypeWarning = .false.
+
+! Negative depth warning message flag
+depthWarning = .false.
 
 ! Calculate the requested quantities at each station
 do iSta = 1,nstations
@@ -1305,7 +1324,7 @@ if (verbosity.eq.3) then
     write(stdout,*) 'isFaultFileDefined:       ',isFaultFileDefined
     write(stdout,*) 'fault_type:               ',trim(fault_type)
     write(stdout,*) 'empirical_relation:       ',trim(empirical_relation)
-    ! write(stdout,*) 'slip_threshold:           ',slip_threshold
+    write(stdout,*) 'slip_threshold:           ',slip_threshold
     write(stdout,*) 'station_file:             ',trim(station_file)
     write(stdout,*) 'isStationFileDefined:     ',isStationFileDefined
     write(stdout,*) 'auto_depth:               ',auto_depth
@@ -1393,7 +1412,7 @@ if (info.eq.'all'.or.info.eq.'input') then
     write(stderr,*) '-tns TNSFILE         Tensile source file (IN DEVELOPMENT)'
     write(stderr,*) '-fn|-pt              Treat faults as finite rectangular (default) or point'
     write(stderr,*) '-empirical OPT       Empirical scaling relation'
-    ! write(stderr,*) '-thr THR             Minimum slip threshold'
+    write(stderr,*) '-thr THR             Set low slip to zero'
     write(stderr,*)
 endif
 if (info.eq.'all'.or.info.eq.'station') then
