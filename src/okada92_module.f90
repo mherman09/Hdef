@@ -42,6 +42,9 @@ double precision :: chinnery_factor(2,2)=reshape((/1.0d0,-1.0d0,-1.0d0,1.0d0/),(
 ! Singular flag
 logical :: isSingular
 
+! Warning message flags
+logical :: depthWarning
+
 ! Private variables and routines are only public for unit testing
 #ifdef UNIT_TEST
   public :: a, CA1, CA2, CB, CC
@@ -199,7 +202,11 @@ disp = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(stderr,*) 'o92_pt_disp: station depth less than zero, setting displacement to zero'
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_pt_disp: station depth less than zero; setting strain to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
     return
 endif
 
@@ -305,7 +312,11 @@ strain = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(stderr,*) 'o92_pt_strain: station depth less than zero; setting strain to zero'
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_pt_strain: station depth less than zero; setting strain to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
     return
 endif
 
@@ -1076,7 +1087,11 @@ disp = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(stderr,*) 'o92_rect_disp: station depth less than zero; setting displacement to zero'
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_rect_disp: station depth less than zero; setting strain to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
     return
 endif
 
@@ -1212,7 +1227,11 @@ strain = 0.0d0
 
 ! If station is above surface, exit with warning
 if (sta_coord(3).lt.0.0d0) then
-    write(stderr,*) 'o92_rect_strain: station depth less than zero; setting strain to zero'
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_rect_strain: station depth less than zero; setting strain to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
     return
 endif
 
