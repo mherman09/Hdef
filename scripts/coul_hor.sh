@@ -22,6 +22,7 @@ function usage() {
     echo "-trg S/D/R          Target fault strike/dip/rake" 1>&2
     echo "-fric FRIC          Effective fault friction (default: 0.4)" 1>&2
     echo "-dep DEP            Target fault depth" 1>&2
+    echo "-slipthr THR        FFM slip threshold (fraction of max)" 1>&2
     echo "-n NN               Number of stress contour grid points (default: 100/dimension)" 1>&2
     echo "-seg                Plot segmented finite faults" 1>&2
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
@@ -82,6 +83,7 @@ do
               TRAK=`echo $1 | awk -F"/" '{print $3}'`;;
         -fric) shift; FRIC=$1;;
         -dep) shift; Z=$1;;
+        -slipthr) shift; THR=$1;;
         -seg) SEG="1" ;;
         -n) shift;NN=$1;NN=$(echo $NN | awk '{printf("%d"),$1}');;
         -emprel) shift;EMPREL="$1";;
@@ -210,7 +212,7 @@ $BIN_DIR/colortool -hue 100,10 -chroma 100,30 -lightness 100,50 -gmt -T0/1e6/1e5
 
 
 #####
-#	INPUT FILES FOR DISPLACEMENT CALCULATION
+#	INPUT FILES FOR STRESS CALCULATION
 #####
 # Copy source file to temporary file
 cp $SRC_FILE ./source.tmp || { echo "coul_hor.sh: error copying EQ source file" 1>&2; exit 1; }
@@ -297,7 +299,7 @@ else
 fi
 echo $TSTR $TDIP $TRAK $FRIC > trg.tmp
 
-# Calculate target strike/dip/rake from FFM if needed
+# Calculate target depth from FFM if needed
 if [ "$Z" != "" ]
 then
     echo "Using target depth from command line: dep=$Z"
@@ -408,19 +410,19 @@ ${BIN_DIR}/grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.tmp
 #####
 if [ $SRC_TYPE == "FFM" ]
 then
-    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -prog || \
+    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
         { echo "coul_hor.sh: error running o92util with FFM source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FSP" ]
 then
-    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -prog || \
+    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
         { echo "coul_hor.sh: error running o92util with FSP source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "MT" ]
 then
-    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -prog -empirical ${EMPREL} || \
+    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog -empirical ${EMPREL} || \
         { echo "coul_hor.sh: error running o92util with MT source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FLT" ]
 then
-    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -prog || \
+    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
         { echo "coul_hor.sh: error running o92util with FLT source" 1>&2; exit 1; }
 else
     echo "coul_hor.sh: no source type named $SRC_TYPE" 1>&2
