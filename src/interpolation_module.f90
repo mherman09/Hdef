@@ -122,7 +122,7 @@ y = a*ya(klo) + b*ya(khi) + &
 dy = (ya(khi)-ya(klo))/(xa(khi)-xa(klo)) - &
      (3.0d0*a**2-1.0d0)*(xa(khi)-xa(klo))*y2a(klo)/6.0d0 + &
      (3.0d0*b**2-1.0d0)*(xa(khi)-xa(klo))*y2a(khi)/6.0d0
-d2y = a*ya(klo) + b*ya(khi)
+d2y = a*y2a(klo) + b*y2a(khi)
 
 return
 end subroutine
