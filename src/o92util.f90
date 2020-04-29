@@ -28,8 +28,9 @@ double precision :: slip_threshold                ! minimum slip to calculate (N
 character(len=512) :: station_file                ! station locations
 logical :: isStationFileDefined                   ! station location tag
 double precision :: auto_depth                    ! depth of automatically generated station grid
+double precision :: auto_az                       ! depth of automatically generated station grid
 integer :: auto_n                                 ! number of automatically generated stations (1d)
-logical :: autoStations                           ! automatic station tag
+character(len=1) :: auto_mode                     ! automatic station mode
 character(len=512) :: target_file                 ! target/receiver fault geometry
 logical :: isTargetFileDefined                    ! target fault tag
 
@@ -65,6 +66,7 @@ double precision, allocatable :: faults(:,:)      ! Fault parameter array
 double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
+double precision :: centroid(3)
 
 end module
 
@@ -75,13 +77,13 @@ program main
 use o92util, only: isFaultFileDefined, &
                    isTensileFileDefined, &
                    isOutputFileDefined, &
-                   autoStations
+                   auto_mode
 
 implicit none
 
 call gcmdln()
 if (.not.isOutputFileDefined) then
-    call usage('o92util: no output defined')
+    call usage('o92util: no output defined (usage:output)')
 endif
 
 call read_halfspace()
@@ -94,7 +96,7 @@ call read_faults()
 call read_tensile()
 
 
-if (autoStations) then
+if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call auto_stations()
 endif
 
@@ -102,7 +104,7 @@ call read_stations()
 call read_targets()
 call calc_deformation()
 
-if (autoStations) then
+if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call update_auto_stations()
     call calc_deformation()
 endif
@@ -890,14 +892,19 @@ end subroutine
 
 subroutine auto_stations()
 
+use io, only: stdout
 use earth, only: radius_earth_km
 use geom, only: distaz2lola
+use trig, only: r2d
 
 use o92util, only: station_file, &
                    coord_type, &
                    nfaults, &
                    faults, &
+                   centroid, &
                    auto_depth, &
+                   auto_az, &
+                   auto_mode, &
                    displacement_file, &
                    disp_file_save, &
                    iWantDisp
@@ -906,7 +913,7 @@ implicit none
 
 ! Local variables
 integer :: i, ierr
-double precision :: centroid(3), moment, lon, lat, x, y, dx, dy
+double precision :: moment, lon, lat, x, y, dx, dy
 
 if (station_file.ne.'o92_autosta_86_this_when_finished') then
     return
@@ -924,46 +931,100 @@ do i = 1,nfaults
     moment = moment + faults(i,7)*faults(i,8)*faults(i,9)
 enddo
 centroid = centroid/moment
+write(stdout,1001) centroid(1),centroid(2),centroid(3)/1.0d3
+1001 format('auto_stations: centroid(lon,lat,dep(km)): ',2(F10.3),F9.2)
 
 
-! Get points 500 km north, south, east, and west of centroid
-if (coord_type.eq.'geographic') then
-    dx = -500.0d0
-    do while (dx.le.500.0d0)
-        call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,90.0d0,lon,lat, &
-                         'radians','degrees',ierr)
-        if (ierr.ne.0) then
-            call usage('auto_stations: error computing longitude and latitude')
-        endif
-        write(81,*) lon,lat,auto_depth
-        dx = dx + 1.0d0
-    enddo
+if (auto_mode.eq.'h') then
+
+    ! Automatic horizontal grid
+
+    ! Sample along transects extending 500 km north, south, east, and west of centroid
+    if (coord_type.eq.'geographic') then
+        ! West-east
+        dx = -500.0d0
+        do while (dx.le.500.0d0)
+            call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,90.0d0,lon,lat, &
+                             'radians','degrees',ierr)
+            if (ierr.ne.0) then
+                call usage('auto_stations: error computing longitude and latitude')
+            endif
+            write(81,*) lon,lat,auto_depth
+            dx = dx + 1.0d0
+        enddo
+
+        ! South-north
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,0.0d0,lon,lat, &
+                             'radians','degrees',ierr)
+            write(81,*) lon,lat,auto_depth
+            if (ierr.ne.0) then
+                call usage('auto_stations: error computing longitude and latitude')
+            endif
+            dy = dy + 1.0d0
+        enddo
+
+    elseif (coord_type.eq.'cartesian') then
+        ! Left-right (west-east)
+        dx = -500.0d0
+        do while (dx.le.500.0d0)
+            x = centroid(1) + dx
+            write(81,*) x,centroid(2),auto_depth
+            dx = dx + 1.0d0
+        enddo
+
+        ! Bottom-top (south-north)
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            y = centroid(2) + dy
+            write(81,*) centroid(1),y,auto_depth
+            dy = dy + 1.0d0
+        enddo
+
+    endif
+
+
+elseif (auto_mode.eq.'v') then
+
+    ! Automatic vertical grid
+
+    ! Sample along transects extending 500 km positive/negative azimuth, up/down of centroid
+    if (coord_type.eq.'geographic') then
+        ! Along azimuth
+        dx = -500.0d0
+        do while (dx.le.500.0d0)
+            call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,auto_az,lon,lat, &
+                             'radians','degrees',ierr)
+            if (ierr.ne.0) then
+                call usage('auto_stations: error computing longitude and latitude')
+            endif
+            write(81,*) lon,lat,centroid(3)/1.0d3
+            dx = dx + 1.0d0
+        enddo
+    elseif (coord_type.eq.'cartesian') then
+        ! Along azimuth
+        dx = -500.0d0
+        do while (dx.le.500.0d0)
+            x = centroid(1) + dx*sin(auto_az*r2d)
+            y = centroid(2) + dx*cos(auto_az*r2d)
+            write(81,*) x,y,centroid(3)/1.0d3
+            dx = dx + 1.0d0
+        enddo
+    endif
+
+    ! Vertical
     dy = -500.0d0
     do while (dy.le.500.0d0)
-        call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,0.0d0,lon,lat, &
-                         'radians','degrees',ierr)
-        write(81,*) lon,lat,auto_depth
-        if (ierr.ne.0) then
-            call usage('auto_stations: error computing longitude and latitude')
-        endif
+        y = centroid(3)/1.0d3 + dy
         dy = dy + 1.0d0
+        write(81,*) centroid(1),centroid(2),y
     enddo
 
-elseif (coord_type.eq.'cartesian') then
-    dx = -500.0d0
-    do while (dx.le.500.0d0)
-        x = centroid(1) + dx
-        write(81,*) x,centroid(2),auto_depth
-        dx = dx + 1.0d0
-    enddo
-    dy = -500.0d0
-    do while (dy.le.500.0d0)
-        y = centroid(2) + dy
-        write(81,*) centroid(1),y,auto_depth
-        dy = dy + 1.0d0
-    enddo
-
+else
+    call usage('auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
 endif
+
 
 close(81)
 
@@ -979,19 +1040,28 @@ end subroutine
 
 subroutine update_auto_stations()
 
-use o92util, only: displacement_file, &
+use earth, only: radius_earth_km
+use geom, only: distaz2lola
+use trig, only: d2r
+
+use o92util, only: coord_type, &
+                   displacement_file, &
                    disp_file_save, &
                    station_file, &
                    nstations, &
                    stations, &
+                   centroid, &
                    auto_n, &
-                   auto_depth
+                   auto_depth, &
+                   auto_az, &
+                   auto_mode
 
 implicit none
 
 ! Local variables
-integer :: i, j
-double precision :: disp(2002,6), xmin, xmax, ymin, ymax
+integer :: i, j, ierr
+double precision :: disp(2002,6), disp_mag, xmin, xmax, ymin, ymax
+double precision :: d, lon, lat
 
 
 if (station_file.ne.'o92_autosta_86_this_when_finished') then
@@ -1001,45 +1071,77 @@ else
     open(unit=82,file=displacement_file,status='old')
 endif
 
-! Read the displacements
+! Read the displacements that were calculated from the stations defined in auto_stations()
 do i = 1,2002
     read(82,*) (disp(i,j),j=1,6)
 enddo
 
 
-xmin = disp(1,1)
-xmax = disp(1001,1)
+! Working backwards from transects, determine when displacements exceed a threshold value and treat
+! that value as the new station grid boundary
+! TODO: CHANGE THRESHOLD FROM HARD-CODED TO VARIABLE
+if (auto_mode.eq.'h') then
+    xmin = disp(1,1)
+    xmax = disp(1001,1)
+elseif (auto_mode.eq.'v') then
+    xmin = -500.0d0
+    xmax = 500.0d0
+else
+    xmin = -1d10
+    xmax = 1d10
+    call usage('update_auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
+endif
 ymin = disp(1002,2)
 ymax = disp(2002,2)
 
 ! Find xmin
 do i = 1,501
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
-        xmin = disp(i,1)
+    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    if (disp_mag.ge.0.001d0) then
+        if (auto_mode.eq.'h') then
+            xmin = disp(i,1)        ! x-coordinate
+        elseif (auto_mode.eq.'v') then
+            xmin = -501.0d0+dble(i) ! distance along transect
+        endif
         exit
     endif
 enddo
 
 ! Find xmax
 do i = 1001,501,-1
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
-        xmax = disp(i,1)
+    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    if (disp_mag.ge.0.001d0) then
+        if (auto_mode.eq.'h') then
+            xmax = disp(i,1)        ! x-coordinate
+        elseif (auto_mode.eq.'v') then
+            xmax = -501.0d0+dble(i) ! distance along transect
+        endif
         exit
     endif
 enddo
 
 ! Find ymin
 do i = 1002,1502
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
-        ymin = disp(i,2)
+    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    if (disp_mag.ge.0.001d0) then
+        if (auto_mode.eq.'h') then
+            ymin = disp(i,2)
+        elseif (auto_mode.eq.'v') then
+            ymin = disp(i,3)
+        endif
         exit
     endif
 enddo
 
 ! Find ymax
 do i = 2002,1502,-1
-    if (sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2).ge.0.001d0) then
-        ymax = disp(i,2)
+    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    if (disp_mag.ge.0.001d0) then
+        if (auto_mode.eq.'h') then
+            ymax = disp(i,2)
+        elseif (auto_mode.eq.'v') then
+            ymax = disp(i,3)
+        endif
         exit
     endif
 enddo
@@ -1051,13 +1153,40 @@ close(82,status='delete')
 deallocate(stations)
 nstations = auto_n*auto_n
 allocate(stations(nstations,3))
-do i = 1,auto_n
-    do j = 1,auto_n
-        stations((i-1)*auto_n+j,1) = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
-        stations((i-1)*auto_n+j,2) = ymin + dble(j-1)*(ymax-ymin)/dble(auto_n-1)
-        stations((i-1)*auto_n+j,3) = auto_depth
+
+if (auto_mode.eq.'h') then
+    do i = 1,auto_n
+        do j = 1,auto_n
+            stations((i-1)*auto_n+j,1) = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
+            stations((i-1)*auto_n+j,2) = ymin + dble(j-1)*(ymax-ymin)/dble(auto_n-1)
+            stations((i-1)*auto_n+j,3) = auto_depth
+        enddo
     enddo
-enddo
+elseif (auto_mode.eq.'v') then
+    if (ymin.lt.2d3) then
+        ymin = 0.0d0
+    endif
+    do i = 1,auto_n
+        do j = 1,auto_n
+            d = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
+            if (coord_type.eq.'geographic') then
+                call distaz2lola(centroid(1),centroid(2),d/radius_earth_km,auto_az,lon,lat, &
+                                 'radians','degrees',ierr)
+            elseif (coord_type.eq.'cartesian') then
+                lon = centroid(1) + d*sin(auto_az*d2r)
+                lat = centroid(2) + d*cos(auto_az*d2r)
+            else
+                call usage('update_auto_stations: no coord_type named '//trim(coord_type)//'')
+            endif
+            stations((i-1)*auto_n+j,1) = lon
+            stations((i-1)*auto_n+j,2) = lat
+            stations((i-1)*auto_n+j,3) = ymin + dble(j-1)*(ymax-ymin)/dble(auto_n-1)
+        enddo
+    enddo
+else
+    call usage('update_auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
+endif
+
 
 displacement_file = disp_file_save
 
@@ -1069,7 +1198,7 @@ end subroutine
 
 subroutine gcmdln()
 
-use io, only: stdout, verbosity
+use io, only: stdout, stderr, verbosity
 use o92util, only: ffm_file, &
                    fsp_file, &
                    mag_file, &
@@ -1083,8 +1212,9 @@ use o92util, only: ffm_file, &
                    station_file, &
                    isStationFileDefined, &
                    auto_depth, &
+                   auto_az, &
                    auto_n, &
-                   autoStations, &
+                   auto_mode, &
                    target_file, &
                    isTargetFileDefined, &
                    halfspace_file, &
@@ -1127,8 +1257,9 @@ slip_threshold = 0.0d0
 
 station_file = ''
 isStationFileDefined = .false.
-autoStations = .false.
+auto_mode = ''
 auto_depth = 0.0d0
+auto_az = 0.0d0
 auto_n = 10
 target_file = ''
 isTargetFileDefined = .false.
@@ -1218,10 +1349,23 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-auto') then
         station_file = 'o92_autosta_86_this_when_finished'
         isStationFileDefined = .true.
-        autoStations = .true.
         i = i + 1
+        call get_command_argument(i,auto_mode)
+        if (auto_mode.ne.'h'.and.auto_mode.ne.'v') then
+            write(stderr,*) 'o92util: WARNING: you may be using deprecated "-auto" flag syntax'
+            write(stderr,*) 'The auto_mode should be specified with "h" or "v"'
+            write(stderr,*) 'Using "h"(orizontal) mode'
+            ! call usage('o92util: auto station mode requires "-auto h" or "-auto v" (usage:station)')
+            auto_mode = 'h'
+        else
+            i = i + 1
+        endif
         call get_command_argument(i,tag)
-        read(tag,*) auto_depth
+        if (auto_mode.eq.'h') then
+            read(tag,*) auto_depth
+        elseif (auto_mode.eq.'v') then
+            read(tag,*) auto_az
+        endif
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) auto_n
@@ -1328,6 +1472,7 @@ if (verbosity.eq.3) then
     write(stdout,*) 'station_file:             ',trim(station_file)
     write(stdout,*) 'isStationFileDefined:     ',isStationFileDefined
     write(stdout,*) 'auto_depth:               ',auto_depth
+    write(stdout,*) 'auto_az:                  ',auto_az
     write(stdout,*) 'auto_n:                   ',auto_n
     write(stdout,*) 'target_file:              ',trim(target_file)
     write(stdout,*) 'isTargetFileDefined:      ',isTargetFileDefined
@@ -1418,7 +1563,8 @@ endif
 if (info.eq.'all'.or.info.eq.'station') then
     write(stderr,*) 'Input target/receiver options'
     write(stderr,*) '-sta STAFILE         Station/receiver locations'
-    write(stderr,*) '-auto DEPTH N        Generate automatic location grid'
+    write(stderr,*) '-auto h DEPTH N      Generate horizontal location grid'
+    write(stderr,*) '-auto v AZ N         Generate vertical location grid (through centroid)'
     write(stderr,*) '-trg TRGFILE         Target/receiver geometry'
     write(stderr,*)
 endif
@@ -1444,6 +1590,7 @@ if (info.eq.'all'.or.info.eq.'misc') then
     write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
     write(stderr,*) '-prog                Turn on progress indicator'
     write(stderr,*) '-v LVL               Turn on verbose mode'
+    ! write(stderr,*) '-log LOGFILE         Write verbose program information to log file'
     write(stderr,*)
 endif
 if (info.ne.'all') then
