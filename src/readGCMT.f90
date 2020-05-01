@@ -96,7 +96,7 @@ luin = 11
 inquire(file=gcmt_file,exist=ex)
 if(.not.ex) then
     write(0,*) 'readGCMT: no GCMT file found named '//trim(gcmt_file)
-    stop
+    call error_exit(1)
 endif
 open(unit=luin,file=gcmt_file,status='old')
 
@@ -251,7 +251,7 @@ stf_type(i:i) = ''
 9992 if (ios.ne.0) then
     write(stderr,*) '                123456789 123456789 123456789 123456789 123456789'
     write(stderr,*) 'Offending line: ',trim(line(2))
-    stop
+    call error_exit(1)
 endif
 
 if (verbosity.ge.1) then
@@ -295,7 +295,7 @@ read(string(3),'(A)',iostat=ios,err=9993) timestamp
 
 9993 if (ios.ne.0) then
     write(stderr,*) 'Offending line: ',trim(line(3))
-    stop
+    call error_exit(1)
 endif
 
 if (verbosity.ge.1) then
@@ -361,7 +361,7 @@ read(string(4),*,iostat=ios,err=9995) (cmt_str(i), cmt_dip(i), cmt_rak(i), i=1,2
 
 9995 if (ios.ne.0) then
     write(stderr,*) 'Offending line: ',trim(line(5))
-    stop
+    call error_exit(1)
 endif
 
 if (verbosity.ge.1) then

@@ -1542,7 +1542,7 @@ if (str.ne.'') then
     if (info.eq.'none') then
         write(stderr,*) 'See o92util man page for details'
         write(stderr,*)
-        stop
+        call error_exit(1)
     endif
 endif
 

@@ -463,7 +463,8 @@ $(INCLUDE_DIR)/map.o: src/map_module.f90 \
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/random.o: src/random_module.f90 \
-                     $(INCLUDE_DIR_MARKER_FILE)
+                         $(INCLUDE_DIR)/error_exit.o \
+                         $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
 $(INCLUDE_DIR)/solver.o: src/solver_module.f90 \

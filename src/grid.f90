@@ -781,7 +781,7 @@ character(len=*) :: str
 
 if (str.ne.'') then
     if (trim(str).eq.'no_details') then
-        stop
+        call error_exit(1)
         write(stderr,*)
     endif
     write(stderr,*) trim(str)

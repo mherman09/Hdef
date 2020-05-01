@@ -535,7 +535,7 @@ function r4_uniform_01 ( seed )
     write ( *, '(a)' ) ' '
     write ( *, '(a)' ) 'R4_UNIFORM_01 - Fatal error!'
     write ( *, '(a)' ) '  Input value of SEED = 0.'
-    stop 1
+    call error_exit(1)
   end if
 
   k = seed / 127773
@@ -628,7 +628,7 @@ subroutine r4vec_uniform_01 ( n, seed, r )
     write ( *, '(a)' ) ' '
     write ( *, '(a)' ) 'R4VEC_UNIFORM_01 - Fatal error!'
     write ( *, '(a)' ) '  Input value of SEED = 0.'
-    stop 1
+    call error_exit(1)
   end if
 
   do i = 1, n
@@ -725,7 +725,7 @@ subroutine r4vec_normal_ab ( n, a, b, seed, x )
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R4VEC_NORMAL_AB - Fatal error!'
       write ( *, '(a)' ) '  R4_UNIFORM_01 returned a value of 0.'
-      stop 1
+      call error_exit(1)
     end if
 
     r(2) = r4_uniform_01 ( seed )
@@ -1208,7 +1208,7 @@ subroutine r8vec_normal_01 ( n, seed, x )
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R8VEC_NORMAL_01 - Fatal error!'
       write ( *, '(a)' ) '  R8_UNIFORM_01 returned a value of 0.'
-      stop 1
+      call error_exit(1)
     end if
 
     r(2) = r8_uniform_01 ( seed )
@@ -1335,7 +1335,7 @@ subroutine r8vec_normal_ab ( n, a, b, seed, x )
       write ( *, '(a)' ) ' '
       write ( *, '(a)' ) 'R8VEC_NORMAL_AB - Fatal error!'
       write ( *, '(a)' ) '  R8_UNIFORM_01 returned a value of 0.'
-      stop 1
+      call error_exit(1)
     end if
 
     r(2) = r8_uniform_01 ( seed )
