@@ -389,5 +389,5 @@ write(stderr,*) 'file name: write to file OUTPUT'
 write(stderr,*) 'blank: print to standard output'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

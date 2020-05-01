@@ -6,6 +6,7 @@ CC = gcc
 FC = gfortran
 
 # Fortran compiler warnings
+FWARN = -Wall -Wextra -Wunused -fbounds-check -fcheck=all -fbacktrace
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 # FWARN =
 
@@ -120,17 +121,20 @@ $(BIN_DIR)/anneal_post: src/anneal_post.f90 \
 clip: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/clip
 $(BIN_DIR)/clip: src/clip.f90 \
                  $(INCLUDE_DIR)/algebra.o \
+                 $(INCLUDE_DIR)/error_exit.o \
                  $(INCLUDE_DIR)/geom.o \
                  $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 colortool: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/colortool
-$(BIN_DIR)/colortool: src/colortool.f90
+$(BIN_DIR)/colortool: src/colortool.f90 \
+                      $(INCLUDE_DIR)/error_exit.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 dateutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/dateutil
 $(BIN_DIR)/dateutil: src/dateutil.f90 \
                      $(INCLUDE_DIR)/calendar.o \
+                     $(INCLUDE_DIR)/error_exit.o \
                      $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
@@ -138,6 +142,7 @@ distaz2lola: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/distaz2lola
 $(BIN_DIR)/distaz2lola: src/distaz2lola_prog.f90 \
                         $(INCLUDE_DIR)/algebra.o \
                         $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/geom.o \
                         $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -145,6 +150,7 @@ $(BIN_DIR)/distaz2lola: src/distaz2lola_prog.f90 \
 ff2gmt: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/ff2gmt
 $(BIN_DIR)/ff2gmt: src/ff2gmt.f90 \
                    $(INCLUDE_DIR)/algebra.o \
+                   $(INCLUDE_DIR)/error_exit.o \
                    $(INCLUDE_DIR)/ffm.o \
                    $(INCLUDE_DIR)/geom.o \
                    $(INCLUDE_DIR)/io.o \
@@ -154,6 +160,7 @@ $(BIN_DIR)/ff2gmt: src/ff2gmt.f90 \
 fitutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/fitutil
 $(BIN_DIR)/fitutil: src/fitutil.f90 \
                     $(INCLUDE_DIR)/io.o \
+                    $(INCLUDE_DIR)/error_exit.o \
                     $(INCLUDE_DIR)/solver.o \
                     $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
@@ -185,6 +192,7 @@ grid: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/grid
 $(BIN_DIR)/grid: src/grid.f90 \
                  $(INCLUDE_DIR)/algebra.o \
                  $(INCLUDE_DIR)/earth.o \
+                 $(INCLUDE_DIR)/error_exit.o \
                  $(INCLUDE_DIR)/geom.o \
                  $(INCLUDE_DIR)/io.o \
                  $(INCLUDE_DIR)/trig.o
@@ -192,6 +200,7 @@ $(BIN_DIR)/grid: src/grid.f90 \
 
 interpolate: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/interpolate
 $(BIN_DIR)/interpolate: src/interpolate.f90 \
+                        $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/interpolation.o \
                         $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -200,6 +209,7 @@ lola2distaz: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/lola2distaz
 $(BIN_DIR)/lola2distaz: src/lola2distaz_prog.f90 \
                         $(INCLUDE_DIR)/algebra.o \
                         $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/geom.o \
                         $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -207,6 +217,7 @@ $(BIN_DIR)/lola2distaz: src/lola2distaz_prog.f90 \
 mtutil: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/mtutil
 $(BIN_DIR)/mtutil: src/mtutil.f90 \
                    $(INCLUDE_DIR)/algebra.o \
+                   $(INCLUDE_DIR)/error_exit.o \
                    $(INCLUDE_DIR)/eq.o \
                    $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
@@ -232,6 +243,7 @@ $(BIN_DIR)/o92util: src/o92util.f90 \
 perspective: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/perspective
 $(BIN_DIR)/perspective: src/perspective_prog.f90 \
                         $(INCLUDE_DIR)/algebra.o \
+                        $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/geom.o \
                         $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -240,12 +252,14 @@ platemotion: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/platemotion
 $(BIN_DIR)/platemotion: src/platemotion.f90 \
                         $(INCLUDE_DIR)/algebra.o \
                         $(INCLUDE_DIR)/earth.o \
+                        $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/io.o \
                         $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 rangen: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/rangen
 $(BIN_DIR)/rangen: src/rangen.f90 \
+                   $(INCLUDE_DIR)/error_exit.o \
                    $(INCLUDE_DIR)/io.o \
                    $(INCLUDE_DIR)/random.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -256,6 +270,7 @@ $(BIN_DIR)/readGCMT: src/readGCMT.f90 \
                      $(INCLUDE_DIR)/calendar.o \
                      $(INCLUDE_DIR)/earth.o \
                      $(INCLUDE_DIR)/eq.o \
+                     $(INCLUDE_DIR)/error_exit.o \
                      $(INCLUDE_DIR)/geom.o \
                      $(INCLUDE_DIR)/io.o \
                      $(INCLUDE_DIR)/trig.o
@@ -269,6 +284,7 @@ sphfinrot: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/sphfinrot
 $(BIN_DIR)/sphfinrot: src/sphfinrot.f90 \
                       $(INCLUDE_DIR)/algebra.o \
                       $(INCLUDE_DIR)/earth.o \
+                      $(INCLUDE_DIR)/error_exit.o \
                       $(INCLUDE_DIR)/io.o \
                       $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -277,6 +293,7 @@ stereo_project: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/stereo_project
 $(BIN_DIR)/stereo_project: src/stereo_project.f90 \
                            $(INCLUDE_DIR)/algebra.o \
                            $(INCLUDE_DIR)/earth.o \
+                           $(INCLUDE_DIR)/error_exit.o \
                            $(INCLUDE_DIR)/io.o \
                            $(INCLUDE_DIR)/map.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
@@ -294,6 +311,7 @@ $(BIN_DIR)/triutil: src/triutil.f90 \
                     $(INCLUDE_DIR)/earth.o \
                     $(INCLUDE_DIR)/elast.o \
                     $(INCLUDE_DIR)/eq.o \
+                    $(INCLUDE_DIR)/error_exit.o \
                     $(INCLUDE_DIR)/geom.o \
                     $(INCLUDE_DIR)/io.o \
                     $(INCLUDE_DIR)/trig.o \
@@ -302,12 +320,14 @@ $(BIN_DIR)/triutil: src/triutil.f90 \
 
 vec2los: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/vec2los
 $(BIN_DIR)/vec2los: src/vec2los.f90 \
+                    $(INCLUDE_DIR)/error_exit.o \
                     $(INCLUDE_DIR)/io.o \
                     $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 
 wraplos: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/wraplos
 $(BIN_DIR)/wraplos: src/wraplos.f90 \
+                    $(INCLUDE_DIR)/error_exit.o \
                     $(INCLUDE_DIR)/io.o \
                     $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@

@@ -208,5 +208,5 @@ write(stderr,*) '-lon0 LON0      Center longitude of projection'
 write(stderr,*) '-lat0 LAT0      Center latitude of projection'
 write(stderr,*) '-radius R       Sphere radius'
 
-stop
+call error_exit(1)
 end subroutine

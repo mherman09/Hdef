@@ -883,5 +883,5 @@ write(stderr,*)
 write(stderr,*) 'See man page for details'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine usage

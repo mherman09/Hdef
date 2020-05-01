@@ -171,5 +171,5 @@ write(stderr,*) '-o OUTPUT_FILE           Output file: (xi,yi) (default: stdout)
 write(stderr,*) '-slope[1|2] SLOPE        Slope at first or last point'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

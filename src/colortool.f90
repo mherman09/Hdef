@@ -766,6 +766,6 @@ if (str.eq.'long') then
     write(0,*)
 endif
 write(0,*) '-d                        Detailed help'
-stop
+call error_exit(1)
 return
 end

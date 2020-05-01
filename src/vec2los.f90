@@ -237,5 +237,5 @@ write(stderr,*) '-f FILE       Input vector displacements (default: stdin) (lo l
 write(stderr,*) '-o FILE       Output LOS displacements (default: stdout) (lo la dp LOS)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

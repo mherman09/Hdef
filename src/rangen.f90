@@ -168,5 +168,5 @@ write(stderr,*) '-seed SEED            Random number seed'
 write(stderr,*) '-printseed FILE       Print output random number seed (to keep chain going)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

@@ -237,5 +237,5 @@ write(stderr,*) '  -pole PLON PLAT  Rotation pole location'
 write(stderr,*) '  -angle ANGLE     Rotation angle (counter-clockwise)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

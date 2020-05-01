@@ -642,5 +642,5 @@ write(stderr,*) '-mag mag_min mag_max                   Magnitude range'
 write(stderr,*) '-date date_beg date_end                Date range (format: YYYY-MM-DDTHH:MM:SS)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine usage

@@ -242,5 +242,5 @@ write(stderr,*) '-o OFILE               Output file: projected x y'
 
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

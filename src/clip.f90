@@ -235,5 +235,5 @@ write(stderr,*) '-on EPS           Keep points within EPS of boundary'
 write(stderr,*) '-NR               Print record of clipped lines'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

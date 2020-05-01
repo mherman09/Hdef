@@ -323,5 +323,5 @@ write(stderr,*) '-area AREAFILE     Sub-fault area, length, and width'
 write(stderr,*) '-flt FLTFILE       Output for use with o92util -flt option'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

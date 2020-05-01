@@ -211,5 +211,5 @@ write(stderr,*) '-c LON1 LAT1 DIST AZ   Compute LON2 LAT2 for a single DIST AZ'
 write(stderr,*) '-lon NEG|POS           Output longitude range: -180,180 or 0,360(default)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

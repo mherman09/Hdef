@@ -159,5 +159,5 @@ write(stderr,*) '-f FILE       Input LOS displacements (default: stdin) (lo la d
 write(stderr,*) '-o FILE       Output phase (default: stdout) (lo la dp phase(rad))'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

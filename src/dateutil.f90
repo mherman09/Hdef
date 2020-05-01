@@ -249,5 +249,6 @@ write(stderr,*) '    YYYY MM DD[ HH MM SS[ MMM]]'
 write(stderr,*) '    YYYYMMDD[HHMMSS[MMM]]'
 write(stderr,*) 'Use quotations when using second format to read spaces correctly'
 write(stderr,*)
-stop
+
+call error_exit(1)
 end subroutine

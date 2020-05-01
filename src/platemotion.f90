@@ -243,5 +243,5 @@ write(stderr,*) '-f IFILE           Input file (default: stdin)'
 write(stderr,*) '-o OFILE           Output file (default: stdout)'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

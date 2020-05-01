@@ -201,5 +201,5 @@ write(stderr,*) '-o OFILE               Output file: dist(km) az(deg CW from N)'
 write(stderr,*) '-c LON1 LAT1 LON2 LAT2 Compute DIST AZ for a single LON LAT pair'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine

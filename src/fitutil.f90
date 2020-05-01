@@ -453,5 +453,5 @@ write(stderr,*) '-label_coeff Y|N  Label output coefficients (default: Y)'
 write(stderr,*) '-pre PFILE        Predicted values at input x-coordinates'
 write(stderr,*)
 
-stop
+call error_exit(1)
 end subroutine
