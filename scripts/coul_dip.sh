@@ -12,10 +12,12 @@ function usage() {
     echo "Usage: coul_dip.sh SRC_TYPE SRC_FILE [...options...]" 1>&2
     echo 1>&2
     echo "Required arguments" 1>&2
-    echo "SRC_TYPE            Either MT (moment tensor) or FFM (finite fault model)"
+    echo "SRC_TYPE            MT, FLT, FFM, or FSP" 1>&2
     echo "SRC_FILE            Name of input fault file"
-    echo "                      MT:  evlo evla evdp str dip rak mag"
-    echo "                      FFM: finite fault model in subfault format"
+    echo "                      MT:  evlo evla evdp str dip rak mag" 1>&2
+    echo "                      FLT: evlo evla evdp str dip rak slip wid len" 1>&2
+    echo "                      FFM: finite fault model in USGS .param format" 1>&2
+    echo "                      FSP: finite fault model in SRCMOD FSP format" 1>&2
     echo 1>&2
     echo "Optional arguments (many of these defined automatically)" 1>&2
     echo "-Rw/e/s/n           Map limits" 1>&2
@@ -310,7 +312,7 @@ else
 fi
 echo $TSTR $TDIP $TRAK $FRIC > trg.tmp
 
-# Calculate target strike/dip/rake from FFM if needed
+# Calculate reference point from FFM if needed
 if [ "$Z0" != "" ]
 then
     echo "Using reference point from command line: lon=$LON0 lat=$LAT0 dep=$Z0"
@@ -349,19 +351,19 @@ then
     D="10"  # Large initial increment, to get map limits without taking much time
     if [ $SRC_TYPE == "FFM" ]
     then
-        ${BIN_DIR}/o92util -ffm source.tmp -auto $Z0 $D -haf haf.tmp -disp disp.tmp || \
+        ${BIN_DIR}/o92util -ffm source.tmp -auto h $Z0 $D -haf haf.tmp -disp disp.tmp || \
             { echo "coul_dip.sh: error running o92util with FFM source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FSP" ]
     then
-        ${BIN_DIR}/o92util -fsp source.tmp -auto $Z0 $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -fsp source.tmp -auto h $Z0 $D -haf haf.tmp -disp disp.tmp  || \
             { echo "coul_dip.sh: error running o92util with FSP source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "MT" ]
     then
-        ${BIN_DIR}/o92util -mag source.tmp -auto $Z0 $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -mag source.tmp -auto h $Z0 $D -haf haf.tmp -disp disp.tmp  || \
             { echo "coul_dip.sh: error running o92util with MT source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FLT" ]
     then
-        ${BIN_DIR}/o92util -flt source.tmp -auto $Z0 $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -flt source.tmp -auto h $Z0 $D -haf haf.tmp -disp disp.tmp  || \
             { echo "coul_dip.sh: error running o92util with FLT source" 1>&2; exit 1; }
     else
         echo "coul_dip.sh: no source type named \"$SRC_TYPE\"" 1>&2

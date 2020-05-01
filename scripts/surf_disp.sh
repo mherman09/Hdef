@@ -296,19 +296,19 @@ then
     D="10"  # Large initial increment, to get map limits without taking much time
     if [ $SRC_TYPE == "FFM" ]
     then
-        ${BIN_DIR}/o92util -ffm source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp || \
+        ${BIN_DIR}/o92util -ffm source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp || \
             { echo "surf_disp.sh: error running o92util with FFM source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FSP" ]
     then
-        ${BIN_DIR}/o92util -fsp source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -fsp source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with FSP source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "MT" ]
     then
-        ${BIN_DIR}/o92util -mag source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -mag source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with MT source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FLT" ]
     then
-        ${BIN_DIR}/o92util -flt source.tmp -auto $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -flt source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with FLT source" 1>&2; exit 1; }
     else
         echo "surf_disp.sh: no source type named \"$SRC_TYPE\"" 1>&2
