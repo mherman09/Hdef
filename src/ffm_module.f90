@@ -41,7 +41,7 @@ subroutine read_usgs_param(usgs_param_file,usgs_param_data,ierr)
 ! Read a finite fault model in the standard .param format published by the U.S. Geological Survey.
 !----
 
-use io, only: stderr
+use io, only: verbosity, stdout, stderr
 
 implicit none
 
@@ -57,6 +57,12 @@ character(len=1) :: dum
 character(len=16) :: dx_char, dy_char
 character(len=512) :: input_line
 double precision :: lon, lat, dep, strike, dip, rake, slip, dx, dy, trup
+
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_usgs_param: starting'
+endif
+
 
 ! As we begin our journey, everything seems okay...
 ierr = 0
@@ -201,6 +207,11 @@ enddo
 
 close(34)
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_usgs_param: finished'
+endif
+
+
 return
 end subroutine
 
@@ -211,7 +222,7 @@ subroutine read_srcmod_fsp(srcmod_fsp_file,srcmod_fsp_data,ierr)
 ! Read a finite fault model in the standard FSP format published in the SRCMOD database.
 !----
 
-use io, only: stderr
+use io, only: verbosity, stdout, stderr
 
 implicit none
 
@@ -228,6 +239,12 @@ integer, parameter :: NFMAX = 25
 character(len=32) :: linef(NFMAX)
 character(len=32) :: linef_sf_cols(NFMAX)
 double precision :: strike, dip, rake, wid, len
+
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_srcmod_fsp: starting'
+endif
+
 
 ! Let us begin
 ierr = 0
@@ -432,6 +449,10 @@ enddo
 
 close(35)
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_srcmod_fsp: finished'
+endif
+
 return
 end subroutine
 
@@ -582,7 +603,7 @@ subroutine read_mag(mag_file,mag_data,ierr)
 !     evlo evla evdp(km) str dip rak mag
 !----
 
-use io, only: stderr, fileExists, line_count
+use io, only: verbosity, stdout, stderr, fileExists, line_count
 implicit none
 
 ! Arguments
@@ -592,6 +613,11 @@ integer :: ierr
 
 ! Local variables
 integer :: iflt, j
+
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_mag: starting'
+endif
 
 
 ! In the beginning, it was good
@@ -619,6 +645,10 @@ do iflt = 1,mag_data%nflt
 enddo
 close(31)
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_mag: finished'
+endif
+
 return
 end subroutine
 
@@ -630,7 +660,7 @@ subroutine read_flt(flt_file,flt_data,ierr)
 !     evlo evla evdp(km) str dip rak slip(m) wid(km) len(km)
 !----
 
-use io, only: stderr, fileExists, line_count
+use io, only: verbosity, stdout, stderr, fileExists, line_count
 implicit none
 
 ! Arguments
@@ -641,6 +671,10 @@ integer :: ierr
 ! Local variables
 integer :: iflt, j
 
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_flt: starting'
+endif
 
 ! Yayyy, things are okay! Or are they?
 ierr = 0
@@ -674,6 +708,11 @@ close(32)
     write(stderr,*) 'Did you mean to use -mag?'
     ierr = 1
     return
+endif
+
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_flt: finished'
 endif
 
 return
