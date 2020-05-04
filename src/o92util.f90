@@ -119,6 +119,9 @@ call calc_deformation()
 if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call update_auto_stations()
     call calc_deformation()
+    if (auto_mode.eq.'v') then
+        call project_deformation()
+    endif
 endif
 
 end
@@ -1307,6 +1310,7 @@ implicit none
 integer :: i, j, ierr
 double precision :: disp(2002,6), disp_mag, xmin, xmax, ymin, ymax
 double precision :: d, lon, lat
+character(len=512) :: proj_sta_file
 
 
 if (verbosity.ge.1) then
@@ -1446,26 +1450,32 @@ if (auto_mode.eq.'h') then
         enddo
     enddo
 elseif (auto_mode.eq.'v') then
+    proj_sta_file = 'station.proj'
+    write(stdout,*) 'update_auto_stations: writing projected station coordinates to ', &
+                    trim(proj_sta_file)
+    open(unit=372,file=proj_sta_file,status='unknown')
     if (ymin.lt.2d3) then
         ymin = 0.0d0
     endif
     do i = 1,auto_n
+        d = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
+        if (coord_type.eq.'geographic') then
+            call distaz2lola(centroid(1),centroid(2),d/radius_earth_km,auto_az,lon,lat, &
+                             'radians','degrees',ierr)
+        elseif (coord_type.eq.'cartesian') then
+            lon = centroid(1) + d*sin(auto_az*d2r)
+            lat = centroid(2) + d*cos(auto_az*d2r)
+        else
+            call usage('update_auto_stations: no coord_type named '//trim(coord_type)//' (usage:misc)')
+        endif
         do j = 1,auto_n
-            d = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
-            if (coord_type.eq.'geographic') then
-                call distaz2lola(centroid(1),centroid(2),d/radius_earth_km,auto_az,lon,lat, &
-                                 'radians','degrees',ierr)
-            elseif (coord_type.eq.'cartesian') then
-                lon = centroid(1) + d*sin(auto_az*d2r)
-                lat = centroid(2) + d*cos(auto_az*d2r)
-            else
-                call usage('update_auto_stations: no coord_type named '//trim(coord_type)//' (usage:misc)')
-            endif
             stations((i-1)*auto_n+j,1) = lon
             stations((i-1)*auto_n+j,2) = lat
             stations((i-1)*auto_n+j,3) = ymin + dble(j-1)*(ymax-ymin)/dble(auto_n-1)
+            write(372,'(3F12.4)') d,0.0d0,stations((i-1)*auto_n+j,3)
         enddo
     enddo
+    close(372)
 else
     call usage('update_auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
 endif
@@ -1477,6 +1487,71 @@ displacement_file = disp_file_save
 if (verbosity.ge.1) then
     write(stdout,*) 'update_auto_stations: finished'
     write(stdout,*)
+endif
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine project_deformation()
+
+use io, only: stdout, line_count
+use algebra, only: rotate_vector_angle_axis, rotate_matrix_angle_axis
+
+use o92util, only: displacement_file, &
+                   strain_file, &
+                   auto_az
+
+implicit none
+
+! Local variables
+integer :: i, j, k, ierr, ndisp, nstrain
+double precision :: sta(3), disp(3), disp_rot(3), stn(3,3), stn_rot(3,3)
+character(len=512) :: auto_file
+
+
+if (displacement_file.ne.'') then
+    ndisp = line_count(displacement_file)
+
+    auto_file = trim(displacement_file)//'.proj'
+    write(stdout,*) 'project_deformation: writing projected displacements to file '//auto_file
+
+    open(unit=61,file=displacement_file,status='old')
+    open(unit=62,file=auto_file,status='unknown')
+
+    do i = 1,ndisp
+        read(61,*) (sta(j),j=1,3),(disp(k),k=1,3)
+        call rotate_vector_angle_axis(disp,90.0d0-auto_az,'z',disp_rot,ierr)
+        write(62,'(1P3E14.6)') disp_rot(1:3)
+    enddo
+
+    close(61)
+    close(62)
+endif
+
+
+if (strain_file.ne.'') then
+    nstrain = line_count(strain_file)
+
+    auto_file = trim(strain_file)//'.proj'
+    write(stdout,*) 'project_deformation: writing projected strains to file '//auto_file
+
+    open(unit=63,file=strain_file,status='old')
+    open(unit=64,file=auto_file,status='unknown')
+
+    do i = 1,nstrain
+        read(63,*) (sta(j),j=1,3),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
+        stn(2,1) = stn(1,2)
+        stn(3,1) = stn(1,3)
+        stn(3,2) = stn(2,3)
+        call rotate_matrix_angle_axis(stn,90.0d0-auto_az,'z',stn_rot,ierr)
+        write(64,'(1P6E14.6)') stn_rot(1,1),stn_rot(2,2),stn_rot(3,3), &
+                                                  stn_rot(1,2),stn_rot(1,3),stn_rot(2,3)
+    enddo
+
+    close(63)
+    close(64)
 endif
 
 return
