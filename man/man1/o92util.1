@@ -123,12 +123,17 @@ indicates the number of grid points per dimension.
 
 .TP
 .BI "-auto v" " azimuth number"
-Automatically generate a vertical grid of points to calculate deformation on.
+Automatically generate a vertical grid of points through the centroid of the
+input faults to calculate deformation on.
 The
 .I azimuth
 of the plane is in degrees clockwise from north and
 .I number
 indicates the number of grid points per dimension.
+
+.TP
+.BI -auto:thr " disp_threshold"
+Set displacement magnitude threshold for defining limits of automatic grids.
 
 .TP
 .BI -trg " target_file"

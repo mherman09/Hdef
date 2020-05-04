@@ -30,6 +30,7 @@ logical :: isStationFileDefined                   ! station location tag
 double precision :: auto_depth                    ! depth of automatically generated station grid
 double precision :: auto_az                       ! depth of automatically generated station grid
 integer :: auto_n                                 ! number of automatically generated stations (1d)
+double precision :: auto_disp_threshold
 character(len=1) :: auto_mode                     ! automatic station mode
 character(len=512) :: target_file                 ! target/receiver fault geometry
 logical :: isTargetFileDefined                    ! target fault tag
@@ -1296,6 +1297,7 @@ use o92util, only: coord_type, &
                    auto_n, &
                    auto_depth, &
                    auto_az, &
+                   auto_disp_threshold, &
                    auto_mode, &
                    debug_mode
 
@@ -1333,7 +1335,6 @@ enddo
 
 ! Working backwards from transects, determine when displacements exceed a threshold value and treat
 ! that value as the new station grid boundary
-! TODO: CHANGE THRESHOLD FROM HARD-CODED TO VARIABLE
 if (auto_mode.eq.'h') then
     xmin = disp(1,1)
     xmax = disp(1001,1)
@@ -1351,7 +1352,7 @@ ymax = disp(2002,2)
 ! Find xmin
 do i = 1,501
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
-    if (disp_mag.ge.0.001d0) then
+    if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             xmin = disp(i,1)        ! x-coordinate
             if (verbosity.ge.3) then
@@ -1370,7 +1371,7 @@ enddo
 ! Find xmax
 do i = 1001,501,-1
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
-    if (disp_mag.ge.0.001d0) then
+    if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             xmax = disp(i,1)        ! x-coordinate
             if (verbosity.ge.3) then
@@ -1389,7 +1390,7 @@ enddo
 ! Find ymin
 do i = 1002,1502
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
-    if (disp_mag.ge.0.001d0) then
+    if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             ymin = disp(i,2)
             if (verbosity.ge.3) then
@@ -1408,7 +1409,7 @@ enddo
 ! Find ymax
 do i = 2002,1502,-1
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
-    if (disp_mag.ge.0.001d0) then
+    if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             ymax = disp(i,2)
             if (verbosity.ge.3) then
@@ -1501,6 +1502,7 @@ use o92util, only: ffm_file, &
                    auto_depth, &
                    auto_az, &
                    auto_n, &
+                   auto_disp_threshold, &
                    auto_mode, &
                    target_file, &
                    isTargetFileDefined, &
@@ -1551,6 +1553,7 @@ auto_mode = ''
 auto_depth = 0.0d0
 auto_az = 0.0d0
 auto_n = 10
+auto_disp_threshold = 0.001d0
 target_file = ''
 isTargetFileDefined = .false.
 
@@ -1660,6 +1663,12 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,arg)
         read(arg,*) auto_n
+
+    elseif (tag.eq.'-auto:thr') then
+        i = i + 1
+        call get_command_argument(i,arg,status=ios)
+        read(arg,*,err=9001,iostat=ios) auto_disp_threshold
+
 
     elseif (trim(tag).eq.'-trg') then
         i = i + 1
@@ -1782,6 +1791,8 @@ if (debug_mode.eq.'gcmdln'.or.debug_mode.eq.'all') then
     write(stdout,*) 'auto_depth:               ',auto_depth
     write(stdout,*) 'auto_az:                  ',auto_az
     write(stdout,*) 'auto_n:                   ',auto_n
+    write(stdout,*) 'auto_disp_threshold:      ',auto_disp_threshold
+    write(stdout,*) 'auto_mode:                ',trim(auto_mode)
     write(stdout,*) 'target_file:              ',trim(target_file)
     write(stdout,*) 'isTargetFileDefined:      ',isTargetFileDefined
     write(stdout,*) 'halfspace_file:           ',trim(halfspace_file)
@@ -1875,6 +1886,7 @@ if (info.eq.'all'.or.info.eq.'station') then
     write(stderr,*) '-sta STAFILE         Station/receiver locations'
     write(stderr,*) '-auto h DEPTH N      Generate horizontal location grid'
     write(stderr,*) '-auto v AZ N         Generate vertical location grid (through centroid)'
+    write(stderr,*) '-auto:thr DISP       Displacement threshold for auto grids'
     write(stderr,*) '-trg TRGFILE         Target/receiver geometry'
     write(stderr,*)
 endif
