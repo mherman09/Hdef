@@ -49,6 +49,10 @@ end function fileExists
 function line_count(file_name)
 !----
 ! Count the number of lines in a file, return integer value
+! Return value:
+!     >0: routine executed correctly, value is number of lines in file
+!      0: file not found
+!     -1: file open in another unit
 !----
 
 implicit none
@@ -59,8 +63,17 @@ integer :: line_count
 
 ! Local variables
 integer :: ios
+logical :: iopen
 
-line_count= 0
+line_count = 0
+
+! Check whether file is already open in another unit
+inquire(file=file_name,opened=iopen)
+if (iopen) then
+    write(stderr,*) 'line_count: file "',trim(file_name),'" is already open in another unit'
+    line_count = -1
+    return
+endif
 
 if (.not.fileExists(file_name)) then
     write(stderr,*) 'line_count: file "',trim(file_name),'" not found'
