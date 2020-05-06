@@ -2,8 +2,8 @@
 ! O92UTIL
 !
 ! Utility for computing displacements, strains, and stresses in an elastic half-space resulting from
-! point source and rectangular shear dislocations. Most of the heavy lifting is done in the module
-! OKADA92_MODULE.F90.
+! point source and rectangular shear dislocations. Most of the heavy lifting is done in the Fortran
+! module okada92_module.f90, which can be found in this directory.
 !
 ! References
 ! Okada, Y. (1992) Internal deformation due to shear and tensile faults in a half-space. Bulletin of
@@ -30,7 +30,7 @@ logical :: isStationFileDefined                   ! station location tag
 double precision :: auto_depth                    ! depth of automatically generated station grid
 double precision :: auto_az                       ! depth of automatically generated station grid
 integer :: auto_n                                 ! number of automatically generated stations (1d)
-double precision :: auto_disp_threshold
+double precision :: auto_disp_threshold           ! minimum displacement value for auto grid
 character(len=1) :: auto_mode                     ! automatic station mode
 character(len=512) :: target_file                 ! target/receiver fault geometry
 logical :: isTargetFileDefined                    ! target fault tag
@@ -67,55 +67,84 @@ double precision, allocatable :: faults(:,:)      ! Fault parameter array
 double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
-double precision :: centroid(3)
+double precision :: centroid(3)                   ! Moment weighted mean position of EQ
 
-character(len=32) :: debug_mode
+character(len=32) :: debug_mode                   ! Verbose output for debugging
 
 end module
 
 !==================================================================================================!
 
 program main
-
+!----
+! Run program o92util:
+!     - Parse command line options
+!     - Check inputs/outputs
+!     - Read inputs
+!     - Calculate deformation
+!----
 use io, only: verbosity, stdout
 use o92util, only: isFaultFileDefined, &
                    isTensileFileDefined, &
+                   isStationFileDefined, &
+                   isTargetFileDefined, &
+                   iWantTraction, &
                    isOutputFileDefined, &
                    auto_mode
 
 implicit none
 
 
+! Parse the command line
 call gcmdln()
+
+! Check that input and output files are defined
 if (.not.isOutputFileDefined) then
     call usage('o92util: no output defined (usage:output)')
+endif
+if (.not.isStationFileDefined) then
+    call usage('o92util: no station file defined (usage:station)')
+endif
+if (iWantTraction.and..not.isTargetFileDefined) then
+    call usage('o92util: no target file defined (usage:station)')
 endif
 if (.not.isFaultFileDefined.and..not.isTensileFileDefined) then
     call usage('o92util: no fault or tensile source file defined (usage:input)')
 endif
 
 
+! Here we go!
 if (verbosity.ge.1) then
     write(stdout,*) 'o92util: starting'
     write(stdout,*)
 endif
 
 
+! Define elasticity parameters for half-space
 call read_halfspace()
 
 
+! Read source files - usually faults, but can do tensile sources as well
 call read_faults()
 call read_tensile()
 
 
+! Define limits of automatic grid, if using auto mode
 if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call auto_stations()
 endif
 
+
+! Read input station locations and target fault geometries
 call read_stations()
 call read_targets()
+
+
+! Calculate displacements, strains, or stresses
 call calc_deformation()
 
+
+! Generate automatic station grid from and recalculate displacements, strains, or stresses
 if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call update_auto_stations()
     call calc_deformation()
@@ -123,6 +152,14 @@ if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
         call project_deformation()
     endif
 endif
+
+
+! Congratulations! You have completed the program!
+if (verbosity.ge.1) then
+    write(stdout,*) 'o92util: finished'
+    write(stdout,*)
+endif
+
 
 end
 
@@ -135,15 +172,17 @@ end
 
 subroutine read_halfspace()
 !----
-! Read half-space parameters with the subroutine read_halfspace_file in the elast module.
+! Read half-space parameters with the subroutine read_halfspace_file() in the elast module.
 !----
+
 use io, only: verbosity, stdout
 use elast, only: read_halfspace_file
 
 use o92util, only: halfspace_file, &
                    poisson, &
                    lame, &
-                   shearmod
+                   shearmod, &
+                   debug_mode
 
 implicit none
 
@@ -151,12 +190,19 @@ if (verbosity.ge.1) then
     write(stdout,*) 'read_halfspace: starting'
 endif
 
+! Read elastic moduli
 call read_halfspace_file(halfspace_file,poisson,shearmod,lame)
 
+
+if (debug_mode.eq.'read_halfspace'.or.debug_mode.eq.'all') then
+    write(stdout,'(X,"(DEBUG)",X,A,1PE12.4)') 'read_halfspace: shear_modulus=  ',shearmod
+    write(stdout,'(X,"(DEBUG)",X,A,F12.6)')   'read_halfspace: poissons_ratio= ',poisson
+    write(stdout,'(X,"(DEBUG)",X,A,1PE12.4)') 'read_halfspace: lame_parameter= ',lame
+endif
 if (verbosity.ge.3) then
-    write(stdout,*) 'read_halfspace: shear_modulus=  ',shearmod
-    write(stdout,*) 'read_halfspace: poissons_ratio= ',poisson
-    write(stdout,*) 'read_halfspace: lame_parameter= ',lame
+    write(stdout,'(X,A,1PE12.4)') 'read_halfspace: shear_modulus=  ',shearmod
+    write(stdout,'(X,A,F12.6)')   'read_halfspace: poissons_ratio= ',poisson
+    write(stdout,'(X,A,1PE12.4)') 'read_halfspace: lame_parameter= ',lame
 endif
 if (verbosity.ge.1) then
     write(stdout,*) 'read_halfspace: finished'
@@ -171,10 +217,13 @@ end subroutine
 subroutine read_faults()
 !----
 ! Read the input rectangular or point fault source data in one of the following formats:
+!
 !     mag: lon lat dep str dip rak mag
 !     flt: lon lat dep str dip rak slip wid len
 !     ffm: U.S. Geological Survey .param format
 !     fsp: SRCMOD FSP format
+!
+! using subroutines from the ffm module.
 !----
 
 use io, only: verbosity, stdout, stderr, line_count
@@ -191,12 +240,13 @@ use o92util, only: ffm_file, &
                    shearmod, &
                    coord_type, &
                    nfaults, &
-                   faults
+                   faults, &
+                   debug_mode
 
 implicit none
 
 ! Local variables
-integer :: ierr, i
+integer :: ierr, i, j
 logical :: areFaultsRead
 type(ffm_data) :: param_data, fsp_data, mag_data, flt_data
 character(len=8) :: fault_type
@@ -211,6 +261,9 @@ endif
 ! Initialize variables
 areFaultsRead = .false.
 nfaults = 0
+
+
+! Check whether faults need to be read
 if(.not.isFaultFileDefined) then
     if (verbosity.ge.1) then
         write(stdout,*) 'read_faults: not using fault sources; finished'
@@ -220,7 +273,7 @@ if(.not.isFaultFileDefined) then
 endif
 
 
-! Read faults in one of available formats
+! Read faults in one of available formats: USGS PARAM, SRCMOD FSP, MAG, or FLT
 
 ! Read faults from USGS param file
 if (ffm_file.ne.'') then
@@ -231,7 +284,19 @@ if (ffm_file.ne.'') then
         call usage('read_faults: error reading fault file in USGS param format (usage:input)')
     endif
     nfaults = nfaults + param_data%nflt
+
+    if (debug_mode.eq.'read_faults'.or.debug_mode.eq.'all') then
+        write(stdout,*) '(DEBUG) read_faults: finished read_usgs_param'
+        write(stdout,*) '(DEBUG)   #       lon       lat       dep     str     dip     rak      ',&
+                        'slip       wid       len'
+        do i = 1,param_data%nflt
+            write(stdout,4316) i,(param_data%subflt(i,j),j=1,2), param_data%subflt(i,3)/1.0d3, &
+                               (param_data%subflt(i,j),j=4,7),(param_data%subflt(i,j)/1.0d3,j=8,9)
+        enddo
+        4316 format(X,I4,2F10.3,F10.3,3F8.1,F10.4,2F10.3)
+    endif
 endif
+
 
 ! Read faults from SRCMOD FSP file
 if (fsp_file.ne.'') then
@@ -242,7 +307,19 @@ if (fsp_file.ne.'') then
         call usage('read_faults: error reading fault file in SRCMOD FSP format (usage:input)')
     endif
     nfaults = nfaults + fsp_data%nflt
+
+    if (debug_mode.eq.'read_faults'.or.debug_mode.eq.'all') then
+        write(stdout,*) '(DEBUG) read_faults: finished read_srcmod_fsp'
+        write(stdout,*) '(DEBUG)   #       lon       lat       dep     str     dip     rak      ',&
+                        'slip       wid       len'
+        do i = 1,fsp_data%nflt
+            write(stdout,4317) i,(fsp_data%subflt(i,j),j=1,2), fsp_data%subflt(i,3)/1.0d3, &
+                               (fsp_data%subflt(i,j),j=4,7),(fsp_data%subflt(i,j)/1.0d3,j=8,9)
+        enddo
+        4317 format(X,I4,2F10.3,F10.3,3F8.1,F10.4,2F10.3)
+    endif
 endif
+
 
 ! Read faults in GMT psmeca -Sa format
 if (mag_file.ne.'') then
@@ -253,10 +330,12 @@ if (mag_file.ne.'') then
         call usage('read_faults: error reading fault file in GMT psmeca -Sa format (usage:input)')
     endif
 
-    ! Calculate fault slip, width, and length
+    ! Calculate fault slip, width, and length from magnitude
     do i = 1,mag_data%nflt
 
-        ! Determine the type of focal mechanism for empirical relation
+        ! Determine the type of focal mechanism for empirical relation using ternary classification
+        ! of Frohlich (1992), Triangle diagrams: ternary graphs to display similarity and diversity
+        ! of earthquake focal mechanisms.
         call sdr2ter(mag_data%subflt(i,4),mag_data%subflt(i,5),mag_data%subflt(i,6),fth,fss,fno)
         if (fth.gt.0.60d0) then
             fault_type = 'th'
@@ -267,10 +346,19 @@ if (mag_file.ne.'') then
         else
             fault_type = 'ot'
         endif
+        if (verbosity.ge.3) then
+            write(stdout,*) 'read_faults: strike=',mag_data%subflt(i,4)
+            write(stdout,*) 'read_faults: dip=   ',mag_data%subflt(i,5)
+            write(stdout,*) 'read_faults: rake=  ',mag_data%subflt(i,6)
+            write(stdout,*) 'read_faults: using fault_type="',trim(fault_type),'" with empirical ',&
+                            'relation="',trim(empirical_relation),'"'
+        endif
 
-        ! Calculate width and length from empirical relation
+        ! Calculate fault width (down-dip) and length (along-strike) from empirical relation
         call empirical(mag_data%subflt(i,7),mag_data%subflt(i,8),mag_data%subflt(i,9),&
                        empirical_relation,fault_type)
+
+        ! Convert fault dimensions to SI units
         mag_data%subflt(i,8) = mag_data%subflt(i,8)*1.0d3 ! km->m
         mag_data%subflt(i,9) = mag_data%subflt(i,9)*1.0d3 ! km->m
 
@@ -281,7 +369,19 @@ if (mag_file.ne.'') then
     enddo
 
     nfaults = nfaults + mag_data%nflt
+
+    if (debug_mode.eq.'read_faults'.or.debug_mode.eq.'all') then
+        write(stdout,*) '(DEBUG) read_faults: finished read_mag'
+        write(stdout,*) '(DEBUG)   #       lon       lat       dep     str     dip     rak      ',&
+                        'slip       wid       len'
+        do i = 1,mag_data%nflt
+            write(stdout,4318) i,(mag_data%subflt(i,j),j=1,2), mag_data%subflt(i,3)/1.0d3, &
+                               (mag_data%subflt(i,j),j=4,7),(mag_data%subflt(i,j)/1.0d3,j=8,9)
+        enddo
+        4318 format(X,'(DEBUG)',I4,2F10.3,F10.3,3F8.1,F10.4,2F10.3)
+    endif
 endif
+
 
 ! Read faults in GMT psmeca -Sa format, except with slip wid len in place of magnitude
 if (flt_file.ne.'') then
@@ -293,6 +393,17 @@ if (flt_file.ne.'') then
                    'format (usage:input)')
     endif
     nfaults = nfaults + flt_data%nflt
+
+    if (debug_mode.eq.'read_faults'.or.debug_mode.eq.'all') then
+        write(stdout,*) '(DEBUG) read_faults: finished read_flt'
+        write(stdout,*) '(DEBUG)   #       lon       lat       dep     str     dip     rak      ',&
+                        'slip       wid       len'
+        do i = 1,flt_data%nflt
+            write(stdout,4319) i,(flt_data%subflt(i,j),j=1,2), flt_data%subflt(i,3)/1.0d3, &
+                               (flt_data%subflt(i,j),j=4,7), (flt_data%subflt(i,j)/1.0d3,j=8,9)
+        enddo
+        4319 format(X,'(DEBUG)',I4,2F10.3,F10.3,3F8.1,F10.4,2F10.3)
+    endif
 endif
 
 
@@ -335,12 +446,16 @@ endif
 
 
 ! Set fault segments with low slip magnitude to zero
+! The meaning of slip_threshold depends on whether it is positive or negative
 if (slip_threshold.lt.0.0d0) then
-    ! Any fault with slip less than abs(slip_threshold) is set to zero
+    ! Negative: any fault with slip less than abs(slip_threshold) is set to zero
     slip_threshold = abs(slip_threshold)
 elseif (slip_threshold.gt.0.0d0) then
-    ! Any fault with slip less than slip_threshold*max(slip) is set to zero
+    ! Positive: any fault with slip less than slip_threshold*max(slip) is set to zero
     slip_threshold = slip_threshold*maxval(faults(:,7))
+endif
+if (verbosity.ge.3) then
+    write(stdout,'(X,A,F10.3)') 'read_faults: slip_threshold=',slip_threshold
 endif
 do i = 1,nfaults
     if (abs(faults(i,7)).lt.slip_threshold) then
@@ -352,28 +467,28 @@ enddo
 ! Check coordinates
 if (coord_type.eq.'geographic'.and. &
         (maxval(abs(faults(:,1))).gt.360.0d0 .or. maxval(abs(faults(:,2))).gt.90.0d0)) then
-    write(stderr,*) 'read_faults: found fault coordinates outside geographic range; ',&
-                    'did you mean to use the -xy flag?'
+    call usage('read_faults: found fault coordinates outside geographic range; '//&
+                    'did you mean to use the -xy flag?')
 endif
 
 
 if (verbosity.ge.3) then
     if (coord_type.eq.'geographic') then
-        write(stdout,*) '         Lon         Lat   Dep(km)       Str       Dip       Rak   '//&
-                        'Slip(m)     Wid(km)     Len(km)'
+        write(stdout,*) '   #         Lon         Lat   Dep(km)     Str     Dip     Rak   '//&
+                        'Slip(m)   Wid(km)   Len(km)'
     elseif (coord_type.eq.'cartesian') then
-        write(stdout,*) '       X(km)       Y(km)   Dep(km)       Str       Dip       Rak   '//&
-                        'Slip(m)     Wid(km)     Len(km)'
+        write(stdout,*) '   #       X(km)       Y(km)   Dep(km)     Str     Dip     Rak   '//&
+                        'Slip(m)   Wid(km)   Len(km)'
     endif
     do i = 1,nfaults
         if (coord_type.eq.'geographic') then
-            write(stdout,1101) faults(i,1:2),faults(i,3)/1.0d3,faults(i,4:7),faults(i,8)/1.0d3, &
+            write(stdout,1101) i,faults(i,1:2),faults(i,3)/1.0d3,faults(i,4:7),faults(i,8)/1.0d3, &
                                faults(i,9)/1.0d3
         elseif (coord_type.eq.'cartesian') then
-            write(stdout,1101) faults(i,1)/1.0d3,faults(i,2)/1.0d3,faults(i,3)/1.0d3, &
+            write(stdout,1101) i,faults(i,1)/1.0d3,faults(i,2)/1.0d3,faults(i,3)/1.0d3, &
                                faults(i,4:7),faults(i,8)/1.0d3,faults(i,9)/1.0d3
         endif
-        1101 format(X,2F12.4,F10.3,3F10.1,F10.3,3F12.3)
+        1101 format(X,I4,2F12.4,F10.3,3F8.1,F10.3,3F10.3)
     enddo
 endif
 if (verbosity.ge.1) then
@@ -401,12 +516,13 @@ use o92util, only: tns_file, &
                    isTensileFileDefined, &
                    coord_type, &
                    ntensile, &
-                   tensile
+                   tensile, &
+                   debug_mode
 
 implicit none
 
 ! Local variables
-integer :: i, ierr
+integer :: i, j, ierr
 logical :: areFaultsRead
 type(ffm_data) :: tns_data
 
@@ -414,6 +530,10 @@ type(ffm_data) :: tns_data
 if (verbosity.ge.1) then
     write(stdout,*) 'read_tensile: starting'
 endif
+
+
+! Initialize I/O status
+ierr = 0
 
 
 ! Initialize variables
@@ -435,6 +555,17 @@ if (tns_file.ne.'') then
         areFaultsRead = .true.
     endif
     ntensile = ntensile + tns_data%nflt
+
+    if (debug_mode.eq.'read_tensile'.or.debug_mode.eq.'all') then
+        write(stdout,*) '(DEBUG) read_tensile: finished read_tensile_rect'
+        write(stdout,*) '(DEBUG)   #       lon       lat       dep     str     dip     ',&
+                        'crack       wid       len'
+        do i = 1,tns_data%nflt
+            write(stdout,4319) i,(tns_data%subflt(i,j),j=1,2), tns_data%subflt(i,3)/1.0d3, &
+                               (tns_data%subflt(i,j),j=4,6), (tns_data%subflt(i,j)/1.0d3,j=8,9)
+        enddo
+        4319 format(X,'(DEBUG)',I4,2F10.3,F10.3,2F8.1,F10.4,2F10.3)
+    endif
 endif
 
 
@@ -471,21 +602,21 @@ endif
 
 if (verbosity.ge.3) then
     if (coord_type.eq.'geographic') then
-        write(stdout,*) '         Lon         Lat   Dep(km)       Str       Dip  '//&
+        write(stdout,*) '   #         Lon         Lat   Dep(km)     Str     Dip  '//&
                         'Crack(m)     Wid(km)     Len(km)'
     elseif (coord_type.eq.'cartesian') then
-        write(stdout,*) '       X(km)       Y(km)   Dep(km)       Str       Dip  '//&
+        write(stdout,*) '   #       X(km)       Y(km)   Dep(km)     Str     Dip  '//&
                         'Crack(m)     Wid(km)     Len(km)'
     endif
     do i = 1,ntensile
         if (coord_type.eq.'geographic') then
-            write(stdout,1111) tensile(i,1:2),tensile(i,3)/1.0d3,tensile(i,4:6), &
+            write(stdout,1111) i,tensile(i,1:2),tensile(i,3)/1.0d3,tensile(i,4:6), &
                                tensile(i,7)/1.0d3,tensile(i,8)/1.0d3
         elseif (coord_type.eq.'cartesian') then
-            write(stdout,1111) tensile(i,1)/1.0d3,tensile(i,2)/1.0d3,tensile(i,3)/1.0d3, &
+            write(stdout,1111) i,tensile(i,1)/1.0d3,tensile(i,2)/1.0d3,tensile(i,3)/1.0d3, &
                                tensile(i,4:6),tensile(i,7)/1.0d3,tensile(i,8)/1.0d3
         endif
-        1111 format(X,2F12.4,F10.3,2F10.1,F10.3,3F12.3)
+        1111 format(X,I4,2F12.4,F10.3,2F8.1,F10.3,3F12.3)
     enddo
 endif
 if (verbosity.ge.1) then
@@ -515,7 +646,8 @@ use o92util, only: station_file, &
                    stations, &
                    isStationFileDefined, &
                    coord_type, &
-                   auto_mode
+                   auto_mode, &
+                   debug_mode
 
 implicit none
 
@@ -527,6 +659,10 @@ character(len=512) :: input_line
 if (verbosity.ge.1) then
     write(stdout,*) 'read_stations: starting'
 endif
+
+
+! Initialize I/O status
+ios = 0
 
 
 ! Check that station file is defined and the file exists
@@ -551,15 +687,6 @@ do i = 1,nstations
 enddo
 close(13)
 
-
-! Check coordinates
-if (coord_type.eq.'geographic'.and. &
-        (maxval(abs(stations(:,1))).gt.360.0d0 .or. maxval(abs(stations(:,2))).gt.90.0d0)) then
-    write(stderr,*) 'read_stations: found station coordinates outside geographic range; ',&
-                    'did you mean to use the -xy flag?'
-endif
-
-
 ! Error messages
 1003 if (ios.ne.0) then
     write(stderr,*) 'read_stations: read error'
@@ -570,21 +697,38 @@ endif
     call usage('offending line: '//trim(input_line)//' (usage:station)')
 endif
 
+if (debug_mode.eq.'read_stations'.or.debug_mode.eq.'all') then
+    write(stdout,*) '(DEBUG) read_stations:'
+    write(stdout,*) '(DEBUG)   #       lon       lat       dep'
+    do i = 1,nstations
+        write(stdout,4686) i,(stations(i,j),j=1,3)
+    enddo
+    4686 format(X,'(DEBUG)',I4,3F10.3)
+endif
+
+
+! Check coordinates
+if (coord_type.eq.'geographic'.and. &
+        (maxval(abs(stations(:,1))).gt.360.0d0 .or. maxval(abs(stations(:,2))).gt.90.0d0)) then
+    call usage('read_stations: found station coordinates outside geographic range; '//&
+                    'did you mean to use the -xy flag?')
+endif
+
 
 if (verbosity.ge.3) then
     if (auto_mode.eq.'') then
         if (coord_type.eq.'geographic') then
-            write(stdout,*) '         Lon         Lat   Dep(km)'
+            write(stdout,*) '   #         Lon         Lat   Dep(km)'
         elseif (coord_type.eq.'cartesian') then
-            write(stdout,*) '       X(km)       Y(km)   Dep(km)'
+            write(stdout,*) '   #       X(km)       Y(km)   Dep(km)'
         endif
         do i = 1,nstations
             if (coord_type.eq.'geographic') then
-                write(stdout,1211) stations(i,1:3)
+                write(stdout,1211) i,stations(i,1:3)
             elseif (coord_type.eq.'cartesian') then
-                write(stdout,1211) stations(i,1:3)
+                write(stdout,1211) i,stations(i,1:3)
             endif
-            1211 format(X,2F12.4,F10.3)
+            1211 format(X,I4,2F12.4,F10.3)
         enddo
     else
         write(stdout,*) 'read_stations: auto_station transect endpoints:'
@@ -608,7 +752,10 @@ end subroutine
 subroutine read_targets()
 !----
 ! Read the input target fault geometry file, in format:
+!
 !     str dip rak fric
+!
+! where str, dip, and rak are in degrees and fric is the effective coefficient of friction.
 !----
 
 use io, only: verbosity, stdout, stderr, line_count, fileExists
@@ -617,7 +764,8 @@ use o92util, only: target_file, &
                    targets, &
                    isTargetFileDefined, &
                    iWantTraction, &
-                   nstations
+                   nstations, &
+                   debug_mode
 
 implicit none
 
@@ -630,6 +778,10 @@ character(len=512) :: input_line
 if (verbosity.ge.1) then
     write(stdout,*) 'read_targets: starting'
 endif
+
+
+! Initialize I/O status
+ios = 0
 
 
 ! Check that tractions need to be resolved, target fault file is defined, and the file exists
@@ -666,15 +818,6 @@ do i = 1,ntargets
 enddo
 close(14)
 
-
-! Fill target array if only one is specified
-if (ntargets.eq.1) then
-    do i = 2,nstations
-        targets(i,:) = targets(1,:)
-    enddo
-endif
-
-
 ! Error messages
 1005 if (ios.ne.0) then
     write(stderr,*) 'read_targets: read error'
@@ -686,11 +829,28 @@ endif
 endif
 
 
+! Fill target array if only one is specified
+if (ntargets.eq.1) then
+    do i = 2,nstations
+        targets(i,:) = targets(1,:)
+    enddo
+endif
+
+if (debug_mode.eq.'read_targets'.or.debug_mode.eq.'all') then
+    write(stdout,*) '(DEBUG) read_targets:'
+    write(stdout,*) '(DEBUG)   #       str       dip       rak      fric'
+    do i = 1,nstations
+        write(stdout,4687) i,(targets(i,j),j=1,4)
+    enddo
+    4687 format(X,'(DEBUG)',I4,4F10.3)
+endif
+
+
 if (verbosity.ge.3) then
-    write(stdout,*) '       Str       Dip       Rak      Fric'
+    write(stdout,*) '   #       Str       Dip       Rak      Fric'
     do i = 1,ntargets
-        write(stdout,1301) targets(i,1:4)
-        1301 format(X,3F10.1,1F10.3)
+        write(stdout,1301) i,targets(i,1:4)
+        1301 format(X,I4,3F10.1,1F10.3)
     enddo
 endif
 if (verbosity.ge.1) then
@@ -710,7 +870,10 @@ end subroutine
 
 subroutine calc_deformation()
 !----
-! Calculate all requested deformation values at station locations.
+! Calculate displacement, strain, stress, and resolved tractions at station locations, given fault
+! and tensile sources and target geometries (if needed for tractions).
+!
+! The main computational subroutines are from the okada92 module.
 !----
 
 use io, only: stdout, stderr, verbosity, progress_indicator
@@ -765,7 +928,11 @@ if (verbosity.ge.1) then
 endif
 
 
-! Check which calculations are specified and open output files if requested
+! Initialize I/O status
+ierr = 0
+
+
+! Check which calculations are needed and open output files if requested
 
 ! Displacement
 if (iWantDisp) then
@@ -824,20 +991,24 @@ coordTypeWarning = .false.
 ! Negative depth warning message flag
 depthWarning = .false.
 
-! Calculate the requested quantities at each station
+
+! Calculate the requested quantities at each station by summing contribution from each source
 do iSta = 1,nstations
 
+    ! Initialize displacement and strain to zero
     disp = 0.0d0
     stn = 0.0d0
+
+    ! Convert depth from km to m
     sta_coord(3) = stations(iSta,3)*1.0d3
     if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-        write(stdout,'(X,A5,I6,1P3E14.6)') 'ista=',iSta,stations(iSta,:)
+        write(stdout,'(X,"(DEBUG)",X,A5,I6,3F12.3)') 'ista=',iSta,stations(iSta,:)
     endif
 
-    ! Superimpose deformation quantities produced by all fault and tensile sources at each station
+    ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
 
-        ! Fault parameters
+        ! Set fault parameters to readable variable names
         if (iFlt.le.nfaults) then
             evlo = faults(iFlt,1)
             evla = faults(iFlt,2)
@@ -860,15 +1031,21 @@ do iSta = 1,nstations
             len = tensile(iFlt,8)
         endif
         if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-            write(stdout,'(X,A5,I6,1P9E14.6)') 'iflt=',iFlt,evlo,evla,evdp,str,dip,rak,slip_mag,wid,len
+            write(stdout,6821) 'iflt=',iFlt,evlo,evla,evdp,str,dip,rak,slip_mag,wid,len
+            6821 format(X,'(DEBUG)',X,A5,I6,3F12.3,0P3F8.1,F10.4,2F12.3)
         endif
 
 
         ! Station location relative to fault at origin (ENZ coordinates)
         if (coord_type.eq.'geographic') then
+            ! Calculate fault-station distance and azimuth
             call lola2distaz(evlo,evla,stations(iSta,1),stations(iSta,2),dist,az, &
                         'radians','radians',ierr)
-
+            if (ierr.ne.0) then
+                call usage('calc_deformation: error calculating fault-station position using '//&
+                           'lola2distaz (usage:none)')
+            endif
+            ! Calculate x(East) and y(North) fault-station coordinates, in m
             sta_coord(1) = dist*radius_earth_m*sin(az)
             sta_coord(2) = dist*radius_earth_m*cos(az)
 
@@ -884,6 +1061,7 @@ do iSta = 1,nstations
             endif
 
         elseif (coord_type.eq.'cartesian') then
+            ! Calculate x and y fault-station coordinates, in m
             sta_coord(1) = (stations(iSta,1) - evlo)*1.0d3
             sta_coord(2) = (stations(iSta,2) - evla)*1.0d3
 
@@ -891,7 +1069,7 @@ do iSta = 1,nstations
             call usage('calc_deformation: no coordinate type named "'//trim(coord_type)//'" (usage:misc)')
         endif
         if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-            write(stdout,'(4X,A26,1P3E14.6)') 'sta_coord (pre-rotation): ',sta_coord(:)
+            write(stdout,'(X,"(DEBUG)",5X,A26,3F14.4)') 'sta_coord (pre-rotation): ',sta_coord(:)
         endif
 
 
@@ -902,7 +1080,7 @@ do iSta = 1,nstations
                        '(usage:none)')
         endif
         if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-            write(stdout,'(4X,A26,1P3E14.6)') 'sta_coord (post-rotation):',sta_coord(:)
+            write(stdout,'(X,"(DEBUG)",5X,A26,3F14.4)') 'sta_coord (post-rotation):',sta_coord(:)
         endif
 
 
@@ -943,7 +1121,7 @@ do iSta = 1,nstations
             ! Add to total
             disp = disp + disptmp
             if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-                write(stdout,'(4X,A8,1P3E14.6)') 'disptmp:  ',disptmp(:)
+                write(stdout,'(X,"(DEBUG)",5X,A8,3F14.4)') 'disptmp:  ',disptmp(:)
             endif
         endif
 
@@ -962,14 +1140,14 @@ do iSta = 1,nstations
             ! Add to total
             stn = stn + stntmp
             if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-                write(stdout,'(4X,A8,1P6E14.6)') 'stntmp: ', stntmp(1,1) ,stntmp(2,2), stntmp(3,3), &
-                                                            stntmp(1,2), stntmp(1,3), stntmp(2,3)
+                write(stdout,'(X,"(DEBUG)",5X,A8,1P6E14.6)') 'stntmp: ', stntmp(1,1) ,stntmp(2,2), &
+                                                stntmp(3,3), stntmp(1,2), stntmp(1,3), stntmp(2,3)
             endif
         endif
     enddo
 
 
-    ! Displacement: ux, uy, uz
+    ! Displacement: ux, uy, uz  OR  az, uhor, uz
     if (displacement_file.ne.'') then
         if (disp_output_mode.eq.'enz') then
             write(101,*) stations(iSta,:),disp
@@ -979,7 +1157,9 @@ do iSta = 1,nstations
                          sqrt(disp(1)*disp(1)+disp(2)*disp(2)), &
                          disp(3)
         else
-            write(stderr,*) 'calc_deformation: no displacement output mode named "',trim(disp_output_mode),'"'
+            write(stderr,*) 'calc_deformation: no displacement output mode named "', &
+                            trim(disp_output_mode),'"'
+            call usage('this is probably not your fault unless you are Matt (usage:none)')
         endif
     endif
 
@@ -997,7 +1177,7 @@ do iSta = 1,nstations
             write(121,*) stations(iSta,:),sts(1,1),sts(2,2),sts(3,3),sts(1,2),sts(1,3),sts(2,3)
         endif
 
-        ! Maximum (effective) shear stress: ests
+        ! Maximum (effective) shear stress (aka, second invariant of deviatoric stress tensor): ests
         if (estress_file.ne.'') then
             call max_shear_stress(sts,ests)
             write(122,*) stations(iSta,:),ests
@@ -1006,11 +1186,11 @@ do iSta = 1,nstations
 
     if (iWantTraction) then
         ! Calculate components of traction resolved onto plane
-        call sdr2sv(targets(iSta,1),targets(iSta,2),targets(iSta,3),svec)
-        call strdip2normal(targets(iSta,1),targets(iSta,2),nvec)
-        call stress2traction(sts,nvec,trac)
-        call traction_components(trac,nvec,tnor,tstr,tupd)
-        tshr = tstr*cos(targets(iSta,3)*d2r) + tupd*sin(targets(iSta,3)*d2r)
+        call sdr2sv(targets(iSta,1),targets(iSta,2),targets(iSta,3),svec)     ! slip vector
+        call strdip2normal(targets(iSta,1),targets(iSta,2),nvec)              ! normal vector
+        call stress2traction(sts,nvec,trac)                                   ! traction on plane
+        call traction_components(trac,nvec,tnor,tstr,tupd)                    ! traction components
+        tshr = tstr*cos(targets(iSta,3)*d2r) + tupd*sin(targets(iSta,3)*d2r)  ! shear traction (projected on slip vector)
 
         ! Normal traction: normal (positive=dilation)
         if (normal_file.ne.'') then
@@ -1080,6 +1260,9 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 
 subroutine auto_stations()
+!----
+! Generate transects through fault source for determining automatic grid limits.
+!----
 
 use io, only: verbosity, stdout
 use earth, only: radius_earth_km
@@ -1111,13 +1294,19 @@ if (verbosity.ge.1) then
 endif
 
 
+! Initialize I/O flag
+ierr = 0
+
+
+! Check whether station file indicates to use auto station mode
 if (station_file.ne.'o92_autosta_86_this_when_finished') then
     return
 else
     open(unit=81,file=station_file,status='unknown')
 endif
 
-! Calculate centroid
+
+! Grid is centered on on the earthquake centroid; calculate the centroid (approximately)
 centroid = 0.0d0
 moment = 0.0d0
 do i = 1,nfaults
@@ -1132,11 +1321,12 @@ write(stdout,1001) centroid(1),centroid(2),centroid(3)/1.0d3
 
 
 
+! Automatic grid can be horizontal or vertical
 if (auto_mode.eq.'h') then
 
     ! Automatic horizontal grid
 
-    ! Sample along transects extending 500 km north, south, east, and west of centroid
+    ! Sample along transects extending 500 km west-east, and south-north of centroid
     if (coord_type.eq.'geographic') then
         ! West-east
         if (verbosity.ge.2) then
@@ -1151,7 +1341,7 @@ if (auto_mode.eq.'h') then
             endif
             write(81,*) lon,lat,auto_depth
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) lon,lat,auto_depth
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') lon,lat,auto_depth
             endif
             dx = dx + 1.0d0
         enddo
@@ -1169,7 +1359,7 @@ if (auto_mode.eq.'h') then
             endif
             write(81,*) lon,lat,auto_depth
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) lon,lat,auto_depth
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') lon,lat,auto_depth
             endif
             dy = dy + 1.0d0
         enddo
@@ -1184,7 +1374,7 @@ if (auto_mode.eq.'h') then
             x = centroid(1) + dx
             write(81,*) x,centroid(2),auto_depth
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) x,centroid(2),auto_depth
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') x,centroid(2),auto_depth
             endif
             dx = dx + 1.0d0
         enddo
@@ -1198,7 +1388,7 @@ if (auto_mode.eq.'h') then
             y = centroid(2) + dy
             write(81,*) centroid(1),y,auto_depth
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) centroid(1),y,auto_depth
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') centroid(1),y,auto_depth
             endif
             dy = dy + 1.0d0
         enddo
@@ -1210,7 +1400,7 @@ elseif (auto_mode.eq.'v') then
 
     ! Automatic vertical grid
 
-    ! Sample along transects extending 500 km positive/negative azimuth, up/down of centroid
+    ! Sample along transects extending 500 km negative-positive azimuth, up-down of centroid
     if (coord_type.eq.'geographic') then
         ! Along azimuth
         if (verbosity.ge.2) then
@@ -1221,11 +1411,11 @@ elseif (auto_mode.eq.'v') then
             call distaz2lola(centroid(1),centroid(2),dx/radius_earth_km,auto_az,lon,lat, &
                              'radians','degrees',ierr)
             if (ierr.ne.0) then
-                call usage('auto_stations: error computing longitude and latitude')
+                call usage('auto_stations: error computing longitude and latitude (usage:none)')
             endif
             write(81,*) lon,lat,centroid(3)/1.0d3
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) lon,lat,centroid(3)/1.0d3
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') lon,lat,centroid(3)/1.0d3
             endif
             dx = dx + 1.0d0
         enddo
@@ -1240,7 +1430,7 @@ elseif (auto_mode.eq.'v') then
             y = centroid(2) + dx*cos(auto_az*r2d)
             write(81,*) x,y,centroid(3)/1.0d3
             if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-                write(stdout,*) x,y,centroid(3)/1.0d3
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') x,y,centroid(3)/1.0d3
             endif
             dx = dx + 1.0d0
         enddo
@@ -1256,7 +1446,7 @@ elseif (auto_mode.eq.'v') then
         dy = dy + 1.0d0
         write(81,*) centroid(1),centroid(2),y
         if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
-            write(stdout,*) centroid(1),centroid(2),y
+            write(stdout,'(X,"(DEBUG)",X,3F14.4)') centroid(1),centroid(2),y
         endif
     enddo
 
@@ -1265,9 +1455,12 @@ else
 endif
 
 
+! Finished writing transects to temporary station file
 close(81)
 
 
+! Update the displacement file name to a temporary value, because this will be used for setting
+! the automatic grid limits
 disp_file_save = displacement_file
 displacement_file = 'o92_autosta_disp_86_this_when_finished'
 iWantDisp = .true.
@@ -1284,6 +1477,10 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 
 subroutine update_auto_stations()
+!----
+! From the displacements that were calculated along the transects, determine the limits of the
+! automatic grid, given a displacement threshold. Use these limits to define a complete grid.
+!----
 
 use io, only: verbosity, stdout
 use earth, only: radius_earth_km
@@ -1318,6 +1515,7 @@ if (verbosity.ge.1) then
 endif
 
 
+! Station file name indicates whether using auto grid mode
 if (station_file.ne.'o92_autosta_86_this_when_finished') then
     return
 else
@@ -1325,20 +1523,21 @@ else
     open(unit=82,file=displacement_file,status='old')
 endif
 
-! Read the displacements that were calculated from the stations defined in auto_stations()
+
+! Read the displacements that were calculated from the station transects defined in auto_stations()
 if (debug_mode.eq.'update_auto_stations'.or.debug_mode.eq.'all') then
-    write(stdout,'(X,6A14)') 'x','y','z','ux','uy','uz'
+    write(stdout,'(X,"(DEBUG)",X,6A14)') 'x','y','z','ux','uy','uz'
 endif
 do i = 1,2002
     read(82,*) (disp(i,j),j=1,6)
     if (debug_mode.eq.'update_auto_stations'.or.debug_mode.eq.'all') then
-        write(stdout,'(X,1P6E14.6)') disp(i,:)
+        write(stdout,'(X,"(DEBUG)",X,1P6E14.6)') disp(i,:)
     endif
 enddo
 
 
-! Working backwards from transects, determine when displacements exceed a threshold value and treat
-! that value as the new station grid boundary
+! Working backwards from ends of transects, determine when displacements exceed a threshold value
+! and treat that distance as the new station grid boundary
 if (auto_mode.eq.'h') then
     xmin = disp(1,1)
     xmax = disp(1001,1)
@@ -1356,6 +1555,8 @@ ymax = disp(2002,2)
 ! Find xmin
 do i = 1,501
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+
+    ! Check whether displacement magnitude has exceed threshold
     if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             xmin = disp(i,1)        ! x-coordinate
@@ -1375,6 +1576,8 @@ enddo
 ! Find xmax
 do i = 1001,501,-1
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+
+    ! Check whether displacement magnitude has exceed threshold
     if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             xmax = disp(i,1)        ! x-coordinate
@@ -1394,6 +1597,8 @@ enddo
 ! Find ymin
 do i = 1002,1502
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+
+    ! Check whether displacement magnitude has exceed threshold
     if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             ymin = disp(i,2)
@@ -1413,6 +1618,8 @@ enddo
 ! Find ymax
 do i = 2002,1502,-1
     disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+
+    ! Check whether displacement magnitude has exceed threshold
     if (disp_mag.ge.auto_disp_threshold) then
         if (auto_mode.eq.'h') then
             ymax = disp(i,2)
@@ -1429,18 +1636,26 @@ do i = 2002,1502,-1
     endif
 enddo
 
+
+! Finished with temporary station and displacement files - delete these
 close(81,status='delete')
 close(82,status='delete')
 
 
+
+! Create new station grid from these limits
 if (verbosity.ge.2) then
     write(stdout,*) 'update_auto_stations: creating new station file'
 endif
 
+
+! Reallocate memory to station array
 deallocate(stations)
 nstations = auto_n*auto_n
 allocate(stations(nstations,3))
 
+
+! Load the new station array with the automatic grid
 if (auto_mode.eq.'h') then
     do i = 1,auto_n
         do j = 1,auto_n
@@ -1450,13 +1665,17 @@ if (auto_mode.eq.'h') then
         enddo
     enddo
 elseif (auto_mode.eq.'v') then
+    ! Also write projected coordinates to a file
     proj_sta_file = 'station.proj'
     write(stdout,*) 'update_auto_stations: writing projected station coordinates to ', &
                     trim(proj_sta_file)
     open(unit=372,file=proj_sta_file,status='unknown')
+
+    ! Set depth to be at surface if ymin is close to that value
     if (ymin.lt.2d3) then
         ymin = 0.0d0
     endif
+
     do i = 1,auto_n
         d = xmin + dble(i-1)*(xmax-xmin)/dble(auto_n-1)
         if (coord_type.eq.'geographic') then
@@ -1475,12 +1694,14 @@ elseif (auto_mode.eq.'v') then
             write(372,'(3F12.4)') d,0.0d0,stations((i-1)*auto_n+j,3)
         enddo
     enddo
+
     close(372)
 else
     call usage('update_auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
 endif
 
 
+! Reset displacement file name
 displacement_file = disp_file_save
 
 
@@ -1495,6 +1716,9 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 
 subroutine project_deformation()
+!----
+! Project vectors or tensors onto vertical grid
+!----
 
 use io, only: stdout, line_count
 use algebra, only: rotate_vector_angle_axis, rotate_matrix_angle_axis
@@ -1511,6 +1735,7 @@ double precision :: sta(3), disp(3), disp_rot(3), stn(3,3), stn_rot(3,3)
 character(len=512) :: auto_file
 
 
+! Project displacement vector
 if (displacement_file.ne.'') then
     ndisp = line_count(displacement_file)
 
@@ -1531,6 +1756,7 @@ if (displacement_file.ne.'') then
 endif
 
 
+! Project strain tensor
 if (strain_file.ne.'') then
     nstrain = line_count(strain_file)
 
@@ -1547,7 +1773,7 @@ if (strain_file.ne.'') then
         stn(3,2) = stn(2,3)
         call rotate_matrix_angle_axis(stn,90.0d0-auto_az,'z',stn_rot,ierr)
         write(64,'(1P6E14.6)') stn_rot(1,1),stn_rot(2,2),stn_rot(3,3), &
-                                                  stn_rot(1,2),stn_rot(1,3),stn_rot(2,3)
+                               stn_rot(1,2),stn_rot(1,3),stn_rot(2,3)
     enddo
 
     close(63)
@@ -1560,6 +1786,9 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 
 subroutine gcmdln()
+!----
+! Parse o92util command line arguments and set default values
+!----
 
 use io, only: stdout, stderr, verbosity
 use o92util, only: ffm_file, &
@@ -1835,6 +2064,9 @@ do while (i.le.narg)
         else
             read(arg,*,iostat=ios) debug_mode
         endif
+        if (verbosity.eq.0) then
+            verbosity = 1
+        endif
 
     elseif (trim(tag).eq.'-prog') then
         iWantProg = .true.
@@ -1987,7 +2219,7 @@ if (info.eq.'all'.or.info.eq.'misc') then
     write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
     write(stderr,*) '-prog                Turn on progress indicator'
     write(stderr,*) '-v LVL               Turn on verbose mode'
-    ! write(stderr,*) '-debug OPT           Turn on debugging (useful for developers)'
+    write(stderr,*) '-debug [ROUTINE]     Turn on debugging'
     write(stderr,*)
 endif
 if (info.ne.'all') then

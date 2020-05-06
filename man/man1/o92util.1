@@ -239,9 +239,18 @@ Print program progress to the terminal.
 
 .TP
 .BI -v " level"
-Run in verbose mode, printing progress to standard error.
+Run in verbose mode, printing progress to standard output.
 .I Level
 from 1 (low, default) to 3 (high) controls amount of output.
+
+.TP
+.BI -debug " routine"
+Run in debugging mode, printing messages to standard output.
+The argument
+.I routine
+defines the subroutine to debug, or you can indicate "all".
+There is significant overlap between debugging and verbose
+level 3, especially for I/O.
 
 .SH REFERENCES
 .TP
