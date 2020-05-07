@@ -6,119 +6,178 @@
 # to the strike of the earthquake.
 ###############################################################################
 
-gmt set PS_MEDIA 11x17
-
-if [ ! -f no_green_mwh.cpt ]; then
-cat > no_green_mwh.cpt << EOF
-# Color table using in Lab for Satellite Altimetry
-# For folks who hate green in their color tables
-# Designed by W.H.F. Smith, NOAA
-# Modified to make small values white
--32     32/96/255       -28     32/96/255
--28     32/159/255      -24     32/159/255
--24     32/191/255      -20     32/191/255
--20     0/207/255       -16     0/207/255
--16     42/255/255      -12     42/255/255
--12     85/255/255      -8      85/255/255
--8      127/255/255     -3.2    127/255/255
--3.2    255/255/255     0       255/255/255
-0       255/255/255     3.2     255/255/255
-3.2     255/240/0       8       255/240/0
-8       255/191/0       12      255/191/0
-12      255/168/0       16      255/168/0
-16      255/138/0       20      255/138/0
-20      255/112/0       24      255/112/0
-24      255/77/0        28      255/77/0
-28      255/0/0         32      255/0/0
-B       32/96/255
-F       255/0/0
-EOF
-fi
 
 ###############################################################################
-# The user can specify the following variables:
-#  PSFILE   Name of the output PostScript file
-#  NN[XY]   Density of the computation grid (NNX x NNY)
-#  THR      Threshold value for slip in FFM (fraction of maximum slip)
+#	PARSE COMMAND LINE
 ###############################################################################
-
-# Name of output PostScript file
-PSFILE="coul_xsec.ps"
-
-# Coulomb stress grid is (NN x NN) points
-NNX="150"
-NNY="100"
-#NNX="50"
-#NNY="50"
-
-# Threshold percentage of peak slip in FFM to be retained
-THR="0.15"
-
-###############################################################################
-#	PARSE COMMAND LINE TO GET SOURCE TYPE AND FILE NAME
-###############################################################################
-
-function USAGE() {
-echo
-echo "Usage: coul_xsec.sh SRC_TYPE SRC_FILE [-Rl/r/t/b] [-Ts/d/r] [-Plo/la|peak]"
-echo "    SRC_TYPE     Either MT (moment tensor) or FFM (finite fault model)"
-echo "    SRC_FILE     Name of input file"
-echo "                   MT:  EVLO EVLA EVDP STR DIP RAK MAG"
-echo "                   FFM: finite fault model in subfault format"
-echo "    -Rl/r/t/b    Define limits, positive depth down (optional)"
-echo "    -Ts/d/r      Define target fault strike/dip/rake (optional)"
-echo "    -Plo/la|peak Define cross-section origin coordinates or \"peak\""
-echo "                   to use peak slip location (default uses epicenter)"
-echo
-exit
+function usage() {
+    echo "Usage: coul_xsec.sh SRC_TYPE SRC_FILE [...options...]" 1>&2
+    echo 1>&2
+    echo "Required arguments" 1>&2
+    echo "SRC_TYPE            MT, FLT, FFM, or FSP" 1>&2
+    echo "SRC_FILE            Name of input fault file"
+    echo "                      MT:  evlo evla evdp str dip rak mag" 1>&2
+    echo "                      FLT: evlo evla evdp str dip rak slip wid len" 1>&2
+    echo "                      FFM: finite fault model in USGS .param format" 1>&2
+    echo "                      FSP: finite fault model in SRCMOD FSP format" 1>&2
+    echo 1>&2
+    echo "Optional arguments (many of these defined automatically)" 1>&2
+    echo "-Rpmn/pmx/zmn/zmx   Cross-section limits" 1>&2
+    echo "-trg S/D/R          Target fault strike/dip/rake" 1>&2
+    echo "-fric FRIC          Effective fault friction (default: 0.4)" 1>&2
+    echo "-xsec LON0/LAT0/AZ  Define cross-section plane" 1>&2
+    echo "-slipthr THR        FFM slip threshold (fraction of max)" 1>&2
+    echo "-n NN               Number of stress contour grid points (default: 100/dimension)" 1>&2
+    echo "-seg                Plot segmented finite faults" 1>&2
+    echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
+    echo "-o FILENAME         Basename for output file" 1>&2
+    echo "-noclean            Keep all temporary files (useful for debugging)"
+    echo 1>&2
+    exit 1
 }
-# Check for minimum number of required arguments
-if [ $# -lt 2 ]
+# Source type and source file are required
+if [ $# -eq 0 ]
 then
-    echo "!! Error: SRC_TYPE and SRC_FILE arguments required"
-    echo "!!        Map limits (-Rw/e/s/n) and target kinematics (str/dip/rak) optional"
-    USAGE
+    usage
+elif [ $# -lt 2 ]
+then
+    echo "coul_xsec.sh: SRC_TYPE and SRC_FILE arguments required" 1>&2
+    usage
 fi
 SRC_TYPE="$1"
 SRC_FILE="$2"
-# Check that source type is correct
-if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" ]
+shift
+shift
+
+# Check that the source type is an available option
+if [ $SRC_TYPE != "FFM" -a $SRC_TYPE != "MT" -a $SRC_TYPE != "FSP" -a $SRC_TYPE != "FLT" ]
 then
-    echo "!! Error: source type must be FFM or MT"
-    USAGE
+    echo "coul_xsec.sh: source type must be FFM, FSP, MT, or FLT" 1>&2
+    usage
 fi
+
 # Check that input file exists
 if [ ! -f $SRC_FILE ]
 then
-    echo "!! Error: no source file $SRC_FILE found"
-    USAGE
+    echo "coul_xsec.sh: no source file $SRC_FILE found" 1>&2
+    usage
 fi
+
+
 # Parse optional arguments
 LIMS=""
+NN="100"
 TSTR=""
 TDIP=""
 TRAK=""
+FRIC="0.4"
 LON0=""
 LAT0=""
-shift;shift
+AZ=""
+SEG="0"
+EMPREL="WC"
+OFILE="coul_xsec"
+THR="0.15"
+CLEAN="Y"
 while [ "$1" != "" ]
 do
     case $1 in
-        -R*) LIMS="$1"
-             ;;
-        -T*) TSTR=`echo $1 | sed -e "s/-T//" | awk -F"/" '{print $1}'`
-             TDIP=`echo $1 | sed -e "s/-T//" | awk -F"/" '{print $2}'`
-             TRAK=`echo $1 | sed -e "s/-T//" | awk -F"/" '{print $3}'`
-             ;;
-        -P*) LON0=`echo $1 | sed -e "s/-P//" | awk -F"/" '{print $1}'`
-             LAT0=`echo $1 | sed -e "s/-P//" | awk -F"/" '{print $2}'`
-             ;;
-          *) echo "!! Error: no option \"$1\""
-             USAGE
-             ;;
+        -R*) LIMS="$1";;
+        -trg) shift
+              TSTR=`echo $1 | awk -F"/" '{print $1}'`
+              TDIP=`echo $1 | awk -F"/" '{print $2}'`
+              TRAK=`echo $1 | awk -F"/" '{print $3}'`;;
+        -fric) shift; FRIC=$1;;
+        -xsec) shift
+               LON0=`echo $1 | awk -F"/" '{print $1}'`
+               LAT0=`echo $1 | awk -F"/" '{print $2}'`
+               AZ=`echo $1 | awk -F"/" '{print $3}'`;;
+        -slipthr) shift; THR=$1;;
+        -seg) SEG="1" ;;
+        -n) shift;NN=$1;NN=$(echo $NN | awk '{printf("%d"),$1}');;
+        -emprel) shift;EMPREL="$1";;
+        -o) shift;OFILE="$1" ;;
+        -noclean) CLEAN="N";;
+        *) echo "coul_xsec.sh: no option \"$1\"" 1>&2; usage;;
     esac
     shift
 done
+
+PSFILE="$OFILE.ps"
+
+
+
+###############################################################################
+#	CHECK FOR REQUIRED EXECUTABLES
+###############################################################################
+
+# Check for executables in user-specified directory, if defined
+if [ "$HDEF_BIN_DIR" != "" ]
+then
+    BIN_DIR=$(which $HDEF_BIN_DIR/o92util | xargs dirname)
+    if [ "$BIN_DIR" == "" ]
+    then
+        echo "coul_xsec.sh: executables not found in user-specified HDEF_BIN_DIR=$HDEF_BIN_DIR" 1>&2
+        echo "Searching in other locations..." 1>&2
+    fi
+fi
+
+# Check if o92util is set in PATH
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which o92util | xargs dirname)
+fi
+
+# Check for o92util in same directory as script
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/o92util | xargs dirname)
+fi
+
+# Check for o92util in relative directory ../bin (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../bin/o92util | xargs dirname)
+fi
+
+# Check for o92util in relative directory ../build (assumes script is in Hdef/dir)
+if [ "$BIN_DIR" == "" ]
+then
+    BIN_DIR=$(which $(dirname $0)/../build/o92util | xargs dirname)
+fi
+
+# Hdef executables are required for this script!
+if [ "$BIN_DIR" == "" ]
+then
+    echo "coul_xsec.sh: unable to find Hdef executables; exiting" 1>&2
+    exit 1
+fi
+
+# GMT executables are required for this script!
+GMT_DIR=$(which gmt | xargs dirname)
+if [ "$GMT_DIR" == "" ]
+then
+    echo "coul_xsec.sh: unable to find GMT executables; exiting" 1>&2
+    exit 1
+fi
+
+
+###############################################################################
+#	CLEAN UP FUNCTION
+###############################################################################
+function cleanup () {
+    rm -f no_green_mwh.cpt
+    rm -f coul.cpt
+    rm -f coul_mpa.cpt
+    rm -f coul.grd
+    rm -f gmt.*
+    rm -f *.tmp
+}
+if [ "$CLEAN" == "Y" ]
+then
+    trap "cleanup" 0 1 2 3 8 9
+fi
+
 
 ###############################################################################
 ###############################################################################
@@ -129,91 +188,146 @@ done
 ###############################################################################
 ###############################################################################
 
+###############################################################################
+#	DEFINE APPEARANCE OF STRESS CONTOURS
+###############################################################################
+# Coulomb stress color palette
+# cat > no_green_mwh.cpt << EOF
+# # Color table using in Lab for Satellite Altimetry
+# # For folks who hate green in their color tables
+# # Designed by W.H.F. Smith, NOAA
+# # Modified to make small values white
+# -32	32/96/255	-28	32/96/255
+# -28	32/159/255	-24	32/159/255
+# -24	32/191/255	-20	32/191/255
+# -20	0/207/255	-16	0/207/255
+# -16	42/255/255	-12	42/255/255
+# -12	85/255/255	-8	85/255/255
+# -8	127/255/255	-3.2	127/255/255
+# -3.2	255/255/255	0	255/255/255
+# 0	255/255/255	3.2	255/255/255
+# 3.2	255/240/0	8	255/240/0
+# 8	255/191/0	12	255/191/0
+# 12	255/168/0	16	255/168/0
+# 16	255/138/0	20	255/138/0
+# 20	255/112/0	24	255/112/0
+# 24	255/77/0	28	255/77/0
+# 28	255/0/0		32	255/0/0
+# B	32/96/255
+# F	255/0/0
+# EOF
+$BIN_DIR/colortool -hue 270,180 -chroma 40,0 -lightness 40,100 -gmt -T-1e6/0/1e5 > no_green_mwh.cpt
+$BIN_DIR/colortool -hue 100,10 -chroma 100,30 -lightness 100,50 -gmt -T0/1e6/1e5 >> no_green_mwh.cpt
+
+
 #####
-#       INPUT FILES FOR COULOMB STRESS CALCULATION
+#	INPUT FILES FOR DISPLACEMENT CALCULATION
 #####
-if [ $SRC_TYPE == "FFM" ]
-then
-    # Copy FFM to new file name
-    cp $SRC_FILE ./ffm.dat
-    # Simplify FFM by removing slip smaller than minimum threshold
-    # percentage of maximum slip (THR*MAXSLIP)
-    MAXSLIP=`awk '{if(substr($1,1,1)!="#" && NF>3){print $4}}' ffm.dat |\
-             gmtinfo -C -I0.01 | awk '{print $2}'`
-    awk '{
-      if (substr($1,1,1)!="#" && NF>3 && $4<'"$MAXSLIP"'*'"$THR"')
-        {print $1,$2,$3,0,$5,$6,$7,$8,$9,$10,$11}
-      else
-        {print $0}
-    }' ffm.dat > t
-    mv t ffm.dat
-else
-    # Copy MT to new file name
-    cp $SRC_FILE ./mt.dat
-fi
+# Copy source file to temporary file
+cp $SRC_FILE ./source.tmp || { echo "coul_xsec.sh: error copying EQ source file" 1>&2; exit 1; }
 
 # Elastic half-space properties
 LAMDA="4e10" # Lame parameter
 MU="4e10"    # Shear modulus
 echo "Lame $LAMDA $MU" > haf.dat
 
-# Target fault geometry, orientation and reference point for cross section
-if [ $SRC_TYPE == "FFM" ]
+
+# If kinematics or plane geometry are given on the command line, use them for stress calculation
+# Otherwise, use the slip*area-weighted average values from the source
+if [ "$TRAK" == "" -o "$AZ" == "" ]
 then
-    # Use slip-weighted strike and dip for target faults (and cross-section azimuth)
-    awk 'BEGIN{n=0;s=0;d=0;r=0;z=0;u=0}
-         {u=$4;n=n+u;s=s+u*$6;d=d+u*$7;r=r+u*$5;z=z+u*$3}
-         END{print z/n,s/n,d/n,r/n}' ffm.dat > junk
-    Z=`awk '{printf("%12.0f"),$1}' junk | awk '{print $1}'`
-    if [ -z $TRAK ]
+    if [ $SRC_TYPE == "FFM" ]
     then
-        TSTR=`awk '{printf("%12.0f"),$2}' junk | awk '{print $1}'`
-        TDIP=`awk '{printf("%12.0f"),$3}' junk | awk '{print $1}'`
-        TRAK=`awk '{printf("%12.0f"),$4}' junk |\
-              awk '{if(0<$1&&$1<180||$1>360){print 90}else{print -90}}'`
-        echo "Automatic target kinematics: $TSTR $TDIP $TRAK"
-    else
-        echo "Using target kinematics from command line: $TSTR $TDIP $TRAK"
+        $BIN_DIR/ff2gmt -ffm source.tmp -flt flt.tmp || exit 1
+    elif [ $SRC_TYPE == "FSP" ]
+    then
+        $BIN_DIR/ff2gmt -fsp source.tmp -flt flt.tmp || exit 1
+    elif [ $SRC_TYPE == "MT" ]
+    then
+        awk '{print $7}' source.tmp | $BIN_DIR/mtutil -mag -mom mom.tmp || exit 1
+        paste source.tmp mom.tmp | awk '{print $1,$2,$3,$4,$5,$6,$8,1,1}' > flt.tmp
+    elif [ $SRC_TYPE == "FLT" ]
+    then
+        cp source.tmp flt.tmp
     fi
-    if [ -z $LON0 ]
-    then
-        # Use epicenter as cross-section origin
-        LON0=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $2}'`
-        LAT0=`sed -n -e "3p" ffm.dat | sed -e "s/.*Lon:/Lon:/" | awk '{print $4}'`
-        echo "Using epicenter as origin: $LON0 $LAT0"
-        TXT="e"
-    elif [ -z $LAT0 ]
-    then
-        # Use peak slip as cross-section origin
-        MAXLN=`awk 'BEGIN{max=0}
-                    {if(substr($1,1,1)!="#"&&NF>3){if($4>max){max=$4;line=NR}}}
-                    END{print line}' ffm.dat`
-        LON0=`sed -n -e "${MAXLN}p" ffm.dat | awk '{printf("%12.2f"),$2}' | awk '{print $1}'`
-        LAT0=`sed -n -e "${MAXLN}p" ffm.dat | awk '{printf("%12.2f"),$1}' | awk '{print $1}'`
-        echo "Using peak slip as origin: $LON0 $LAT0"
-        TXT="p"
-    else
-        echo "Origin from command line: $LON0 $LAT0"
-        TXT="c"
-    fi
-    rm junk
-else
-    Z=`awk '{print $3}' mt.dat`
-    if [ -z $TRAK ]
-    then
-        TSTR=`awk '{print $4}' mt.dat`
-        TDIP=`awk '{print $5}' mt.dat`
-        TRAK=`awk '{print $6}' mt.dat`
-    else
-        echo "Using target kinematics from command line: $TSTR $TDIP $TRAK"
-    fi
-    LON0=`awk '{print $1}' mt.dat`
-    LAT0=`awk '{print $2}' mt.dat`
 fi
-AZ=`echo $TSTR | awk '{if(-90<=$1&&$1<90||$1>=270){print $1+90}else{print $1-90}}'`
-DIPD=`echo $TSTR | awk '{if(-90<=$1&&$1<90||$1>=270){print "R"}else{print "L"}}'`
-FRIC="0.4"
-echo $TSTR $TDIP $TRAK $FRIC > trg.dat
+
+# Calculate target strike/dip/rake from FFM if needed
+if [ "$TRAK" != "" ]
+then
+    echo "Using target kinematics from the command line: str=$TSTR dip=$TDIP rak=$TRAK"
+else
+    if [ ! -f flt.tmp ]; then echo "$0: flt.tmp is required, but not created; this is a problem in the script" 1>&2; exit 1; fi
+
+    # Calculate slip*area
+    awk '{print $7*$8*$9}' flt.tmp > mom.tmp
+
+    # Convert strike/dip/rake to moment tensor components
+    awk '{print $4,$5,$6}' flt.tmp | $BIN_DIR/mtutil -sdr -mij mij.tmp || exit 1
+
+    # Weight moment tensor components by slip*area and compute weighted mean strike/dip/rake
+    paste mij.tmp mom.tmp |\
+        awk '{print $1*$7,$2*$7,$3*$7,$4*$7,$5*$7,$6*$7}' |\
+        awk 'BEGIN{rr=0;tt=0;pp=0;rt=0;rp=0;tp=0}{
+            rr += $1
+            tt += $2
+            pp += $3
+            rt += $4
+            rp += $5
+            tp += $6
+        }END{print rr,tt,pp,rt,rp,tp}' |\
+        $BIN_DIR/mtutil -mij -sdr sdr.tmp || exit 1
+
+     # Finally, compute the average FFM strike to determine which target nodal plane to select
+     MEAN_STR=$(awk 'BEGIN{sx=0;sy=0;d2r=3.14159265/180}{
+                    sx+=sin($4*d2r)
+                    sy+=cos($4*d2r)
+                }END{print atan2(sx,sy)/d2r}' flt.tmp)
+     awk 'BEGIN{d2r=3.14159265/180}{
+         ffm_strx_1 = sin($1*d2r)
+         ffm_stry_1 = cos($1*d2r)
+         ffm_strx_2 = sin($4*d2r)
+         ffm_stry_2 = cos($4*d2r)
+         mean_strx = sin('"$MEAN_STR"'*d2r)
+         mean_stry = cos('"$MEAN_STR"'*d2r)
+         dp1 = ffm_strx_1*mean_strx + ffm_stry_1*mean_stry
+         dp2 = ffm_strx_2*mean_strx + ffm_stry_2*mean_stry
+         if (dp1>dp2) {
+             print $1,$2,$3
+         } else {
+             print $4,$5,$6
+         }
+     }' sdr.tmp > j; mv j sdr.tmp
+
+     # Save new strike, dip, and rake
+     TSTR=$(awk '{printf("%.0f"),$1}' sdr.tmp)
+     TDIP=$(awk '{printf("%.0f"),$2}' sdr.tmp)
+     TRAK=$(awk '{printf("%.0f"),$3}' sdr.tmp)
+
+    echo "Calculated target kinematics from the source fault: str=$TSTR dip=$TDIP rak=$TRAK"
+fi
+echo $TSTR $TDIP $TRAK $FRIC > trg.tmp
+
+
+# Calculate cross-section plane from FFM if not specified
+if [ "$Z0" != "" ]
+then
+    echo "Using cross-section plane from command line: lon=$LON0 lat=$LAT0 dep=$Z0"
+
+else
+    if [ ! -f flt.tmp ]; then echo "$0: flt.tmp is required, but not created; this is a problem in the script" 1>&2; exit 1; fi
+
+    # Calculate slip*area
+    awk '{print $7*$8*$9}' flt.tmp > mom.tmp
+
+    # Weight lon, lat, and depth by slip*area and compute weighted mean values
+    LON0=$(paste flt.tmp mom.tmp | awk 'BEGIN{lo=0;m=0}{lo+=$1*$8;m+=$8}END{printf("%.1f"),lo/m}')
+    LAT0=$(paste flt.tmp mom.tmp | awk 'BEGIN{la=0;m=0}{la+=$2*$8;m+=$8}END{printf("%.1f"),la/m}')
+    Z0=$(paste flt.tmp mom.tmp | awk 'BEGIN{z=0;m=0}{z+=$3*$8;m+=$8}END{printf("%.1f"),z/m}')
+
+    echo "Calculated reference point from the source fault: lon=$LON0 lat=$LAT0 dep=$Z0"
+fi
+
 
 #####
 #       SET UP COMPUTATION GRID
