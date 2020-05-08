@@ -82,7 +82,7 @@ message(STATUS "Looking for LAPACK")
 set(useLAPACK 0)
 
 if ("${LAPACK_LIB_DIR}" STREQUAL "" )
-    message(STATUS "Compiling Hdef without LAPACK")
+    message(STATUS "Compiling Hdef ***without*** LAPACK")
     message(STATUS "Set LAPACK directory with: '-DLAPACK_LIB_DIR=/path/to/lapack/lib'")
 
 elseif (EXISTS ${LAPACK_LIB_DIR})
@@ -96,7 +96,7 @@ elseif (EXISTS ${LAPACK_LIB_DIR})
     elseif (EXISTS ${LAPACK_LIB_DIR}/libreflapack.a)
         set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libreflapack.a)
     else()
-        message(WARNING "Could not find library lapack or reflapack in " ${LAPACK_LIB_DIR} ". Compiling Hdef without LAPACK.")
+        message(WARNING "Could not find library lapack or reflapack in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
         set(useLAPACK 0)
     endif()
 
@@ -106,7 +106,7 @@ elseif (EXISTS ${LAPACK_LIB_DIR})
     elseif (EXISTS ${LAPACK_LIB_DIR}/librefblas.a)
         set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/librefblas.a)
     else()
-        message(FATAL_ERROR "Could not find library blas or refblas in " ${LAPACK_LIB_DIR} ". Compiling Hdef without LAPACK.")
+        message(FATAL_ERROR "Could not find library blas or refblas in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
         set(useLAPACK 0)
     endif()
 
@@ -116,12 +116,12 @@ elseif (EXISTS ${LAPACK_LIB_DIR})
     elseif (EXISTS ${LAPACK_LIB_DIR}/libreftmglib.a)
         set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libreftmglib.a)
     else()
-        message(FATAL_ERROR "Could not find library tmglib or reftmglib in " ${LAPACK_LIB_DIR} ". Compiling Hdef without LAPACK.")
+        message(FATAL_ERROR "Could not find library tmglib or reftmglib in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
         set(useLAPACK 0)
     endif()
 
 else()
-    message(WARNING "Could not find LAPACK directory: '" ${LAPACK_LIB_DIR} "'. Compiling Hdef without LAPACK")
+    message(WARNING "Could not find LAPACK directory: '" ${LAPACK_LIB_DIR} "'. Compiling Hdef ***without*** LAPACK")
 endif()
 
 if (useLAPACK)
@@ -233,32 +233,10 @@ foreach(executable ${f77_files})
 endforeach()
 
 # Install executables
-install(TARGETS anneal_post    DESTINATION bin)
-install(TARGETS clip           DESTINATION bin)
-install(TARGETS colortool      DESTINATION bin)
-install(TARGETS dateutil       DESTINATION bin)
-install(TARGETS distaz2lola    DESTINATION bin)
-install(TARGETS ff2gmt         DESTINATION bin)
-install(TARGETS fitutil        DESTINATION bin)
-install(TARGETS fltinv         DESTINATION bin)
-install(TARGETS grid           DESTINATION bin)
-install(TARGETS interpolate    DESTINATION bin)
-install(TARGETS lola2distaz    DESTINATION bin)
-install(TARGETS mtutil         DESTINATION bin)
-install(TARGETS numint         DESTINATION bin)
-install(TARGETS o92util        DESTINATION bin)
-install(TARGETS perspective    DESTINATION bin)
-install(TARGETS platemotion    DESTINATION bin)
-install(TARGETS rangen         DESTINATION bin)
-install(TARGETS readGCMT       DESTINATION bin)
-install(TARGETS readkik        DESTINATION bin)
-install(TARGETS sphfinrot      DESTINATION bin)
-install(TARGETS stereo_project DESTINATION bin)
-install(TARGETS tri_tool       DESTINATION bin)
-install(TARGETS triutil        DESTINATION bin)
-install(TARGETS vec2los        DESTINATION bin)
-install(TARGETS wraplos        DESTINATION bin)
-
+list(APPEND hdef_executables ${f90_files} ${f77_files} fltinv)
+foreach(executable ${hdef_executables})
+    install(TARGETS ${executable} DESTINATION bin)
+endforeach()
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
@@ -278,12 +256,12 @@ message(STATUS "Setting up script builds")
 #     DEPENDS ff2gmt grid o92util
 #     COMMENT "Building target coul_dip.sh")
 
-add_custom_target(surf_disp ALL DEPENDS surf_disp.sh)
+add_custom_target(surf_disp-script ALL DEPENDS surf_disp.sh)
 add_custom_command(
     OUTPUT surf_disp.sh
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/surf_disp.sh ${CMAKE_CURRENT_BINARY_DIR}/surf_disp.sh
     MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/scripts/surf_disp.sh
-    DEPENDS ff2gmt grid o92util
+    DEPENDS ${hdef_executables}
     COMMENT "Building target surf_disp.sh")
 
 message(STATUS "*********************************************************************************")
@@ -407,9 +385,21 @@ add_custom_target(test-exec DEPENDS ${executable_test_list})
 message(STATUS "*********************************************************************************")
 message(STATUS "")
 
+
+#####
+#	FINISH UP
+#####
 message(STATUS "*********************************************************************************")
+if(useLAPACK)
+    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with LAPACK")
+else()
+    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables}
+                      COMMENT "Hdef built without LAPACK: inversion and fitting programs will not work.
+       To build with LAPACK, run cmake with '-DLAPACK_LIB_DIR=/path/to/lapack/lib'")
+endif()
 message(STATUS "Type 'make' to compile Hdef")
 message(STATUS "Type 'make test' to run unit tests")
 message(STATUS "Type 'make test-exec' to run executable tests")
+message(STATUS "Type 'make install' to install Hdef in directory '${CMAKE_INSTALL_PREFIX}'")
 message(STATUS "*********************************************************************************")
 message(STATUS "")
