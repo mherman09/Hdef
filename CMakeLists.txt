@@ -382,6 +382,8 @@ endforeach()
 # Define a custom test target to test all hdef executables
 add_custom_target(test-exec DEPENDS ${executable_test_list})
 
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_values.sh DESTINATION test)
+
 message(STATUS "*********************************************************************************")
 message(STATUS "")
 
