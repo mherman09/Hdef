@@ -753,78 +753,297 @@ end subroutine
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
 
-subroutine empirical(mag,wid,len,relation_name,fault_type)
+subroutine empirical(mag,wid,len,relation_input,fault_type)
 !----
 ! Compute the fault width (down-dip) and length (along-strike) from the magnitude for a particular
 ! empirical relation.
 !----
 
-use io, only: stderr
+use io, only: stderr, stdout
 
 implicit none
 
 ! Arguments
 double precision :: mag, wid, len
-character(len=*) :: relation_name, fault_type
+character(len=*) :: relation_input, fault_type
 
 ! Local variables
+integer :: i
+logical :: printRelation
 double precision :: mom, log10mom
+double precision :: len_surf_rupt(4), len_total(4), wid_total(4), area(4), &
+                    slip_max(4), slip_avg(4)
+character(len=32) :: relation_name
 
 
+! Initialize return values
+wid = 0.0d0
+len = 0.0d0
+
+! Initialize values
+wid_total = 0.0d0
+len_total = 0.0d0
+
+
+! If relation_name ends with ":print", then print all parameter information for empirical relation
+! Otherwise, extract the length and width corresponding to the relation and fault type only
+i = index(relation_input,':print')
+if (i.eq.0) then
+    relation_name = relation_input
+    printRelation = .false.
+else
+    relation_name = relation_input(1:i-1)
+    printRelation = .true.
+endif
+
+
+! Determine earthquake parameters and print if requested
 if (relation_name.eq.'wells_coppersmith_94'.or.relation_name.eq.'WC') then
     ! Wells, D.L., Coppersmith, K.J. (1994). New empirical relationships among magnitude, rupture
     !   length, rupture width, rupture area, and surface displacement. Bulletin of the Seismological
     !   Society of America, 84, 974–1002.
-    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
-        len = 10.0d0**(-2.57d0+0.62d0*mag)
-        wid = 10.0d0**(-0.76d0+0.27d0*mag)
-    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
-        len = 10.0d0**(-2.42d0+0.58d0*mag)
-        wid = 10.0d0**(-1.61d0+0.41d0*mag)
-    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
-        len = 10.0d0**(-1.88d0+0.50d0*mag)
-        wid = 10.0d0**(-1.14d0+0.35d0*mag)
-    else
-        len = 10.0d0**(-2.44d0+0.59d0*mag)
-        wid = 10.0d0**(-1.01d0+0.32d0*mag)
+
+    ! 1=ss  2=th  3=no  4=all
+    ! Total subsurface rupture length
+    len_total(1) = 10.0d0 ** (-2.57d0 + 0.62d0*mag)         ! a: +/-0.12,  b: +/-0.02
+    len_total(2) = 10.0d0 ** (-2.42d0 + 0.58d0*mag)         ! a: +/-0.21,  b: +/-0.03
+    len_total(3) = 10.0d0 ** (-1.88d0 + 0.50d0*mag)         ! a: +/-0.37,  b: +/-0.06
+    len_total(4) = 10.0d0 ** (-2.44d0 + 0.59d0*mag)         ! a: +/-0.11,  b: +/-0.02
+
+    ! Downdip rupture width
+    wid_total(1) = 10.0d0 ** (-0.76d0 + 0.27d0*mag)         ! a: +/-0.12,  b: +/-0.02
+    wid_total(2) = 10.0d0 ** (-1.61d0 + 0.41d0*mag)         ! a: +/-0.20,  b: +/-0.03
+    wid_total(3) = 10.0d0 ** (-1.14d0 + 0.35d0*mag)         ! a: +/-0.28,  b: +/-0.05
+    wid_total(4) = 10.0d0 ** (-1.01d0 + 0.32d0*mag)         ! a: +/-0.10,  b: +/-0.02
+
+    if (printRelation) then
+        ! Surface rupture length
+        len_surf_rupt(1) = 10.0d0 ** (-3.55d0 + 0.74d0*mag) ! a: +/-0.37,  b: +/-0.05
+        len_surf_rupt(2) = 10.0d0 ** (-2.86d0 + 0.63d0*mag) ! a: +/-0.55,  b: +/-0.08
+        len_surf_rupt(3) = 10.0d0 ** (-2.01d0 + 0.50d0*mag) ! a: +/-0.65,  b: +/-0.10
+        len_surf_rupt(4) = 10.0d0 ** (-3.22d0 + 0.69d0*mag) ! a: +/-0.27,  b: +/-0.04
+
+        ! Total rupture area
+        area(1) = 10.0d0 ** (-3.42d0 + 0.90d0*mag)          ! a: +/-0.18,  b: +/-0.03
+        area(2) = 10.0d0 ** (-3.99d0 + 0.98d0*mag)          ! a: +/-0.36,  b: +/-0.06
+        area(3) = 10.0d0 ** (-2.87d0 + 0.82d0*mag)          ! a: +/-0.50,  b: +/-0.08
+        area(4) = 10.0d0 ** (-3.49d0 + 0.91d0*mag)          ! a: +/-0.16,  b: +/-0.03
+
+        ! Maximum slip
+        slip_max(1) = 10.0d0 ** (-7.03d0 + 1.03d0*mag)      ! a: +/-0.55,  b: +/-0.08
+        slip_max(2) = 10.0d0 ** (-1.84d0 + 0.29d0*mag)      ! a: +/-1.14,  b: +/-0.17
+        slip_max(3) = 10.0d0 ** (-5.90d0 + 0.89d0*mag)      ! a: +/-1.18,  b: +/-0.18
+        slip_max(4) = 10.0d0 ** (-5.46d0 + 0.82d0*mag)      ! a: +/-0.51,  b: +/-0.08
+
+        ! Average slip
+        slip_avg(1) = 10.0d0 ** (-6.32d0 + 0.90d0*mag)      ! a: +/-0.61,  b: +/-0.09
+        slip_avg(2) = 10.0d0 ** (-0.74d0 + 0.08d0*mag)      ! a: +/-1.40,  b: +/-0.21
+        slip_avg(3) = 10.0d0 ** (-4.45d0 + 0.63d0*mag)      ! a: +/-1.59,  b: +/-0.24
+        slip_avg(4) = 10.0d0 ** (-4.80d0 + 0.69d0*mag)      ! a: +/-0.57,  b: +/-0.08
+
+        write(stdout,*) 'Scaling Relation: Wells and Coppersmith, BSSA (1994)'
+        write(stdout,*)
+        write(stdout,*) 'Description:'
+        write(stdout,*) '"A worldwide data base of source parameters for 421 historical earthquakes ',&
+                   'is compiled for this study.'
+        write(stdout,*) ' The data include shallow-focus (hypocentral depth less than 40 km), ',&
+                   'continental interplate or intraplate'
+        write(stdout,*) ' earthquakes of magnitudes greater than approximately 4.5. Earthquakes ',&
+                   'associated with subduction zones,'
+        write(stdout,*) ' both plate interface earthquakes and those occurring within oceanic slabs, ',&
+                   'are excluded."'
+        write(stdout,*)
+        write(stdout,5062) 'Magnitude:',mag
+        write(stdout,*)
+        write(stdout,*) 'Total subsurface length (km)'
+        write(stdout,5102) 'strike-slip:',len_total(1)
+        write(stdout,5102) 'thrust:     ',len_total(2)
+        write(stdout,5102) 'normal:     ',len_total(3)
+        write(stdout,5102) 'all:        ',len_total(4)
+        write(stdout,*) 'Total down-dip width (km)'
+        write(stdout,5102) 'strike-slip:',wid_total(1)
+        write(stdout,5102) 'thrust:     ',wid_total(2)
+        write(stdout,5102) 'normal:     ',wid_total(3)
+        write(stdout,5102) 'all:        ',wid_total(4)
+        write(stdout,*) 'Surface rupture length (km)'
+        write(stdout,5102) 'strike-slip:',len_surf_rupt(1)
+        write(stdout,5102) 'thrust:     ',len_surf_rupt(2)
+        write(stdout,5102) 'normal:     ',len_surf_rupt(3)
+        write(stdout,5102) 'all:        ',len_surf_rupt(4)
+        write(stdout,*) 'Total rupture area (km^2)'
+        write(stdout,5101) 'strike-slip:',area(1)
+        write(stdout,5101) 'thrust:     ',area(2)
+        write(stdout,5101) 'normal:     ',area(3)
+        write(stdout,5101) 'all:        ',area(4)
+        write(stdout,*) 'Maximum slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_max(1)
+        write(stdout,5103) 'thrust:     ',slip_max(2)
+        write(stdout,5103) 'normal:     ',slip_max(3)
+        write(stdout,5103) 'all:        ',slip_max(4)
+        write(stdout,*) 'Average slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_avg(1)
+        write(stdout,5103) 'thrust:     ',slip_avg(2)
+        write(stdout,5103) 'normal:     ',slip_avg(3)
+        write(stdout,5103) 'all:        ',slip_avg(4)
     endif
+
+    ! Return total fault length and width
+    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
+        len = len_total(1)
+        wid = wid_total(1)
+    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
+        len = len_total(2)
+        wid = wid_total(2)
+    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
+        len = len_total(3)
+        wid = wid_total(3)
+    else
+        len = len_total(4)
+        wid = wid_total(4)
+    endif
+
 
 elseif (relation_name.eq.'mai_beroza_00'.or.relation_name.eq.'MB') then
     ! Mai, P.M., Beroza, G.C. (2000). Source scaling properties from finite- fault-rupture models.
     !   Bulletin of the Seismological Society of America, 90, 604-615.
     call mag2mom(mag,mom)
     log10mom = log10(mom)
-    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
-        len = 10.0d0**(-6.31d0+0.40d0*log10mom)
-        wid = 10.0d0**(-2.18d0+0.17d0*log10mom)
-    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
-        len = 10.0d0**(-6.39d0+0.40d0*log10mom)
-        wid = 10.0d0**(-5.51d0+0.35d0*log10mom)
-    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
-        len = 10.0d0**(-6.39d0+0.40d0*log10mom)
-        wid = 10.0d0**(-5.51d0+0.35d0*log10mom)
-    else
-        len = 10.0d0**(-6.13d0+0.39d0*log10mom)
-        wid = 10.0d0**(-5.05d0+0.32d0*log10mom)
+
+    ! 1=ss  2=th  3=no  4=all
+    ! Effective subsurface rupture length
+    len_total(1) = 10.0d0**(-6.31d0+0.40d0*log10mom)          ! a: +/-1.15,  b: +/-0.06
+    len_total(2) = 10.0d0**(-6.39d0+0.40d0*log10mom)          ! a: +/-1.04,  b: +/-0.05
+    len_total(3) = 10.0d0**(-6.39d0+0.40d0*log10mom)          ! a: +/-1.04,  b: +/-0.05
+    len_total(4) = 10.0d0**(-6.13d0+0.39d0*log10mom)          ! a: +/-0.74,  b: +/-0.04
+
+    ! Effective downdip rupture width
+    wid_total(1) = 10.0d0**(-2.18d0+0.17d0*log10mom)          ! a: +/-1.09,  b: +/-0.06
+    wid_total(2) = 10.0d0**(-5.51d0+0.35d0*log10mom)          ! a: +/-0.81,  b: +/-0.04
+    wid_total(3) = 10.0d0**(-5.51d0+0.35d0*log10mom)          ! a: +/-0.81,  b: +/-0.04
+    wid_total(4) = 10.0d0**(-5.05d0+0.32d0*log10mom)          ! a: +/-0.74,  b: +/-0.04
+
+    if (printRelation) then
+        ! Effective rupture area
+        area(1) = 10.0d0**(-8.49d0+0.57d0*log10mom)            ! a: +/-1.85,  b: +/-0.10
+        area(2) = 10.0d0**(-11.90d0+0.75d0*log10mom)           ! a: +/-1.67,  b: +/-0.09
+        area(3) = 10.0d0**(-11.90d0+0.75d0*log10mom)           ! a: +/-1.67,  b: +/-0.09
+        area(4) = 10.0d0**(-11.18d0+0.72d0*log10mom)           ! a: +/-1.18,  b: +/-0.06
+
+        ! Effective slip
+        slip_avg(1) = 10.0d0**(-6.03d0+0.43d0*log10mom)/1.0d2  ! a: +/-0.61,  b: +/-0.09
+        slip_avg(2) = 10.0d0**(-2.62d0+0.25d0*log10mom)/1.0d2  ! a: +/-1.40,  b: +/-0.21
+        slip_avg(3) = 10.0d0**(-2.62d0+0.25d0*log10mom)/1.0d2  ! a: +/-1.59,  b: +/-0.24
+        slip_avg(4) = 10.0d0**(-3.34d0+0.29d0*log10mom)/1.0d2  ! a: +/-0.57,  b: +/-0.08
+
+
+        write(stdout,*) 'Scaling Relation: Mai and Beroza, BSSA (2000)'
+        write(stdout,*)
+        write(stdout,*) 'Description:'
+        write(stdout,*) '"Finite-source images of earthquake rupture show that fault slip is spatially ',&
+                   'variable at all resolvable'
+        write(stdout,*) ' scales. In this study we develop scaling laws that account for this variability by ',&
+                   'measuring effective'
+        write(stdout,*) ' fault dimensions derived from the autocorrelation of the slip function for ',&
+                   '31 published slip models '
+        write(stdout,*) ' of 18 earthquakes, 8 strike-slip events, and 10 dip-slip (reverse, normal, ',&
+                   'or oblique) events."'
+        write(stdout,*)
+        write(stdout,5062) 'Magnitude:',mag
+        write(stdout,*)
+        write(stdout,*) 'Effective subsurface length (km)'
+        write(stdout,5102) 'strike-slip:',len_total(1)
+        write(stdout,5102) 'thrust:     ',len_total(2)
+        write(stdout,5102) 'normal:     ',len_total(3)
+        write(stdout,5102) 'all:        ',len_total(4)
+        write(stdout,*) 'Effective down-dip width (km)'
+        write(stdout,5102) 'strike-slip:',wid_total(1)
+        write(stdout,5102) 'thrust:     ',wid_total(2)
+        write(stdout,5102) 'normal:     ',wid_total(3)
+        write(stdout,5102) 'all:        ',wid_total(4)
+        write(stdout,*) 'Effective rupture area (km^2)'
+        write(stdout,5101) 'strike-slip:',area(1)
+        write(stdout,5101) 'thrust:     ',area(2)
+        write(stdout,5101) 'normal:     ',area(3)
+        write(stdout,5101) 'all:        ',area(4)
+        write(stdout,*) 'Effective slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_avg(1)
+        write(stdout,5103) 'thrust:     ',slip_avg(2)
+        write(stdout,5103) 'normal:     ',slip_avg(3)
+        write(stdout,5103) 'all:        ',slip_avg(4)
     endif
+
+    ! Return effective fault length and width
+    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
+        len = len_total(1)
+        wid = wid_total(1)
+    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
+        len = len_total(2)
+        wid = wid_total(2)
+    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
+        len = len_total(3)
+        wid = wid_total(3)
+    else
+        len = len_total(4)
+        wid = wid_total(4)
+    endif
+
 
 elseif (relation_name.eq.'blaser_et_al_10'.or.relation_name.eq.'B') then
     ! Blaser, L., Kruger, F., Ohrnberger, M., Scherbaum, F. (2010). Scaling relations of earthquake
     !   source parameter estimates with special focus on subduction environment. Bulletin of the
     !   Seismological Society of America, vol. 100, no. 6, pp. 2914-2926.
-    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
-        len = 10.0d0**(-2.69d0+0.64d0*mag)
-        wid = 10.0d0**(-1.12d0+0.33d0*mag)
-    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
-        len = 10.0d0**(-2.37d0+0.57d0*mag)
-        wid = 10.0d0**(-1.86d0+0.46d0*mag)
-    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
-        len = 10.0d0**(-1.91d0+0.52d0*mag)
-        wid = 10.0d0**(-1.20d0+0.36d0*mag)
-    else
-        len = 10.0d0**(-2.31d0+0.57d0*mag)
-         wid = 10.0d0**(-1.56d0+0.41d0*mag)
+
+    ! 1=ss  2=th  3=no  4=all
+    ! Subsurface rupture length
+    len_total(1) = 10.0d0**(-2.69d0+0.64d0*mag)     ! a: +/-0.11,  b: +/-0.02
+    len_total(2) = 10.0d0**(-2.37d0+0.57d0*mag)     ! a: +/-0.13,  b: +/-0.02
+    len_total(3) = 10.0d0**(-1.91d0+0.52d0*mag)     ! a: +/-0.29,  b: +/-0.04
+    len_total(4) = 10.0d0**(-2.31d0+0.57d0*mag)     ! a: +/-0.08,  b: +/-0.01
+
+    ! Downdip rupture width
+    wid_total(1) = 10.0d0**(-1.12d0+0.33d0*mag)     ! a: +/-0.12,  b: +/-0.02
+    wid_total(2) = 10.0d0**(-1.86d0+0.46d0*mag)     ! a: +/-0.12,  b: +/-0.02
+    wid_total(3) = 10.0d0**(-1.20d0+0.36d0*mag)     ! a: +/-0.25,  b: +/-0.04
+    wid_total(4) = 10.0d0**(-1.56d0+0.41d0*mag)     ! a: +/-0.09,  b: +/-0.01
+
+    if (printRelation) then
+        write(stdout,*) 'Scaling Relation: Blaser et al., BSSA (2010)'
+        write(stdout,*)
+        write(stdout,*) 'Description:'
+        write(stdout,*) '"Within this study, we compiled a large database of source parameter ',&
+                        'estimates of 283 earthquakes....'
+        write(stdout,*) ' We distinguish between reverse faulting subduction zone events, ',&
+                        'neighboring outer-rise events of'
+        write(stdout,*) ' normal faulting slip type and oceanic strike-slip faulting earthquakes."'
+        write(stdout,*)
+        write(stdout,5062) 'Magnitude:',mag
+        write(stdout,*)
+        write(stdout,*) 'Subsurface length (km)'
+        write(stdout,5102) 'strike-slip:',len_total(1)
+        write(stdout,5102) 'thrust:     ',len_total(2)
+        write(stdout,5102) 'normal:     ',len_total(3)
+        write(stdout,5102) 'all:        ',len_total(4)
+        write(stdout,*) 'Down-dip width (km)'
+        write(stdout,5102) 'strike-slip:',wid_total(1)
+        write(stdout,5102) 'thrust:     ',wid_total(2)
+        write(stdout,5102) 'normal:     ',wid_total(3)
+        write(stdout,5102) 'all:        ',wid_total(4)
     endif
+
+    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
+        len = len_total(1)
+        wid = wid_total(1)
+    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
+        len = len_total(2)
+        wid = wid_total(2)
+    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
+        len = len_total(3)
+        wid = wid_total(3)
+    else
+        len = len_total(4)
+        wid = wid_total(4)
+    endif
+
 
 elseif (relation_name.eq.'yen_ma_11'.or.relation_name.eq.'YM') then
     ! Yen, Y.-T., Ma, K.-F. (2011). Source-scaling relationship for M 4.6-8.9 earthquakes,
@@ -832,39 +1051,186 @@ elseif (relation_name.eq.'yen_ma_11'.or.relation_name.eq.'YM') then
     !   Society of America, 101, 464-481.
     call mag2mom(mag,mom)
     log10mom = log10(mom)
-    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
-        len = 10.0d0**(-8.11d0+0.50d0*log10mom)
-        wid = 10.0d0**(-6.67d0+0.42d0*log10mom)
-    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
-        len = 10.0d0**(-6.66d0+0.42d0*log10mom)
-        wid = 10.0d0**(-5.76d0+0.37d0*log10mom)
-    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
-        len = 10.0d0**(-6.66d0+0.42d0*log10mom)
-        wid = 10.0d0**(-5.76d0+0.37d0*log10mom)
-    else
-        len = 10.0d0**(-7.46d0+0.47d0*log10mom)
-        wid = 10.0d0**(-6.30d0+0.40d0*log10mom)
+
+    ! 1=ss  2=th  3=no  4=all
+    ! Effective subsurface rupture length
+    len_total(1) = 10.0d0**(-8.11d0+0.50d0*log10mom)     ! a: +/-1.20,  b: +/-0.07
+    len_total(2) = 10.0d0**(-6.66d0+0.42d0*log10mom)     ! a: +/-1.05,  b: +/-0.06
+    len_total(3) = 10.0d0**(-6.66d0+0.42d0*log10mom)     ! a: +/-1.05,  b: +/-0.06
+    len_total(4) = 10.0d0**(-7.46d0+0.47d0*log10mom)     ! a: +/-0.77,  b: +/-0.04
+
+    ! Effective downdip rupture width
+    wid_total(1) = 10.0d0**(-6.67d0+0.42d0*log10mom)     ! a: +/-1.38,  b: +/-0.08
+    wid_total(2) = 10.0d0**(-5.76d0+0.37d0*log10mom)     ! a: +/-1.30,  b: +/-0.07
+    wid_total(3) = 10.0d0**(-5.76d0+0.37d0*log10mom)     ! a: +/-1.30,  b: +/-0.07
+    wid_total(4) = 10.0d0**(-6.30d0+0.40d0*log10mom)     ! a: +/-0.90,  b: +/-0.05
+
+    if (printRelation) then
+        ! Effective rupture area
+        area(1) = 10.0d0**(-14.77d0+0.92d0*log10mom)         ! a: +/-2.46,  b: +/-0.14
+        area(2) = 10.0d0**(-12.45d0+0.80d0*log10mom)         ! a: +/-2.32,  b: +/-0.13
+        area(3) = 10.0d0**(-12.45d0+0.80d0*log10mom)         ! a: +/-2.32,  b: +/-0.13
+        area(4) = 10.0d0**(-13.79d0+0.87d0*log10mom)         ! a: +/-1.63,  b: +/-0.09
+
+        ! Effective slip
+        slip_avg(1) = 10.0d0**( 0.36d0+0.08d0*log10mom)/1.0d2      ! a: +/-2.47,  b: +/-0.14
+        slip_avg(2) = 10.0d0**(-2.01d0+0.20d0*log10mom)/1.0d2      ! a: +/-2.32,  b: +/-0.13
+        slip_avg(3) = 10.0d0**(-2.01d0+0.20d0*log10mom)/1.0d2      ! a: +/-2.32,  b: +/-0.13
+        slip_avg(4) = 10.0d0**(-0.65d0+0.13d0*log10mom)/1.0d2      ! a: +/-1.64,  b: +/-0.09
+
+        write(stdout,*) 'Scaling Relation: Yen and Ma, BSSA (2011)'
+        write(stdout,*)
+        write(stdout,*) 'Description:'
+        write(stdout,*) '"We investigated the source scaling of earthquakes (Mw 4.6–8.9), mostly ',&
+                        'from the Taiwan orogenic belt,'
+        write(stdout,*) ' and made a global compilation of source parameters to examine the ',&
+                        'scaling self-similarity. Finite-fault'
+        write(stdout,*) ' slip models (12 dip-slip and 7 strike-slip) using mainly dense ',&
+                        'strong-motion data and teleseismic data '
+        write(stdout,*) ' from Taiwan were utilized. Seven additional earthquakes (M >7) were ',&
+                        'included for further examination'
+        write(stdout,*) ' of scaling of large events."'
+        write(stdout,*)
+        write(stdout,5062) 'Magnitude:',mag
+        write(stdout,*)
+        write(stdout,*) 'Effective subsurface length (km)'
+        write(stdout,5102) 'strike-slip:',len_total(1)
+        write(stdout,5102) 'thrust:     ',len_total(2)
+        write(stdout,5102) 'normal:     ',len_total(3)
+        write(stdout,5102) 'all:        ',len_total(4)
+        write(stdout,*) 'Effective down-dip width (km)'
+        write(stdout,5102) 'strike-slip:',wid_total(1)
+        write(stdout,5102) 'thrust:     ',wid_total(2)
+        write(stdout,5102) 'normal:     ',wid_total(3)
+        write(stdout,5102) 'all:        ',wid_total(4)
+        write(stdout,*) 'Effective rupture area (km^2)'
+        write(stdout,5101) 'strike-slip:',area(1)
+        write(stdout,5101) 'thrust:     ',area(2)
+        write(stdout,5101) 'normal:     ',area(3)
+        write(stdout,5101) 'all:        ',area(4)
+        write(stdout,*) 'Effective slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_avg(1)
+        write(stdout,5103) 'thrust:     ',slip_avg(2)
+        write(stdout,5103) 'normal:     ',slip_avg(3)
+        write(stdout,5103) 'all:        ',slip_avg(4)
     endif
+
+    ! Return effective fault length and width
+    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
+        len = len_total(1)
+        wid = wid_total(1)
+    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
+        len = len_total(2)
+        wid = wid_total(2)
+    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
+        len = len_total(3)
+        wid = wid_total(3)
+    else
+        len = len_total(4)
+        wid = wid_total(4)
+    endif
+
 
 elseif (relation_name.eq.'allen_hayes_17'.or.relation_name.eq.'AH') then
     ! Allen, T.I., Hayes, G.P. (2017). Alternative rupture‐scaling relationships for subduction
     !   interface and other offshore environments. Bulletin of the Seismological Society of America
     !   107, 1240–1253.
-    if (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
-        len = 10.0d0**(-2.90d0+0.63d0*mag)
-        if (mag.le.8.67d0) then
-            wid = 10.0d0**(-1.91d0+0.48d0*mag)
-        else
-            wid = 10.0d0**( 2.29d0+0.00d0*mag)
-        endif
+
+    ! 1=ss  2=th  3=no  4=all
+    ! Effective subsurface rupture length
+    len_total(1) = 10.0d0**(-2.81d0+0.63d0*mag)
+    len_total(2) = 10.0d0**(-2.90d0+0.63d0*mag)
+    len_total(3) = 10.0d0**(-2.87d0+0.63d0*mag)
+    len_total(4) = 10.0d0**(-3.03d0+0.63d0*mag)
+
+    ! Effective downdip rupture width
+    wid_total(1) = 10.0d0**(-1.39d0+0.35d0*mag)
+    if (mag.le.8.67d0) then
+        wid_total(2) = 10.0d0**(-1.91d0+0.48d0*mag)
     else
-        write(stderr,*) 'empirical: Warning: the Allen & Hayes (2017) relation is for thrust faults'
-        len = 10.0d0**(-2.90d0+0.63d0*mag)
+        wid_total(2) = 10.0d0**( 2.29d0+0.00d0*mag)
+    endif
+    wid_total(3) = 10.0d0**(-1.18d0+0.35d0*mag)
+    wid_total(4) = 10.0d0**(-1.01d0+0.35d0*mag)
+
+    if (printRelation) then
+        ! Effective rupture area
+        area(1) = 10.0d0**(-4.04d0+0.96d0*mag)
         if (mag.le.8.67d0) then
-            wid = 10.0d0**(-1.91d0+0.48d0*mag)
+            area(2) = 10.0d0**(-5.62d0+1.22d0*mag)
         else
-            wid = 10.0d0**( 2.29d0+0.00d0*mag)
+            area(2) = 10.0d0**( 2.23d0+0.31d0*mag)
         endif
+        area(3) = 10.0d0**(-3.89d0+0.96d0*mag)
+        area(4) = 10.0d0**(-3.89d0+0.87d0*mag)
+
+        ! Maximum slip
+        slip_max(1) = 10.0d0**(-4.39d0+0.71d0*mag)
+        slip_max(2) = 10.0d0**(-4.94d0+0.71d0*mag)
+        slip_max(3) = 10.0d0**(-4.58d0+0.71d0*mag)
+        slip_max(4) = 10.0d0**(-4.73d0+0.71d0*mag)
+
+        ! Average slip
+        slip_avg(1) = 10.0d0**(-4.52d0+0.66d0*mag)
+        slip_avg(2) = 10.0d0**(-5.05d0+0.66d0*mag)
+        slip_avg(3) = 10.0d0**(-4.70d0+0.66d0*mag)
+        slip_avg(4) = 10.0d0**(-4.81d0+0.66d0*mag)
+
+        write(stdout,*) 'Scaling Relation: Allen and Hayes, BSSA (2017)'
+        write(stdout,*)
+        write(stdout,*) 'Description:'
+        write(stdout,*) '"Alternative fault-rupture-scaling relationships are developed for Mw 7.1-',&
+                        '9.5 subduction interface '
+        write(stdout,*) ' earthquakes using a new database of consistently derived finite-fault ',&
+                        'rupture models from '
+        write(stdout,*) ' teleseismic inversion....'
+        write(stdout,*) ' Fault-rupture-scaling relationships are also developed for [Mw 7.2-8.7] ',&
+                        'intraslab (within the'
+        write(stdout,*) ' subducting slab), extensional outer-rise and offshore strike-slip',&
+                        'environments."'
+        write(stdout,*)
+        write(stdout,5062) 'Magnitude:',mag
+        write(stdout,*)
+        write(stdout,*) 'Effective subsurface length (km)'
+        write(stdout,5102) 'strike-slip:',len_total(1)
+        write(stdout,5102) 'thrust:     ',len_total(2)
+        write(stdout,5102) 'normal:     ',len_total(3)
+        write(stdout,5102) 'all:        ',len_total(4)
+        write(stdout,*) 'Effective down-dip width (km)'
+        write(stdout,5102) 'strike-slip:',wid_total(1)
+        write(stdout,5102) 'thrust:     ',wid_total(2)
+        write(stdout,5102) 'normal:     ',wid_total(3)
+        write(stdout,5102) 'all:        ',wid_total(4)
+        write(stdout,*) 'Effective rupture area (km^2)'
+        write(stdout,5101) 'strike-slip:',area(1)
+        write(stdout,5101) 'thrust:     ',area(2)
+        write(stdout,5101) 'normal:     ',area(3)
+        write(stdout,5101) 'all:        ',area(4)
+        write(stdout,*) 'Maximum slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_max(1)
+        write(stdout,5103) 'thrust:     ',slip_max(2)
+        write(stdout,5103) 'normal:     ',slip_max(3)
+        write(stdout,5103) 'all:        ',slip_max(4)
+        write(stdout,*) 'Average slip (m)'
+        write(stdout,5103) 'strike-slip:',slip_avg(1)
+        write(stdout,5103) 'thrust:     ',slip_avg(2)
+        write(stdout,5103) 'normal:     ',slip_avg(3)
+        write(stdout,5103) 'all:        ',slip_avg(4)
+    endif
+
+    ! Return effective fault length and width
+    if (fault_type.eq.'strike-slip'.or.fault_type.eq.'ss') then
+        len = len_total(1)
+        wid = wid_total(1)
+    elseif (fault_type.eq.'thrust'.or.fault_type.eq.'th') then
+        len = len_total(2)
+        wid = wid_total(2)
+    elseif (fault_type.eq.'normal'.or.fault_type.eq.'no') then
+        len = len_total(3)
+        wid = wid_total(3)
+    else
+        len = len_total(4)
+        wid = wid_total(4)
     endif
 
 else
@@ -872,6 +1238,11 @@ else
     len = 0.0d0
     wid = 0.0d0
 endif
+
+5062 format(X,A,F6.2)
+5101 format(3X,A,F10.1)
+5102 format(3X,A,F10.2)
+5103 format(3X,A,F10.3)
 
 return
 end subroutine
