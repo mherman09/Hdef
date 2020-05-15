@@ -27,7 +27,9 @@ mtp = 1.1714d+18
 call mij2dcp(mrr,mtt,mpp,mrt,mrp,mtp,dcp)
 call test_value(dcp,0.58784927087317074d0,'mij2dcp: dcp')
 
-! TODO: mij2mag
+! mij2mag
+call mij2mag(mrr,mtt,mpp,mrt,mrp,mtp,mag)
+call test_value(mag,6.4522434199195224d0,'mij2mag: mag')
 
 ! mij2mom
 ! Moment tensor to scalar moment
@@ -171,7 +173,9 @@ call test_value(mrt, 3.8109999999999997d+021,'pnt2mij: mrt')
 call test_value(mrp,-3.1150000000000003d+021,'pnt2mij: mrp')
 call test_value(mtp, 1.0330000000000004d+021,'pnt2mij: mtp')
 
-! TODO: pnt2mag
+! pnt2mag
+call pnt2mag(pnt,mag)
+call test_value(mag,8.4494036748523378d0,'pnt2mag: mag')
 
 ! pnt2mom
 ! P, N, and T axes to scalar moment
