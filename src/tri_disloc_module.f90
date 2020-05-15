@@ -102,6 +102,7 @@ double precision :: disp(3), sta_coord(3), tri_coord(3,4), poisson, slip(3)
 
 ! Local variables
 integer :: i, iLeg
+double precision :: tri1(4), tri2(4)
 double precision :: u12(3), u13(3), normal(3), strike(3), updip(3), magnitude, slip_vector(3)
 double precision :: tmp3x1(3)
 double precision :: dx, dy, dz, dh, leg_angle, leg_plunge, beta
@@ -311,7 +312,9 @@ enddo
 !**U.z(underIdx)                = U.z(underIdx) - slipVec(3);
 
 ! Check for points under triangle
-call pnpoly(sta_coord(1),sta_coord(2),tri_coord(1,:),tri_coord(2,:),4,inOrOut,1.0d-8)
+tri1 = tri_coord(1,:) ! To keep array stored in contiguous memory when passing to pnpoly
+tri2 = tri_coord(2,:) ! To keep array stored in contiguous memory when passing to pnpoly
+call pnpoly(sta_coord(1),sta_coord(2),tri1,tri2,4,inOrOut,1.0d-8)
 
 ! If point is under, add slip to displacement
 if (inOrOut.ge.0) then

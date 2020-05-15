@@ -45,7 +45,7 @@ implicit none
 integer :: nrows, ncols, ptr_disp, ptr_los, ptr_stress, ptr_damp, ptr_smooth, ptr_nbr, ptr_euler
 integer :: nflt, nslip, ndsp, ndsp_dof, nlos, nsts, nnbr, nfixed, nfree
 integer :: i, j, ierr, icomp, iflt, inbr
-double precision, allocatable :: A(:,:), b(:), x(:), atmp(:,:), btmp(:)
+double precision, allocatable :: A(:,:), b(:), x(:), atmp(:,:), btmp(:), gf_tmp(:,:)
 double precision :: damping_squared, smoothing_squared, factor
 logical, allocatable :: isSlipFixed(:)
 double precision, parameter :: spy = 60.0d0*60.0d0*24.0d0*365.25d0
@@ -179,10 +179,12 @@ b = 0.0d0
 
 ! Load three-component displacement GFs and data
 if (displacement%file.ne.'none') then
+    allocate(gf_tmp(ndsp,nslip))
     do i = 1,len_trim(disp_components)
         read(disp_components(i:i),*) icomp
+        gf_tmp = gf_disp%array((icomp-1)*ndsp+1:icomp*ndsp,1:nslip)
         call load_array(A,nrows,ncols, &
-                        gf_disp%array((icomp-1)*ndsp+1:icomp*ndsp,1:nslip),ndsp,nslip, &
+                        gf_tmp,ndsp,nslip, &
                         (i-1)*ndsp+1,1,'gf_disp%array',ierr)
         if (ierr.ne.0) then
             call usage('invert_lsqr: error loading three-component displacement GFs into A '//&
@@ -195,6 +197,7 @@ if (displacement%file.ne.'none') then
                        'into b (usage:none)')
         endif
     enddo
+    deallocate(gf_tmp)
 endif
 
 ! Load LOS displacement GFs and data (NEED TO INCORPORATE LOS WEIGHTS!!!!! <-THIS CAN BE DONE W COV MATRIX)
@@ -212,17 +215,20 @@ endif
 
 ! Load rigid body rotations into model matrix
 if (euler_file.ne.'none') then
+    allocate(gf_tmp(ndsp,3*npoles))
     do i = 1,len_trim(disp_components)
         read(disp_components(i:i),*) icomp
         if (icomp.ne.3) then
+            gf_tmp = gf_euler((icomp-1)*ndsp+1:icomp*ndsp,1:3*npoles)
             call load_array(A,nrows,ncols, &
-                            gf_euler((icomp-1)*ndsp+1:icomp*ndsp,1:3*npoles),ndsp,3*npoles, &
+                            gf_tmp,ndsp,3*npoles, &
                             (i-1)*ndsp+1,ptr_euler,'gf_euler%array',ierr)
             if (ierr.ne.0) then
                 call usage('invert_lsqr: error loading rigid body rotation GFs into A (usage:none)')
             endif
         endif
     enddo
+    deallocate(gf_tmp)
 endif
 
 ! Load covariance matrix for displacements
@@ -423,7 +429,10 @@ endif
 ! Solve Ax=b for x
 allocate(x(ncols))
 if (lsqr_mode.eq.'gels') then
-    call solve_dgels(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ncols,ierr)
+    allocate(atmp(nrows,ncols))
+    atmp = A(1:nrows,1:ncols)
+    call solve_dgels(atmp,b(1:nrows),x,nrows,ncols,ierr)
+    deallocate(atmp)
     if (ierr.ne.0) then
         call usage('invert_lsqr: error inverting for slip with gels (usage:none)')
     endif
@@ -441,7 +450,10 @@ elseif (lsqr_mode.eq.'gesv') then
         write(stderr,*) '    ncols=',ncols
         call usage('Inversion routine gesv requires a square A matrix (usage:none)')
     endif
-    call solve_dgesv(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ierr)
+    allocate(atmp(nrows,ncols))
+    atmp = A(1:nrows,1:ncols)
+    call solve_dgesv(atmp,b(1:nrows),x,nrows,ierr)
+    deallocate(atmp)
     if (ierr.ne.0) then
         call usage('invert_lsqr: error inverting for slip with gesv (usage:none)')
     endif

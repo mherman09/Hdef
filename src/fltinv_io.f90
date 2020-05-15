@@ -55,6 +55,7 @@ implicit none
 ! Local variables
 integer :: i, j, ios, ierr, ii, nn, mm, ndisp_dof, nlos_dof, ndof
 double precision :: dist, dp1, dp2, cov, sts(3,3), nvec(3), vec(3), pt1(3), pt2(3), pt3(3)
+double precision :: geo_pt1(3), geo_pt2(3), geo_pt3(3)
 double precision, allocatable :: cov_matrix_temp(:)
 character(len=512) :: line
 character(len=1) :: nchar, mchar
@@ -542,8 +543,10 @@ if (prestress%file.ne.'none') then
                                   fault%array(i,7:9))
             elseif (coord_type.eq.'geographic') then
                 ! Triangle points: lon lat dep(m) to x y z
-                call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
-                                  fault%array(i,7:9),'m')
+                geo_pt1 = fault%array(i,1:3)
+                geo_pt2 = fault%array(i,4:6)
+                geo_pt3 = fault%array(i,7:9)
+                call tri_geo2cart(pt1,pt2,pt3,geo_pt1,geo_pt2,geo_pt3,'m')
                 call tri_geometry(nvec,vec,vec,pt1,pt2,pt3)
             endif
         else

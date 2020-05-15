@@ -594,6 +594,7 @@ double precision :: slip(n,2)
 integer :: i, j, ierr, nflt, nrows, ncols
 logical :: doInversion, isSlipFixed(2*n)
 double precision :: A(2*n,2*n), b(2*n), x(2*n)
+double precision, allocatable :: atmp(:,:)
 
 
 ! Set dimension variables for arrays
@@ -717,17 +718,26 @@ do i = 1,nrows
 enddo
 nrows = j
 
-! Solve for fault slip in unlocked faults
+! Make sure array has correct size
 if (nrows.ne.ncols) then
     write(stderr,*) 'psc_slip: nrows not equal to ncols'
     write(stderr,*) '    nrows=',nrows
     write(stderr,*) '    ncols=',ncols
     call usage('Inversion routine gesv requires a square A matrix (usage:none)')
 endif
-call solve_dgesv(A(1:nrows,1:ncols),b(1:nrows),x,nrows,ierr)
+
+! To avoid creating array temporary, allocate and fill A into an explicit temporary
+! array. Since atmp is fairly large and changes size in every iteration, it might be
+! difficult to speed this up any more...
+allocate(atmp(nrows,ncols))
+atmp = A(1:nrows,1:ncols)
+
+! Solve the system of equations for slip in unlocked faults
+call solve_dgesv(atmp,b(1:nrows),x,nrows,ierr)
 if (ierr.ne.0) then
     call usage('psc_slip: error inverting for slip with gesv (usage:none)')
 endif
+deallocate(atmp)
 
 ! Load fault slip into the output array
 j = 0

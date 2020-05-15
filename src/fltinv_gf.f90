@@ -360,6 +360,7 @@ implicit none
 integer :: i, j, ierr, iTri
 double precision, parameter :: eps = 1.0d-6
 double precision :: evlo, evla, evdp, str, dip, wid, len, area, tri(3,4), tri_new(3,4), center(3)
+double precision :: tri_pt1(3), tri_pt2(3), tri_pt3(3)
 double precision :: sta(3), sta_new(3), dist, az, dx, dy, pt1(3), pt2(3), pt3(3)
 double precision :: slip_mag, rak1, rak2, slip(3), mom(4)
 double precision :: strain1(3,3), strain2(3,3), stress1(3,3), stress2(3,3)
@@ -403,7 +404,10 @@ do i = 1,fault%nrows
         call usage('calc_stress_gfs: cannot compute slip from shear tractions using okada_pt '//&
                    'GFs because there is a stress singularity at point source (usage:gf)')
     elseif (gf_model.eq.'triangle') then
-        call tri_center(sta,fault%array(i,1:3),fault%array(i,4:6),fault%array(i,7:9))
+        tri_pt1 = fault%array(i,1:3)
+        tri_pt2 = fault%array(i,4:6)
+        tri_pt3 = fault%array(i,7:9)
+        call tri_center(sta,tri_pt1,tri_pt2,tri_pt3)
     endif
     sta_new(3) = sta(3)
 
@@ -412,8 +416,10 @@ do i = 1,fault%nrows
         call strdip2normal(fault%array(i,4),fault%array(i,5),nvec)
     elseif (gf_model.eq.'triangle') then
         if (coord_type.eq.'geographic') then
-            call tri_geo2cart(pt1,pt2,pt3,fault%array(i,1:3),fault%array(i,4:6), &
-                              fault%array(i,7:9),'m')
+            tri_pt1 = fault%array(i,1:3)
+            tri_pt2 = fault%array(i,4:6)
+            tri_pt3 = fault%array(i,7:9)
+            call tri_geo2cart(pt1,pt2,pt3,tri_pt1,tri_pt2,tri_pt3,'m')
             call tri_geometry(nvec,tvec1,tvec2,pt1,pt2,pt3)
         elseif (coord_type.eq.'cartesian') then
             call tri_geometry(nvec,tvec1,tvec2,fault%array(i,1:3),fault%array(i,4:6), &
@@ -679,11 +685,11 @@ use earth, only: deg2km
 use fltinv, only: euler_file, &
                   npoles, &
                   rigid_pt_array_disp, &
-                  rigid_pt_array_los, &
                   gf_euler, &
                   coord_type, &
-                  displacement, &
-                  los
+                  displacement  !, &
+                  !rigid_pt_array_los, &
+                  !los
 
 implicit none
 
@@ -691,6 +697,11 @@ implicit none
 integer :: i, j, iblock, ndsp
 double precision :: angular_velocity, lon, lat, dep, r(3)
 double precision, parameter :: spy = 60.0d0*60.0d0*24.0d0*365.25d0
+
+
+! Initialize variables
+ndsp = 0
+
 
 if (verbosity.ge.1) then
     write(stdout,*) 'calc_euler_gfs: starting'
