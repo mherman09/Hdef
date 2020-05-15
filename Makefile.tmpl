@@ -86,6 +86,7 @@ all: \
     colortool \
     dateutil \
     distaz2lola \
+    eqempirical \
     ff2gmt \
     fitutil \
     fltinv \
@@ -146,6 +147,13 @@ $(BIN_DIR)/distaz2lola: src/distaz2lola_prog.f90 \
                         $(INCLUDE_DIR)/geom.o \
                         $(INCLUDE_DIR)/io.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
+
+eqempirical: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/eqempirical
+$(BIN_DIR)/eqempirical: src/eqempirical.f90 \
+                        $(INCLUDE_DIR)/eq.o \
+                        $(INCLUDE_DIR)/error_exit.o \
+                        $(INCLUDE_DIR)/io.o
+	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ $(LAPACK) -o $@
 
 ff2gmt: $(BIN_DIR_MARKER_FILE) $(BIN_DIR)/ff2gmt
 $(BIN_DIR)/ff2gmt: src/ff2gmt.f90 \
