@@ -14,6 +14,7 @@ double precision :: slip_vec(3), slip_vec2(3)
 double precision :: fth, fss, fno
 double precision :: dcp
 double precision :: mom, mag
+double precision :: wid, len
 
 ! mij2dcp
 ! Moment tensor to double couple percentage
@@ -25,6 +26,8 @@ mrp = -3.843d+18
 mtp = 1.1714d+18
 call mij2dcp(mrr,mtt,mpp,mrt,mrp,mtp,dcp)
 call test_value(dcp,0.58784927087317074d0,'mij2dcp: dcp')
+
+! TODO: mij2mag
 
 ! mij2mom
 ! Moment tensor to scalar moment
@@ -167,6 +170,8 @@ call test_value(mpp,-9.9700000000000039d+020,'pnt2mij: mpp')
 call test_value(mrt, 3.8109999999999997d+021,'pnt2mij: mrt')
 call test_value(mrp,-3.1150000000000003d+021,'pnt2mij: mrp')
 call test_value(mtp, 1.0330000000000004d+021,'pnt2mij: mtp')
+
+! TODO: pnt2mag
 
 ! pnt2mom
 ! P, N, and T axes to scalar moment
@@ -321,13 +326,86 @@ call test_value(fss,2.3368434059280944d-3,'sdr2ter: fss')
 call test_value(fno,0.20855725806551242d0,'sdr2ter: fno')
 
 ! mom2mag
-! mag2mom
 mag = 7.0d0
 call mag2mom(mag,mom)
 call test_value(mom,3.5481338923357311d+019,'mag2mom')
+
+! mag2mom
 call mom2mag(mom,mag)
 call test_value(mag,7.0d0,'mom2mag')
 
+! empirical
+mag = 7.1d0
+! Wells and Coppersmith (1994)
+call empirical(mag,wid,len,'WC','ss')
+call test_value(wid,14.354894333536560d0,'empirical: WC-ss wid')
+call test_value(len,67.920363261718506d0,'empirical: WC-ss len')
+call empirical(mag,wid,len,'WC','th')
+call test_value(wid,19.998618696327419d0,'empirical: WC-th wid')
+call test_value(len,49.888448746001167d0,'empirical: WC-th len')
+call empirical(mag,wid,len,'WC','no')
+call test_value(wid,22.130947096056374d0,'empirical: WC-no wid')
+call test_value(len,46.773514128719810d0,'empirical: WC-no len')
+call empirical(mag,wid,len,'WC','ot')
+call test_value(wid,18.281002161427416d0,'empirical: WC-ot wid')
+call test_value(len,56.104797603246951d0,'empirical: WC-ot len')
+call empirical(mag,wid,len,'WC:print','')
+! Mai and Beroza (2000)
+call empirical(mag,wid,len,'MB','ss')
+call test_value(wid,14.757065332758916d0,'empirical: MB-ss wid')
+call test_value(len,37.153522909717204d0,'empirical: MB-ss len')
+call empirical(mag,wid,len,'MB','th')
+call test_value(wid,24.266100950824043d0,'empirical: MB-th wid')
+call test_value(len,30.902954325135855d0,'empirical: MB-th len')
+call empirical(mag,wid,len,'MB','no')
+call test_value(wid,24.266100950824043d0,'empirical: MB-no wid')
+call test_value(len,30.902954325135855d0,'empirical: MB-no len')
+call empirical(mag,wid,len,'MB','ot')
+call test_value(wid,17.947336268325209d0,'empirical: MB-ot wid')
+call test_value(len,35.727283815192813d0,'empirical: MB-ot len')
+call empirical(mag,wid,len,'MB:print','')
+! Blaser et al. (2010)
+call empirical(mag,wid,len,'B','ss')
+call test_value(wid,16.710906143107071d0,'empirical: B-ss wid')
+call test_value(len,71.449632607551280d0,'empirical: B-ss len')
+call empirical(mag,wid,len,'B','th')
+call test_value(wid,25.468302525850405d0,'empirical: B-th wid')
+call test_value(len,47.533522594280484d0,'empirical: B-th len')
+call empirical(mag,wid,len,'B','no')
+call test_value(wid,22.698648518838201d0,'empirical: B-no wid')
+call test_value(len,60.534087475391331d0,'empirical: B-no len')
+call empirical(mag,wid,len,'B','ot')
+call test_value(wid,22.438819237827637d0,'empirical: B-ot wid')
+call test_value(len,54.575786109127051d0,'empirical: B-ot len')
+call empirical(mag,wid,len,'B:print','')
+! Yen and Ma (2011)
+call empirical(mag,wid,len,'YM','ss')
+call test_value(wid,40.179081084893753d0,'empirical: YM-ss wid')
+call test_value(len,54.954087385762257d0,'empirical: YM-ss len')
+call empirical(mag,wid,len,'YM','th')
+call test_value(wid,33.806483620598016d0,'empirical: YM-th wid')
+call test_value(len,41.114972110451959d0,'empirical: YM-th len')
+call empirical(mag,wid,len,'YM','no')
+call test_value(wid,33.806483620598016d0,'empirical: YM-no wid')
+call test_value(len,41.114972110451959d0,'empirical: YM-no len')
+call empirical(mag,wid,len,'YM','ot')
+call test_value(wid,38.018939632056046d0,'empirical: YM-ot wid')
+call test_value(len,62.950618285719294d0,'empirical: YM-ot len')
+call empirical(mag,wid,len,'YM:print','')
+! Allen and Hayes (2017)
+call empirical(mag,wid,len,'AH','ss')
+call test_value(wid,12.445146117713850d0,'empirical: AH-ss wid')
+call test_value(len,46.025657358135582d0,'empirical: AH-ss len')
+call empirical(mag,wid,len,'AH','th')
+call test_value(wid,31.477483141013156d0,'empirical: AH-th wid')
+call test_value(len,37.411058827205331d0,'empirical: AH-th len')
+call empirical(mag,wid,len,'AH','no')
+call test_value(wid,20.183663636815606d0,'empirical: AH-no wid')
+call test_value(len,40.086671762730262d0,'empirical: AH-no len')
+call empirical(mag,wid,len,'AH','ot')
+call test_value(wid,29.853826189179586d0,'empirical: AH-ot wid')
+call test_value(len,27.733201046518410d0,'empirical: AH-ot len')
+call empirical(mag,wid,len,'AH:print','')
 
 write(stdout,*) 'eq_module unit test passed'
 end
