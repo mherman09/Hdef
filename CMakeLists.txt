@@ -188,6 +188,7 @@ list(APPEND f90_files
      colortool
      dateutil
      distaz2lola
+     eqempirical
      ff2gmt
      fitutil
      grid
@@ -279,6 +280,7 @@ enable_testing()
 # Unit tests
 if (useLAPACK)
     list(APPEND unit_test_list
+        unit_test_algebra
         unit_test_annealing
         unit_test_calendar
         unit_test_earth
@@ -293,6 +295,7 @@ if (useLAPACK)
     )
 else()
     list(APPEND unit_test_list
+        unit_test_algebra
         unit_test_annealing
         unit_test_calendar
         unit_test_earth
