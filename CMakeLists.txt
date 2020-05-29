@@ -163,6 +163,7 @@ add_library(hdef
             src/okada92_module.f90
             src/random_module.f90
             src/solver_module.f90
+            src/sort_module.f90
             src/test_module.f90
             src/trig_module.f90
             src/tri_disloc_module.f90
