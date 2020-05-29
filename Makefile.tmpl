@@ -7,7 +7,7 @@ FC = gfortran
 
 # Fortran compiler warnings
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fcheck=all -fbacktrace
-FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
+# FWARN = -Wall -Wextra -Wunused -fbounds-check -fbacktrace
 # FWARN =
 
 # Fortran compiler optimization
@@ -387,6 +387,7 @@ $(INCLUDE_DIR)/algebra.o: src/algebra_module.f90 \
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
 
 $(INCLUDE_DIR)/annealing.o: src/annealing_module.f90 \
+                            $(INCLUDE_DIR)/algebra.o \
                             $(INCLUDE_DIR)/io.o \
                             $(INCLUDE_DIR)/random.o \
                             $(INCLUDE_DIR_MARKER_FILE)
@@ -519,6 +520,7 @@ $(INCLUDE_DIR_MARKER_FILE):
 ##### UNIT TEST RULES #####
 ###########################
 test: \
+      test_algebra \
       test_annealing \
       test_calendar \
       test_earth \
@@ -531,6 +533,17 @@ test: \
       test_solver \
       test_tri_disloc \
       test_executables
+
+test_algebra: src/unit_test_algebra.f90 \
+                $(INCLUDE_DIR)/algebra.o \
+                $(INCLUDE_DIR)/test.o \
+                $(INCLUDE_DIR)/error_exit.o \
+                $(INCLUDE_DIR)/io.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
+	./$@ > test_algebra.log
+	@echo "test_algebra passed"
+	rm $@ test_algebra.log
+	@echo
 
 test_annealing: src/unit_test_annealing.f90 \
                 $(INCLUDE_DIR)/annealing.o \
