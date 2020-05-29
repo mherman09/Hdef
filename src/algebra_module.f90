@@ -7,6 +7,9 @@ public :: rotate_vector_angle_axis
 public :: rotate_matrix_angle_axis
 public :: jacobi
 public :: eig_sort
+public :: mean
+public :: stdev
+public :: coefvar
 
 !--------------------------------------------------------------------------------------------------!
 contains
@@ -14,7 +17,7 @@ contains
 
 subroutine normalize(vector)
 implicit none
-double precision :: vector(3)
+double precision, intent(inout) :: vector(3)
 double precision :: magnitude
 magnitude = sqrt(vector(1)*vector(1)+vector(2)*vector(2)+vector(3)*vector(3))
 vector = vector/magnitude
@@ -25,7 +28,8 @@ end
 
 subroutine dot_product(vec1,vec2,dot)
 implicit none
-double precision :: vec1(3), vec2(3), dot
+double precision, intent(in)  :: vec1(3), vec2(3)
+double precision, intent(out) :: dot
 dot = vec1(1)*vec2(1) + vec1(2)*vec2(2) + vec1(3)*vec2(3)
 return
 end subroutine
@@ -34,7 +38,8 @@ end subroutine
 
 subroutine cross_product(vec1,vec2,cross)
 implicit none
-double precision :: vec1(3), vec2(3), cross(3)
+double precision, intent(in)  :: vec1(3), vec2(3)
+double precision, intent(out) :: cross(3)
 cross(1) = vec1(2)*vec2(3) - vec1(3)*vec2(2)
 cross(2) = vec1(3)*vec2(1) - vec1(1)*vec2(3)
 cross(3) = vec1(1)*vec2(2) - vec1(2)*vec2(1)
@@ -55,9 +60,10 @@ use trig, only: d2r
 implicit none
 
 ! Arguments
-double precision :: vec_in(3), angle, vec_out(3)
-character(len=*) :: axis
-integer :: ierr
+double precision, intent(in)  :: vec_in(3), angle
+double precision, intent(out) :: vec_out(3)
+character(len=*), intent(in)  :: axis
+integer, intent(out)          :: ierr
 
 ! Local variables
 double precision :: vec_tmp(3), rot_matrix(3,3), cosa, sina
@@ -120,9 +126,10 @@ use trig, only: d2r
 implicit none
 
 ! Arguments
-double precision :: matrix_in(3,3), angle, matrix_out(3,3)
-character(len=*) :: axis
-integer :: ierr
+double precision, intent(in)  :: matrix_in(3,3), angle
+double precision, intent(out) :: matrix_out(3,3)
+character(len=*), intent(in)  :: axis
+integer, intent(out)          :: ierr
 
 ! Local variables
 double precision :: rot_matrix(3,3), rot_matrix_trans(3,3), matrix_tmp(3,3), cosa, sina
@@ -208,7 +215,8 @@ use io, only: stderr
 implicit none
 
 ! Arguments
-integer :: n, np, nrot, ierr
+integer, intent(in)  :: n, np
+integer, intent(out) :: nrot, ierr
 double precision :: a(np,np), d(np), v(np,np)
 
 ! Local variables
@@ -341,8 +349,8 @@ subroutine eig_sort(d,v,n,np)
 implicit none
 
 ! Arguments
-integer :: n, np
-double precision :: d(np), v(np,np)
+integer, intent(in)             :: n, np
+double precision, intent(inout) :: d(np), v(np,np)
 
 ! local variables
 integer :: i, j, k
@@ -370,5 +378,109 @@ enddo
 
 return
 end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+function mean(values,nvalues,ierr)
+!----
+! Calculate mean of a set of values
+!----
+
+implicit none
+
+! Arguments
+integer, intent(in)          :: nvalues
+integer, intent(out)         :: ierr
+double precision, intent(in) :: values(nvalues)
+double precision             :: mean
+
+! Local variables
+integer :: i
+
+! Initialize variables
+ierr = 0
+mean = 0.0d0
+
+! Calculate sum of values
+do i = 1,nvalues
+    mean = mean + values(i)
+enddo
+
+! Divide by number of values
+mean = mean/dble(nvalues)
+
+return
+end function
+
+!--------------------------------------------------------------------------------------------------!
+
+function stdev(values,nvalues,ierr)
+!----
+! Calculate standard deviation of a set of values
+!----
+
+implicit none
+
+! Arguments
+integer, intent(in)          :: nvalues
+integer, intent(out)         :: ierr
+double precision, intent(in) :: values(nvalues)
+double precision             :: stdev
+
+! Local variables
+integer :: i
+double precision :: m
+
+! Initialize variables
+ierr = 0
+stdev = 0.0d0
+
+! Calculate mean
+m = mean(values,nvalues,ierr)
+
+! Calculate sum of differences squared
+do i = 1,nvalues
+    stdev = stdev + (values(i)-m)**2
+enddo
+
+! Divide by number of values, take square root
+stdev = sqrt(stdev/dble(nvalues-1))
+
+return
+end function
+
+!--------------------------------------------------------------------------------------------------!
+
+function coefvar(values,nvalues,ierr)
+!----
+! Calculate coefficient of variation of a set of values
+!----
+
+implicit none
+
+! Arguments
+integer, intent(in)          :: nvalues
+integer, intent(out)         :: ierr
+double precision, intent(in) :: values(nvalues)
+double precision             :: coefvar
+
+! Local variables
+double precision :: s, m
+
+! Initialize variables
+ierr = 0
+coefvar = 0.0d0
+
+! Calculate mean
+m = mean(values,nvalues,ierr)
+
+! Calculate standard deviation
+s = stdev(values,nvalues,ierr)
+
+! Divide standard vevation by mean
+coefvar = s/m
+
+return
+end function
 
 end module
