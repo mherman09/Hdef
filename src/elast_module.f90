@@ -150,7 +150,7 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine read_halfspace_file(halfspace_file,poisson,shearmod,lame)
+subroutine read_halfspace_file(halfspace_file,poisson,shearmod,lame,ierr)
 !----
 ! Read half-space elastic moduli from file (if provided), in format:
 !     lbl1 value1 lbl2 value2 [lbl3 value3]
@@ -168,12 +168,14 @@ character(len=*) :: halfspace_file
 double precision :: poisson, shearmod, lame
 
 ! Local variables
-integer :: i, j, ios
+integer :: i, j, ios, ierr
 character(len=512) :: input_line
 character(len=32) :: lbl(4)
 character(len=8) :: halfspace_file_mode
 double precision :: val(3)
 
+
+ierr = 0
 
 ! If the file is not defined, use defaults set in gcmdln
 if (halfspace_file.eq.'') then
@@ -240,7 +242,9 @@ endif
 
 1500 if (ios.ne.0) then
     write(stderr,*) 'read_halfspace: error reading modulus labels and values'
-    call usage('offending line: '//trim(input_line))
+    write(stderr,*) 'offending line: '//trim(input_line)
+    ierr = 1
+    return
 endif
 
 close(15)
@@ -261,7 +265,9 @@ do i = 1,2
         ! Okay
     else
         write(stderr,*) 'read_halfspace: elastic modulus "',trim(lbl(i)),'" not implemented'
-        call usage('specify two of: shear_modulus, lame, poisson, or young OR vp vs dens')
+        write(stderr,*) 'specify two of: shear_modulus, lame, poisson, or young OR vp vs dens'
+        ierr = 2
+        return
     endif
 enddo
 

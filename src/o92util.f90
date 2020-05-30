@@ -186,12 +186,18 @@ use o92util, only: halfspace_file, &
 
 implicit none
 
+integer :: ierr
+
+
 if (verbosity.ge.1) then
     write(stdout,*) 'read_halfspace: starting'
 endif
 
 ! Read elastic moduli
-call read_halfspace_file(halfspace_file,poisson,shearmod,lame)
+call read_halfspace_file(halfspace_file,poisson,shearmod,lame,ierr)
+if (ierr.ne.0) then
+    call usage('')
+endif
 
 
 if (debug_mode.eq.'read_halfspace'.or.debug_mode.eq.'all') then

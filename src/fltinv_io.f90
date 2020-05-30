@@ -885,7 +885,10 @@ if (gf_model.eq.'okada_rect'.or.gf_model.eq.'okada_pt'.or.gf_model.eq.'triangle'
     lame = 40.0d9
     shearmod = 40.0d9
     if (halfspace_file.ne.'none') then
-        call read_halfspace_file(halfspace_file,poisson,shearmod,lame)
+        call read_halfspace_file(halfspace_file,poisson,shearmod,lame,ierr)
+        if (ierr.ne.0) then
+            call usage('')
+        endif
     endif
 
     if (verbosity.ge.2) then

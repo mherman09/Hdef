@@ -271,7 +271,11 @@ use triutil, only: halfspace_file, &
                    lame, &
                    shearmod
 implicit none
-call read_halfspace_file(halfspace_file,poisson,shearmod,lame)
+integer :: ierr
+call read_halfspace_file(halfspace_file,poisson,shearmod,lame,ierr)
+if (ierr.ne.0) then
+    call usage('')
+endif
 return
 end subroutine
 
