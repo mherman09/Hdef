@@ -524,6 +524,7 @@ test: \
       test_annealing \
       test_calendar \
       test_earth \
+      test_elast \
       test_eq \
       test_ffm \
       test_geom \
@@ -579,6 +580,19 @@ test_earth: src/unit_test_earth.f90 \
 	./$@ > test_earth.log
 	@echo "test_earth passed"
 	rm $@ test_earth.log
+	@echo
+
+test_elast: src/unit_test_elast.f90 \
+            $(INCLUDE_DIR)/algebra.o \
+            $(INCLUDE_DIR)/geom.o \
+            $(INCLUDE_DIR)/elast.o \
+            $(INCLUDE_DIR)/test.o \
+            $(INCLUDE_DIR)/error_exit.o \
+            $(INCLUDE_DIR)/io.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) -o $@
+	./$@ > test_elast.log
+	@echo "test_elast passed"
+	rm $@ test_elast.log
 	@echo
 
 test_eq: src/unit_test_eq.f90 \
