@@ -453,7 +453,7 @@ end function
 
 function coefvar(values,nvalues,ierr)
 !----
-! Calculate coefficient of variation of a set of values
+! Calculate coefficient of variation (standard deviation divided by mean) of a set of values
 !----
 
 implicit none
@@ -466,6 +466,7 @@ double precision :: coefvar
 
 ! Local variables
 double precision :: s, m
+double precision, parameter :: eps = 1.0d-30
 
 ! Initialize variables
 ierr = 0
@@ -473,11 +474,15 @@ coefvar = 0.0d0
 
 ! Calculate mean
 m = mean(values,nvalues,ierr)
+if (abs(m).lt.eps) then
+    return
+    ierr = 1
+endif
 
 ! Calculate standard deviation
 s = stdev(values,nvalues,ierr)
 
-! Divide standard vevation by mean
+! Divide standard devation by mean
 coefvar = s/m
 
 return
