@@ -285,6 +285,7 @@ if (useLAPACK)
         unit_test_annealing
         unit_test_calendar
         unit_test_earth
+        unit_test_elast
         unit_test_eq
         unit_test_ffm
         unit_test_geom
@@ -300,6 +301,8 @@ else()
         unit_test_annealing
         unit_test_calendar
         unit_test_earth
+        unit_test_elast
+        unit_test_eq
         unit_test_ffm
         unit_test_geom
         unit_test_map
