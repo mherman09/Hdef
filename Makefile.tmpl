@@ -649,6 +649,16 @@ test_interpolation: src/unit_test_interpolation.f90 \
 	rm $@ test_interpolation.log
 	@echo
 
+test_io: src/unit_test_io.f90 \
+           $(INCLUDE_DIR)/test.o \
+           $(INCLUDE_DIR)/error_exit.o \
+           $(INCLUDE_DIR)/io.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
+	./$@ > test_io.log
+	@echo "test_io passed"
+	rm $@ test_io.log
+	@echo
+
 test_map: src/unit_test_map.f90 \
            $(INCLUDE_DIR)/test.o \
            $(INCLUDE_DIR)/error_exit.o \
