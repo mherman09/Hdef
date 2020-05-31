@@ -289,7 +289,10 @@ if (useLAPACK)
         unit_test_eq
         unit_test_ffm
         unit_test_geom
+        unit_test_interpolation
+        unit_test_io
         unit_test_map
+        unit_test_misfit
         unit_test_okada92
         unit_test_random
         unit_test_solver
@@ -305,7 +308,10 @@ else()
         unit_test_eq
         unit_test_ffm
         unit_test_geom
+        unit_test_interpolation
+        unit_test_io
         unit_test_map
+        unit_test_misfit
         unit_test_okada92
         unit_test_random
         unit_test_tri_disloc
