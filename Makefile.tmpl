@@ -592,7 +592,7 @@ test_elast: src/unit_test_elast.f90 \
             $(INCLUDE_DIR)/test.o \
             $(INCLUDE_DIR)/error_exit.o \
             $(INCLUDE_DIR)/io.o
-	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) -o $@
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
 	./$@ > test_elast.log
 	@echo "test_elast passed"
 	rm $@ test_elast.log
@@ -636,6 +636,17 @@ test_geom: src/unit_test_geom.f90 \
 	./$@ > test_geom.log
 	@echo "test_geom passed"
 	rm $@ test_geom.log
+	@echo
+
+test_interpolation: src/unit_test_interpolation.f90 \
+           $(INCLUDE_DIR)/interpolation.o \
+           $(INCLUDE_DIR)/test.o \
+           $(INCLUDE_DIR)/error_exit.o \
+           $(INCLUDE_DIR)/io.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
+	./$@ > test_interpolation.log
+	@echo "test_interpolation passed"
+	rm $@ test_interpolation.log
 	@echo
 
 test_map: src/unit_test_map.f90 \
