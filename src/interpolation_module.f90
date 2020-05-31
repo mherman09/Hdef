@@ -1,8 +1,11 @@
 module interpolation
 
-contains
+public :: spline
+public :: spline_interpolation
 
-!--------------------------------------------------------------------------------------------------!
+!==================================================================================================!
+contains
+!==================================================================================================!
 
 subroutine spline(x,y,n,yp1,ypn,y2)
 !----
@@ -31,7 +34,7 @@ integer :: i, k
 double precision :: p, qn, sig, un, u(nmax)
 
 ! Set the lower boundary condition to be natural or specified first derivative
-if (yp1.ge.1.0d30) then
+if (abs(yp1).ge.1.0d30) then
     y2(1) = 0.0d0
     u(1) = 0.0d0
 else
@@ -50,7 +53,7 @@ do i = 2,n-1
 enddo
 
 ! Set the upper boundary condition to be natural or specified first derivative
-if (ypn.gt.1.0d30) then
+if (abs(ypn).gt.1.0d30) then
     qn = 0.0d0
     un = 0.0d0
 else
