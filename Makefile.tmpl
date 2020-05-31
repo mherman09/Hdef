@@ -670,6 +670,18 @@ test_map: src/unit_test_map.f90 \
 	rm $@ test_map.log
 	@echo
 
+test_misfit: src/unit_test_misfit.f90 \
+             $(INCLUDE_DIR)/misfit.o \
+             $(INCLUDE_DIR)/test.o \
+             $(INCLUDE_DIR)/error_exit.o \
+             $(INCLUDE_DIR)/io.o \
+             $(INCLUDE_DIR)/solver.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $(LAPACK) -o $@
+	./$@ > test_misfit.log
+	@echo "test_misfit passed"
+	rm $@ test_misfit.log
+	@echo
+
 test_okada92: src/unit_test_okada92.f90 \
               $(INCLUDE_DIR)/okada92.o \
               $(INCLUDE_DIR)/test.o \
