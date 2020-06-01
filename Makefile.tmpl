@@ -484,6 +484,10 @@ $(INCLUDE_DIR)/solver.o: src/solver_module.f90 \
                          $(INCLUDE_DIR_MARKER_FILE)
 	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $(LAPACK) $< -c -o $@
 
+$(INCLUDE_DIR)/sort.o: src/sort_module.f90 \
+                       $(INCLUDE_DIR_MARKER_FILE)
+	$(FC) $(FFLAGS) -J$(INCLUDE_DIR) $(CPP_FLAGS) $< -c -o $@
+
 $(INCLUDE_DIR)/test.o: src/test_module.f90 \
                        $(INCLUDE_DIR)/error_exit.o \
                        $(INCLUDE_DIR_MARKER_FILE)
@@ -714,6 +718,17 @@ test_solver: src/unit_test_solver.f90 \
 	./$@ > test_solver.log
 	@echo "test_solver passed"
 	rm $@ test_solver.log
+	@echo
+
+test_sort: src/unit_test_sort.f90 \
+             $(INCLUDE_DIR)/sort.o \
+             $(INCLUDE_DIR)/test.o \
+             $(INCLUDE_DIR)/error_exit.o \
+             $(INCLUDE_DIR)/io.o
+	@$(FC) $^ $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) -o $@
+	./$@ > test_sort.log
+	@echo "test_sort passed"
+	rm $@ test_sort.log
 	@echo
 
 test_tri_disloc: src/unit_test_tri_disloc.f90 \
