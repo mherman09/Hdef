@@ -296,6 +296,7 @@ if (useLAPACK)
         unit_test_okada92
         unit_test_random
         unit_test_solver
+        unit_test_sort
         unit_test_tri_disloc
     )
 else()
@@ -314,6 +315,7 @@ else()
         unit_test_misfit
         unit_test_okada92
         unit_test_random
+        unit_test_sort
         unit_test_tri_disloc
     )
 endif()
