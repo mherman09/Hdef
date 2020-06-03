@@ -49,8 +49,7 @@ end module
 
 program main
 
-use io, only: stdout, stderr
-use trig, only: d2r
+use io, only: stdout
 use earth, only: pole_geo2xyz, pole_xyz2geo
 use annealing, only: resample
 use random, only: iseed, timeseed
@@ -79,18 +78,16 @@ implicit none
 
 ! Local variables
 character(len=32) :: log_format
-character(len=512) :: input_line
 logical :: fileExists
 logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
-integer :: it, it0, nit
+integer :: it, nit
 integer :: i, j, ios, iflt, nflt, ipole, npoles, nsubset
 integer, allocatable :: locked(:,:), locked_resamp(:,:), plocked(:), samp(:)
 double precision, allocatable :: temp(:)
 double precision, allocatable :: obj(:), obj_resamp(:)
 double precision, allocatable :: uncert(:)
 double precision :: min_obj, fraction_locked
-double precision :: rake
 double precision, allocatable :: slip(:,:,:), slip_resamp(:,:,:), mean_ss(:), mean_ds(:)
 double precision :: px, py, pz, plon, plat, pmag
 double precision, allocatable :: poles(:,:,:), poles_resamp(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
@@ -134,122 +131,8 @@ allocate(isAccepted(nit))         ! Logical: Was the proposed model accepted?
 write(*,*) 'anneal_post: finished allocating array memory'
 
 
-
 ! Read search results
-do it = 0,nit
-
-    ! Progress indicator
-    if (nit.ge.100) then
-        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
-            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
-        endif
-    else
-        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
-    endif
-
-
-    ! Read the header for each iteration
-    ! All iteration header lines start with a ">" in the first character and have the format:
-    !     > label=value label=value ...
-    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
-    read(lu_log_file,'(A)',end=1001,iostat=ios) input_line
-    if (it.gt.0) then
-        call parse_iteration_header(input_line,it0,temp(it),obj(it),uncert(it),isAccepted(it),ios)
-    else
-        it0 = 0
-    endif
-    if (ios.ne.0) then
-        write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
-        write(stderr,*) 'iteration: ',it
-        call usage('')
-    endif
-    if (it0.ne.it) then
-        call usage('anneal_post: iterations in log file are not in sequential order')
-    endif
-    1001 if (ios.ne.0) then
-        write(stderr,*) 'anneal_post: more iterations indicated (',nit,') than in file (',it-1,')'
-        call usage('')
-    endif
-
-
-    ! Read fault information defined by log file format
-    if (log_format.eq.'anneal') then
-
-        ! Slip magnitudes
-        do iflt = 1,nflt
-            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
-            if (it.gt.0) then
-                read(input_line,*,end=1003,err=1003,iostat=ios) slip(it,iflt,1)
-            endif
-        enddo
-
-        ! Rake angles
-        do iflt = 1,nflt
-            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
-            if (it.gt.0) then
-                read(input_line,*,end=1003,err=1003,iostat=ios) rake
-                ! Convert to strike- and dip-slip
-                slip(it,iflt,2) = slip(it,iflt,1)*sin(rake*d2r)
-                slip(it,iflt,1) = slip(it,iflt,1)*cos(rake*d2r)
-            endif
-        enddo
-
-
-    elseif (log_format.eq.'anneal_psc') then
-        do iflt = 1,nflt
-            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
-            if (it.gt.0) then
-                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
-            endif
-        enddo
-
-
-    elseif (log_format.eq.'anneal_psc_euler') then
-        do iflt = 1,nflt
-            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
-            if (it.gt.0) then
-                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
-            endif
-        enddo
-        do ipole = 1,npoles
-            do i = 1,3
-                read(lu_log_file,'(A)',end=1004,iostat=ios) input_line
-                if (it.gt.0) then
-                    read(input_line,*,end=1005,err=1005,iostat=ios) poles(it,ipole,i)
-                endif
-            enddo
-        enddo
-
-    else
-        call usage('anneal_post: no log file format named '//trim(log_format))
-    endif
-
-enddo
-write(stdout,*) 'anneal_post: finished reading log file'
-1002 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
-    write(stderr,*) 'iteration: ',it
-    write(stderr,*) 'fault: ',iflt
-    call usage('')
-endif
-1003 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: error parsing fault info from line ',trim(input_line)
-    write(stderr,*) 'iteration: ',it
-    write(stderr,*) 'fault: ',iflt
-    call usage('')
-endif
-1004 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading poles'
-    write(stderr,*) 'iteration: ',it
-    write(stderr,*) 'pole: ',ipole
-    call usage('')
-endif
-1005 if (ios.ne.0) then
-    write(stderr,*) 'anneal_post: error parsing pole info from line ',trim(input_line)
-    write(stderr,*) 'iteration: ',it
-    write(stderr,*) 'pole: ',ipole
-    call usage('')
-endif
+call read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
 
 
 !----
@@ -555,6 +438,162 @@ endif
 close(lu_log_file)
 
 end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert, &
+                       isAccepted)
+
+use io, only: stdout, stderr
+use trig, only: d2r
+
+use anneal_post, only: lu_log_file
+
+implicit none
+
+! Arguments
+integer :: nit, nflt, npoles
+character(len=*) :: log_format
+integer :: locked(nit,nflt)
+double precision :: obj(nit), slip(nit,nflt,2), poles(nit,npoles,3), temp(nit), uncert(nit)
+logical :: isAccepted(nit)
+
+! Local variables
+integer :: i, ios, it, itexpected, iflt, ipole, nlines_per_it
+character(len=512) :: input_line
+double precision :: rake
+
+
+if (log_format.eq.'anneal') then
+    nlines_per_it = 1 + nflt
+elseif (log_format.eq.'anneal_psc') then
+    nlines_per_it = 1 + nflt
+elseif (log_format.eq.'anneal_psc_euler') then
+    nlines_per_it = 1 + nflt + npoles*3
+else
+    call usage('anneal_post: no log file format named '//trim(log_format))
+endif
+do i = 1,nlines_per_it
+    read(lu_log_file,'(A)') input_line
+enddo
+
+! Read all other models
+do it = 1,nit
+
+    ! Progress indicator
+    if (nit.ge.100) then
+        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
+            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
+        endif
+    else
+        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
+    endif
+
+
+    ! Read the header for each iteration
+    ! All iteration header lines start with a ">" in the first character and have the format:
+    !     > label=value label=value ...
+    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
+    read(lu_log_file,'(A)',end=1001,iostat=ios) input_line
+    if (it.gt.0) then
+        call parse_iteration_header(input_line,itexpected,temp(it),obj(it),uncert(it),isAccepted(it),ios)
+    else
+        itexpected = 0
+    endif
+    if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
+        write(stderr,*) 'iteration: ',it
+        call usage('')
+    endif
+    if (itexpected.ne.it) then
+        call usage('anneal_post: iterations in log file are not in sequential order')
+    endif
+    1001 if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: more iterations indicated (',nit,') than in file (',it-1,')'
+        call usage('')
+    endif
+
+
+    ! Read fault information defined by log file format
+    if (log_format.eq.'anneal') then
+
+        ! Slip magnitudes
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) slip(it,iflt,1)
+            endif
+        enddo
+
+        ! Rake angles
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) rake
+                ! Convert to strike- and dip-slip
+                slip(it,iflt,2) = slip(it,iflt,1)*sin(rake*d2r)
+                slip(it,iflt,1) = slip(it,iflt,1)*cos(rake*d2r)
+            endif
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc') then
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
+            endif
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc_euler') then
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            if (it.gt.0) then
+                read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
+            endif
+        enddo
+        do ipole = 1,npoles
+            do i = 1,3
+                read(lu_log_file,'(A)',end=1004,iostat=ios) input_line
+                if (it.gt.0) then
+                    read(input_line,*,end=1005,err=1005,iostat=ios) poles(it,ipole,i)
+                endif
+            enddo
+        enddo
+
+    else
+        call usage('anneal_post: no log file format named '//trim(log_format))
+    endif
+
+enddo
+write(stdout,*) 'anneal_post: finished reading log file'
+1002 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'fault: ',iflt
+    call usage('')
+endif
+1003 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: error parsing fault info from line ',trim(input_line)
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'fault: ',iflt
+    call usage('')
+endif
+1004 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading poles'
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
+1005 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: error parsing pole info from line ',trim(input_line)
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
+return
+end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
