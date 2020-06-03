@@ -17,6 +17,7 @@
 module anneal_post
 
 character(len=512) :: anneal_log_file
+integer :: lu_log_file
 character(len=512) :: best_output_file
 character(len=512) :: plocked_output_file
 character(len=512) :: mean_slip_output_file
@@ -55,6 +56,7 @@ use annealing, only: resample
 use random, only: iseed, timeseed
 
 use anneal_post, only: anneal_log_file, &
+                       lu_log_file, &
                        burnin_iterations, &
                        best_output_file, &
                        plocked_output_file, &
@@ -79,7 +81,6 @@ implicit none
 character(len=32) :: log_format
 character(len=512) :: input_line
 logical :: fileExists
-logical :: continueReadingHeader
 logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
 integer :: it, it0, nit
@@ -111,71 +112,15 @@ if (.not.fileExists) then
 endif
 
 ! Open the log file
-open(unit=21,file=anneal_log_file,status='old')
+lu_log_file = 21
+open(unit=lu_log_file,file=anneal_log_file,status='old')
 
 
 !----
 ! Read annealing log file
 !----
-! Set search variables before reading
-nit = 0
-nflt = 0
-npoles = 0
-log_format = ''
-
 ! Parse log file header
-continueReadingHeader = .true.
-do while (continueReadingHeader)
-
-    read(21,'(A)',end=4001,iostat=ios) input_line
-
-    ! All header lines start with a "#" in the first character and have the format:
-    !     # label=value
-    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
-
-    if (index(input_line,'#').ne.1) then
-        ! Not a header line; finished parsing header
-        continueReadingHeader = .false.
-        backspace(21)
-
-    else
-
-        ! Found header line; parse parameter and value
-        if (index(input_line,'niterations').ne.0) then
-            i = index(input_line,'=')
-            input_line(1:i) = ''
-            read(input_line,*) nit
-        elseif (index(input_line,'nfaults').ne.0) then
-            i = index(input_line,'=')
-            input_line(1:i) = ''
-            read(input_line,*) nflt
-        elseif (index(input_line,'npoles').ne.0) then
-            i = index(input_line,'=')
-            input_line(1:i) = ''
-            read(input_line,*) npoles
-        elseif (index(input_line,'format').ne.0) then
-            i = index(input_line,'=')
-            input_line(1:i) = ''
-            read(input_line,*) log_format
-        else
-            write(stderr,*) 'anneal_log: read header line:',trim(input_line)
-            call usage('But could not parse a parameter')
-        endif
-    endif
-enddo
-
-4001 if (ios.ne.0) then
-    call usage('anneal_post: reached end of file in header section')
-endif
-if (nit.le.burnin_iterations) then
-    call usage('anneal_post: number of burn-in iterations is greater than total iterations')
-endif
-
-write(stdout,*) 'anneal_post: finished parsing header'
-write(stdout,*) 'niterations=',nit
-write(stdout,*) 'nfaults=',nflt
-write(stdout,*) 'npoles=',npoles
-write(stdout,*) 'log_format= ',log_format
+call read_header(nit,nflt,npoles,log_format)
 
 
 ! Set up arrays
@@ -207,7 +152,7 @@ do it = 0,nit
     ! All iteration header lines start with a ">" in the first character and have the format:
     !     > label=value label=value ...
     ! Where "label" describes a parameter, and "value" is a number or string for the parameter
-    read(21,'(A)',end=1001,iostat=ios) input_line
+    read(lu_log_file,'(A)',end=1001,iostat=ios) input_line
     if (it.gt.0) then
         call parse_iteration_header(input_line,it0,temp(it),obj(it),uncert(it),isAccepted(it),ios)
     else
@@ -232,7 +177,7 @@ do it = 0,nit
 
         ! Slip magnitudes
         do iflt = 1,nflt
-            read(21,'(A)',end=1002,iostat=ios) input_line
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
             if (it.gt.0) then
                 read(input_line,*,end=1003,err=1003,iostat=ios) slip(it,iflt,1)
             endif
@@ -240,7 +185,7 @@ do it = 0,nit
 
         ! Rake angles
         do iflt = 1,nflt
-            read(21,'(A)',end=1002,iostat=ios) input_line
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
             if (it.gt.0) then
                 read(input_line,*,end=1003,err=1003,iostat=ios) rake
                 ! Convert to strike- and dip-slip
@@ -252,7 +197,7 @@ do it = 0,nit
 
     elseif (log_format.eq.'anneal_psc') then
         do iflt = 1,nflt
-            read(21,'(A)',end=1002,iostat=ios) input_line
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
             if (it.gt.0) then
                 read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
             endif
@@ -261,14 +206,14 @@ do it = 0,nit
 
     elseif (log_format.eq.'anneal_psc_euler') then
         do iflt = 1,nflt
-            read(21,'(A)',end=1002,iostat=ios) input_line
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
             if (it.gt.0) then
                 read(input_line,*,end=1003,err=1003,iostat=ios) locked(it,iflt), slip(it,iflt,1:2)
             endif
         enddo
         do ipole = 1,npoles
             do i = 1,3
-                read(21,'(A)',end=1004,iostat=ios) input_line
+                read(lu_log_file,'(A)',end=1004,iostat=ios) input_line
                 if (it.gt.0) then
                     read(input_line,*,end=1005,err=1005,iostat=ios) poles(it,ipole,i)
                 endif
@@ -607,7 +552,7 @@ if (allocated(slip)) then
 endif
 
 ! Close annealing log file
-close(21)
+close(lu_log_file)
 
 end
 
@@ -684,6 +629,106 @@ do
     i = index(input_line,trim(ch))
     input_line(1:i+len(trim(ch))) = ''
 enddo
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine read_header(nit,nflt,npoles,log_format)
+
+use io, only: stderr, stdout
+
+use anneal_post, only: lu_log_file, &
+                       burnin_iterations
+
+implicit none
+
+! Arguments
+integer :: nit, nflt, npoles
+character(len=*) ::  log_format
+
+! Local variables
+logical :: continueReadingHeader
+integer :: i, ios
+character(len=512) :: input_line
+
+
+! Set search variables before reading
+nit = 0
+nflt = 0
+npoles = 0
+log_format = ''
+
+
+! Initialize to continue reading header
+continueReadingHeader = .true.
+
+
+do while (continueReadingHeader)
+
+    read(lu_log_file,'(A)',end=4001,iostat=ios) input_line
+
+    ! All header lines start with a "#" in the first character and have the format:
+    !     # label1=value1 label2=value2 ...
+    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
+
+    if (index(input_line,'#').ne.1) then
+        ! Not a header line; finished parsing header
+        continueReadingHeader = .false.
+        backspace(lu_log_file)
+
+    else
+
+        ! Found header line; parse parameter and value
+        if (index(input_line,'niterations').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) nit
+
+        elseif (index(input_line,'nfaults').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) nflt
+
+        elseif (index(input_line,'npoles').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) npoles
+
+        elseif (index(input_line,'format').ne.0) then
+            i = index(input_line,'=')
+            input_line(1:i) = ''
+            read(input_line,*) log_format
+
+        else
+            write(stderr,*) 'anneal_log: read header line:',trim(input_line)
+            call usage('But could not parse a parameter')
+        endif
+
+    endif
+
+enddo
+
+4001 if (ios.ne.0) then
+    call usage('anneal_post: reached end of file in header section')
+endif
+if (nit.le.burnin_iterations) then
+    call usage('anneal_post: number of burn-in iterations is greater than total iterations')
+endif
+
+if (nit.eq.0) then
+    call usage('anneal_post: read zero iterations in log file')
+endif
+if (nflt.eq.0) then
+    call usage('anneal_post: read zero faults in log file')
+endif
+
+write(stdout,*) 'anneal_post: finished parsing header'
+write(stdout,*) 'niterations=',nit
+write(stdout,*) 'nfaults=',nflt
+write(stdout,*) 'npoles=',npoles
+write(stdout,*) 'log_format= ',log_format
 
 return
 end subroutine
