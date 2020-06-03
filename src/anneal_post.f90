@@ -89,6 +89,7 @@ logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
 integer :: it, nit
 integer :: i, ios, iflt, nflt, ipole, npoles, nsubset
+integer, allocatable :: samp_tmp(:)
 integer, allocatable :: locked(:,:), plocked(:)
 double precision, allocatable :: temp(:)
 double precision, allocatable :: obj(:), obj_resamp(:)
@@ -162,27 +163,42 @@ if (doResample) then
     enddo
 
     write(*,*) 'anneal_post: resampling models'
+    ! Initialize the random number seed
     if (iseed.eq.0) then
         iseed = timeseed()
     endif
-    allocate(samp(nresamp))
+
+    ! Resample the ensemble
+    allocate(samp(nit))
     allocate(obj_resamp(nit))
     obj_resamp = obj - maxval(obj)
     do i = 1,nit
         obj_resamp(i) = exp(obj_resamp(i))
     enddo
     call resample(obj_resamp,samp,nit)
-    call heapsort(samp,nit)
+
+    ! Save the first nresamp models
+    allocate(samp_tmp(nresamp))
+    samp_tmp = samp(1:nresamp)
+    deallocate(samp)
+    allocate(samp(nresamp))
+    samp = samp_tmp
+
+    ! Sort the sampled models for more efficient reading
+    call heapsort(samp,nresamp)
 
     ! Reset file to read again
     rewind(lu_log_file)
     call read_header(nit,nflt,npoles,log_format)
 
-	! Read search results
+	! Read search results, saving only sampled models
     call read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
+
 else
-    ! Read search results
+
+    ! Read all of the search results
     call read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
+
 endif
 
 
@@ -610,9 +626,10 @@ implicit none
 ! Arguments
 integer :: nit, nflt, npoles
 character(len=*) :: log_format
-integer :: locked(nit,nflt)
-double precision :: obj(nit), slip(nit,nflt,2), poles(nit,npoles,3), temp(nit), uncert(nit)
-logical :: isAccepted(nit)
+integer :: locked(nresamp,nflt)
+double precision :: obj(nresamp), slip(nresamp,nflt,2), poles(nresamp,npoles,3), temp(nresamp), &
+                    uncert(nresamp)
+logical :: isAccepted(nresamp)
 
 ! Local variables
 integer :: i, ios, it, itread, iflt, ipole, nlines_per_it, isamp
@@ -1125,11 +1142,20 @@ do while (i.le.narg)
             i = i - 1
         else
             call get_command_argument(i,arg)
-            read(arg,*,iostat=ios) iseed
+            read(arg,*,iostat=ios) nresamp
             if (ios.ne.0) then
                 iseed = 0
                 i = i - 1
             endif
+        endif
+
+    elseif (tag.eq.'-seed') then
+        i = i + 1
+        call get_command_argument(i,arg)
+        read(arg,*,iostat=ios) iseed
+        if (ios.ne.0) then
+            iseed = 0
+            i = i - 1
         endif
 
     else
@@ -1180,7 +1206,8 @@ write(stderr,*) '-flocked:subset FLT_FILE FILE   Fraction of locked faults in ea
                                                  'subset of faults'
 write(stderr,*) '-obj OBJ_FILE                   Iteration and objective function'
 write(stderr,*) '-uncertainty UNCERT_FILE        Uncertainty distribution'
-write(stderr,*) '-resample [SEED]                Resample models proportional to probability (objective)'
+write(stderr,*) '-resample NRESAMPLE             Resample models proportional to probability (objective)'
+write(stderr,*) '-seed SEED                      Set random number seed'
 write(stderr,*)
 
 call error_exit(1)
