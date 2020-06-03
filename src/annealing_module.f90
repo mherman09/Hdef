@@ -351,9 +351,10 @@ end subroutine anneal_dp_array
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine resample(weights,nselected,n)
+subroutine resample(weights,iselected,n)
 !----
-! Resample from n weights, assuming they represent proportional probabilities
+! Resample from n weights, assuming they represent proportional probabilities. Output array contains
+! weight index selected in each resampling step.
 !----
 
 use random, only: r8_uniform_01, iseed
@@ -363,15 +364,14 @@ implicit none
 ! Arguments
 integer :: n
 double precision :: weights(n)
-integer :: nselected(n)
+integer :: iselected(n)
 
 ! Local variables
 integer :: i, j
 double precision :: wt_sum, wt_cum_pdf(n), f
-    ! 4. Resample models with probability proportional to weights (Eqn. 11)
 
-! nselected indicates the number of times each index is sampled
-nselected = 0
+! iselected contains which index is sampled for each index
+iselected = 0
 
 ! Sum of weights
 wt_sum = 0.0d0
@@ -382,7 +382,7 @@ enddo
 ! Cumulative PDF is the sum of weights, normalized by total
 wt_cum_pdf(1) = weights(1)/wt_sum
 do i = 2,n
-    wt_cum_pdf(i) = weights(i-1) + weights(i)/wt_sum
+    wt_cum_pdf(i) = wt_cum_pdf(i-1) + weights(i)/wt_sum
 enddo
 
 ! Resample model population from the cumulative PDF
@@ -390,7 +390,7 @@ do i = 1,n
     f = r8_uniform_01(iseed)
     do j = 1,n
         if (f.le.wt_cum_pdf(j)) then
-            nselected(j) = nselected(j) + 1
+            iselected(i) = j
             exit
         endif
     enddo

@@ -38,6 +38,8 @@ character(len=64) :: flocked_output_file(10)
 character(len=512) :: obj_file
 character(len=512) :: uncert_file
 
+logical :: doResample
+
 end module
 
 
@@ -49,6 +51,8 @@ program main
 use io, only: stdout, stderr
 use trig, only: d2r
 use earth, only: pole_geo2xyz, pole_xyz2geo
+use annealing, only: resample
+use random, only: iseed, timeseed
 
 use anneal_post, only: anneal_log_file, &
                        burnin_iterations, &
@@ -66,7 +70,8 @@ use anneal_post, only: anneal_log_file, &
                        flocked_subset_file, &
                        flocked_output_file, &
                        obj_file, &
-                       uncert_file
+                       uncert_file, &
+                       doResample
 
 implicit none
 
@@ -78,16 +83,16 @@ logical :: continueReadingHeader
 logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
 integer :: it, it0, nit
-integer :: i, ios, iflt, nflt, ipole, npoles, nsubset, itmp
-integer, allocatable :: locked(:,:), plocked(:)
+integer :: i, j, ios, iflt, nflt, ipole, npoles, nsubset
+integer, allocatable :: locked(:,:), locked_resamp(:,:), plocked(:), samp(:)
 double precision, allocatable :: temp(:)
-double precision, allocatable :: obj(:)
+double precision, allocatable :: obj(:), obj_resamp(:)
 double precision, allocatable :: uncert(:)
 double precision :: min_obj, fraction_locked
 double precision :: rake
-double precision, allocatable :: slip(:,:,:), mean_ss(:), mean_ds(:)
+double precision, allocatable :: slip(:,:,:), slip_resamp(:,:,:), mean_ss(:), mean_ds(:)
 double precision :: px, py, pz, plon, plat, pmag
-double precision, allocatable :: poles(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
+double precision, allocatable :: poles(:,:,:), poles_resamp(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
 
 
 ios = 0
@@ -303,6 +308,63 @@ endif
 
 
 !----
+! Resample if requested
+!----
+if (doResample) then
+    if (iseed.eq.0) then
+        iseed = timeseed()
+    endif
+
+    write(*,*) 'anneal_post: resampling models'
+
+    allocate(samp(nit))
+    allocate(obj_resamp(nit))
+    obj_resamp = obj - maxval(obj)
+    do i = 1,nit
+        obj_resamp(i) = exp(obj_resamp(i))
+    enddo
+    call resample(obj_resamp,samp,nit)
+
+    allocate(locked_resamp(nit,nflt))
+    do i = 1,nit
+        do j = 1,nflt
+            locked_resamp(i,j) = locked(samp(i),j)
+        enddo
+    enddo
+    locked = locked_resamp
+    deallocate(locked_resamp)
+
+    do i = 1,nit
+        obj_resamp(i) = obj(samp(i))
+    enddo
+    obj = obj_resamp
+    deallocate(obj_resamp)
+
+    allocate(slip_resamp(nit,nflt,2))
+    do i = 1,nit
+        do j = 1,nflt
+            slip_resamp(i,j,1) = slip(samp(i),j,1)
+            slip_resamp(i,j,2) = slip(samp(i),j,2)
+        enddo
+    enddo
+    slip = slip_resamp
+    deallocate(slip_resamp)
+
+    allocate(poles_resamp(nit,npoles,3))
+    do i = 1,nit
+        do j = 1,npoles
+            poles_resamp(i,j,1) = poles(samp(i),j,1)
+            poles_resamp(i,j,2) = poles(samp(i),j,2)
+            poles_resamp(i,j,3) = poles(samp(i),j,3)
+        enddo
+    enddo
+    poles = poles_resamp
+
+    deallocate(samp)
+endif
+
+
+!----
 ! Print requested quantities
 !----
 ! Best fitting model
@@ -403,6 +465,7 @@ if (nmarg1d.ge.1) then
 endif
 
 ! Fraction of interface that is locked
+! TODO: SCALE LOCKED ZONES BY AREA
 if (nflocked.ge.1) then
     if (flocked_subset_file(1).eq.'') then
         open(unit=26,file=flocked_output_file(1),status='unknown')
@@ -629,6 +692,8 @@ end subroutine
 
 subroutine gcmdln()
 
+use random, only: iseed
+
 use anneal_post, only: anneal_log_file, &
                        burnin_iterations, &
                        best_output_file, &
@@ -645,13 +710,14 @@ use anneal_post, only: anneal_log_file, &
                        flocked_subset_file, &
                        flocked_output_file, &
                        obj_file, &
-                       uncert_file
+                       uncert_file, &
+                       doResample
 
 implicit none
 
 ! Local variables
-integer :: i, narg
-character(len=512) :: tag
+integer :: i, narg, ios
+character(len=512) :: tag, arg
 logical :: isOutputDefined
 
 
@@ -679,6 +745,8 @@ pole_marg_output_file = ''
 
 obj_file = ''
 uncert_file = ''
+
+doResample = .false.
 
 ! Number of arguments
 narg = command_argument_count()
@@ -780,6 +848,20 @@ do while (i.le.narg)
         call get_command_argument(i,uncert_file)
         isOutputDefined = .true.
 
+    elseif (tag.eq.'-resample') then
+        doResample = .true.
+        i = i + 1
+        if (i.gt.narg) then
+            i = i - 1
+        else
+            call get_command_argument(i,arg)
+            read(arg,*,iostat=ios) iseed
+            if (ios.ne.0) then
+                iseed = 0
+                i = i - 1
+            endif
+        endif
+
     else
         call usage('anneal_post: no option '//trim(tag))
     endif
@@ -828,6 +910,7 @@ write(stderr,*) '-flocked:subset FLT_FILE FILE   Fraction of locked faults in ea
                                                  'subset of faults'
 write(stderr,*) '-obj OBJ_FILE                   Iteration and objective function'
 write(stderr,*) '-uncertainty UNCERT_FILE        Uncertainty distribution'
+write(stderr,*) '-resample [SEED]                Resample models proportional to probability (objective)'
 write(stderr,*)
 
 call error_exit(1)
