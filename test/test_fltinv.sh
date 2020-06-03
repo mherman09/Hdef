@@ -1315,6 +1315,21 @@ EOF
     5.2974000000000000E-002
 EOF
     $TEST_BIN_DIR/test_values.sh fit.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, first 20 fits" || exit 1
+
+    echo "Testing anneal_post with resampling"
+    $BIN_DIR/anneal_post -f anneal.log -plocked plock.tmp -resample 1000 -seed 37 || exit 1
+    cat > answer.tmp << EOF
+   2.1000000000000001E-002
+   9.1999999999999998E-002
+  0.10400000000000000     
+  0.13500000000000001     
+  0.81699999999999995     
+   5.7000000000000002E-002
+  0.18500000000000000     
+  0.18200000000000000     
+  0.20899999999999999
+EOF
+    $TEST_BIN_DIR/test_values.sh plock.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, resampled, probability locked" || exit 1
 else
     echo "Could not locate anneal_post; not testing"
 fi
