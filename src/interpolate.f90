@@ -69,6 +69,7 @@ call spline(x,y,nanchor,slope1,slope2,d2y)
 open(unit=12,file=interpolation_point_file,status='old')
 if (output_file.ne.'') then
     lu_out = 13
+    open(lu_out,file=output_file,status='unknown')
 else
     lu_out = 6
 endif
