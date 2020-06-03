@@ -118,6 +118,7 @@ $(BIN_DIR)/anneal_post: src/anneal_post.f90 \
                         $(INCLUDE_DIR)/error_exit.o \
                         $(INCLUDE_DIR)/io.o \
                         $(INCLUDE_DIR)/random.o \
+                        $(INCLUDE_DIR)/sort.o \
                         $(INCLUDE_DIR)/trig.o
 	$(FC) $(FFLAGS) $(INCLUDE_FLAGS) $(CPP_FLAGS) $^ -o $@
 

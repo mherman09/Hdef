@@ -40,6 +40,8 @@ character(len=512) :: obj_file
 character(len=512) :: uncert_file
 
 logical :: doResample
+integer :: nresamp
+integer, allocatable :: samp(:)
 
 end module
 
@@ -53,6 +55,7 @@ use io, only: stdout
 use earth, only: pole_geo2xyz, pole_xyz2geo
 use annealing, only: resample
 use random, only: iseed, timeseed
+use sort, only: heapsort
 
 use anneal_post, only: anneal_log_file, &
                        lu_log_file, &
@@ -72,26 +75,30 @@ use anneal_post, only: anneal_log_file, &
                        flocked_output_file, &
                        obj_file, &
                        uncert_file, &
-                       doResample
+                       doResample, &
+                       nresamp, &
+                       samp
 
 implicit none
 
 ! Local variables
+character(len=512) :: input_line
 character(len=32) :: log_format
 logical :: fileExists
 logical, allocatable :: isAccepted(:)
 logical, allocatable :: isFltInSubset(:)
 integer :: it, nit
-integer :: i, j, ios, iflt, nflt, ipole, npoles, nsubset
-integer, allocatable :: locked(:,:), locked_resamp(:,:), plocked(:), samp(:)
+integer :: i, ios, iflt, nflt, ipole, npoles, nsubset
+integer, allocatable :: locked(:,:), plocked(:)
 double precision, allocatable :: temp(:)
 double precision, allocatable :: obj(:), obj_resamp(:)
 double precision, allocatable :: uncert(:)
 double precision :: min_obj, fraction_locked
-double precision, allocatable :: slip(:,:,:), slip_resamp(:,:,:), mean_ss(:), mean_ds(:)
+double precision, allocatable :: slip(:,:,:), mean_ss(:), mean_ds(:)
 double precision :: px, py, pz, plon, plat, pmag
-double precision, allocatable :: poles(:,:,:), poles_resamp(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
-
+double precision, allocatable :: poles(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
+double precision :: ddum
+logical :: ldum
 
 ios = 0
 
@@ -121,8 +128,8 @@ call read_header(nit,nflt,npoles,log_format)
 
 
 ! Set up arrays
-allocate(locked(nit,nflt))        ! Int: Locked (1) and unlocked (0) faults
 allocate(obj(nit))                ! DP: Objective function values
+allocate(locked(nit,nflt))        ! Int: Locked (1) and unlocked (0) faults
 allocate(slip(nit,nflt,2))        ! DP: Strike- and dip-slip of each fault
 allocate(poles(nit,npoles,3))     ! DP: Pole coordinates and rotation rate
 allocate(temp(nit))               ! DP: Temperature
@@ -131,65 +138,53 @@ allocate(isAccepted(nit))         ! Logical: Was the proposed model accepted?
 write(*,*) 'anneal_post: finished allocating array memory'
 
 
-! Read search results
-call read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
-
-
-!----
-! Resample if requested
-!----
+! Resample ensemble if requested
 if (doResample) then
+    if (nresamp.eq.0) then
+        nresamp = nit
+    endif
+
+    write(*,*) 'anneal_post: reading model objective functions for resampling'
+
+    ! Read all objectives (log-posterior-probabilities)
+    i = 0
+    do
+        read(lu_log_file,'(A)',iostat=ios) input_line
+        if (ios.ne.0) then
+            exit
+        endif
+        if (index(input_line,'>').eq.1) then
+            if (i.ge.1) then
+                call parse_iteration_header(input_line,it,ddum,obj(i),ddum,ldum,ios)
+            endif
+            i = i + 1
+        endif
+    enddo
+
+    write(*,*) 'anneal_post: resampling models'
     if (iseed.eq.0) then
         iseed = timeseed()
     endif
-
-    write(*,*) 'anneal_post: resampling models'
-
-    allocate(samp(nit))
+    allocate(samp(nresamp))
     allocate(obj_resamp(nit))
     obj_resamp = obj - maxval(obj)
     do i = 1,nit
         obj_resamp(i) = exp(obj_resamp(i))
     enddo
     call resample(obj_resamp,samp,nit)
+    call heapsort(samp,nit)
 
-    allocate(locked_resamp(nit,nflt))
-    do i = 1,nit
-        do j = 1,nflt
-            locked_resamp(i,j) = locked(samp(i),j)
-        enddo
-    enddo
-    locked = locked_resamp
-    deallocate(locked_resamp)
+    ! Reset file to read again
+    rewind(lu_log_file)
+    call read_header(nit,nflt,npoles,log_format)
 
-    do i = 1,nit
-        obj_resamp(i) = obj(samp(i))
-    enddo
-    obj = obj_resamp
-    deallocate(obj_resamp)
-
-    allocate(slip_resamp(nit,nflt,2))
-    do i = 1,nit
-        do j = 1,nflt
-            slip_resamp(i,j,1) = slip(samp(i),j,1)
-            slip_resamp(i,j,2) = slip(samp(i),j,2)
-        enddo
-    enddo
-    slip = slip_resamp
-    deallocate(slip_resamp)
-
-    allocate(poles_resamp(nit,npoles,3))
-    do i = 1,nit
-        do j = 1,npoles
-            poles_resamp(i,j,1) = poles(samp(i),j,1)
-            poles_resamp(i,j,2) = poles(samp(i),j,2)
-            poles_resamp(i,j,3) = poles(samp(i),j,3)
-        enddo
-    enddo
-    poles = poles_resamp
-
-    deallocate(samp)
+	! Read search results
+    call read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
+else
+    ! Read search results
+    call read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
 endif
+
 
 
 !----
@@ -459,7 +454,7 @@ double precision :: obj(nit), slip(nit,nflt,2), poles(nit,npoles,3), temp(nit), 
 logical :: isAccepted(nit)
 
 ! Local variables
-integer :: i, ios, it, itexpected, iflt, ipole, nlines_per_it
+integer :: i, ios, it, itread, iflt, ipole, nlines_per_it
 character(len=512) :: input_line
 double precision :: rake
 
@@ -476,6 +471,7 @@ endif
 do i = 1,nlines_per_it
     read(lu_log_file,'(A)') input_line
 enddo
+
 
 ! Read all other models
 do it = 1,nit
@@ -496,16 +492,16 @@ do it = 1,nit
     ! Where "label" describes a parameter, and "value" is a number or string for the parameter
     read(lu_log_file,'(A)',end=1001,iostat=ios) input_line
     if (it.gt.0) then
-        call parse_iteration_header(input_line,itexpected,temp(it),obj(it),uncert(it),isAccepted(it),ios)
+        call parse_iteration_header(input_line,itread,temp(it),obj(it),uncert(it),isAccepted(it),ios)
     else
-        itexpected = 0
+        itread = 0
     endif
     if (ios.ne.0) then
         write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
         write(stderr,*) 'iteration: ',it
         call usage('')
     endif
-    if (itexpected.ne.it) then
+    if (itread.ne.it) then
         call usage('anneal_post: iterations in log file are not in sequential order')
     endif
     1001 if (ios.ne.0) then
@@ -567,6 +563,194 @@ do it = 1,nit
     endif
 
 enddo
+write(stdout,*) 'anneal_post: finished reading log file'
+1002 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'fault: ',iflt
+    call usage('')
+endif
+1003 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: error parsing fault info from line ',trim(input_line)
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'fault: ',iflt
+    call usage('')
+endif
+1004 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading poles'
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
+1005 if (ios.ne.0) then
+    write(stderr,*) 'anneal_post: error parsing pole info from line ',trim(input_line)
+    write(stderr,*) 'iteration: ',it
+    write(stderr,*) 'pole: ',ipole
+    call usage('')
+endif
+return
+end subroutine
+
+
+!--------------------------------------------------------------------------------------------------!
+
+
+subroutine read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp, &
+                                 uncert,isAccepted)
+
+use io, only: stdout, stderr
+use trig, only: d2r
+
+use anneal_post, only: lu_log_file, &
+                       nresamp, &
+                       samp
+
+implicit none
+
+! Arguments
+integer :: nit, nflt, npoles
+character(len=*) :: log_format
+integer :: locked(nit,nflt)
+double precision :: obj(nit), slip(nit,nflt,2), poles(nit,npoles,3), temp(nit), uncert(nit)
+logical :: isAccepted(nit)
+
+! Local variables
+integer :: i, ios, it, itread, iflt, ipole, nlines_per_it, isamp
+character(len=512) :: input_line
+double precision :: rake
+integer :: locked_it(nflt)
+double precision :: obj_it, slip_it(nflt,2), poles_it(npoles,3), temp_it, uncert_it
+logical :: isAccepted_it
+
+
+
+! Read initial (0th) model
+if (log_format.eq.'anneal') then
+    nlines_per_it = 1 + nflt
+elseif (log_format.eq.'anneal_psc') then
+    nlines_per_it = 1 + nflt
+elseif (log_format.eq.'anneal_psc_euler') then
+    nlines_per_it = 1 + nflt + npoles*3
+else
+    call usage('anneal_post: no log file format named '//trim(log_format))
+endif
+do i = 1,nlines_per_it
+    read(lu_log_file,'(A)') input_line
+enddo
+
+
+isamp = 1
+
+! Read all other models
+do it = 1,nit
+
+    ! Progress indicator
+    if (nit.ge.100) then
+        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
+            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
+        endif
+    else
+        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
+    endif
+
+    if (isamp.gt.nresamp) then
+        exit
+    endif
+
+    ! Read the header for the iteration
+    ! All iteration header lines start with a ">" in the first character and have the format:
+    !     > label=value label=value ...
+    ! Where "label" describes a parameter, and "value" is a number or string for the parameter
+    read(lu_log_file,'(A)',end=1001,iostat=ios) input_line
+    call parse_iteration_header(input_line,itread,temp_it,obj_it,uncert_it,isAccepted_it,&
+                                ios)
+    if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: error parsing iteration information from line ',trim(input_line)
+        write(stderr,*) 'iteration: ',it
+        call usage('')
+    endif
+    1001 if (ios.ne.0) then
+        write(stderr,*) 'anneal_post: more iterations indicated (',nit,') than in file (',it-1,')'
+        call usage('')
+    endif
+
+    ! Read fault information defined by log file format
+    if (log_format.eq.'anneal') then
+
+        ! Slip magnitudes
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            read(input_line,*,end=1003,err=1003,iostat=ios) slip_it(iflt,1)
+        enddo
+
+        ! Rake angles
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            read(input_line,*,end=1003,err=1003,iostat=ios) rake
+            ! Convert to strike- and dip-slip
+            slip_it(iflt,2) = slip_it(iflt,1)*sin(rake*d2r)
+            slip_it(iflt,1) = slip_it(iflt,1)*cos(rake*d2r)
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc') then
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            read(input_line,*,end=1003,err=1003,iostat=ios) locked_it(iflt), &
+                                                            slip_it(iflt,1:2)
+        enddo
+
+
+    elseif (log_format.eq.'anneal_psc_euler') then
+        do iflt = 1,nflt
+            read(lu_log_file,'(A)',end=1002,iostat=ios) input_line
+            read(input_line,*,end=1003,err=1003,iostat=ios) locked_it(iflt), &
+                                                            slip_it(iflt,1:2)
+        enddo
+        do ipole = 1,npoles
+            do i = 1,3
+                read(lu_log_file,'(A)',end=1004,iostat=ios) input_line
+                read(input_line,*,end=1005,err=1005,iostat=ios) poles_it(ipole,i)
+            enddo
+        enddo
+
+    else
+        call usage('anneal_post: no log file format named '//trim(log_format))
+    endif
+
+
+    if (samp(isamp).ne.it) then
+        cycle
+    endif
+
+    ! Load resampled models
+    do while (samp(isamp).eq.it)
+        obj(isamp) = obj_it
+        temp(isamp) = temp_it
+        uncert(isamp) = uncert_it
+        isAccepted(isamp) = isAccepted_it
+        do iflt = 1,nflt
+            slip(isamp,iflt,1) = slip_it(iflt,1)
+            slip(isamp,iflt,2) = slip_it(iflt,2)
+            if (log_format.eq.'anneal_psc'.or.log_format.eq.'anneal_psc_euler') then
+                locked(isamp,iflt) = locked_it(iflt)
+            endif
+        enddo
+        do ipole = 1,npoles
+            if (log_format.eq.'anneal_psc_euler') then
+                poles(isamp,ipole,1) = poles_it(ipole,1)
+                poles(isamp,ipole,2) = poles_it(ipole,2)
+                poles(isamp,ipole,3) = poles_it(ipole,3)
+            endif
+        enddo
+        isamp = isamp + 1
+        if (isamp.gt.nresamp) then
+            exit
+        endif
+    enddo
+
+enddo
+
 write(stdout,*) 'anneal_post: finished reading log file'
 1002 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
@@ -795,7 +979,8 @@ use anneal_post, only: anneal_log_file, &
                        flocked_output_file, &
                        obj_file, &
                        uncert_file, &
-                       doResample
+                       doResample, &
+                       nresamp
 
 implicit none
 
@@ -934,6 +1119,7 @@ do while (i.le.narg)
 
     elseif (tag.eq.'-resample') then
         doResample = .true.
+        nresamp = 0
         i = i + 1
         if (i.gt.narg) then
             i = i - 1
