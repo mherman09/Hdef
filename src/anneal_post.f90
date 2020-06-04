@@ -146,6 +146,9 @@ if (doResample) then
     if (nresamp.eq.0) then
         nresamp = nit
     endif
+    if (nresamp.gt.nit) then
+        call usage('anneal_post: nresamp cannot be greater than nit')
+    endif
 
     write(*,*) 'anneal_post: reading model objective functions for resampling'
 
