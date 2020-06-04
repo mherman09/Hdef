@@ -93,12 +93,14 @@ integer, allocatable :: samp_tmp(:)
 integer, allocatable :: locked(:,:), plocked(:)
 double precision, allocatable :: temp(:)
 double precision, allocatable :: obj(:), obj_resamp(:)
+double precision :: max_obj
 double precision, allocatable :: uncert(:)
 double precision :: min_obj, fraction_locked
 double precision, allocatable :: slip(:,:,:), mean_ss(:), mean_ds(:)
 double precision :: px, py, pz, plon, plat, pmag
 double precision, allocatable :: poles(:,:,:), mean_px(:), mean_py(:), mean_pz(:)
 double precision :: ddum
+integer :: idum
 logical :: ldum
 
 ios = 0
@@ -162,6 +164,19 @@ if (doResample) then
         endif
     enddo
 
+    ! Set nit to number read in previous block
+    if (i-1.ne.nit) then
+        nit = i-1
+        ! Arrays with multiple dimensions need to be reallocated, so values remain in
+        ! correct iteration index
+        deallocate(locked)
+        deallocate(slip)
+        deallocate(poles)
+        allocate(locked(nit,nflt))
+        allocate(slip(nit,nflt,2))
+        allocate(poles(nit,npoles,3))
+    endif
+
     write(*,*) 'anneal_post: resampling models'
     ! Initialize the random number seed
     if (iseed.eq.0) then
@@ -171,9 +186,9 @@ if (doResample) then
     ! Resample the ensemble
     allocate(samp(nit))
     allocate(obj_resamp(nit))
-    obj_resamp = obj - maxval(obj)
+    max_obj = maxval(obj(1:nit))
     do i = 1,nit
-        obj_resamp(i) = exp(obj_resamp(i))
+        obj_resamp(i) = exp(obj(i) - max_obj)
     enddo
     call resample(obj_resamp,samp,nit)
 
@@ -187,12 +202,14 @@ if (doResample) then
     ! Sort the sampled models for more efficient reading
     call heapsort(samp,nresamp)
 
-    ! Reset file to read again
+    ! Reset file to read again (do not overwrite nit set above)
     rewind(lu_log_file)
-    call read_header(nit,nflt,npoles,log_format)
+    call read_header(idum,nflt,npoles,log_format)
 
 	! Read search results, saving only sampled models
-    call read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert,isAccepted)
+    call read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert, &
+                               isAccepted)
+    nit = nresamp
 
 else
 
@@ -687,8 +704,11 @@ do it = 1,nit
         call usage('')
     endif
     1001 if (ios.ne.0) then
-        write(stderr,*) 'anneal_post: more iterations indicated (',nit,') than in file (',it-1,')'
-        call usage('')
+        write(stderr,*) 'anneal_post: more iterations in header (',nit,') than found in file (',it-1,')'
+        write(stderr,*) 'Continuing with iterations that have been read'
+        ios = 0
+        nit = it-1
+        exit
     endif
 
     ! Read fault information defined by log file format
@@ -796,7 +816,9 @@ endif
 return
 end subroutine
 
+
 !--------------------------------------------------------------------------------------------------!
+
 
 subroutine parse_iteration_header(input_line,it,temp,obj,uncert,isAccepted,ierr)
 !----
@@ -873,7 +895,9 @@ enddo
 return
 end subroutine
 
+
 !--------------------------------------------------------------------------------------------------!
+
 
 subroutine read_header(nit,nflt,npoles,log_format)
 
@@ -973,7 +997,9 @@ write(stdout,*) 'log_format= ',log_format
 return
 end subroutine
 
+
 !--------------------------------------------------------------------------------------------------!
+
 
 subroutine gcmdln()
 
