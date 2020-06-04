@@ -51,7 +51,7 @@ end module
 
 program main
 
-use io, only: stdout
+use io, only: stdout, verbosity
 use earth, only: pole_geo2xyz, pole_xyz2geo
 use annealing, only: resample
 use random, only: iseed, timeseed
@@ -107,6 +107,9 @@ ios = 0
 
 ! Parse command line
 call gcmdln()
+if (verbosity.ge.1) then
+    write(stdout,*) 'anneal_post: starting'
+endif
 
 
 !----
@@ -121,6 +124,9 @@ endif
 ! Open the log file
 lu_log_file = 21
 open(unit=lu_log_file,file=anneal_log_file,status='old')
+if (verbosity.ge.2) then
+    write(stdout,*) 'anneal_post: reading log file "',trim(anneal_log_file),'"'
+endif
 
 
 !----
@@ -138,8 +144,9 @@ allocate(poles(nit,npoles,3))     ! DP: Pole coordinates and rotation rate
 allocate(temp(nit))               ! DP: Temperature
 allocate(uncert(nit))             ! DP: Model prediction error
 allocate(isAccepted(nit))         ! Logical: Was the proposed model accepted?
-write(*,*) 'anneal_post: finished allocating array memory'
-
+if (verbosity.ge.2) then
+    write(stdout,*) 'anneal_post: finished allocating array memory'
+endif
 
 ! Resample ensemble if requested
 if (doResample) then
@@ -150,9 +157,10 @@ if (doResample) then
         call usage('anneal_post: nresamp cannot be greater than nit')
     endif
 
-    write(*,*) 'anneal_post: reading model objective functions for resampling'
-
     ! Read all objectives (log-posterior-probabilities)
+    if (verbosity.ge.2) then
+        write(stdout,*) 'anneal_post: reading model objective functions for resampling'
+    endif
     i = 0
     do
         read(lu_log_file,'(A)',iostat=ios) input_line
@@ -166,6 +174,9 @@ if (doResample) then
             i = i + 1
         endif
     enddo
+    if (verbosity.ge.2) then
+        write(stdout,*) 'anneal_post: finished reading model objective functions'
+    endif
 
     ! Set nit to number read in previous block
     if (i-1.ne.nit) then
@@ -180,13 +191,15 @@ if (doResample) then
         allocate(poles(nit,npoles,3))
     endif
 
-    write(*,*) 'anneal_post: resampling models'
     ! Initialize the random number seed
     if (iseed.eq.0) then
         iseed = timeseed()
     endif
 
     ! Resample the ensemble
+    if (verbosity.ge.2) then
+        write(stdout,*) 'anneal_post: resampling models'
+    endif
     allocate(samp(nit))
     allocate(obj_resamp(nit))
     max_obj = maxval(obj(1:nit))
@@ -194,6 +207,9 @@ if (doResample) then
         obj_resamp(i) = exp(obj(i) - max_obj)
     enddo
     call resample(obj_resamp,samp,nit)
+    if (verbosity.ge.2) then
+        write(stdout,*) 'anneal_post: finished resampling'
+    endif
 
     ! Save the first nresamp models
     allocate(samp_tmp(nresamp))
@@ -228,7 +244,7 @@ endif
 !----
 ! Best fitting model
 if (best_output_file.ne.'') then
-    write(*,*) 'anneal_post: working on best-fitting output file'
+    ! write(*,*) 'anneal_post: working on best-fitting output file'
     ! Find minimum chi-squared model
     min_obj = 1e10
     it = 1
@@ -468,6 +484,11 @@ endif
 ! Close annealing log file
 close(lu_log_file)
 
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'anneal_post: finished'
+endif
+
 end
 
 !--------------------------------------------------------------------------------------------------!
@@ -475,7 +496,7 @@ end
 subroutine read_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp,uncert, &
                        isAccepted)
 
-use io, only: stdout, stderr
+use io, only: stdout, stderr, verbosity, progress_indicator
 use trig, only: d2r
 
 use anneal_post, only: lu_log_file
@@ -493,6 +514,12 @@ logical :: isAccepted(nit)
 integer :: i, ios, it, itread, iflt, ipole, nlines_per_it
 character(len=512) :: input_line
 double precision :: rake
+
+
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_models: starting'
+endif
 
 
 if (log_format.eq.'anneal') then
@@ -513,14 +540,7 @@ enddo
 do it = 1,nit
 
     ! Progress indicator
-    if (nit.ge.100) then
-        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
-            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
-        endif
-    else
-        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
-    endif
-
+    call progress_indicator(it,nit,'anneal_post: read_models',ios)
 
     ! Read the header for each iteration
     ! All iteration header lines start with a ">" in the first character and have the format:
@@ -599,7 +619,13 @@ do it = 1,nit
     endif
 
 enddo
-write(stdout,*) 'anneal_post: finished reading log file'
+
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_models: finished'
+endif
+
+
 1002 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
     write(stderr,*) 'iteration: ',it
@@ -624,6 +650,7 @@ endif
     write(stderr,*) 'pole: ',ipole
     call usage('')
 endif
+
 return
 end subroutine
 
@@ -634,7 +661,7 @@ end subroutine
 subroutine read_resampled_models(nit,nflt,npoles,log_format,locked,obj,slip,poles,temp, &
                                  uncert,isAccepted)
 
-use io, only: stdout, stderr
+use io, only: stdout, stderr, verbosity, progress_indicator
 use trig, only: d2r
 
 use anneal_post, only: lu_log_file, &
@@ -661,6 +688,11 @@ logical :: isAccepted_it
 
 
 
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_resampled_models: starting'
+endif
+
+
 ! Read initial (0th) model
 if (log_format.eq.'anneal') then
     nlines_per_it = 1 + nflt
@@ -682,13 +714,7 @@ isamp = 1
 do it = 1,nit
 
     ! Progress indicator
-    if (nit.ge.100) then
-        if (mod(it,nit/100).eq.1.and.nit.ge.100) then
-            write(*,'(A,I5,A,A)',advance='no') 'anneal_post progress: ',100*it/nit,'%',char(13)
-        endif
-    else
-        write(*,'(A,I5,A,I5,A)',advance='no') 'anneal_post progress: ',it,'of',nit,char(13)
-    endif
+    call progress_indicator(it,nit,'anneal_post: read_resampled_models',ios)
 
     if (isamp.gt.nresamp) then
         exit
@@ -791,7 +817,10 @@ do it = 1,nit
 
 enddo
 
-write(stdout,*) 'anneal_post: finished reading log file'
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_resampled_models: finished'
+endif
+
 1002 if (ios.ne.0) then
     write(stderr,*) 'anneal_post: reached end of anneal log file before finished reading faults'
     write(stderr,*) 'iteration: ',it
@@ -816,6 +845,7 @@ endif
     write(stderr,*) 'pole: ',ipole
     call usage('')
 endif
+
 return
 end subroutine
 
@@ -829,7 +859,7 @@ subroutine parse_iteration_header(input_line,it,temp,obj,uncert,isAccepted,ierr)
 ! > Iteration=N Temperature=T Objective=F Model_Uncertainty=U accepted|rejected
 !----
 
-use io, only: stderr
+use io, only: stderr, verbosity, stdout
 
 implicit none
 
@@ -852,6 +882,10 @@ obj = 0.0d0
 uncert = -1.0d0
 isAccepted = .false.
 
+
+if (verbosity.ge.3) then
+    write(stdout,*) 'parse_iteration_header: starting'
+endif
 
 ! Make sure line is properly labeled as an iteration header
 i = index(input_line,'>')
@@ -895,6 +929,10 @@ do
     input_line(1:i+len(trim(ch))) = ''
 enddo
 
+if (verbosity.ge.3) then
+    write(stdout,*) 'parse_iteration_header: finished'
+endif
+
 return
 end subroutine
 
@@ -904,7 +942,7 @@ end subroutine
 
 subroutine read_header(nit,nflt,npoles,log_format)
 
-use io, only: stderr, stdout
+use io, only: stderr, stdout, verbosity
 
 use anneal_post, only: lu_log_file, &
                        burnin_iterations
@@ -919,6 +957,11 @@ character(len=*) ::  log_format
 logical :: continueReadingHeader
 integer :: i, ios
 character(len=512) :: input_line
+
+
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_header: starting'
+endif
 
 
 ! Set search variables before reading
@@ -991,11 +1034,17 @@ if (nflt.eq.0) then
     call usage('anneal_post: read zero faults in log file')
 endif
 
-write(stdout,*) 'anneal_post: finished parsing header'
-write(stdout,*) 'niterations=',nit
-write(stdout,*) 'nfaults=',nflt
-write(stdout,*) 'npoles=',npoles
-write(stdout,*) 'log_format= ',log_format
+
+if (verbosity.ge.2) then
+    write(stdout,*) 'anneal_post: finished parsing header'
+    write(stdout,*) 'niterations=',nit
+    write(stdout,*) 'nfaults=',nflt
+    write(stdout,*) 'npoles=',npoles
+    write(stdout,*) 'log_format= ',log_format
+endif
+if (verbosity.ge.1) then
+    write(stdout,*) 'read_header: starting'
+endif
 
 return
 end subroutine
@@ -1006,6 +1055,7 @@ end subroutine
 
 subroutine gcmdln()
 
+use io, only: verbosity
 use random, only: iseed
 
 use anneal_post, only: anneal_log_file, &
@@ -1187,6 +1237,11 @@ do while (i.le.narg)
             i = i - 1
         endif
 
+    elseif (tag.eq.'-v'.or.tag.eq.'-verbose'.or.tag.eq.'-verbosity') then
+        i = i + 1
+        call get_command_argument(i,arg)
+        read(arg,*) verbosity
+
     else
         call usage('anneal_post: no option '//trim(tag))
     endif
@@ -1206,9 +1261,10 @@ end subroutine
 
 subroutine usage(str)
 
+use io, only: stderr
+
 implicit none
 
-integer, parameter :: stderr = 0
 character(len=*) :: str
 
 if (str.ne.'') then
@@ -1235,8 +1291,9 @@ write(stderr,*) '-flocked:subset FLT_FILE FILE   Fraction of locked faults in ea
                                                  'subset of faults'
 write(stderr,*) '-obj OBJ_FILE                   Iteration and objective function'
 write(stderr,*) '-uncertainty UNCERT_FILE        Uncertainty distribution'
-write(stderr,*) '-resample NRESAMPLE             Resample models proportional to probability (objective)'
+write(stderr,*) '-resample NRESAMPLE             Resample models proportional to probability'
 write(stderr,*) '-seed SEED                      Set random number seed'
+write(stderr,*) '-v LVL                          Turn on verbose mode'
 write(stderr,*)
 
 call error_exit(1)
