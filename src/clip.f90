@@ -6,6 +6,7 @@ character(len=512) :: output_file
 logical :: getPointsInsideBoundary
 logical :: getPointsOutsideBoundary
 logical :: getPointsOnBoundary
+logical :: labelAll
 double precision :: epsilon
 logical :: printRecord
 
@@ -24,6 +25,7 @@ use clip, only: poly_file, &
                 getPointsInsideBoundary, &
                 getPointsOutsideBoundary, &
                 getPointsOnBoundary, &
+                labelAll, &
                 epsilon, &
                 printRecord
 
@@ -119,6 +121,12 @@ do
         else
             write(luout,*) trim(line)
         endif
+    elseif (labelAll) then
+        if (printRecord) then
+            write(luout,*) irecord,inout
+        else
+            write(luout,*) inout
+        endif
     endif
 enddo
 
@@ -143,14 +151,15 @@ use clip, only: poly_file, &
                 getPointsInsideBoundary, &
                 getPointsOutsideBoundary, &
                 getPointsOnBoundary, &
+                labelAll, &
                 epsilon, &
                 printRecord
 
 implicit none
 
 ! Local variables
-integer :: i, narg
-character(len=512) :: tag
+integer :: i, ios, narg
+character(len=512) :: tag, arg
 
 
 poly_file = ''
@@ -159,6 +168,7 @@ output_file = ''
 getPointsInsideBoundary = .false.
 getPointsOutsideBoundary = .false.
 getPointsOnBoundary = .false.
+labelAll = .false.
 epsilon = 1.0d-8
 printRecord = .false.
 
@@ -200,6 +210,19 @@ do while (i.le.narg)
     elseif (tag.eq.'-NR') then
         printRecord = .true.
 
+    elseif (tag.eq.'-l') then
+        labelAll = .true.
+        i = i + 1
+        if (i.gt.narg) then
+            cycle
+        else
+            call get_command_argument(i,arg)
+            read(arg,*,iostat=ios) epsilon
+            if (ios.ne.0) then
+                i = i - 1
+            endif
+        endif
+
     else
         call usage('clip: no option '//trim(tag))
     endif
@@ -233,6 +256,7 @@ write(stderr,*) '-in               Keep points inside clipping boundary'
 write(stderr,*) '-out              Keep points outside clipping boundary'
 write(stderr,*) '-on EPS           Keep points within EPS of boundary'
 write(stderr,*) '-NR               Print record of clipped lines'
+write(stderr,*) '-l [EPS]          Print in(+1), out(-1), or on(0) boundary'
 write(stderr,*)
 
 call error_exit(1)

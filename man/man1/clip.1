@@ -1,4 +1,4 @@
-.TH CLIP 1 "June 2019" "Version 2019.06.01" "User Manuals"
+.TH CLIP 1 "June 2020" "Version 2020.06.01" "User Manuals"
 
 .SH NAME
 clip \- select points inside or outside a polygon
@@ -7,9 +7,10 @@ clip \- select points inside or outside a polygon
 .P
 .B clip
 .I polygon_file
-.BI -in|-out|-on " eps"
+.BI -in|-out|-on " eps" "|-l [" eps ]
 .BI [-f " input_file" ]
 .BI [-o " output_file" ]
+.B [-NR]
 
 .SH DESCRIPTION
 .B clip
@@ -27,26 +28,35 @@ Polygon x-y coordinates
 
 .TP
 .B -in
-Select points inside polygon (may be used with
+Keep points inside polygon (may be combined with
 .B -out
-and
+or
 .BR -on )
 
 .TP
 .B -out
-Select points outside polygon (may be used with
+Keep points outside polygon (may be combined with
 .B -in
-and
+or
 .BR -on )
 
 .TP
 .BI -on " eps"
-Select points less than
+Keep points less than
 .I eps
-from the polygon boundary (may be used with
+from the polygon boundary (may be combined with
 .B -in
-and
+or
 .BR -out )
+
+.TP
+.BI "-l [" eps ]
+For all points, print whether they are inside (+1), outside (-1), or
+on (0) the boundary. Optionally set the threshold distance
+for lying on the boundary by defining
+.I eps
+(default:
+.IR eps =1e-8).
 
 
 .TP
@@ -55,6 +65,11 @@ Coordinates to clip in x-y-z format (default: read from standard input)
 
 .TP
 .BI -o " output_file"
-Output file (default prints to standard output)
+Output file (default: print to standard output)
+
+.TP
+.B -NR
+Print the line number (record) of the clipped line in the first output column.
+
 
 .RS
