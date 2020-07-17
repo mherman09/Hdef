@@ -44,7 +44,8 @@ call gcmdln()
 ! Make sure something needs to be printed...
 if (.not.getPointsInsideBoundary .and. &
     .not.getPointsOutsideBoundary .and. &
-    .not.getPointsOnBoundary) then
+    .not.getPointsOnBoundary .and. &
+    .not.labelAll) then
     call usage('clip: no output mode specified')
 endif
 
