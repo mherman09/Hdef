@@ -32,10 +32,12 @@ use clip, only: poly_file, &
 implicit none
 
 ! Local variables
-integer :: i, ios, luin, luout, nclip, inout, irecord
+integer :: i, ios, luin, luout, nclip, inout, irecord, ipoly, npoly
+character(len=1) :: ch1
 character(len=512) :: line
 double precision :: x, y
-double precision, allocatable :: polygon(:,:)
+double precision, allocatable :: polygon(:,:,:)
+logical :: multiPoly
 
 
 ! Parse command line
@@ -55,11 +57,34 @@ if(.not.fileExists(poly_file)) then
     call usage('clip: no polygon file found named "'//trim(poly_file)//'"')
 endif
 nclip = line_count(poly_file)
-allocate(polygon(nclip,2))
+
+! Check to see whether file contains single or multiple polygons
 open(unit=21,file=poly_file,status='old')
+read(21,'(A)') ch1
+npoly = 1
+if (ch1.eq.'>') then
+    multiPoly = .true.
+    do i = 1,nclip
+        read(21,'(A)')
+        if (ch1.eq.'>') then
+            npoly = npoly + 1
+        endif
+    enddo
+    allocate(polygon(npoly,nclip,2))
+else
+    multiPoly = .false.
+    allocate(polygon(npoly,nclip,2))
+endif
+rewind(21)
+
+npoly = 1
 do i = 1,nclip
     read(21,'(A)') line
-    read(line,*,iostat=ios) polygon(i,1),polygon(i,2)
+    if (line.eq.'>'.and.i.gt.1) then
+        npoly = npoly + 1
+        cycle
+    endif
+    read(line,*,iostat=ios) polygon(npoly,i,1),polygon(npoly,i,2)
     if (ios.ne.0) then
         write(stderr,*) 'clip: error reading polygon file coordinates at line ',i
         call usage(     'Offending line: '//trim(line))
@@ -102,7 +127,12 @@ do
         call usage(     'Offending line: '//trim(line))
     endif
 
-    call pnpoly(x,y,polygon(:,1),polygon(:,2),nclip,inout,epsilon)
+    do ipoly = 1,npoly
+        call pnpoly(x,y,polygon(ipoly,:,1),polygon(ipoly,:,2),nclip,inout,epsilon)
+        if (inout.eq.1) then
+            exit
+        endif
+    enddo
 
     if (getPointsInsideBoundary.and.inout.eq.1) then
         if (printRecord) then
@@ -124,9 +154,17 @@ do
         endif
     elseif (labelAll) then
         if (printRecord) then
-            write(luout,*) irecord,inout
+            if (multiPoly) then
+                write(luout,*) irecord,inout,ipoly
+            else
+                write(luout,*) irecord,inout
+            endif
         else
-            write(luout,*) inout
+            if (multiPoly) then
+                write(luout,*) inout,ipoly
+            else
+                write(luout,*) inout
+            endif
         endif
     endif
 enddo
