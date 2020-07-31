@@ -14,11 +14,15 @@ included, and you may find them useful as well.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+INSTALLATION
+
 Directions for installation are in the file INSTALL.
 Tutorials can be found at my website: http://www.matthewwherman.com/software.html
 Man pages for most of the programs and some of the scripts are in the man/ directory.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+LICENSE
 
 There are no guarantees: happy? I think these results are correct, and I have used these codes to
 make calculations for peer-reviewed publications, but I cannot guarantee that there are no bugs. If
@@ -27,15 +31,22 @@ you think you have found a bug, please report it to me at:
 matthew.w.herman@gmail.com
 
 Feel free to change the codes and use them as you see fit. Please check out the LICENSE when you use
-the software. There is no authoritative citation for the codes (yet), but the first published papers
-using the software are:
+the software.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CITING HDEF
+
+Please cite the code with the following DOI: https://doi.org/10.5281/zenodo.3894137. You may also
+want to cite uses of the tools in Hdef in addition to the software itself. The first published
+papers using early versions of Hdef are:
+
+Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
+	constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake
+        sequence, South Island, New Zealand. Tectonophysics 633, 1-15.
 
 Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
 	2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
-
-Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
-	constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake sequence,
-	South Island, New Zealand. Tectonophysics 633, 1-15.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
