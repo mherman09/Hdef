@@ -43,8 +43,10 @@ date = 0
 ierr = 0
 
 ! Read date string in specified format
-if (date_format.eq.'YYYY-MM-DD') then
+if (date_format.eq.'YYYY-MM-DD' .or. date_format.eq.'YYYY-MM-DDT') then
     if (len(trim(date_string)).eq.10) then
+        read(date_string,'(I4,X,I2,X,I2)',iostat=ios) (date(j),j=1,3)
+    elseif (len(trim(date_string)).eq.11) then
         read(date_string,'(I4,X,I2,X,I2)',iostat=ios) (date(j),j=1,3)
     else
         ios = 1

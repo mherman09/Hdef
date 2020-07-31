@@ -74,7 +74,7 @@ do
 
     ! Split it into two arguments, which depends on formatting
     ! This is an annoying block...
-    if (date_format.eq.'YYYY-MM-DD') then
+    if (date_format.eq.'YYYY-MM-DD' .or. date_format.eq.'YYYY-MM-DDT') then
         read(input_line,*) arg1, arg2
 
     elseif (date_format.eq.'YYYY MM DD') then
