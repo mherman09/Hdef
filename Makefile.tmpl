@@ -1,9 +1,9 @@
 ##### Compilers #####
 # C compiler
-CC = gcc
+CC = gcc-10
 
 # Fortran compiler
-FC = gfortran
+FC = gfortran-10
 
 # Fortran compiler warnings
 FWARN = -Wall -Wextra -Wunused -fbounds-check -fcheck=all -fbacktrace
@@ -26,39 +26,32 @@ BIN_DIR   = ./bin
 
 ##### Include directory (where to put .o and .mod files) #####
 INCLUDE_DIR = ./include
-INCLUDE_FLAGS = -I$(INCLUDE_DIR) -J$(INCLUDE_DIR)           # Include options
+INCLUDE_FLAGS = -I$(INCLUDE_DIR) -J$(INCLUDE_DIR)           # GFortran-specific include options
 
 
 ##### External libraries #####
 # LAPACK (linear algebra)
-LAPACK_LIB_DIR = /sw/lib/lapack                             # Path to LAPACK libraries
+# Location of LAPACK libraries
+LAPACK_LIB_DIR = /sw/lib/lapack                             # Fink (OSX 10.14 and earlier)
+LAPACK_LIB_DIR = /usr/local/opt/lapack/lib                  # Homebrew
 
-LAPACK_LIB     = -lreflapack -lrefblas -ltmglib             # Names of LAPACK libraries (may not
-# LAPACK_LIB     = -llapack -lblas -ltmglib                 # have "ref" prefix)
+# Names of LAPACK libraries (may not have "ref" prefix)
+LAPACK_LIB     = -lreflapack -lrefblas                      # You may need to add -ltmglib (test-matrix-generator library)
+LAPACK_LIB     = -llapack -lblas                            #
 
+# LAPACK flags
 LAPACK         = -L$(LAPACK_LIB_DIR) $(LAPACK_LIB)          # To compile with LAPACK, uncomment these lines
 CPP_LAPACK     = -DUSE_LAPACK
 # LAPACK         =                                            # To compile without LAPACK, uncomment these lines
 # CPP_LAPACK     =
 
-# SuperLU (sparse linear equation solvers)
-SUPERLU_LIB_DIR = ./ext/SuperLU_5.2.1/lib
-SUPERLU_LIB     = -lsuperlu_5.1
-# SUPERLU         = -L$(SUPERLU_LIB_DIR) $(SUPERLU_LIB)
-# CPP_SUPERLU = -DUSE_SUPERLU
-SUPERLU =
-CPP_SUPERLU =
-
-
-##### Pre-processing #####
-CPP_UNIT_TEST = -DUNIT_TEST
-# CPP_UNIT_TEST =
-
 
 ##### Other pre-processing #####
 CPP_OTHER =
 
-CPP_FLAGS = -cpp $(CPP_UNIT_TEST) $(CPP_LAPACK) $(CPP_SUPERLU) $(CPP_OTHER)
+
+##### Pre-processor flags #####
+CPP_FLAGS = -cpp -DUNIT_TEST $(CPP_LAPACK) $(CPP_OTHER)
 
 
 
