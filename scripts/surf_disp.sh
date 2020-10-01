@@ -19,12 +19,13 @@ function usage() {
     echo "                      FFM: finite fault model in USGS .param format" 1>&2
     echo "                      FSP: finite fault model in SRCMOD FSP format" 1>&2
     echo 1>&2
-    echo "Optional arguments (many of these defined automatically)" 1>&2
+    echo "Optional arguments (many of these are defined automatically)" 1>&2
     echo "-Rw/e/s/n           Map limits" 1>&2
     echo "-Tvmin/vmax/dv      Vertical displacement color palette" 1>&2
     echo "-vec_scale SCALE    Horizontal vector scale" 1>&2
     echo "-vec_legend LENGTH  Legend vector length (m)" 1>&2
-    echo "-fade DISP_THR      Fade displacements below DISP_THR meters (default: 0.05)" 1>&2
+    echo "-autothr            Auto displacement threshold (default: 1 mm)" 1>&2
+    echo "-fade DISP_THR      Fade displacements below DISP_THR meters (default: 50 mm)" 1>&2
     echo "-nvert NN           Number of vertical contour grid points (default: 100/dimension)" 1>&2
     echo "-nvec NN_SAMP       Number of vectors (default: 20/dimension)" 1>&2
     echo "-seg                Plot segmented finite faults" 1>&2
@@ -34,7 +35,7 @@ function usage() {
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
     echo "-hdefbin DIR        Directory with Hdef executables" 1>&2
     echo "-o FILENAME         Basename for output file" 1>&2
-    echo "-noclean            Keep all temporary files (useful for debugging)"
+    echo "-noclean            Keep all temporary files (useful for debugging)" 1>&2
     echo 1>&2
     exit 1
 }
@@ -80,7 +81,8 @@ PLOT_VECT="Y"
 GPS_FILE=""
 STA_FILE=""
 EMPREL="WC"
-DISP_THR="0.05" # Horizontal displacements below DISP_THR meters will be faded
+DISP_THR="" # Horizontal displacements below DISP_THR meters will be faded
+AUTO_THR="0.001" # Map limits defined based on this displacement threshold
 HDEF_BIN_DIR=""
 OFILE="surf_disp"
 CLEAN="Y"
@@ -91,6 +93,7 @@ do
         -T*) VERT_CPT_RANGE="$1";;
         -vec_scale) shift;VEC_SCALE="$1" ;;
         -vec_legend) shift;DISP_LBL="$1" ;;
+        -autothr) shift;AUTO_THR="$1";;
         -fade) shift;DISP_THR="$1";;
         -nvert) shift;NN="$1";NN=$(echo $NN | awk '{printf("%d"),$1}');;
         -nvec) shift;NN_SAMP="$1";NN_SAMP=$(echo $NN_SAMP | awk '{printf("%d"),$1}');;
@@ -120,41 +123,19 @@ then
     BIN_DIR=$(which $HDEF_BIN_DIR/o92util | xargs dirname)
     if [ "$BIN_DIR" == "" ]
     then
-        echo "surf_disp.sh: executables not found in user-specified HDEF_BIN_DIR=$HDEF_BIN_DIR" 1>&2
-        echo "Searching in other locations..." 1>&2
+        echo "surf_disp.sh: Hdef executables not found in user-specified HDEF_BIN_DIR=$HDEF_BIN_DIR" 1>&2
+        usage
+    fi
+else
+    BIN_DIR=$(which o92util | xargs dirname)
+    echo "surf_disp.sh: using Hdef executables found in BIN_DIR=$BIN_DIR" 1>&2
+    if [ "$BIN_DIR" == "" ]
+    then
+        echo "surf_disp.sh: unable to find Hdef executables in PATH; exiting" 1>&2
+        usage
     fi
 fi
 
-# Check if o92util is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which o92util | xargs dirname)
-fi
-
-# Check for o92util in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/o92util | xargs dirname)
-fi
-
-# Check for o92util in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/o92util | xargs dirname)
-fi
-
-# Check for o92util in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/o92util | xargs dirname)
-fi
-
-# Hdef executables are required for this script!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "surf_disp.sh: unable to find Hdef executables; exiting" 1>&2
-    exit 1
-fi
 
 # GMT executables are required for this script!
 GMT_DIR=$(which gmt | xargs dirname)
@@ -177,6 +158,7 @@ function cleanup () {
     rm -f vect_scale.awk
     rm -f vert.grd
     rm -f slip.grd
+    rm -f o92util_auto_lims.dat
     rm -f gmt.*
     rm -f *.tmp
 }
@@ -247,7 +229,8 @@ cat > vect_label.awk << EOF
   else if (\$1>1) {print 1}
   else if (\$1>0.5) {print 0.5}
   else if (\$1>0.1) {print 0.1}
-  else {print 0.05}
+  else if (\$1>0.05) {print 0.05}
+  else {print 0.02}
 }
 EOF
 
@@ -261,7 +244,10 @@ cat > vect_scale.awk << EOF
   else if (\$1>5) {print 0.8}
   else if (\$1>1) {print 1.6}
   else if (\$1>0.5) {print 3.2}
-  else {print 5}
+  else if (\$1>0.2) {print 5}
+  else if (\$1>0.1) {print 10}
+  else if (\$1>0.05) {print 15}
+  else {print 20}
 }
 EOF
 
@@ -296,30 +282,31 @@ then
     D="10"  # Large initial increment, to get map limits without taking much time
     if [ $SRC_TYPE == "FFM" ]
     then
-        ${BIN_DIR}/o92util -ffm source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp || \
+        ${BIN_DIR}/o92util -ffm source.tmp -auto h $Z $D -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp || \
             { echo "surf_disp.sh: error running o92util with FFM source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FSP" ]
     then
-        ${BIN_DIR}/o92util -fsp source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -fsp source.tmp -auto h $Z $D -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with FSP source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "MT" ]
     then
-        ${BIN_DIR}/o92util -mag source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -mag source.tmp -auto h $Z $D -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with MT source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FLT" ]
     then
-        ${BIN_DIR}/o92util -flt source.tmp -auto h $Z $D -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/o92util -flt source.tmp -auto h $Z $D -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "surf_disp.sh: error running o92util with FLT source" 1>&2; exit 1; }
     else
         echo "surf_disp.sh: no source type named \"$SRC_TYPE\"" 1>&2
         usage
     fi
 
-    gmt gmtinfo -C disp.tmp > lims.tmp || { echo "surf_disp.sh: error determining disp.tmp limits" 1>&2; exit 1; }
-    W=`awk '{print $1}' lims.tmp`
-    E=`awk '{print $2}' lims.tmp`
-    S=`awk '{print $3}' lims.tmp`
-    N=`awk '{print $4}' lims.tmp`
+    gmt gmtinfo -C disp.tmp > lims.tmp || \
+        { echo "surf_disp.sh: error determining disp.tmp limits" 1>&2; exit 1; }
+    W=`awk '{printf("%.3f"), $1}' lims.tmp`
+    E=`awk '{printf("%.3f"), $2}' lims.tmp`
+    S=`awk '{printf("%.3f"), $3}' lims.tmp`
+    N=`awk '{printf("%.3f"), $4}' lims.tmp`
     echo "Starting map limits: $W $E $S $N"
 
     # Determine if map has decent aspect ratio and correct as necessary
@@ -354,7 +341,7 @@ then
         S=`echo $NEW | awk '{print $1}'`
         N=`echo $NEW | awk '{print $2}'`
     fi
-    # Round map limits to nearest 0.1
+    # Round map limits to nearest 0.1 degree
     W=`echo "$W $E" | awk '{printf("%.1f"),$1}'`
     E=`echo "$W $E" | awk '{printf("%.1f"),$2}'`
     S=`echo "$S $N" | awk '{printf("%.1f"),$1}'`
@@ -386,6 +373,7 @@ else
     awk '{print $1,$2,0}' $GPS_FILE > sta_samp.tmp || \
         { echo "surf_disp.sh: error extracting points from GPS file" 1>&2; exit 1; }
 fi
+
 
 #####
 #	COMPUTE SURFACE DISPLACEMENTS
@@ -432,6 +420,7 @@ V2=`echo $MINMAX | awk '{if($2<0){print -$2}else{print $2}}'`
 T=`echo $V1 $V2 | awk '{if($1>$2){print $1}else{print $2}}' | awk -f vert_scale_max.awk`
 DT=`echo $T | awk -f vert_scale_lbl.awk`
 
+
 #####
 #	PLOT RESULTS
 #####
@@ -455,7 +444,7 @@ awk '{print $1,$2,$6}' disp.tmp | gmt xyz2grd -Gvert.grd $LIMS -I${NN}+/${NN}+ |
     { echo "surf_disp.sh: xyz2grd error" 1>&2; exit 1; }
 gmt grdimage vert.grd $PROJ $LIMS -Cvert.cpt -Y1.5i -K > $PSFILE || \
     { echo "surf_disp.sh: grdimage error" 1>&2; exit 1; }
-gmt psscale -D0i/-0.9i+w5.0i/0.2i+h+ml -Cvert.cpt -Ba$DT -Bg$DT -B+l"Vertical Displacement (m)" -K -O >> $PSFILE || \
+gmt psscale -Dx0i/-0.9i+w5.0i/0.2i+h+ml -Cvert.cpt -Ba$DT -Bg$DT -B+l"Vertical Displacement (m)" -K -O >> $PSFILE || \
     { echo "surf_disp.sh: psscale error" 1>&2; exit 1; }
 
 # Map stuff
@@ -463,8 +452,13 @@ ANNOT=`echo $W $E | awk '{if($2-$1<=10){print 1}else{print 2}}'`
 gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya1 -BWeSn -K -O --MAP_FRAME_TYPE=plain >> $PSFILE || \
     { echo "surf_disp.sh: psbasemap error" 1>&2; exit 1; }
 
-echo "Just a heads up - Ghostscript 9.24 no longer supports however GMT defines transparency" 1>&2
-echo "Ghostscript 9.23-1 still works fine for me with transparency" 1>&2
+GS_VERSION=$(gs --version)
+if [ "$GS_VERSION" == "9.24" -o "$GS_VERSION" == "9.25" -o "$GS_VERSION" == "9.51" -o "$GS_VERSION" == "9.52" ]
+then
+    echo "Just a heads up - some versions of Ghostscript do not support GMT transparency" 1>&2
+    echo "Ghostscript 9.50 works fine for me" 1>&2
+    echo "See: https://github.com/GenericMappingTools/gmt/issues/2903" 1>&2
+fi
 gmt pscoast $PROJ $LIMS -W1p,105/105/105 -G205/205/205 -N1/0.5p -Dh -K -O -t85 >> $PSFILE || \
     { echo "surf_disp.sh: pscoast error" 1>&2; exit 1; }
 
@@ -513,6 +507,7 @@ then
     #     gmt psxy $PROJ $LIMS -SJ -W1p,205/205/205 -K -O -t40 >> $PSFILE
 fi
 
+
 # Plot epicenter
 if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
@@ -523,12 +518,28 @@ then
         { echo "surf_disp.sh: psxy error plotting epicenter" 1>&2; exit 1; }
 fi
 
+
+# Plot focal mechanisms
+if [ $SRC_TYPE == "MT" ]
+then
+    MAX_MAG=$(awk '{print $7}' $SRC_FILE | gmt gmtinfo -C | awk '{print $2}')
+    MAX_MAG_DIAM=0.2
+    MEC_SCALE=$(echo $MAX_MAG | awk '{print 5/($1*$1*$1)}')
+    awk '{print $1,$2,$3,$4,$5,$6,$7*$7*$7*'"$MEC_SCALE"'}' $SRC_FILE |\
+        gmt psmeca $PROJ $LIMS -Sa${MAX_MAG_DIAM}i -L0.5p,55 -G105 -t25 -K -O >> $PSFILE
+fi
+
+
 # Plot vectors
 if [ $PLOT_VECT == "Y" ]
 then
     if [ -z $GPS_FILE ]
     then
-        # If max displacement is much larger than other displacements, don't use it
+        # The maximum displacement can sometimes be much larger than other displacements if it sits
+        # near one of the fault edges. Scaling this vector to a reasonable size will make all of the
+        # other vectors too small to see.
+
+        # If max displacement is much larger than the second largest displacement, don't use it
         MAXLN=`awk '{print sqrt($4*$4+$5*$5)}' disp_samp.tmp |\
                awk 'BEGIN{m1=0;m2=0}
                     {if($1>m1){m2=m1;m1=$1;ln=NR}}
@@ -537,7 +548,7 @@ then
         MAXLN=0
     fi
 
-    # Scale vectors differently depending on maximum horizontal displacement
+    # Scale vectors based on maximum horizontal displacement
     MAX=`awk '{if(NR!='"$MAXLN"'){print sqrt($4*$4+$5*$5)}}' disp_samp.tmp |\
          awk 'BEGIN{mx=0}{if($1>mx){mx=$1}}END{print mx}' | awk '{printf("%.3f"),$1}'`
     echo "Maximum horizontal displacement: $MAX m"
@@ -549,19 +560,45 @@ then
     then
         VEC_SCALE=`echo $MAX | awk -f vect_scale.awk`
     fi
-    MAX=0.5
 
-    # Plot differently depending on whether data are grid or GPS
+    # Set the faded displacement threshold based on the maximum horizontal displacement
+    if [ "$DISP_THR" == "" ]
+    then
+        DISP_THR=$(echo $MAX |\
+                   awk '{
+                       thr = $1/10
+                       if (thr>=0.01) {thr=0.01}
+                       else if (thr>=0.005) {thr=0.005}
+                       else if (thr>=0.002) {thr=0.002}
+                       else {thr=0.001}
+                       print thr
+                   }')
+    fi
+
+
+    # Reduce scale for vectors shorter than VNORM
+    VNORM=0.5
+
+    # Vector head angle
+    VANGLE=40
+
+    # Vector head length
+    VHEAD=9p
+
+
+    # Ploting differs slightly depending on whether data are gridded or at defined GPS stations
     if [ -z $GPS_FILE ]
     then
+
         # No GPS file: plot vectors on grid
+
         # Plot displacements smaller than DISP_THR faded
         awk '{
             if (sqrt($4*$4+$5*$5)<'"$DISP_THR"') {
               print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
             }
         }' disp_samp.tmp |\
-            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,175/175/175 -K -O >> $PSFILE || \
+            gmt psxy $PROJ $LIMS -SV${VHEAD}+e+a${VANGLE}+n${VNORM} -W2p,175/175/175 -K -O >> $PSFILE || \
             { echo "surf_disp.sh: psxy error plotting modeled vectors" 1>&2; exit 1; }
 
         # Plot larger displacements in black
@@ -570,11 +607,13 @@ then
               print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)
             }
         }' disp_samp.tmp |\
-            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE || \
+            gmt psxy $PROJ $LIMS -SV${VHEAD}+e+a${VANGLE}+n${VNORM} -W2p,black -K -O >> $PSFILE || \
             { echo "surf_disp.sh: psxy error plotting modeled vectors" 1>&2; exit 1; }
 
     else
-        # No GPS file: plot vectors at GPS stations
+
+        # There is a GPS file: plot vectors at GPS stations
+
         # Color vertical motions at stations same as background synthetic verticals
         awk '{print $1,$2,$5}' $GPS_FILE |\
             gmt psxy $PROJ $LIMS -Sc0.06i -W0.5p -Cvert.cpt -K -O >> $PSFILE || \
@@ -585,12 +624,12 @@ then
 
         # Plot horizontal GPS displacements in black
         awk '{print $1,$2,atan2($3,$4)/0.01745,'"$VEC_SCALE"'*sqrt($3*$3+$4*$4)}' $GPS_FILE |\
-            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,black -K -O >> $PSFILE || \
+            gmt psxy $PROJ $LIMS -SV${VHEAD}+e+a${VANGLE}+n${VNORM} -W2p,black -K -O >> $PSFILE || \
             { echo "surf_disp.sh: psxy error plotting GPS vectors" 1>&2; exit 1; }
 
         # Plot synthetic displacements in another color
         awk '{print $1,$2,atan2($4,$5)/0.01745,'"$VEC_SCALE"'*sqrt($4*$4+$5*$5)}' disp_samp.tmp |\
-            gmt psxy $PROJ $LIMS -SV10p+e+a45+n${MAX} -W2p,orange -K -O >> $PSFILE || \
+            gmt psxy $PROJ $LIMS -SV${VHEAD}+e+a${VANGLE}+n${VNORM} -W2p,orange -K -O >> $PSFILE || \
             { echo "surf_disp.sh: psxy error plotting modeled vectors" 1>&2; exit 1; }
     fi
 fi
@@ -637,8 +676,10 @@ then
     # Legend vector
     echo $VEC_SCALE $DISP_LBL |\
         awk '{print '$XMID',0.5,0,$1*$2}' |\
-        gmt psxy -JX -R -Sv10p+e+a45+jc -W2p,black -N -K -O >> $PSFILE || \
+        gmt psxy -JX -R -Sv${VHEAD}+e+a${VANGLE}+jc -W2p,black -N -K -O >> $PSFILE || \
         { echo "surf_disp.sh: psxy error plotting legend vector" 1>&2; exit 1; }
+
+    # Legend vector label
     echo $VEC_SCALE $DISP_LBL |\
         awk '{
             if ($2!=1) {
@@ -650,6 +691,7 @@ then
         gmt pstext -JX -R -F+f+j -N -K -O >> $PSFILE || \
         { echo "surf_disp.sh: pstext error plotting legend vector scale" 1>&2; exit 1; }
 
+    # Color explanation text
     if [ -z $GPS_FILE ]
     then
         echo $VEC_SCALE $DISP_LBL |\
@@ -667,12 +709,13 @@ else
     DISP_LBL=0
 fi
 
+
 if [ $SRC_TYPE == "FFM" -o $SRC_TYPE == "FSP" ]
 then
     echo $VEC_SCALE $DISP_LBL $CONT |\
         awk '{
-          if($3==1) {print $1*$2+0.7,0.6,"10,2 LB FFM Slip Contours: "$3" meter"}
-          else      {print $1*$2+0.7,0.6,"10,2 LB FFM Slip Contours: "$3" meters"}
+          if($3==1) {print '$XLEG'+0.1,0.6,"10,2 LB FFM Slip Contours: "$3" meter"}
+          else      {print '$XLEG'+0.1,0.6,"10,2 LB FFM Slip Contours: "$3" meters"}
         }' |\
         gmt pstext -JX10c -R0/10/0/10 -F+f+j -N -K -O >> $PSFILE || \
         { echo "surf_disp.sh: pstext error plotting legend contour scale" 1>&2; exit 1; }
@@ -685,3 +728,4 @@ echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE || \
 #	CLEAN UP
 #####
 gmt psconvert $PSFILE -Tf
+gmt psconvert $PSFILE -Tg -A
