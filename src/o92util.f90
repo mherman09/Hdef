@@ -32,6 +32,7 @@ double precision :: auto_az                       ! depth of automatically gener
 integer :: auto_n                                 ! number of automatically generated stations (1d)
 double precision :: auto_disp_threshold           ! minimum displacement value for auto grid
 character(len=1) :: auto_mode                     ! automatic station mode
+integer :: n_auto_transect                        ! total number of points in initial auto transects
 character(len=512) :: target_file                 ! target/receiver fault geometry
 logical :: isTargetFileDefined                    ! target fault tag
 
@@ -144,7 +145,7 @@ call read_targets()
 call calc_deformation()
 
 
-! Generate automatic station grid from and recalculate displacements, strains, or stresses
+! Generate automatic station grid and recalculate displacements, strains, or stresses
 if (auto_mode.eq.'h'.or.auto_mode.eq.'v') then
     call update_auto_stations()
     call calc_deformation()
@@ -736,13 +737,14 @@ if (verbosity.ge.3) then
             endif
             1211 format(X,I4,2F12.4,F10.3)
         enddo
-    else
-        write(stdout,*) 'read_stations: auto_station transect endpoints:'
-        write(stdout,*) stations(1,:)
-        write(stdout,*) stations(1001,:)
-        write(stdout,*) stations(1002,:)
-        write(stdout,*) stations(2002,:)
     endif
+endif
+if (auto_mode.ne.'') then
+    write(stdout,*) 'read_stations: auto_station initial transect endpoints:'
+    write(stdout,'(4X,3F10.3)') stations(1,:)
+    write(stdout,'(4X,3F10.3)') stations(1001,:)
+    write(stdout,'(4X,3F10.3)') stations(1002,:)
+    write(stdout,'(4X,3F10.3)') stations(2002,:)
 endif
 if (verbosity.ge.1) then
     write(stdout,*) 'read_stations: finished'
@@ -1270,7 +1272,7 @@ subroutine auto_stations()
 ! Generate transects through fault source for determining automatic grid limits.
 !----
 
-use io, only: verbosity, stdout
+use io, only: verbosity, stdout, stderr
 use earth, only: radius_earth_km
 use geom, only: distaz2lola
 use trig, only: r2d
@@ -1283,6 +1285,7 @@ use o92util, only: station_file, &
                    auto_depth, &
                    auto_az, &
                    auto_mode, &
+                   n_auto_transect, &
                    displacement_file, &
                    disp_file_save, &
                    iWantDisp, &
@@ -1323,6 +1326,10 @@ do i = 1,nfaults
 enddo
 centroid = centroid/moment
 write(stdout,1001) centroid(1),centroid(2),centroid(3)/1.0d3
+if (isnan(centroid(1))) then
+    write(stderr,*) 'auto_stations: something went wrong calculating centroid: NaN found'
+    call usage('Check input fault file to make sure it is formatted correctly (usage:none)')
+endif
 1001 format(' auto_stations: centroid(lon,lat,dep(km)): ',2(F10.3),F9.2)
 
 
@@ -1333,6 +1340,11 @@ if (auto_mode.eq.'h') then
     ! Automatic horizontal grid
 
     ! Sample along transects extending 500 km west-east, and south-north of centroid
+
+    ! In situations where focal planes are N-S or E-W, this approach gives bad ranges,
+    ! so add NW-SE and SW-NE transects
+    n_auto_transect = 4004
+
     if (coord_type.eq.'geographic') then
         ! West-east
         if (verbosity.ge.2) then
@@ -1359,6 +1371,42 @@ if (auto_mode.eq.'h') then
         dy = -500.0d0
         do while (dy.le.500.0d0)
             call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,0.0d0,lon,lat, &
+                             'radians','degrees',ierr)
+            if (ierr.ne.0) then
+                call usage('auto_stations: error computing longitude and latitude (usage:none)')
+            endif
+            write(81,*) lon,lat,auto_depth
+            if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') lon,lat,auto_depth
+            endif
+            dy = dy + 1.0d0
+        enddo
+
+        ! Northwest-southeast
+        if (verbosity.ge.2) then
+            write(stdout,*) 'auto_stations: generating NW-SE transect for horizontal grid'
+        endif
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,135.0d0,lon,lat, &
+                             'radians','degrees',ierr)
+            if (ierr.ne.0) then
+                call usage('auto_stations: error computing longitude and latitude (usage:none)')
+            endif
+            write(81,*) lon,lat,auto_depth
+            if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') lon,lat,auto_depth
+            endif
+            dy = dy + 1.0d0
+        enddo
+
+        ! Southwest-northeast
+        if (verbosity.ge.2) then
+            write(stdout,*) 'auto_stations: generating SW-NE transect for horizontal grid'
+        endif
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            call distaz2lola(centroid(1),centroid(2),dy/radius_earth_km,45.0d0,lon,lat, &
                              'radians','degrees',ierr)
             if (ierr.ne.0) then
                 call usage('auto_stations: error computing longitude and latitude (usage:none)')
@@ -1399,6 +1447,36 @@ if (auto_mode.eq.'h') then
             dy = dy + 1.0d0
         enddo
 
+        ! Top/left-bottom/right (NW-SE)
+        if (verbosity.ge.2) then
+            write(stdout,*) 'auto_stations: generating TL-BR transect for horizontal grid'
+        endif
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            x = centroid(1) + dy*0.5d0*sqrt(2.0d0)
+            y = centroid(2) - dy*0.5d0*sqrt(2.0d0)
+            write(81,*) x,y,auto_depth
+            if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') x,y,auto_depth
+            endif
+            dy = dy + 1.0d0
+        enddo
+
+        ! Bottom/left-top/right (SW-NE)
+        if (verbosity.ge.2) then
+            write(stdout,*) 'auto_stations: generating BL-TR transect for horizontal grid'
+        endif
+        dy = -500.0d0
+        do while (dy.le.500.0d0)
+            x = centroid(1) + dy*0.5d0*sqrt(2.0d0)
+            y = centroid(2) + dy*0.5d0*sqrt(2.0d0)
+            write(81,*) x,y,auto_depth
+            if (debug_mode.eq.'auto_stations'.or.debug_mode.eq.'all') then
+                write(stdout,'(X,"(DEBUG)",X,3F14.4)') x,y,auto_depth
+            endif
+            dy = dy + 1.0d0
+        enddo
+
     endif
 
 
@@ -1407,6 +1485,8 @@ elseif (auto_mode.eq.'v') then
     ! Automatic vertical grid
 
     ! Sample along transects extending 500 km negative-positive azimuth, up-down of centroid
+    n_auto_transect = 2002
+
     if (coord_type.eq.'geographic') then
         ! Along azimuth
         if (verbosity.ge.2) then
@@ -1505,13 +1585,15 @@ use o92util, only: coord_type, &
                    auto_az, &
                    auto_disp_threshold, &
                    auto_mode, &
+                   n_auto_transect, &
                    debug_mode
 
 implicit none
 
 ! Local variables
 integer :: i, j, ierr
-double precision :: disp(2002,6), disp_mag, xmin, xmax, ymin, ymax
+double precision :: disp(n_auto_transect,6), disp_mag, xmin, xmax, ymin, ymax
+double precision :: xmin3(3), xmax3(3), ymin3(3), ymax3(3)
 double precision :: d, lon, lat
 character(len=512) :: proj_sta_file
 
@@ -1534,7 +1616,7 @@ endif
 if (debug_mode.eq.'update_auto_stations'.or.debug_mode.eq.'all') then
     write(stdout,'(X,"(DEBUG)",X,6A14)') 'x','y','z','ux','uy','uz'
 endif
-do i = 1,2002
+do i = 1,n_auto_transect
     read(82,*) (disp(i,j),j=1,6)
     if (debug_mode.eq.'update_auto_stations'.or.debug_mode.eq.'all') then
         write(stdout,'(X,"(DEBUG)",X,1P6E14.6)') disp(i,:)
@@ -1543,7 +1625,11 @@ enddo
 
 
 ! Working backwards from ends of transects, determine when displacements exceed a threshold value
-! and treat that distance as the new station grid boundary
+! and treat that coordinate as the new station grid boundary
+
+! If displacements are larger than user-defined threshold, use the farthest points along the
+! transect. For maintaining the elastic half-space approximation (instead of a spherical Earth),
+! this is currently hard-coded to be 500 km in subroutine auto_stations().
 if (auto_mode.eq.'h') then
     xmin = disp(1,1)
     xmax = disp(1001,1)
@@ -1558,89 +1644,263 @@ endif
 ymin = disp(1002,2)
 ymax = disp(2002,2)
 
-! Find xmin
-do i = 1,501
-    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
 
-    ! Check whether displacement magnitude has exceed threshold
-    if (disp_mag.ge.auto_disp_threshold) then
-        if (auto_mode.eq.'h') then
-            xmin = disp(i,1)        ! x-coordinate
+! Find limits for horizontal grid
+if (auto_mode.eq.'h') then
+
+    ! Initialize values for min/max values along each transect
+    xmin3 = 0.0d0
+    xmax3 = 0.0d0
+    ymin3 = 0.0d0
+    ymax3 = 0.0d0
+
+
+    if (verbosity.ge.3) then
+        write(stdout,*) 'update_auto_stations: looking for xmin:'
+    endif
+    ! Find xmin along W-E line
+    do i = 1,501
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
             if (verbosity.ge.3) then
-                write(stdout,*) 'update_auto_stations: xmin=',xmin
+                write(stdout,2042) 'on W-E line:  ',disp(i,1)
             endif
-        elseif (auto_mode.eq.'v') then
+            xmin3(1) = disp(i,1)
+            exit
+        endif
+    enddo
+
+    ! Find xmin along NW-SE line
+    do i = 2003,2503
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on NW-SE line:',disp(i,1)
+            endif
+            xmin3(2) = disp(i,1)
+            exit
+        endif
+    enddo
+
+    ! Find xmin along SW-NE line
+    do i = 3004,3504
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on SW-NE line:',disp(i,1)
+            endif
+            xmin3(3) = disp(i,1)
+            exit
+        endif
+    enddo
+
+
+    if (verbosity.ge.3) then
+        write(stdout,*) 'update_auto_stations: looking for xmax:'
+    endif
+    ! Find xmax along W-E line
+    do i = 1001,501,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on W-E line:  ',disp(i,1)
+            endif
+            xmax3(1) = disp(i,1)
+            exit
+        endif
+    enddo
+
+    ! Find xmax along NW-SE line
+    do i = 3003,2503,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on NW-SE line:',disp(i,1)
+            endif
+            xmax3(2) = disp(i,1)
+            exit
+        endif
+    enddo
+
+    ! Find xmax along SW-NE line
+    do i = 4004,3504,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on SW-NE line:',disp(i,1)
+            endif
+            xmax3(3) = disp(i,1)
+            exit
+        endif
+    enddo
+
+
+    if (verbosity.ge.3) then
+        write(stdout,*) 'update_auto_stations: looking for ymin:'
+    endif
+    ! Find ymin along S-N line
+    do i = 1002,1502
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on S-N line:  ',disp(i,2)
+            endif
+            ymin3(1) = disp(i,2)
+            exit
+        endif
+    enddo
+
+    ! Find ymin along NW-SE line
+    do i = 3003,2503,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on NW-SE line:',disp(i,2)
+            endif
+            ymin3(2) = disp(i,2)
+            exit
+        endif
+    enddo
+
+    ! Find ymin along SW-NE line
+    do i = 3004,3504
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on SW-NE line:',disp(i,2)
+            endif
+            ymin3(3) = disp(i,2)
+            exit
+        endif
+    enddo
+
+
+    if (verbosity.ge.3) then
+        write(stdout,*) 'update_auto_stations: looking for ymax:'
+    endif
+    ! Find ymax along S-N line
+    do i = 2002,1502,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on S-N line:  ',disp(i,2)
+            endif
+            ymax3(1) = disp(i,2)
+            exit
+        endif
+    enddo
+
+    ! Find ymax along NW-SE line
+    do i = 2003,2503
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on NW-SE line:',disp(i,2)
+            endif
+            ymax3(2) = disp(i,2)
+            exit
+        endif
+    enddo
+
+    ! Find ymax along SW-NE line
+    do i = 4004,3504,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+        if (disp_mag.ge.auto_disp_threshold) then
+            if (verbosity.ge.3) then
+                write(stdout,2042) 'on SW-NE line:',disp(i,2)
+            endif
+            ymax3(3) = disp(i,2)
+            exit
+        endif
+    enddo
+
+    2042 format(5X,A,F10.3)
+
+    xmin = minval(xmin3)
+    xmax = maxval(xmax3)
+    ymin = minval(ymin3)
+    ymax = minval(ymax3)
+    write(stdout,*) 'update_auto_stations: using updated map limits for horizontal grid:'
+    write(stdout,'(5X,"xmin=",X,F10.3)') xmin
+    write(stdout,'(5X,"xmax=",X,F10.3)') xmax
+    write(stdout,'(5X,"ymin=",X,F10.3)') ymin
+    write(stdout,'(5X,"ymax=",X,F10.3)') ymax
+    write(stdout,*) 'update_auto_stations: saving updated values in o92util_auto_lims.dat'
+    open(unit=167,file='o92util_auto_lims.dat',status='unknown')
+    write(167,*) 'xmin',xmin
+    write(167,*) 'xmax',xmax
+    write(167,*) 'ymin',ymin
+    write(167,*) 'ymax',ymax
+    close(167)
+
+
+
+! Find limits for vertical grid
+elseif (auto_mode.eq.'v') then
+
+    do i = 1,501
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+
+        ! Check whether displacement magnitude has exceed threshold
+        if (disp_mag.ge.auto_disp_threshold) then
             xmin = -501.0d0+dble(i) ! distance along transect
             if (verbosity.ge.3) then
                 write(stdout,*) 'update_auto_stations: transect_min=',xmin
             endif
+            exit
         endif
-        exit
-    endif
-enddo
+    enddo
 
-! Find xmax
-do i = 1001,501,-1
-    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    ! Find xmax
+    do i = 1001,501,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
 
-    ! Check whether displacement magnitude has exceed threshold
-    if (disp_mag.ge.auto_disp_threshold) then
-        if (auto_mode.eq.'h') then
-            xmax = disp(i,1)        ! x-coordinate
-            if (verbosity.ge.3) then
-                write(stdout,*) 'update_auto_stations: xmax=',xmax
-            endif
-        elseif (auto_mode.eq.'v') then
+        ! Check whether displacement magnitude has exceed threshold
+        if (disp_mag.ge.auto_disp_threshold) then
             xmax = -501.0d0+dble(i) ! distance along transect
             if (verbosity.ge.3) then
                 write(stdout,*) 'update_auto_stations: transect_max=',xmax
             endif
+            exit
         endif
-        exit
-    endif
-enddo
+    enddo
 
-! Find ymin
-do i = 1002,1502
-    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    ! Find ymin
+    do i = 1002,1502
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
 
-    ! Check whether displacement magnitude has exceed threshold
-    if (disp_mag.ge.auto_disp_threshold) then
-        if (auto_mode.eq.'h') then
-            ymin = disp(i,2)
-            if (verbosity.ge.3) then
-                write(stdout,*) 'update_auto_stations: ymin=',ymin
-            endif
-        elseif (auto_mode.eq.'v') then
+        ! Check whether displacement magnitude has exceed threshold
+        if (disp_mag.ge.auto_disp_threshold) then
             ymin = disp(i,3)
             if (verbosity.ge.3) then
                 write(stdout,*) 'update_auto_stations: zmin=',ymin
             endif
+            exit
         endif
-        exit
-    endif
-enddo
+    enddo
 
-! Find ymax
-do i = 2002,1502,-1
-    disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
+    ! Find ymax
+    do i = 2002,1502,-1
+        disp_mag = sqrt(disp(i,4)**2+disp(i,5)**2+disp(i,6)**2)
 
-    ! Check whether displacement magnitude has exceed threshold
-    if (disp_mag.ge.auto_disp_threshold) then
-        if (auto_mode.eq.'h') then
-            ymax = disp(i,2)
-            if (verbosity.ge.3) then
-                write(stdout,*) 'update_auto_stations: ymax=',ymax
-            endif
-        elseif (auto_mode.eq.'v') then
+        ! Check whether displacement magnitude has exceed threshold
+        if (disp_mag.ge.auto_disp_threshold) then
             ymax = disp(i,3)
             if (verbosity.ge.3) then
                 write(stdout,*) 'update_auto_stations: zmax=',ymax
             endif
+            exit
         endif
-        exit
-    endif
-enddo
+    enddo
+
+
+else
+
+    call usage('update_auto_stations: no auto_mode named '//trim(auto_mode)//' (usage:station)')
+
+endif ! Finished finding auto grid limits
+
+
 
 
 ! Finished with temporary station and displacement files - delete these
