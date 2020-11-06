@@ -362,8 +362,8 @@ endif
 
 
 ! If only first value is set, then make sure we only print it
-if (dabs(end).gt.1.0d19) then
-    if (n.gt.1.or.dabs(d).lt.1.0d19) then
+if (dabs(end).gt.1.0d98) then
+    if (n.gt.1.or.dabs(d).lt.1.0d98) then
         write(stderr,*) 'get_spacing: only first ',trim(dim),' value defined, setting n',trim(dim),' to 1'
     endif
     n = 1
@@ -550,20 +550,20 @@ isYDefined = .false.
 isZDefined = .false.
 
 ! x parameters
-x_beg = -1.0d20
-x_end = -1.0d20
+x_beg = -1.0d99
+x_end = -1.0d99
 x_inc = -1.0d20
 nx = -1
 
 ! y parameters
-y_beg = -1.0d20
-y_end = -1.0d20
+y_beg = -1.0d99
+y_end = -1.0d99
 y_inc = -1.0d20
 ny = -1
 
 ! z parameters (uniform)
-z_beg = -1.0d20
-z_end = -1.0d20
+z_beg = -1.0d99
+z_end = -1.0d99
 z_inc = -1.0d20
 nz = -1
 
@@ -662,7 +662,9 @@ do while (i.le.narg)
         call get_command_argument(i,tag)
         read (tag,*) z_beg
         isZDefined = .true.
-        grid_mode = 'uniform'
+        if (grid_mode.ne.'cross_section') then
+            grid_mode = 'uniform'
+        endif
         ! Second argument (ending z value) is optional
         i = i + 1
         if (i.gt.narg) then
