@@ -186,7 +186,9 @@ EOF
 # IF (MAXIMUM VERTICAL DISPLACEMENT >= THRESHOLD) {USE THIS SATURATION VALUE}
 cat > vert_scale_max.awk << EOF
 {
-  if (\$1>=5) {print 2}
+  if (\$1>=20) {print 10}
+  else if (\$1>=10) {print 5}
+  else if (\$1>=5) {print 2}
   else if (\$1>=2) {print 1}
   else if (\$1>=1) {print 0.5}
   else if (\$1>=0.5) {print 0.2}
