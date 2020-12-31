@@ -23,6 +23,8 @@ public :: fileExists
 public :: line_count
 public :: progress_indicator
 
+public :: isNumeric
+
 !--------------------------------------------------------------------------------------------------!
 contains
 !--------------------------------------------------------------------------------------------------!
@@ -138,5 +140,34 @@ endif
 
 return
 end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+function isNumeric(string)
+!----
+! Check if an input string is numeric or not.
+!----
+
+implicit none
+
+! Arguments
+character(len=*), intent(in) :: string
+
+! Local variables
+logical :: isNumeric
+real :: x
+integer :: e
+
+! Initialize result to be false
+isNumeric = .false.
+
+! Attempt to read the string as a real number (which includes integers)
+read(string,*,iostat=e) x
+
+isNumeric = e == 0
+
+end function isNumeric
+
+!--------------------------------------------------------------------------------------------------!
 
 end module
