@@ -84,6 +84,7 @@ BASH SCRIPTS
 	coul_hor.sh            plot Coulomb stress changes on a horizontal plane (map view)
 	coul_xsec.sh           plot Coulomb stress changes on a vertical cross-section
 	gmtcpt.sh              make GMT color palette from (nice) existing color maps
+	insar.sh               plot line-of-sight and wrapped displacements (map view)
 	simplify_ffm.sh        remove slip less than threshold value from FFM (pretty outdated...)
 	surf_disp.sh           plot surface displacements (map view)
 	ternary.sh             plot earthquakes on ternary discriminant diagram
