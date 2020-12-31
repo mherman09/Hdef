@@ -514,7 +514,7 @@ integer :: date_beg_int(7), date_end_int(7)
 
 
 ! Initialize variables
-gcmt_file = '/Users/mwh5316/Downloads/jan76_dec17.ndk'
+gcmt_file = '/Users/mwh5316/Downloads/jan76_dec20.ndk'
 geo_mode = 'rect' ! rect, circle
 lon_min = -360.0d0
 lon_max = 360.0d0
