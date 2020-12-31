@@ -21,7 +21,7 @@ program main
 !     Ternary characterization (after Frohlich, 1992)
 !----
 
-use io, only: stdin, stdout, fileExists, line_count
+use io, only: stdin, stdout, stderr, fileExists, line_count
 use eq, only: mag2mom, &
               mom2mag, &
               mij2dcp, &
@@ -53,9 +53,9 @@ use mtutil, only: mtutil_mode, &
 implicit none
 
 ! Local variables
-integer :: i, j, ninputs, luin, luout
+integer :: i, j, ninputs, luin, luout, ios
 double precision :: input_values(12), output_values(12)
-character(len=512) :: tmp_file
+character(len=512) :: tmp_file, input_line
 
 
 ! Initialize variables
@@ -113,7 +113,12 @@ endif
 
 ! Read the inputs and run specified calculation
 do i = 1,ninputs
-    read(luin,*,end=1001) (input_values(j),j=1,nvals_input)
+    read(luin,'(A)',end=1001) input_line
+    read(input_line,*,iostat=ios) (input_values(j),j=1,nvals_input)
+    if (ios.ne.0) then
+        write(stderr,*) 'mtutil: error parsing inputs "',trim(input_line),'"'
+        call usage('')
+    endif
     ! write(0,*) input_values(1:nvals_input)
     if (mtutil_mode.eq.'mag2mom') then
         call mag2mom(input_values(1),output_values(1))
