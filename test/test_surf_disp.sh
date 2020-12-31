@@ -347,3 +347,4 @@ cat > fsp.tmp << EOF
 EOF
 
 ${BIN_DIR}/surf_disp.sh FSP fsp.tmp -o test_surf_disp
+rm -f o92util_auto_lims.dat
