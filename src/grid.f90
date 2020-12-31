@@ -496,7 +496,7 @@ end subroutine
 
 subroutine gcmdln()
 
-use io, only: stderr, verbosity
+use io, only: stderr, verbosity, isNumeric
 
 use grid, only: output_file, &
                 grid_mode, &
@@ -590,6 +590,7 @@ do while (i.le.narg)
         ! First argument (starting x value) is required
         i = i + 1
         call get_command_argument(i,tag)
+        if (.not.isNumeric(tag)) call usage('grid: x_beg is not numeric')
         read (tag,*) x_beg
         isXDefined = .true.
         ! Second argument (ending x value) is optional
@@ -600,6 +601,7 @@ do while (i.le.narg)
             cycle
         else
             call get_command_argument(i,tag)
+            if (.not.isNumeric(tag)) call usage('grid: x_end is not numeric')
             read (tag,*,iostat=ios) x_end
             if (ios.ne.0) then
                 ! No second value provided
@@ -770,7 +772,8 @@ enddo
 return
 end subroutine
 
-!---------------------------------------------------------------------------------------------------
+
+!--------------------------------------------------------------------------------------------------!
 
 subroutine usage(str)
 
@@ -781,8 +784,15 @@ implicit none
 ! Arguments
 character(len=*) :: str
 
+! Local variables
+integer :: i
+
 if (str.ne.'') then
-    if (trim(str).eq.'no_details') then
+    i = index(str,'no_details')
+    if (i.ne.0) then
+        if (str.ne.'') then
+            write(stderr,*) trim(str(1:i-1))
+        endif
         call error_exit(1)
         write(stderr,*)
     endif
