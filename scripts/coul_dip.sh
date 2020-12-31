@@ -540,6 +540,16 @@ then
 fi
 
 
+# Add earthquake epicenters onto map
+EQ_FILE=junk_epicenters
+if [ -f $EQ_FILE ]
+then
+    echo plotting epicenters
+    awk '{if($3>=4.5)print $1,$2,$3*$3*$3*0.0005}' $EQ_FILE |\
+        gmt psxy $PROJ $LIMS -Sci -W1p -K -O >> $PSFILE
+fi
+
+
 # Legend (all coordinates are in cm from the bottom left)
 X1="0.2"
 X2="3.0"
@@ -624,4 +634,5 @@ echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
 #	CLEAN UP
 #####
 ps2pdf $PSFILE
+gmt psconvert $PSFILE -Tg -A
 rm no_green_mwh.cpt
