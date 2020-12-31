@@ -1,0 +1,118 @@
+.TH INSAR.SH 1 "December 2020" "Version 2020.12.01" "User Manuals"
+
+.SH NAME
+insar.sh \- plot line-of-sight surface displacements for a fault source
+
+.SH SYNOPSIS
+.P
+.B insar.sh
+.I source_type source_file azimuth inclination wavelength
+.BI [...options...]
+
+.SH DESCRIPTION
+.B insar.sh
+computes line-of-sight displacement for an earthquake source embedded in an elastic
+half-space, corresponding to a satellite look geometry. The line-of-sight and "wrapped"
+(i.e., interferometric) displacements are plotted them on a map, contoured as colors.
+Most of the map variables are determined automatically, but the user can specify some
+parameters to customize the appearance.
+
+.SH OPTIONS
+
+.B REQUIRED ARGUMENTS
+
+.TP
+.I source_type
+Choose from one of
+.IR MT ,
+.IR FLT ,
+.IR FFM ,
+or
+.IR FSP .
+The format of
+.I source_file
+depends on this type:
+
+.IR MT :
+evlo evla evdp str dip rak mag
+.br
+.IR FLT :
+evlo evla evdp str dip rak slip wid len
+.br
+.IR FFM :
+finite fault model in USGS .param format
+.br
+.IR FSP :
+finite fault model in SRCMOD FSP format
+
+.TP
+.I source_file
+Path to fault source file
+
+.TP
+.I azimuth
+Horizontal look angle from satellite to ground surface (0=north)
+
+.TP
+.I inclination
+Vertical look angle from satellite to ground surface (0=horizontal, 90=vertical)
+
+.TP
+.I wavelength
+Satellite observation wavelength, in meters. Note that the signal travels to
+and from the satellite, so the two-way path is accounted for in the interferogram.
+
+
+.TP
+.B CUSTOMIZATION OPTIONS
+
+.TP
+.BI -R west / east / south / north
+Map limits in GMT format
+
+
+.TP
+.BI -autothr " threshold"
+Automatic displacement threshold for generating map limits (default: 0.001 m)
+
+
+.TP
+.BI -ngrid " nn"
+Number of points along each dimension for color contours
+(default: 100/dimension)
+
+
+.TP
+.B -seg
+Plot finite fault segments individually (default: outline surrounds all segments)
+
+
+.TP
+.BI -emprel " empirical_relation"
+Select empirical relation for converting magnitude to rectangular fault source.
+Default is Wells & Coppersmith (1994).
+See
+.B man o92util
+for alternatives (look for
+.B -empirical
+option).
+
+
+.TP
+.BI -hdefbin " /path/to/hdef/bin"
+Define path to Hdef executables. Default behavior is to look for Hdef executables
+in user environment.
+
+
+.TP
+.BI -o " output_file"
+Basename for output file. Script produces
+.IR output_file ".ps and " output_file .pdf
+(default: insar)
+
+
+.TP
+.B -noclean
+Keep temporary files made during script execution instead of deleting these.
+
+.RS

@@ -1,4 +1,4 @@
-.TH SURF_DISP.SH 1 "June 2019" "Version 2019.06.01" "User Manuals"
+.TH SURF_DISP.SH 1 "December 2020" "Version 2020.12.01" "User Manuals"
 
 .SH NAME
 surf_disp.sh \- plot surface displacements for a fault source
@@ -75,34 +75,46 @@ inches
 Length of horizontal vector in legend, in meters
 
 
+.TP
+.BI -autothr " threshold"
+Automatic displacement threshold for generating map limits (default: 0.001 m)
 
 
 .TP
-.B OTHER OPTIONS
+.BI -fade " displacement_threshold"
+Fade vectors to grey for displacements less than
+.I displacement_threshold
+meters (default 0.05)
+
 
 .TP
 .BI -nvert " nvert"
 Number of points along each dimension for background vertical displacement color contour
 (default: 100)
 
+
 .TP
 .BI -nvec " nvec"
 Number of points along each dimension for horizontal displacement vector grid
 (default: 20)
 
+
 .TP
 .B -seg
 Plot finite fault segments individually (default: outline surrounds all segments)
 
+
 .TP
 .B -novector
 Suppress plotting of horizontal displacement vectors
+
 
 .TP
 .BI -gps " gps_file"
 Plot observed GPS displacements and predicted displacements at GPS stations.
 Suppresses grid of displacements. Input file format:
 .I stlo stla disp_east disp_north disp_vertical
+
 
 .TP
 .BI -sta " sta_file"
@@ -112,9 +124,31 @@ Input file format:
 
 
 .TP
+.BI -emprel " empirical_relation"
+Select empirical relation for converting magnitude to rectangular fault source.
+Default is Wells & Coppersmith (1994).
+See
+.B man o92util
+for alternatives (look for
+.B -empirical
+option).
+
+
+.TP
+.BI -hdefbin " /path/to/hdef/bin"
+Define path to Hdef executables. Default behavior is to look for Hdef executables
+in user environment.
+
+
+.TP
 .BI -o " output_file"
 Basename for output file. Script produces
 .IR output_file ".ps and " output_file .pdf
 (default: surf_disp)
+
+
+.TP
+.B -noclean
+Keep temporary files made during script execution instead of deleting these.
 
 .RS
