@@ -24,7 +24,7 @@ function usage() {
     echo "-Tvmin/vmax/dv      Vertical displacement color palette" 1>&2
     echo "-vec_scale SCALE    Horizontal vector scale" 1>&2
     echo "-vec_legend LENGTH  Legend vector length (m)" 1>&2
-    echo "-autothr            Auto displacement threshold (default: 1 mm)" 1>&2
+    echo "-autothr THR        Auto displacement threshold (default: 1 mm)" 1>&2
     echo "-fade DISP_THR      Fade displacements below DISP_THR meters (default: 50 mm)" 1>&2
     echo "-nvert NN           Number of vertical contour grid points (default: 100/dimension)" 1>&2
     echo "-nvec NN_SAMP       Number of vectors (default: 20/dimension)" 1>&2

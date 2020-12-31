@@ -24,7 +24,7 @@ function usage() {
     echo 1>&2
     echo "Optional arguments (many of these are defined automatically)" 1>&2
     echo "-Rw/e/s/n           Map limits" 1>&2
-    echo "-autothr            Auto displacement threshold (default: 1 mm)" 1>&2
+    echo "-autothr  THR       Auto displacement threshold (default: 1 mm)" 1>&2
     echo "-ngrid NN           Number of vertical contour grid points (default: 100/dimension)" 1>&2
     echo "-seg                Plot segmented finite faults" 1>&2
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
