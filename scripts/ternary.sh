@@ -19,6 +19,7 @@ function usage() {
     exit 1
 }
 
+
 #####
 #	PARSE COMMAND LINE
 #####
@@ -57,6 +58,7 @@ then
 fi
 FRAC_SIMPLE=`echo $FRAC_SIMPLE | awk '{if($1<0){print 0}else if($1>1){print 1}else{print $1}}'`
 
+
 #####
 #	CHECK FOR INPUT FILE AND FORMAT
 #####
@@ -91,6 +93,7 @@ esac
 
 BIN_DIR="BIN_DIR_CHANGEME"
 
+
 #####
 #	SET UP TRIANGLE COORDINATES
 #####
@@ -101,6 +104,7 @@ XMIN=`echo $HEIGHT | awk '{print -$1/sqrt(3)}'`
 XMAX=`echo $HEIGHT | awk '{print  $1/sqrt(3)}'`
 YMIN=`echo $HEIGHT | awk '{print -$1/3}'`
 YMAX=`echo $HEIGHT | awk '{print $1*2/3}'`
+
 
 #####
 #	PLOT TERNARY FIGURE
@@ -263,13 +267,144 @@ do
         gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
 done
 
-# Triangle outline and labels
+
+# Bold grid lines
+for TDIP in 50
+do
+    case $TDIP in
+        50)PEN="1p,55/55/55,4_2:0";;
+         *)PEN="0.5p,225/225/225,4_2:0";;
+    esac
+    TDIPR=`echo $TDIP $D2R | awk '{print $1*$2}'`
+    FTH=`echo $TDIPR | awk '{print sin($1)*sin($1)}'`
+    LFTOVR=`echo $FTH | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
+        awk '{print $0}END{print '"$LFTOVR"'}' |\
+        awk 'BEGIN{
+            tdipr = '"$TDIPR"'
+            fth = '"$FTH"'
+        }{
+            pdipr = $1
+            fno = sin(pdipr)*sin(pdipr)
+            fss = 1-fth-fno
+            if (fss<0) {fss = -fss}
+            bdipr = atan2(sqrt(fss),sqrt(1-fss))
+            print tdipr,bdipr,pdipr
+        }' |\
+        awk 'BEGIN{
+            aref = '"$AREF"'
+            hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
+        }{
+            tdipr = $1
+            bdipr = $2
+            pdipr = $3
+            psi = atan2(sin(tdipr),sin(pdipr)) - 3.14159265/4
+            denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
+            h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
+            v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
+            print h,v
+        }' |\
+        gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
+done
+for BDIP in 60
+do
+    case $BDIP in
+        60)PEN="1p,55/55/55,4_2:0";;
+         *)PEN="0.5p,225/225/225,4_2:0";;
+    esac
+    BDIPR=`echo $BDIP $D2R | awk '{print $1*$2}'`
+    FSS=`echo $BDIPR | awk '{print sin($1)*sin($1)}'`
+    LFTOVR=`echo $FSS | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
+        awk '{print $0}END{print '"$LFTOVR"'}' |\
+        awk 'BEGIN{
+            bdipr = '"$BDIPR"'
+            fss = '"$FSS"'
+        }{
+            pdipr = $1
+            fno = sin(pdipr)*sin(pdipr)
+            fth = 1-fss-fno
+            if (fth<0) {fth = -fth}
+            tdipr = atan2(sqrt(fth),sqrt(1-fth))
+            print tdipr,bdipr,pdipr
+        }' |\
+        awk 'BEGIN{
+            aref = '"$AREF"'
+            hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
+        }{
+            tdipr = $1
+            bdipr = $2
+            pdipr = $3
+            psi = atan2(sin(tdipr),sin(pdipr)) - 3.14159265/4
+            denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
+            h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
+            v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
+            print h,v
+        }' |\
+        gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
+done
+for PDIP in 60
+do
+    case $PDIP in
+        60)PEN="1p,55/55/55,4_2:0";;
+         *)PEN="0.5p,225/225/225,4_2:0";;
+    esac
+    PDIPR=`echo $PDIP $D2R | awk '{print $1*$2}'`
+    FNO=`echo $PDIPR | awk '{print sin($1)*sin($1)}'`
+    LFTOVR=`echo $FNO | awk '{x=sqrt(1-$1);print atan2(x,sqrt(1-x*x))}'`
+    ${BIN_DIR}/grid -x 0 $LFTOVR -dx 0.005 |\
+        awk '{print $0}END{print '"$LFTOVR"'}' |\
+        awk 'BEGIN{
+            pdipr = '"$PDIPR"'
+            fno = '"$FNO"'
+        }{
+            bdipr = $1
+            fss = sin(bdipr)*sin(bdipr)
+            fth = 1-fss-fno
+            if (fth<0) {fth = -fth}
+            tdipr = atan2(sqrt(fth),sqrt(1-fth))
+            print tdipr,bdipr,pdipr
+        }' |\
+        awk 'BEGIN{
+            aref = '"$AREF"'
+            hgt = '"$HEIGHT"'
+            frac = '"$FRAC_SIMPLE"'
+        }{
+            tdipr = $1
+            bdipr = $2
+            pdipr = $3
+            psi = atan2(sin(tdipr),sin(pdipr)) - 3.14159265/4
+            denom = sin(aref)*sin(bdipr) + cos(aref)*cos(bdipr)*cos(psi)
+            h = hgt*sqrt(2)*cos(bdipr)*sin(psi)/(3*denom)
+            v = hgt*sqrt(2)*(cos(aref)*sin(bdipr)-sin(aref)*cos(bdipr)*cos(psi))/(3*denom)
+            hs = hgt*(sin(tdipr)*sin(tdipr)-sin(pdipr)*sin(pdipr))/sqrt(3)
+            vs = hgt*(sin(bdipr)*sin(bdipr)-1/3)
+            h = frac*hs + (1-frac)*h
+            v = frac*vs + (1-frac)*v
+            print h,v
+        }' |\
+        gmt psxy $PROJ $LIMS -W$PEN -K -O >> $PSFILE
+done
+
+# Triangle outline
 gmt psxy $PROJ $LIMS -W1p -K -O >> $PSFILE << EOF
 $XMIN $YMIN
 $XMAX $YMIN
 0 $YMAX
 $XMIN $YMIN
 EOF
+
+# Triangle labels
 if [ -z "$FONTSZ" ]
 then
     FONT_SIZE=`echo $WID 5 24 | awk '{print $1/$2*$3}'`
