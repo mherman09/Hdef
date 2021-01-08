@@ -44,6 +44,10 @@ public :: sdr2sdr
 public :: sdr2sv
 public :: sdr2ter
 
+public :: sdr2kagan
+public :: mij2kagan
+public :: kaganangle
+
 public :: empirical
 
 !--------------------------------------------------------------------------------------------------!
@@ -131,9 +135,12 @@ subroutine mij2pnt(mrr,mtt,mpp,mrt,mrp,mtp,pnt)
 
 use io, only: stderr
 
-#ifndef USE_LAPACK
-! Without LAPACK, we need the eigen routines from the algebra module
-use algebra, only: jacobi, eig_sort
+#ifdef USE_LAPACK
+! With LAPACK, we only need the cross_product and dot_product routines from the algebra module
+use algebra, only: cross_product, dot_product
+#else
+! Without LAPACK, we also need the eigen routines from the algebra module
+use algebra, only: cross_product, dot_product, jacobi, eig_sort
 #endif
 
 
@@ -143,7 +150,7 @@ implicit none
 double precision :: mrr, mtt, mpp, mrt, mrp, mtp, pnt(12)
 
 ! Local variables
-double precision :: m_enz(3,3), eigvals(3)
+double precision :: m_enz(3,3), eigvals(3), xp(3), dp
 
 
 #ifdef USE_LAPACK
@@ -242,6 +249,15 @@ pnt(11) = eigvals(2)
 pnt(12) = eigvals(3)
 
 #endif
+
+! Verify that eigenvectors are right handed
+call cross_product(pnt(1:3),pnt(4:6),xp)
+call dot_product(xp,pnt(7:9),dp)
+if (dp.lt.0.0d0) then
+    pnt(7) = -pnt(7)
+    pnt(8) = -pnt(8)
+    pnt(9) = -pnt(9)
+endif
 
 return
 end subroutine
@@ -746,6 +762,130 @@ mom = 10.0d0**((mag+10.7d0)*1.5d0)
 mom = mom*dynecm2nm
 return
 end subroutine
+
+
+!--------------------------------------------------------------------------------------------------!
+!-------------------------------- ANGLE BETWEEN MOMENT TENSORS ------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+
+subroutine sdr2kagan(str1,dip1,rak1,str2,dip2,rak2,angle)
+implicit none
+! Arguments
+double precision :: str1, dip1, rak1, str2, dip2, rak2, angle
+! Local variables
+double precision :: mrr1, mtt1, mpp1, mrt1, mrp1, mtp1, mrr2, mtt2, mpp2, mrt2, mrp2, mtp2
+double precision :: mt1(6), mt2(6)
+call sdr2mij(str1,dip1,rak1,mrr1,mtt1,mpp1,mrt1,mrp1,mtp1)
+call sdr2mij(str2,dip2,rak2,mrr2,mtt2,mpp2,mrt2,mrp2,mtp2)
+mt1(1) = mrr1
+mt1(2) = mtt1
+mt1(3) = mpp1
+mt1(4) = mrt1
+mt1(5) = mrp1
+mt1(6) = mtp1
+mt2(1) = mrr2
+mt2(2) = mtt2
+mt2(3) = mpp2
+mt2(4) = mrt2
+mt2(5) = mrp2
+mt2(6) = mtp2
+call kaganangle(mt1,mt2,angle)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine mij2kagan(mrr1,mtt1,mpp1,mrt1,mrp1,mtp1,mrr2,mtt2,mpp2,mrt2,mrp2,mtp2,angle)
+implicit none
+! Arguments
+double precision :: mrr1, mtt1, mpp1, mrt1, mrp1, mtp1, mrr2, mtt2, mpp2, mrt2, mrp2, mtp2, angle
+! Local variables
+double precision :: mt1(6), mt2(6)
+mt1(1) = mrr1
+mt1(2) = mtt1
+mt1(3) = mpp1
+mt1(4) = mrt1
+mt1(5) = mrp1
+mt1(6) = mtp1
+mt2(1) = mrr2
+mt2(2) = mtt2
+mt2(3) = mpp2
+mt2(4) = mrt2
+mt2(5) = mrp2
+mt2(6) = mtp2
+call kaganangle(mt1,mt2,angle)
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine kaganangle(mt1,mt2,angle)
+
+use trig, only: r2d
+
+implicit none
+double precision :: mt1(6), mt2(6), angle
+double precision :: pnt1(12), pnt2(12)
+double precision :: mat1(3,3), mat2(3,3), u(3,3), w, qw(4), qq
+integer :: i
+
+call mij2pnt(mt1(1),mt1(2),mt1(3),mt1(4),mt1(5),mt1(6),pnt1)
+call mij2pnt(mt2(1),mt2(2),mt2(3),mt2(4),mt2(5),mt2(6),pnt2)
+
+! Transpose of first eigenvector matrix
+mat1(1,1) = pnt1(1)
+mat1(1,2) = pnt1(2)
+mat1(1,3) = pnt1(3)
+mat1(2,1) = pnt1(4)
+mat1(2,2) = pnt1(5)
+mat1(2,3) = pnt1(6)
+mat1(3,1) = pnt1(7)
+mat1(3,2) = pnt1(8)
+mat1(3,3) = pnt1(9)
+
+! Second eigenvector matrix
+mat2(1,1) = pnt2(1)
+mat2(2,1) = pnt2(2)
+mat2(3,1) = pnt2(3)
+mat2(1,2) = pnt2(4)
+mat2(2,2) = pnt2(5)
+mat2(3,2) = pnt2(6)
+mat2(1,3) = pnt2(7)
+mat2(2,3) = pnt2(8)
+mat2(3,3) = pnt2(9)
+
+! Multiply matrices
+u(1,1) = mat1(1,1)*mat2(1,1) + mat1(1,2)*mat2(2,1) + mat1(1,3)*mat2(3,1)
+u(1,2) = mat1(1,1)*mat2(1,2) + mat1(1,2)*mat2(2,2) + mat1(1,3)*mat2(3,2)
+u(1,3) = mat1(1,1)*mat2(1,3) + mat1(1,2)*mat2(2,3) + mat1(1,3)*mat2(3,3)
+u(2,1) = mat1(2,1)*mat2(1,1) + mat1(2,2)*mat2(2,1) + mat1(2,3)*mat2(3,1)
+u(2,2) = mat1(2,1)*mat2(1,2) + mat1(2,2)*mat2(2,2) + mat1(2,3)*mat2(3,2)
+u(2,3) = mat1(2,1)*mat2(1,3) + mat1(2,2)*mat2(2,3) + mat1(2,3)*mat2(3,3)
+u(3,1) = mat1(3,1)*mat2(1,1) + mat1(3,2)*mat2(2,1) + mat1(3,3)*mat2(3,1)
+u(3,2) = mat1(3,1)*mat2(1,2) + mat1(3,2)*mat2(2,2) + mat1(3,3)*mat2(3,2)
+u(3,3) = mat1(3,1)*mat2(1,3) + mat1(3,2)*mat2(2,3) + mat1(3,3)*mat2(3,3)
+
+! Calculate quaternion
+w = 0.5d0*sqrt(1.0d0 + u(1,1) + u(2,2) + u(3,3))
+qw(1) = w
+qw(2) = (u(3,2)-u(2,3))/(4.0d0*w)
+qw(3) = (u(1,3)-u(3,1))/(4.0d0*w)
+qw(4) = (u(2,1)-u(1,2))/(4.0d0*w)
+
+! Take maximum value and use this to calculate the angle
+qq = qw(1)
+do i = 2,4
+    if (abs(qw(i)).gt.abs(qq)) then
+        qq = qw(i)
+    endif
+enddo
+
+angle = 2.0d0*acos(abs(qq))*r2d
+
+return
+end subroutine
+
+
 
 !--------------------------------------------------------------------------------------------------!
 !--------------------------------------------------------------------------------------------------!
