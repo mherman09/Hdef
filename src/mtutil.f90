@@ -42,7 +42,9 @@ use eq, only: mag2mom, &
               sdr2pnt, &
               sdr2sdr, &
               sdr2sv, &
-              sdr2ter
+              sdr2ter, &
+              sdr2kagan, &
+              mij2kagan
 
 use mtutil, only: mtutil_mode, &
                   input, &
@@ -54,7 +56,7 @@ implicit none
 
 ! Local variables
 integer :: i, j, ninputs, luin, luout, ios
-double precision :: input_values(12), output_values(12)
+double precision :: input_values(12), input_values2(12), output_values(12)
 character(len=512) :: tmp_file, input_line
 
 
@@ -114,7 +116,14 @@ endif
 ! Read the inputs and run specified calculation
 do i = 1,ninputs
     read(luin,'(A)',end=1001) input_line
-    read(input_line,*,iostat=ios) (input_values(j),j=1,nvals_input)
+    if (nvals_input.ge.1) then
+        read(input_line,*,iostat=ios) (input_values(j),j=1,nvals_input)
+    elseif (nvals_input.le.-1) then
+        read(input_line,*,iostat=ios) (input_values(j),j=1,abs(nvals_input)), &
+                                      (input_values2(j),j=1,abs(nvals_input))
+    else
+        write(stderr,*) 'nvals_input set to illegal value'
+    endif
     if (ios.ne.0) then
         write(stderr,*) 'mtutil: error parsing inputs "',trim(input_line),'"'
         call usage('')
@@ -195,6 +204,19 @@ do i = 1,ninputs
     elseif (mtutil_mode.eq.'sdr2ter') then
         call sdr2ter(input_values(1),input_values(2),input_values(3),&
                      output_values(1),output_values(2),output_values(3))
+
+
+    ! output -> kagan angle
+    elseif (mtutil_mode.eq.'sdr2kagan') then
+        call sdr2kagan(input_values(1), input_values(2), input_values(3), &
+                       input_values2(1),input_values2(2),input_values2(3), &
+                       output_values(1))
+    elseif (mtutil_mode.eq.'mij2kagan') then
+        call mij2kagan(input_values(1), input_values(2), input_values(3), &
+                       input_values(4), input_values(5), input_values(6), &
+                       input_values2(1),input_values2(2),input_values2(3), &
+                       input_values2(4),input_values2(5),input_values2(6), &
+                       output_values(1))
 
     else
         call usage('mtutil: no option '//trim(mtutil_mode))
@@ -342,6 +364,10 @@ elseif (trim(tag).eq.'-ternary') then
 elseif (trim(tag).eq.'-sv') then
     mtutil_mode = trim(mtutil_mode)//'sv'
     nvals_output = 6
+elseif (trim(tag).eq.'-kagan') then
+    mtutil_mode = trim(mtutil_mode)//'kagan'
+    nvals_output = 1
+    nvals_input = -nvals_input
 else
       call usage('mtutil: no output option '//tag)
 endif
@@ -383,6 +409,7 @@ write(stderr,*) 'Output only:'
 write(stderr,*) '-ternary  Ternary classification (fth fss fno)'
 write(stderr,*) '-dcp      Double couple percentage'
 write(stderr,*) '-sv       Slip vector (e n z components)'
+write(stderr,*) '-kagan    Calculate angle between two moment tensors (requires double inputs)'
 write(stderr,*)
 write(stderr,*) 'Input format options:'
 write(stderr,*) 'file name: read from file INPUT'

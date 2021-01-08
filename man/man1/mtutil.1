@@ -1,4 +1,4 @@
-.TH MTUTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
+.TH MTUTIL 1 "January 2020" "Version 2020.01.01" "User Manuals"
 
 .SH NAME
 mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic parameters
@@ -7,7 +7,7 @@ mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic paramete
 .P
 .B mtutil -sdr|-mij|-pnt|-mag|-mom
 .BI [ input ]
-.B -sdr|-mij|-pnt|-mag|-mom|-ternary|-dcp|-sv
+.B -sdr|-mij|-pnt|-mag|-mom|-ternary|-dcp|-sv|-kagan
 .BI [ output ]
 
 .SH DESCRIPTION
@@ -15,7 +15,8 @@ mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic paramete
 converts between earthquake source parameters. Inputs can be strike/dip/rake,
 moment tensor components, moment tensor principal axes, seismic moment, or magnitude. Outputs can be
 any of these values (when possible, e.g., you cannot convert a seismic moment to strike/dip/rake), a
-ternary representation of the focal mechanism (Frohlich, 1992), double-couple percentage, or slip vectors.
+ternary representation of the focal mechanism (Frohlich, 1992), double-couple percentage, slip vectors,
+or the angle between two sources (Tape and Tape, 2012).
 See Jost and Herrmann (1989) for more details.
 
 If
@@ -179,6 +180,10 @@ Slip vector
 and
 .I vertical
 components
+.TP
+.BI "-kagan [" output_file ]
+Angle between two sources, after Tape and Tape (2012). This is the minimum angle required to rotate
+the first source into the second source. The input must contain two sources instead of one.
 
 .SH REFERENCES
 .TP
@@ -189,13 +194,17 @@ Frohlich, C. (1992).
 Triangle diagrams: ternary graphs to display similarity and diversity of
 earthquake focal mechanisms. Physics of the Earth and Planetary Interiors 75, 193-198.
 .TP
-Gilbert, F., Dziewonski, A.M. (1975).
+Gilbert, F., and Dziewonski, A.M. (1975).
 An application of normal mode theory to the retrieval of structural parameters and
 source mechanisms from seismic spectra.
 Philosophical Transactions of the Royal Society of London. Series A, 278, 187–269.
 .TP
-Jost, M.L., Herrmann, R.B. (1989).
+Jost, M.L., and Herrmann, R.B. (1989).
 A student's guide to and review of moment tensors.
 Seismological Research Letters 60, 37-57.
+.TP
+Tape, W., and Tape, C. (2012).
+Angle between principal axis triples.
+Geophysical Journal International 191, 813-831.
 
 .RS
