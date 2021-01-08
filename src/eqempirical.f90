@@ -27,7 +27,7 @@ call gcmdln()
 if (relation.eq.'') then
     call usage('eqempirical: empirical relation not defined')
 endif
-if (magnitude.lt.-10.0d0) then
+if (magnitude.lt.-10.0d0 .and. relation.ne.'list') then
     call usage('eqempirical: magnitude not defined')
 endif
 
@@ -69,6 +69,7 @@ character(len=512) :: tag, arg
 
 
 ! Initialize control parameters
+ios = 0
 relation = ''
 magnitude = -1d10
 
