@@ -261,21 +261,31 @@ message(STATUS "")
 message(STATUS "*********************************************************************************")
 message(STATUS "Setting up script builds")
 
-# add_custom_target(coul_dip ALL DEPENDS coul_dip.sh)
-# add_custom_command(
-#     OUTPUT coul_dip.sh
-#     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/coul_dip.sh ${CMAKE_CURRENT_BINARY_DIR}/coul_dip.sh
-#     MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/scripts/coul_dip.sh
-#     DEPENDS ff2gmt grid o92util
-#     COMMENT "Building target coul_dip.sh")
+# Shell scripts that use executables
+list(APPEND shell_scripts
+     coul_dip
+     coul_hor
+     coul_xsec
+     gmtcpt
+     insar
+     simplify_ffm
+     surf_disp
+     ternary
+     trg_schem
+)
 
-add_custom_target(surf_disp-script ALL DEPENDS surf_disp.sh)
-add_custom_command(
-    OUTPUT surf_disp.sh
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/surf_disp.sh ${CMAKE_CURRENT_BINARY_DIR}/surf_disp.sh
-    MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/scripts/surf_disp.sh
-    DEPENDS ${hdef_executables}
-    COMMENT "Building target surf_disp.sh")
+# To build and install these, define them as custom targets
+foreach(s ${shell_scripts})
+    add_custom_target(${s}-script ALL DEPENDS ${s}.sh)
+    add_custom_command(
+        OUTPUT ${s}.sh
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/${s}.sh ${CMAKE_CURRENT_BINARY_DIR}/${s}.sh
+        MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/scripts/${s}.sh
+        DEPENDS ${hdef_executables}
+        COMMENT "Building target ${s}.sh"
+    )
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${s}.sh DESTINATION bin)
+endforeach()
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
