@@ -61,6 +61,17 @@ if (NOT CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     message(FATAL_ERROR "Set Fortran compiler with: '-DCMAKE_Fortran_COMPILER=/path/to/gfortran'")
 endif()
 
+# Make sure that compilers are using same version
+if (NOT ${CMAKE_Fortran_COMPILER_VERSION} MATCHES ${CMAKE_C_COMPILER_VERSION})
+    message(STATUS "")
+    message(WARNING "Compiler versions do not match; this may lead to unanticipated behavior")
+    message(STATUS "CMAKE_C_COMPILER_VERSION=" ${CMAKE_C_COMPILER_VERSION})
+    message(STATUS "CMAKE_Fortran_COMPILER_VERSION=" ${CMAKE_Fortran_COMPILER_VERSION})
+    message(STATUS "")
+else()
+    message(STATUS "Compiler versions match: ${CMAKE_Fortran_COMPILER_VERSION}")
+endif()
+
 # Use pre-processing commands
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
 
