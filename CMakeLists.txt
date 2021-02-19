@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
-# cmake -DCMAKE_INSTALL_PREFIX=`pwd` -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_Fortran_COMPILER=gfortran -DLAPACK_LIB_DIR=/sw/lib/lapack ..
+# 	cmake \
+#		-DCMAKE_INSTALL_PREFIX=/path/to/hdef/installation/directory \
+# 		-DCMAKE_C_COMPILER=/path/to/gcc \
+#		-DCMAKE_Fortran_COMPILER=/path/to/gfortran \
+#		-DLAPACK_LIB_DIR=/path/to/lapack \
+#		..
 
 project(Hdef VERSION 2021.02)
 
