@@ -1,4 +1,4 @@
-Hdef version 2020.04.01
+Hdef version 2021.02.01
 
 The primary purpose for this suite of codes is the forward calculation of displacements, strains,
 and stresses in an elastic half-space (hence, H(alfspace)def(ormation)...). The sources are fault
@@ -41,12 +41,19 @@ Please cite the code with the following DOI: https://doi.org/10.5281/zenodo.3894
 want to cite uses of the tools in Hdef in addition to the software itself. The first published
 papers using early versions of Hdef are:
 
-Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
-	constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake
-        sequence, South Island, New Zealand. Tectonophysics 633, 1-15.
+	Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
+		constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake
+		sequence, South Island, New Zealand. Tectonophysics 633, 1-15.
 
-Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
-	2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
+	Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
+		2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
+
+
+The methods behind the Bayesian locking inversion capabilities in fltinv were published in:
+
+	Herman, M.W., Govers, R. (2020). Locating fully locked asperities along the South America
+		subduction megathrust: a new physical inter‐seismic inversion approach in a Bayesian framework.
+		Geochemistry, Geophysics, Geosystems 21, e2020GC009063.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

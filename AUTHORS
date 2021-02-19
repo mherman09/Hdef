@@ -1,7 +1,12 @@
 Hdef
 Written by Matt Herman
+	2010-2017: Penn State
+	2017-2020: Utrecht University
+	2020-now:  California State University, Bakersfield
 
-First version: sometime in 2012...lost in the mists of poor backup practices and finite email storage
-First git commit: 2013 Nov 22
-First compiled as a package: 2017 Sep 29
-Converted (mostly) to Modern Fortran: 2019 June
+2012/??: First version...lost in the mists of poor backup practices and finite email storage
+2013/11: First git commit
+2017/09: First compiled as a package
+2019/06: Converted (mostly) to Modern Fortran
+2020/06: Version 0.0.0 released
+2021/02: Compiled with cmake

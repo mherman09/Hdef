@@ -1,67 +1,86 @@
 PREREQUISITES
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- Fortran compiler
-	- I work with gfortran. Some of the compiler configurations and options in the Makefile are
-      gfortran specific, so use a different compiler at your own risk.
-	- Gfortran can be installed with most package managers (Fink, Homebrew, MacPorts, APT, etc.).
-	- You can also find gfortran at https://gcc.gnu.org/wiki/GFortran.
-- C compiler
-	- A C compiler is now required! I use gcc, and in many (most?) cases, gcc comes with gfortran.
+- GNU compilers
+	- Available from most package managers
+	- To use other compilers, you will need to modify CMakeLists.txt
+- CMake
+	- Version 3.12 or higher
+	- Available from most package managers
+	- Download CMake directly at: https://cmake.org/download
+- Make
+	- Standard on most *nix operating systems
 - LAPACK
-	- LAPACK is required for the software that uses linear algebra (eigenanalysis, inversions).
-	- The LAPACK 3.7.1 source code is included in the ext/ directory, per the LAPACK user license.
-	- Hdef can still be compiled without LAPACK; some programs will not work at all, and a few
-      others will have LAPACK-dependent options disabled.
-	- Make sure that LAPACK is installed with the same compiler as Hdef.
-	- Installing LAPACK is fairly easy on most systems:
-		1. Unzip the LAPACK package. Change into the LAPACK directory.
-		2. Copy make.inc.example to make.inc.
-		3. Edit the Makefile so that the line "lib: blaslib variants lapacklib tmglib" is
-           uncommented.
-		4. Type "make".
-	- NOTE: You may see the following error when compiling: "recipe for target lapack_testing
-      failed". You may disregard this, or if you really want to run the tests, you can dive
-      into OS memory management and type "ulimit -s unlimited" before running "make".
+	- I use LAPACK version 3.9.0 but older versions should work fine
+	- Available at: http://www.netlib.org/lapack
+	- Hdef can be compiled without LAPACK; some programs will not work at all, and a few
+	  others will have LAPACK-dependent options disabled
+	- I recommend installing LAPACK with the same compilers as Hdef
 
 
 COMPILING HDEF DIRECTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 I did not think too hard about other users installing the software, so this process is a little
-haphazard. Sorry.
+haphazard. Sorry. (It is better now than it was!)
 
-NOTE: THERE IS NO LONGER A CONFIGURATION SCRIPT! You now have to edit the Makefile directly!
+!! NOTE: THERE IS NO LONGER A CONFIGURATION SCRIPT OR A MAKEFILE
+!! HDEF IS NOW CONFIGURED AND BUILT WITH CMAKE!
 
-1. Copy Makefile.tmpl to Makefile.
+1. Go to the Hdef directory in your terminal and make a new directory called build/.
+   Change into the build/ directory:
 
-2. In the Makefile, you will need to check the following variables for your system (these are all
-   at the top of the Makefile, within the first ~40 lines):
+	>> mkdir build
+	>> cd build
 
-	- CC: (path to) gcc
-	- FC: (path to) gfortran
-	- FWARN: gfortran warning flags
-	- FOPT: gfortran optimization flags
-	- BIN_DIR: location to put compiled executables
-	- INCLUDE_DIR: location to place and use .o and .mod files
-	- LAPACK_LIB_DIR: path to LAPACK libraries (if using)
-	- LAPACK_LIB: names of static LAPACK libraries; check the LAPACK_LIB_DIR to see the specific
-      names of the libraries: (ref)lapack, (ref)blas (if using)
-	- CPP_LAPACK: compiler pre-processor for LAPACK; must be set to -DUSE_LAPACK to compile codes
-      with LAPACK
 
-3. Once you have set up these variables in the Makefile for your system, type:
+2. Enter the following cmake command:
 
-   make
+	>> cmake \
+		-DCMAKE_INSTALL_PREFIX=/path/to/hdef/installation/directory \
+		-DCMAKE_C_COMPILER=[/path/to/]gcc \
+		-DCMAKE_Fortran_COMPILER=[/path/to/]gfortran \
+		-DLAPACK_LIB_DIR=/path/to/lapack \
+		..
 
-   to compile the Hdef executables. If all goes well, these will be available in the BIN_DIR you
-   specified in the Makefile.
+	The following variables need to be defined with the command line arguments:
+	- CMAKE_INSTALL_PREFIX: location to install Hdef code
+	- CMAKE_C_COMPILER: (path to) gcc
+	- CMAKE_Fortran_COMPILER: (path to) gfortran
+	- LAPACK_LIB_DIR: path to LAPACK libraries (OPTIONAL)
 
-4. Unit tests of the Hdef modules and numerical tests of the executables are run with:
+	For example, on my machine I use (from /Users/mherman2-local/Research/Hdef/build/):
 
-   make test
+	>> cmake \
+		-DCMAKE_INSTALL_PREFIX=.. \
+		-DCMAKE_C_COMPILER=gcc-10 \
+		-DCMAKE_Fortran_COMPILER=gfortran-10 \
+		-DLAPACK_LIB_DIR=/Users/mherman2-local/Research/lapack-3.9.0 \
+		..
 
-   These *should* be set up to work correctly on all systems, i.e., if the codes are compiled and
-   installed correctly, the tests should complete with no errors. However, the tests are still a bit
-   of a work in progress. So please report testing issues to me if you run into them!
+
+3. Once cmake has finished configuring, type:
+
+	>> make
+
+	to compile the Hdef executables. Then type:
+
+	>> make install
+
+	to make the bin/, lib/, and test/ directories in the directory you specified, and copy the
+	Hdef programs, libraries, and tests to these directories.
+
+
+4. To test all subroutines and executables, go to the build/ directory and type:
+
+	>> make test
+
+	To test only the executables and see the standard output from the test scripts,
+	go to the build/ directory and type:
+
+	>> make test-exec
+
+	If the codes are compiled and installed correctly, the tests *should* complete with no errors.
+	However, the tests are still a bit of a work in progress. So please report testing issues to
+	me if you run into them!
 
 
 QUESTIONS, COMMENTS, OR CONCERNS?
