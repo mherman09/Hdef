@@ -258,18 +258,30 @@ double precision :: red,grn,blu
 character(len=1024) :: tmpstring
 character(len=*) :: rgbstring
 integer :: j,jj
-write(tmpstring,1001) red,grn,blu
-1001 format(F10.3,'/',F10.3,'/'F10.3)
-jj = 1
+
+! Write R/G/B triplet with slashes to tmpstring
+! This will have whitespace in it, which we will then remove
+!write(tmpstring,1001) red,grn,blu
+write(tmpstring,1001) int(red),int(grn),int(blu)
+!1001 format(F10.3,'/',F10.3,'/'F10.3)
+!1001 format(F10.0,'/',F10.0,'/'F10.0)
+1001 format(I10,'/',I10,'/'I10)
+
+! Initialize rgbstring to be blank
 do j = 1,len(rgbstring)
     rgbstring(j:j) = ' '
 enddo
+
+! Loop through each character of tmpstring
+! If it is not whitespace, add it to rgbstring
+jj = 1
 do j = 1,len(tmpstring)
     if (tmpstring(j:j).ne.' ') then
         rgbstring(jj:jj) = tmpstring(j:j)
         jj = jj + 1
     endif
 enddo
+
 return
 end
 
