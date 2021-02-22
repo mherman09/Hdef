@@ -4,6 +4,9 @@ use test, only: test_value
 use tri_disloc
 implicit none
 double precision :: disp(3), strain(3,3), tri_coord(3,4), sta_coord(3), slip(3)
+double precision :: origin(3), normal(3), pointOfInterest(3), depthOfPlaneAtPoint
+double precision :: p1(3), p2(3), p3(3), p4(3), p5(3), p6(3),center(3)
+double precision :: strike(3), updip(3)
 
 y1=1.0d0
 y2=2.0d0
@@ -38,6 +41,22 @@ call test_value(Fbar,2.9255063385751567d-002,'angular_disloc_vars(): Fbar')
 write(stdout,*) 'subroutine angular_disloc_vars() passed unit test'
 write(stdout,*)
 
+
+pointOfInterest(1) = 7.5d0
+pointOfInterest(2) = 3.6d0
+pointOfInterest(3) = 3.2d0
+origin(1) =  1.5d0
+origin(2) = -2.7d0
+origin(3) =  3.2d0
+normal(1) =  0.6d0
+normal(2) = -0.69282032d0
+normal(3) = -0.4d0
+call verticalLinePlaneIntersect(depthOfPlaneAtPoint,pointOfInterest,origin,normal)
+call test_value(depthOfPlaneAtPoint,1.28807996d0,'verticalLinePlaneIntersect()')
+write(stdout,*) 'subroutine verticalLinePlaneIntersect() passed unit test'
+write(stdout,*)
+
+
 call test_value(v1B1(),0.035526830150259d0,'v1B1()')
 call test_value(v2B1(),0.007506783445002d0,'v2B1()')
 call test_value(v3B1(),0.003462691554128d0,'v3B1()')
@@ -49,6 +68,7 @@ call test_value(v2B3(),-0.074712144051146d0,'v2B3()')
 call test_value(v3B3(),0.099928400921349d0,'v3B3()')
 write(stdout,*) 'functions viBj() for displacements passed unit tests'
 write(stdout,*)
+
 
 call ang_disloc_disp(disp,y1,y2,y3,a,b,nu,B1,B2,B3)
 call test_value(disp(1),0.006592700131694d0,'ang_disloc_disp(): disp(1)')
@@ -162,6 +182,48 @@ call test_value(strain(1,3),-2.461216982562142d-4,'tri_disloc_strain(): strain(1
 call test_value(strain(2,3),1.335040694307682d-4,'tri_disloc_strain(): strain(2,3)')
 write(stdout,*) 'subroutine tri_disloc_strain() passed unit test'
 write(stdout,*)
+
+
+p1(1) =  -4.4600515603497746d0
+p1(2) =  -8.6569884424234189d-2
+p1(3) =   5.0199612757737722d0
+p2(1) =  -9.5108247453189811d0
+p2(2) =  -8.4314941422125749d0
+p2(3) =  -8.1220467753405305d0
+p3(1) =  -7.2401514824260911d0
+p3(2) =  -5.2259626871753104d0
+p3(3) =   7.2451208789322159d0
+call tri_center(center,p1,p2,p3)
+call test_value(center(1),-7.0703425960316153d0,'tri_center(): center(1)')
+call test_value(center(2),-4.5813422379373732d0,'tri_center(): center(2)')
+call test_value(center(3), 1.3810117931218191d0,'tri_center(): center(3)')
+write(stdout,*) 'subroutine tri_center() passed unit test'
+write(stdout,*)
+
+
+call tri_geometry(normal,strike,updip,p1,p2,p3)
+call test_value(normal(1), 0.87409206677578921d0,'tri_geometry(): normal(1)')
+call test_value(normal(2),-0.48495276544177424d0,'tri_geometry(): normal(2)')
+call test_value(normal(3), 2.7997751516951008d-2,'tri_geometry(): normal(3)')
+call test_value(strike(1), 0.48514294821244353d0,'tri_geometry(): strike(1)')
+call test_value(strike(2), 0.87443485737917515d0,'tri_geometry(): strike(2)')
+call test_value(strike(3),                   0d0,'tri_geometry(): strike(3)')
+call test_value(updip(1),-2.4482209854662641d-2,'tri_geometry(): updip(1)')
+call test_value(updip(2), 1.3582911714253024d-2,'tri_geometry(): updip(2)')
+call test_value(updip(3), 0.99960798611755564d0,'tri_geometry(): updip(3)')
+
+
+call tri_geo2cart(p4,p5,p6,p1,p2,p3,'km')
+call test_value(p4(1), 290.54853475303207d0,'tri_geo2cart(): point1(1)')
+call test_value(p4(2), 499.43977645236936d0,'tri_geo2cart(): point1(2)')
+call test_value(p4(3), 5.0199612757737722d0,'tri_geo2cart(): point1(3)')
+call test_value(p5(1),-268.63732246707610d0,'tri_geo2cart(): point2(1)')
+call test_value(p5(2),-428.70221439679267d0,'tri_geo2cart(): point2(2)')
+call test_value(p5(3),-8.1220467753405305d0,'tri_geo2cart(): point2(3)')
+call test_value(p6(1),-18.803795453256310d0,'tri_geo2cart(): point3(1)')
+call test_value(p6(2),-71.680853403417458d0,'tri_geo2cart(): point3(2)')
+call test_value(p6(3), 7.2451208789322159d0,'tri_geo2cart(): point3(3)')
+
 
 write(stdout,*) 'tri_disloc unit test passed'
 end
