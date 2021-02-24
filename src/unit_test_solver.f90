@@ -32,7 +32,7 @@ call test_value(vec5(5), 0.0d0,'load_dp_array1: vec5(5)')
 call load_dp_array1(vec5,5,vec2,2,5,'vec2',ierr)
 call test_value(ierr,1,'load_dp_array1: overflow')
 write(stdout,*) 'subroutine load_dp_array1() passed unit test'
-
+write(stdout,*)
 
 !---- Test: loading 2-D double precision array
 mat5x4 = 0.0d0
@@ -65,6 +65,7 @@ call test_value(mat5x4(5,4), 0.0d0,'load_dp_array2: mat5x4(5,4)')
 call load_dp_array2(mat5x4,5,4,mat2x3,2,3,3,3,'mat2x3',ierr)
 call test_value(ierr,1,'load_dp_array2: overflow')
 write(stdout,*) 'subroutine load_dp_array2() passed unit test'
+write(stdout,*)
 
 
 !---- Test: loading 2-D integer array
@@ -98,6 +99,7 @@ call test_value(imat5x4(5,4), 0,'load_int_array2: imat5x4(5,4)')
 call load_int_array2(imat5x4,5,4,imat2x3,2,3,3,3,'imat2x3',ierr)
 call test_value(ierr,1,'load_int_array2: overflow')
 write(stdout,*) 'subroutine load_int_array2() passed unit test'
+write(stdout,*)
 
 
 !---- Test: load equation constraints
@@ -139,6 +141,7 @@ call test_value(vec5(4),-67.0d0,'load_dp_array_constraints: vec5(4)')
 call test_value(vec5(5),  0.0d0,'load_dp_array_constraints: vec5(5)')
 call test_value(ncols,2,'load_dp_array_constraints: ncols output')
 write(stdout,*) 'subroutine load_dp_array_constraints() passed unit test'
+write(stdout,*)
 
 
 !---- Test: linear equation solver
@@ -164,6 +167,8 @@ call test_value(vec3(1),  9.5d0,'solve_dgesv: vec3(1)')
 call test_value(vec3(2),-12.0d0,'solve_dgesv: vec3(2)')
 call test_value(vec3(3),  8.5d0,'solve_dgesv: vec3(3)')
 write(stdout,*) 'subroutine solve_dgesv() (linear equation solver) passed unit test'
+write(stdout,*)
+
 mat3x3_b(1,1) = -7.0d0
 mat3x3_b(1,2) =  4.0d0
 mat3x3_b(1,3) =  1.0d0
@@ -183,6 +188,8 @@ call test_value(mat3x3_b(2,3), 7.000d0,'solve_dgesv_nrhs: mat3x3_b(2,1)')
 call test_value(mat3x3_b(3,1),-3.125d0,'solve_dgesv_nrhs: mat3x3_b(3,1)')
 call test_value(mat3x3_b(3,2), 3.000d0,'solve_dgesv_nrhs: mat3x3_b(3,2)')
 call test_value(mat3x3_b(3,3),-3.125d0,'solve_dgesv_nrhs: mat3x3_b(3,3)')
+write(stdout,*) 'subroutine solve_dgesv_nrhs() (linear equation solver) passed unit test'
+write(stdout,*)
 
 ! dsysv
 mat3x3(1,1) = -2.0d0
@@ -201,6 +208,9 @@ call solve_dsysv(mat3x3,vec3,vec3,3,ierr)
 call test_value(vec3(1),2.526315789473684d0,'solve_dsysv: vec3(1)')
 call test_value(vec3(2),7.368421052631579d0,'solve_dsysv: vec3(2)')
 call test_value(vec3(3),0.894736842105263d0,'solve_dsysv: vec3(3)')
+write(stdout,*) 'subroutine solve_dsysv() (symmetric equation solver) passed unit test'
+write(stdout,*)
+
 mat3x3_b(1,1) = -7.0d0
 mat3x3_b(1,2) =  4.0d0
 mat3x3_b(1,3) =  1.0d0
@@ -220,6 +230,8 @@ call test_value(mat3x3_b(2,3),5.7368421052631575d0,'solve_dsysv_nrhs: mat3x3_b(2
 call test_value(mat3x3_b(3,1),-0.68421052631578960d0,'solve_dsysv_nrhs: mat3x3_b(3,1)')
 call test_value(mat3x3_b(3,2),0.31578947368421056d0,'solve_dsysv_nrhs: mat3x3_b(3,2)')
 call test_value(mat3x3_b(3,3),-0.21052631578947367d0,'solve_dsysv_nrhs: mat3x3_b(3,3)')
+write(stdout,*) 'subroutine solve_dsysv_nrhs() (symmetric equation solver) passed unit test'
+write(stdout,*)
 #endif
 
 !---- Test: sparse linear equation solver
@@ -244,6 +256,7 @@ call test_value(vec3(3),2.5d0,'solve_dgssv: vec3(3)')
 !     write(0,*) vec3(i)
 ! enddo
 write(stdout,*) 'subroutine solve_dgssv() (sparse linear equation solver) passed unit test'
+write(stdout,*)
 #endif
 
 !---- Test: least squares solver
@@ -266,6 +279,7 @@ call solve_dgels(mat5x2,vec5,vec2,5,2,ierr)
 call test_value(vec2(1),-3.90d0,'solve_dgels: vec2(1)')
 call test_value(vec2(2), 1.98d0,'solve_dgels: vec2(2)')
 write(stdout,*) 'subroutine solve_dgels() (least-squares solver) passed unit test'
+write(stdout,*)
 #endif
 
 !---- Test: non-negative least squares solver
@@ -287,6 +301,7 @@ call solve_nnls(mat5x2,vec5,vec2,5,2,ierr)
 call test_value(vec2(1), 4.10d0,'solve_nnls: vec2(1)')
 call test_value(vec2(2), 1.98d0,'solve_nnls: vec2(2)')
 write(stdout,*) 'subroutine solve_nnls() (non-negative least-squares solver) passed unit test'
+write(stdout,*)
 
 
 
