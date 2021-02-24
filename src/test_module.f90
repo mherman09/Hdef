@@ -4,6 +4,8 @@ interface test_value
     module procedure test_value_dp
     module procedure test_value_int
     module procedure test_value_real
+    module procedure test_value_cp
+    module procedure test_value_dcp
 end interface
 
 !--------------------------------------------------------------------------------------------------!
@@ -76,6 +78,64 @@ else
 endif
 
 if (abs(diff).gt.1.0e-7) then
+    write(0,*) 'test FAILED for '//trim(string)
+    write(0,*) '    expected value: ',expected_value
+    write(0,*) '    computed value: ',actual_value
+    call error_exit(1)
+else
+    write(6,*) 'test passed for '//trim(string)
+endif
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_value_cp(actual_value,expected_value,string)
+implicit none
+
+! Arguments
+complex :: actual_value, expected_value
+character(len=*) :: string
+
+! Local variables
+complex :: diff
+
+if (abs(expected_value).lt.1.0e-10) then
+    diff = actual_value - expected_value
+else
+    diff = (actual_value-expected_value)/abs(actual_value)
+endif
+
+if (abs(diff).gt.1.0e-10) then
+    write(0,*) 'test FAILED for '//trim(string)
+    write(0,*) '    expected value: ',expected_value
+    write(0,*) '    computed value: ',actual_value
+    call error_exit(1)
+else
+    write(6,*) 'test passed for '//trim(string)
+endif
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine test_value_dcp(actual_value,expected_value,string)
+implicit none
+
+! Arguments
+complex (kind=8) :: actual_value, expected_value
+character(len=*) :: string
+
+! Local variables
+complex (kind=8) :: diff
+
+if (abs(expected_value).lt.1.0d-10) then
+    diff = actual_value - expected_value
+else
+    diff = (actual_value-expected_value)/abs(actual_value)
+endif
+
+if (abs(diff).gt.1.0d-10) then
     write(0,*) 'test FAILED for '//trim(string)
     write(0,*) '    expected value: ',expected_value
     write(0,*) '    computed value: ',actual_value

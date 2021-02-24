@@ -10,6 +10,8 @@ implicit none
 integer :: i
 double precision :: dp1, dp2
 real :: real1, real2
+complex :: c1, c2
+complex (kind=8) :: dc1, dc2
 
 ! timeseed()
 iseed = timeseed()
@@ -27,7 +29,14 @@ call test_value(dp1,0.81047654151916504d0,'ran0(): value')
 call test_value(iseed,123457,'ran0(): iseed')
 
 ! c4_normal_01
+iseed = 98498171
+c1 = c4_normal_01(iseed)
+call test_value(c1,(-0.474812567,-0.152586848),'c4_normal_01()')
+
 ! c8_normal_01
+iseed = 552792940
+dc1 = c8_normal_01(iseed)
+call test_value(dc1,(-0.98438105957821054d0,-1.0320012536812111d0),'c8_normal_01()')
 
 ! i4_normal_ab
 iseed = 95061600
