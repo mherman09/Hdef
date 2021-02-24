@@ -7,7 +7,7 @@ use solver
 
 implicit none
 
-integer :: i, j, ierr, nrows, ncols
+integer :: i, j, ierr, nrows, ncols, imat5x4(5,4), imat2x3(2,3)
 double precision :: vec2(2), vec5(5), vec4_constraint(4)
 double precision :: mat2x3(2,3), mat5x2(5,2), mat5x4(5,4)
 logical :: isConst(4)
@@ -19,8 +19,22 @@ double precision :: mat3x3(3,3), vec3(3)
 #endif
 
 
-!---- Test: loading integer array
-!---- Test: loading double precision array
+!---- Test: loading 1-D double precision array
+vec5 = 0.0d0
+vec2(1) =  8.0d0
+vec2(2) = -3.0d0
+call load_dp_array1(vec5,5,vec2,2,3,'vec2',ierr)
+call test_value(vec5(1), 0.0d0,'load_dp_array1: vec5(1)')
+call test_value(vec5(2), 0.0d0,'load_dp_array1: vec5(2)')
+call test_value(vec5(3), 8.0d0,'load_dp_array1: vec5(3)')
+call test_value(vec5(4),-3.0d0,'load_dp_array1: vec5(4)')
+call test_value(vec5(5), 0.0d0,'load_dp_array1: vec5(5)')
+call load_dp_array1(vec5,5,vec2,2,5,'vec2',ierr)
+call test_value(ierr,1,'load_dp_array1: overflow')
+write(stdout,*) 'subroutine load_dp_array1() passed unit test'
+
+
+!---- Test: loading 2-D double precision array
 mat5x4 = 0.0d0
 do i = 1,2
     do j = 1,3
@@ -28,29 +42,63 @@ do i = 1,2
     enddo
 enddo
 call load_dp_array2(mat5x4,5,4,mat2x3,2,3,3,2,'mat2x3',ierr)
-call test_value(mat5x4(1,1), 0.0d0,'load_dp_array: mat5x4(1,1)')
-call test_value(mat5x4(1,2), 0.0d0,'load_dp_array: mat5x4(1,2)')
-call test_value(mat5x4(1,3), 0.0d0,'load_dp_array: mat5x4(1,3)')
-call test_value(mat5x4(1,4), 0.0d0,'load_dp_array: mat5x4(1,4)')
-call test_value(mat5x4(2,1), 0.0d0,'load_dp_array: mat5x4(2,1)')
-call test_value(mat5x4(2,2), 0.0d0,'load_dp_array: mat5x4(2,2)')
-call test_value(mat5x4(2,3), 0.0d0,'load_dp_array: mat5x4(2,3)')
-call test_value(mat5x4(2,4), 0.0d0,'load_dp_array: mat5x4(2,4)')
-call test_value(mat5x4(3,1), 0.0d0,'load_dp_array: mat5x4(3,1)')
-call test_value(mat5x4(3,2),11.0d0,'load_dp_array: mat5x4(3,2)')
-call test_value(mat5x4(3,3),12.0d0,'load_dp_array: mat5x4(3,3)')
-call test_value(mat5x4(3,4),13.0d0,'load_dp_array: mat5x4(3,4)')
-call test_value(mat5x4(4,1), 0.0d0,'load_dp_array: mat5x4(4,1)')
-call test_value(mat5x4(4,2),21.0d0,'load_dp_array: mat5x4(4,2)')
-call test_value(mat5x4(4,3),22.0d0,'load_dp_array: mat5x4(4,3)')
-call test_value(mat5x4(4,4),23.0d0,'load_dp_array: mat5x4(4,4)')
-call test_value(mat5x4(5,1), 0.0d0,'load_dp_array: mat5x4(5,1)')
-call test_value(mat5x4(5,2), 0.0d0,'load_dp_array: mat5x4(5,2)')
-call test_value(mat5x4(5,3), 0.0d0,'load_dp_array: mat5x4(5,3)')
-call test_value(mat5x4(5,4), 0.0d0,'load_dp_array: mat5x4(5,4)')
+call test_value(mat5x4(1,1), 0.0d0,'load_dp_array2: mat5x4(1,1)')
+call test_value(mat5x4(1,2), 0.0d0,'load_dp_array2: mat5x4(1,2)')
+call test_value(mat5x4(1,3), 0.0d0,'load_dp_array2: mat5x4(1,3)')
+call test_value(mat5x4(1,4), 0.0d0,'load_dp_array2: mat5x4(1,4)')
+call test_value(mat5x4(2,1), 0.0d0,'load_dp_array2: mat5x4(2,1)')
+call test_value(mat5x4(2,2), 0.0d0,'load_dp_array2: mat5x4(2,2)')
+call test_value(mat5x4(2,3), 0.0d0,'load_dp_array2: mat5x4(2,3)')
+call test_value(mat5x4(2,4), 0.0d0,'load_dp_array2: mat5x4(2,4)')
+call test_value(mat5x4(3,1), 0.0d0,'load_dp_array2: mat5x4(3,1)')
+call test_value(mat5x4(3,2),11.0d0,'load_dp_array2: mat5x4(3,2)')
+call test_value(mat5x4(3,3),12.0d0,'load_dp_array2: mat5x4(3,3)')
+call test_value(mat5x4(3,4),13.0d0,'load_dp_array2: mat5x4(3,4)')
+call test_value(mat5x4(4,1), 0.0d0,'load_dp_array2: mat5x4(4,1)')
+call test_value(mat5x4(4,2),21.0d0,'load_dp_array2: mat5x4(4,2)')
+call test_value(mat5x4(4,3),22.0d0,'load_dp_array2: mat5x4(4,3)')
+call test_value(mat5x4(4,4),23.0d0,'load_dp_array2: mat5x4(4,4)')
+call test_value(mat5x4(5,1), 0.0d0,'load_dp_array2: mat5x4(5,1)')
+call test_value(mat5x4(5,2), 0.0d0,'load_dp_array2: mat5x4(5,2)')
+call test_value(mat5x4(5,3), 0.0d0,'load_dp_array2: mat5x4(5,3)')
+call test_value(mat5x4(5,4), 0.0d0,'load_dp_array2: mat5x4(5,4)')
 call load_dp_array2(mat5x4,5,4,mat2x3,2,3,3,3,'mat2x3',ierr)
 call test_value(ierr,1,'load_dp_array2: overflow')
-write(stdout,*) 'subroutine load_dp_array() passed unit test'
+write(stdout,*) 'subroutine load_dp_array2() passed unit test'
+
+
+!---- Test: loading 2-D integer array
+imat5x4 = 0
+do i = 1,2
+    do j = 1,3
+        imat2x3(i,j) = i*10 + j
+    enddo
+enddo
+call load_int_array2(imat5x4,5,4,imat2x3,2,3,3,2,'imat2x3',ierr)
+call test_value(imat5x4(1,1), 0,'load_int_array2: imat5x4(1,1)')
+call test_value(imat5x4(1,2), 0,'load_int_array2: imat5x4(1,2)')
+call test_value(imat5x4(1,3), 0,'load_int_array2: imat5x4(1,3)')
+call test_value(imat5x4(1,4), 0,'load_int_array2: imat5x4(1,4)')
+call test_value(imat5x4(2,1), 0,'load_int_array2: imat5x4(2,1)')
+call test_value(imat5x4(2,2), 0,'load_int_array2: imat5x4(2,2)')
+call test_value(imat5x4(2,3), 0,'load_int_array2: imat5x4(2,3)')
+call test_value(imat5x4(2,4), 0,'load_int_array2: imat5x4(2,4)')
+call test_value(imat5x4(3,1), 0,'load_int_array2: imat5x4(3,1)')
+call test_value(imat5x4(3,2),11,'load_int_array2: imat5x4(3,2)')
+call test_value(imat5x4(3,3),12,'load_int_array2: imat5x4(3,3)')
+call test_value(imat5x4(3,4),13,'load_int_array2: imat5x4(3,4)')
+call test_value(imat5x4(4,1), 0,'load_int_array2: imat5x4(4,1)')
+call test_value(imat5x4(4,2),21,'load_int_array2: imat5x4(4,2)')
+call test_value(imat5x4(4,3),22,'load_int_array2: imat5x4(4,3)')
+call test_value(imat5x4(4,4),23,'load_int_array2: imat5x4(4,4)')
+call test_value(imat5x4(5,1), 0,'load_int_array2: imat5x4(5,1)')
+call test_value(imat5x4(5,2), 0,'load_int_array2: imat5x4(5,2)')
+call test_value(imat5x4(5,3), 0,'load_int_array2: imat5x4(5,3)')
+call test_value(imat5x4(5,4), 0,'load_int_array2: imat5x4(5,4)')
+call load_int_array2(imat5x4,5,4,imat2x3,2,3,3,3,'imat2x3',ierr)
+call test_value(ierr,1,'load_int_array2: overflow')
+write(stdout,*) 'subroutine load_int_array2() passed unit test'
+
 
 !---- Test: load equation constraints
 nrows = 5
@@ -91,6 +139,7 @@ call test_value(vec5(4),-67.0d0,'load_dp_array_constraints: vec5(4)')
 call test_value(vec5(5),  0.0d0,'load_dp_array_constraints: vec5(5)')
 call test_value(ncols,2,'load_dp_array_constraints: ncols output')
 write(stdout,*) 'subroutine load_dp_array_constraints() passed unit test'
+
 
 !---- Test: linear equation solver
 ! dgesv
