@@ -211,6 +211,8 @@ call test_value(strike(3),                   0d0,'tri_geometry(): strike(3)')
 call test_value(updip(1),-2.4482209854662641d-2,'tri_geometry(): updip(1)')
 call test_value(updip(2), 1.3582911714253024d-2,'tri_geometry(): updip(2)')
 call test_value(updip(3), 0.99960798611755564d0,'tri_geometry(): updip(3)')
+write(stdout,*) 'subroutine tri_geometry() passed unit test'
+write(stdout,*)
 
 
 call tri_geo2cart(p4,p5,p6,p1,p2,p3,'km')
@@ -223,6 +225,8 @@ call test_value(p5(3),-8.1220467753405305d0,'tri_geo2cart(): point2(3)')
 call test_value(p6(1),-18.803795453256310d0,'tri_geo2cart(): point3(1)')
 call test_value(p6(2),-71.680853403417458d0,'tri_geo2cart(): point3(2)')
 call test_value(p6(3), 7.2451208789322159d0,'tri_geo2cart(): point3(3)')
+write(stdout,*) 'subroutine tri_geo2cart() passed unit test'
+write(stdout,*)
 
 
 write(stdout,*) 'tri_disloc unit test passed'
