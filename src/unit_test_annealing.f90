@@ -414,10 +414,11 @@ use driver3_module, only: driver3
 
 implicit none
 
-integer :: j, ios, it, model_best_int(2)
+integer, parameter :: nw = 10
+integer :: j, ios, it, model_best_int(2), iselected(nw)
 character(len=512) :: line
 character(len=1) :: ch
-double precision :: temp, obj, model_best_dp(2)
+double precision :: temp, obj, model_best_dp(2), weights(nw)
 
 
 ! driver1 (anneal_int_array)
@@ -439,6 +440,8 @@ call test_value(it,200,'driver1 (anneal_int_array): maxit')
 call test_value(temp,0.13533300490703207d0,'driver1 (anneal_int_array): final temp')
 call test_value(obj,-0.34999999999999998d0,'driver1 (anneal_int_array): final obj')
 close(11,status='delete')
+write(stdout,*) 'subroutine anneal_int_array() - driver1() passed unit test'
+write(stdout,*)
 
 
 ! driver2 (anneal_dp_array)
@@ -460,6 +463,8 @@ call test_value(it,200,'driver2 (anneal_dp_array): maxit')
 call test_value(temp,0.13533300490703207d0,'driver2 (anneal_dp_array): final temp')
 call test_value(obj,-5.8331140982675264d-002,'driver2 (anneal_dp_array): final obj')
 close(12,status='delete')
+write(stdout,*) 'subroutine anneal_dp_array() - driver2() passed unit test'
+write(stdout,*)
 
 
 ! driver3 (anneal_dp_array; module)
@@ -481,6 +486,36 @@ call test_value(it,200,'driver3 (anneal_dp_array): maxit')
 call test_value(temp,0.13533300490703207d0,'driver3 (anneal_dp_array): final temp')
 call test_value(obj,-5.8331140982675264d-002,'driver3 (anneal_dp_array): final obj')
 close(13,status='delete')
+write(stdout,*) 'subroutine anneal_dp_array() - driver3_module passed unit test'
+write(stdout,*)
+
+
+! resample(weights,iselected,n)
+iseed = 495546918
+weights(1)  = 1.0d0
+weights(2)  = 1.0d0
+weights(3)  = 1.0d0
+weights(4)  = 1.0d0
+weights(5)  = 1.0d0
+weights(6)  = 1.0d0
+weights(7)  = 2.0d0
+weights(8)  = 2.0d0
+weights(9)  = 2.0d0
+weights(10) = 6.0d0
+iselected = 0
+call resample(weights,iselected,nw)
+call test_value(iselected(1),  6,'resample(): iselected(1)')
+call test_value(iselected(2),  8,'resample(): iselected(2)')
+call test_value(iselected(3),  9,'resample(): iselected(3)')
+call test_value(iselected(4),  6,'resample(): iselected(4)')
+call test_value(iselected(5),  8,'resample(): iselected(5)')
+call test_value(iselected(6), 10,'resample(): iselected(6)')
+call test_value(iselected(7),  9,'resample(): iselected(7)')
+call test_value(iselected(8),  4,'resample(): iselected(8)')
+call test_value(iselected(9),  6,'resample(): iselected(9)')
+call test_value(iselected(10),10,'resample(): iselected(10)')
+write(stdout,*) 'subroutine resample() passed unit test'
+write(stdout,*)
 
 
 write(stdout,*) 'annealing_module unit test passed'
