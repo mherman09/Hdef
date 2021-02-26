@@ -1007,11 +1007,21 @@ do iSta = 1,nstations
     disp = 0.0d0
     stn = 0.0d0
 
+    sta_coord = 0.0d0
+
     ! Convert depth from km to m
     sta_coord(3) = stations(iSta,3)*1.0d3
     if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
         write(stdout,'(X,"(DEBUG)",X,A5,I6,3F12.3)') 'ista=',iSta,stations(iSta,:)
     endif
+
+!$OMP PARALLEL PRIVATE(iFlt,ierr), &
+!$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az), &
+!$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
+!$OMP&         FIRSTPRIVATE(sta_coord), &
+!$OMP&         REDUCTION(+:disp), REDUCTION(+:stn)
+
+!$OMP DO
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1077,7 +1087,8 @@ do iSta = 1,nstations
             call usage('calc_deformation: no coordinate type named "'//trim(coord_type)//'" (usage:misc)')
         endif
         if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-            write(stdout,'(X,"(DEBUG)",5X,A26,3F14.4)') 'sta_coord (pre-rotation): ',sta_coord(:)
+            write(stdout,6822) 'sta_coord (pre-rotation): ',sta_coord(:),iSta,iFlt
+            6822 format(X,'(DEBUG)',5X,A26,3F14.4,' (ista=',I6,', iflt=',I6,')')
         endif
 
 
@@ -1088,7 +1099,8 @@ do iSta = 1,nstations
                        '(usage:none)')
         endif
         if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-            write(stdout,'(X,"(DEBUG)",5X,A26,3F14.4)') 'sta_coord (post-rotation):',sta_coord(:)
+            write(stdout,6823) 'sta_coord (post-rotation):',sta_coord(:),iSta,iFlt
+            6823 format(X,'(DEBUG)',5X,A26,3F14.4,' (ista=',I6,', iflt=',I6,')')
         endif
 
 
@@ -1126,11 +1138,14 @@ do iSta = 1,nstations
             if (ierr.ne.0) then
                 call usage('calc_deformation: error in rotating displacement vector to ENV (usage:none)')
             endif
+
+            if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
+                write(stdout,6824) 'disptmp:  ',disptmp(:),iSta,iFlt
+                6824 format(X,'(DEBUG)',5X,A8,3E14.4,18X,' (ista=',I6,', iflt=',I6,')')
+            endif
+
             ! Add to total
             disp = disp + disptmp
-            if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
-                write(stdout,'(X,"(DEBUG)",5X,A8,3F14.4)') 'disptmp:  ',disptmp(:)
-            endif
         endif
 
         ! Calculate strain
@@ -1145,14 +1160,30 @@ do iSta = 1,nstations
             if (ierr.ne.0) then
                 call usage('calc_deformation: error in rotating strain tensor to ENV (usage:none)')
             endif
-            ! Add to total
-            stn = stn + stntmp
+
             if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
                 write(stdout,'(X,"(DEBUG)",5X,A8,1P6E14.6)') 'stntmp: ', stntmp(1,1) ,stntmp(2,2), &
                                                 stntmp(3,3), stntmp(1,2), stntmp(1,3), stntmp(2,3)
             endif
+
+            ! Add to total
+            stn = stn + stntmp
         endif
     enddo
+
+!$OMP END DO
+!$OMP END PARALLEL
+
+    if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
+        if(iWantDisp) then
+            write(stdout,6826) 'disp: ',disp,iSta
+            6826 format(X,'(DEBUG)',5X,A8,3E16.6,18X,' (ista=',I6,')')
+        endif
+        if(iWantStrain) then
+            write(stdout,*) stn
+        endif
+    endif
+
 
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz

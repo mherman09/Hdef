@@ -164,6 +164,27 @@ message(STATUS "")
 
 
 #####
+#	OPENMP
+#####
+message(STATUS "*********************************************************************************")
+message(STATUS "Looking for OpenMP libraries")
+
+# Look for package OpenMP
+find_package(OpenMP)
+
+# Print found message during configuration
+if (OpenMP_Fortran_FOUND)
+    message(STATUS "Found OpenMP_Fortran_LIBRARIES: ${OpenMP_Fortran_LIBRARIES}")
+    message(STATUS "Building o92util (serial) and o92util-par (parallel)")
+endif()
+
+message(STATUS "*********************************************************************************")
+message(STATUS "")
+
+
+
+
+#####
 #	LIBRARIES
 #####
 message(STATUS "*********************************************************************************")
@@ -195,6 +216,12 @@ add_library(hdef
             src/trig_module.f90
             src/tri_disloc_module.f90
 )
+
+if (OpenMP_Fortran_FOUND)
+    target_compile_options(hdef PRIVATE "-frecursive")
+    target_link_libraries(hdef PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
 
 # Install the hdef library
 install(TARGETS hdef DESTINATION lib)
@@ -244,6 +271,16 @@ foreach(executable ${f90_files})
     add_dependencies(${executable} hdef)
     target_link_libraries(${executable} hdef ${LAPACK_LIBRARIES})
 endforeach()
+
+# If OpenMP is available, create parallel version of o92util
+if (OpenMP_Fortran_FOUND)
+    add_executable(o92util-par src/o92util.f90)
+    add_dependencies(o92util-par hdef)
+    target_link_libraries(o92util-par hdef ${LAPACK_LIBRARIES})
+    target_link_libraries(o92util-par OpenMP::OpenMP_Fortran)
+    target_compile_options(o92util-par PUBLIC "-frecursive")
+    install(TARGETS o92util-par DESTINATION bin)
+endif()
 
 # fltinv is divided into multiple source files, so build it separately
 add_executable(fltinv src/fltinv.f90
@@ -396,6 +433,7 @@ if (useLAPACK)
         test_lola2distaz
         test_mtutil
         test_o92util
+        test_o92util-par
         test_platemotion
         test_rangen
         test_readGCMT
@@ -415,6 +453,7 @@ else()
         test_lola2distaz
         test_mtutil
         test_o92util
+        test_o92util-par
         test_platemotion
         test_rangen
         test_readGCMT
