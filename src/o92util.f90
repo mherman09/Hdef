@@ -1007,7 +1007,9 @@ do iSta = 1,nstations
     disp = 0.0d0
     stn = 0.0d0
 
-    sta_coord = 0.0d0
+    ! Initialize lateral station coordinates to zero
+    sta_coord(1) = 0.0d0
+    sta_coord(2) = 0.0d0
 
     ! Convert depth from km to m
     sta_coord(3) = stations(iSta,3)*1.0d3
@@ -1015,13 +1017,26 @@ do iSta = 1,nstations
         write(stdout,'(X,"(DEBUG)",X,A5,I6,3F12.3)') 'ista=',iSta,stations(iSta,:)
     endif
 
-!$OMP PARALLEL PRIVATE(iFlt,ierr), &
-!$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az), &
-!$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
-!$OMP&         FIRSTPRIVATE(sta_coord), &
-!$OMP&         REDUCTION(+:disp), REDUCTION(+:stn)
 
-!$OMP DO
+    ! Parallelize the calculation of deformation at each station with OpenMP.
+    ! The following block of code will be executed by multiple threads if o92util is compiled with
+    ! OpenMP enabled (-fopenmp -frecursive options in the GNU compiler).
+    ! SHARED variables are shared across threads.
+    ! PRIVATE variables are uninitialized and isolated to each thread.
+    ! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread.
+    ! REDUCTION defines the operation for shared (deformation) variables.
+    !$OMP PARALLEL SHARED(nfaults,ntensile,faults,tensile,stations,lame,shearmod), &
+    !$OMP          SHARED(fault_type,coord_type,iWantDisp,iWantStrain,coordTypeWarning,debug_mode), &
+    !$OMP&         PRIVATE(iFlt,ierr), &
+    !$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az,test_dist), &
+    !$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
+    !$OMP&         FIRSTPRIVATE(iSta,sta_coord,warn_dist), &
+    !$OMP&         REDUCTION(+:disp), REDUCTION(+:stn), &
+    !$OMP&         DEFAULT(NONE)
+
+    ! The following loop is executed in parallel
+    !$OMP DO
+
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1171,8 +1186,14 @@ do iSta = 1,nstations
         endif
     enddo
 
-!$OMP END DO
-!$OMP END PARALLEL
+
+    ! End the parallel do loop
+    !$OMP END DO
+
+    ! Stop parallelizing - the rest of the calculation for this station is serial
+    !$OMP END PARALLEL
+
+
 
     if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
         if(iWantDisp) then
@@ -1183,7 +1204,6 @@ do iSta = 1,nstations
             write(stdout,*) stn
         endif
     endif
-
 
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz
