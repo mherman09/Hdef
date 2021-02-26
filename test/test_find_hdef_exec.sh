@@ -34,6 +34,7 @@ then
         # Do not look for other versions of the executable if path is set explicitly
         # This will help avoid confusion with other versions lying around
         echo "$0: did not find \"$BASENAME\" in user-defined path: $DIRNAME: exiting" 1>&2
+        echo > hdefexec.tmp
         exit 1
     else
         echo "$0: found \"$EXECUTABLE\""
@@ -77,4 +78,5 @@ fi
 
 # Hdef executable not found
 echo "$0: unable to find Hdef executable \"$BASENAME\"; exiting" 1>&2
+echo > hdefexec.tmp
 exit 1
