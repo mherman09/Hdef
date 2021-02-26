@@ -108,19 +108,24 @@ public :: test_rect_src_vars
 public :: test_rect_disp_components
 public :: test_rect_partial_components
 
+
+! By default, module variables are in shared memory so that they can be accessed from any procedure.
+! In parallel calls to the Okada calculations, these shared variables will be overwritten by the
+! values in other threads. THREADPRIVATE defines these variables to be isolated in each thread,
+! making a separate copy that is no longer shared.
 !$OMP THREADPRIVATE(a,CA1,CA2,CB,CC)
 !$OMP THREADPRIVATE(sd,cd,s2d,c2d,cdcd,sdsd,cdsd)
-!$OMP THREADPRIVATE(x, y, z, c, d)
+!$OMP THREADPRIVATE(x,y,z,c,d)
 !$OMP THREADPRIVATE(p,q,s,t,xx,xy,yy,dd,xd,xc,xq,xs,xt,yq,ys,yt,dq,pq,qq)
-!$OMP THREADPRIVATE(R, R2, R3, R4, R5, R7, Rd)
-!$OMP THREADPRIVATE(A3, A5, A7, B3, B5, B7, C3, C5, C7)
-!$OMP THREADPRIVATE(I1, I2, I3, I4, I5, J1, J2, J3, J4, J5, J6, K1, K2, K3, K4)
-!$OMP THREADPRIVATE(U2, V2, W2, U3, V3, W3)
-!$OMP THREADPRIVATE(eta_vec, ksi_vec, ksi, eta)
-!$OMP THREADPRIVATE(cbar, dbar, ybar)
-!$OMP THREADPRIVATE(X11, X32, X53, Y11, Y32, Y53, Y0, Z32, Z53, Z0)
-!$OMP THREADPRIVATE(E2, F2, G2, H2, P2, Q2, E3, F3, G3, H3, P3, Q3)
-!$OMP THREADPRIVATE(D11, Re, Rk, logRe, logRk, TH)
+!$OMP THREADPRIVATE(R,R2,R3,R4,R5,R7,Rd)
+!$OMP THREADPRIVATE(A3,A5,A7,B3,B5,B7,C3,C5,C7)
+!$OMP THREADPRIVATE(I1,I2,I3,I4,I5,J1,J2,J3,J4,J5,J6,K1,K2,K3,K4)
+!$OMP THREADPRIVATE(U2,V2,W2,U3,V3,W3)
+!$OMP THREADPRIVATE(eta_vec,ksi_vec,ksi,eta)
+!$OMP THREADPRIVATE(cbar,dbar,ybar)
+!$OMP THREADPRIVATE(X11,X32,X53,Y11,Y32,Y53,Y0,Z32,Z53,Z0)
+!$OMP THREADPRIVATE(E2,F2,G2,H2,P2,Q2,E3,F3,G3,H3,P3,Q3)
+!$OMP THREADPRIVATE(D11,Re,Rk,logRe,logRk,TH)
 !$OMP THREADPRIVATE(chinnery_factor)
 !$OMP THREADPRIVATE(isSingular)
 !$OMP THREADPRIVATE(depthWarning)
