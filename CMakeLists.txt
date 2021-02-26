@@ -415,8 +415,8 @@ foreach(unit_test ${unit_test_list})
     # Some of the unit tests have very long lines, so make compiler read unlimited length
     target_compile_options(${unit_test} PUBLIC -ffree-line-length-0)
 
-    # Install the unit tests in the test/ folder
-    install(TARGETS ${unit_test} DESTINATION test)
+    # # Install the unit tests in the test/ folder
+    # install(TARGETS ${unit_test} DESTINATION test)
 endforeach()
 
 
@@ -468,8 +468,8 @@ foreach(exec_test ${executable_test_list})
     # Define all executable tests in the main test target
     add_test(NAME ${exec_test} COMMAND ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh)
 
-    # Install the executable tests in the test/ folder
-    install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh DESTINATION test)
+    # # Install the executable tests in the test/ folder
+    # install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/${exec_test}.sh DESTINATION test)
 
     # Define a command to test executable directly (used in target test-exec)
     string(REGEX REPLACE test_ "" exec ${exec_test})
@@ -482,8 +482,8 @@ endforeach()
 # Define a custom test target to test all hdef executables
 add_custom_target(test-exec DEPENDS ${executable_test_list})
 
-# Also install script test_values.sh to check output values
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_values.sh DESTINATION test)
+# # Also install script test_values.sh to check output values
+# install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_values.sh DESTINATION test)
 
 message(STATUS "*********************************************************************************")
 message(STATUS "")
