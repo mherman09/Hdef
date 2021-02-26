@@ -1,44 +1,21 @@
 #!/bin/bash
 
 #####
-#	SET PATH TO HDEF EXECUTABLE
-#####
-# Check if o92util is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which o92util | xargs dirname)
-fi
-
-# Check for o92util in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/o92util | xargs dirname)
-fi
-
-# Check for o92util in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/o92util | xargs dirname)
-fi
-
-# Check for o92util in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/o92util | xargs dirname)
-fi
-
-# Hdef executables are required!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "$0: unable to find Hdef executable o92util; exiting" 1>&2
-    exit 1
-fi
-
-
-#####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=`echo $0 | xargs dirname`
+TEST_BIN_DIR=$(echo $0 | xargs dirname)
+
+
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check for o92util
+$TEST_BIN_DIR/test_find_hdef_exec.sh o92util || { echo "$0: could not find o92util; exiting" 1>&2; exit 1; }
+BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
+
+# Check for o92util-par
+$TEST_BIN_DIR/test_find_hdef_exec.sh o92util-par || echo "$0: could not find o92util-par; only testing serial o92util" 1>&2
+BIN_DIR_PAR=$(cat hdefexec.tmp | xargs dirname)
 
 
 #####
@@ -432,20 +409,29 @@ EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
 $BIN_DIR/o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp || exit 1
-cat > answer.tmp << EOF
+cat > answer-dsp.tmp << EOF
   126.30000000000000       -8.0999999999999996        0.0000000000000000        5.4236426651140955E-006   3.4026851126876733E-003  -4.7317357901842452E-003
    125.30000000000000       -8.0999999999999996        0.0000000000000000       -4.5645170341471746E-002  0.25286924622121287       0.15746336610082426
    125.30000000000000       -8.0999999999999996        0.0000000000000000       -4.5645170341471746E-002  0.25286924622121287       0.15746336610082426
    126.30000000000000       -8.0999999999999996        0.0000000000000000        5.4236426651140955E-006   3.4026851126876733E-003  -4.7317357901842452E-003
 EOF
-$TEST_BIN_DIR/test_values.sh disp.tmp answer.tmp 6 "o92util: ffm input, disp output" || exit 1
-cat > answer.tmp << EOF
+$TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util: ffm input, disp output" || exit 1
+cat > answer-stn.tmp << EOF
    126.30000000000000       -8.0999999999999996        0.0000000000000000       -2.5069710810689036E-008  -6.6694594778138674E-008   3.0588101862945988E-008   4.5464647903852811E-008  -6.0987887208890170E-022   1.4441626921039635E-021
    125.30000000000000       -8.0999999999999996        0.0000000000000000        1.2246395515753101E-005   1.5484485406476490E-006  -4.5982813521336006E-006  -6.2608923308272983E-006   5.5010744657705410E-021  -3.8420605815869637E-021
    125.30000000000000       -8.0999999999999996        0.0000000000000000        1.2246395515753101E-005   1.5484485406476490E-006  -4.5982813521336006E-006  -6.2608923308272983E-006   5.5010744657705410E-021  -3.8420605815869637E-021
    126.30000000000000       -8.0999999999999996        0.0000000000000000       -2.5069710810689036E-008  -6.6694594778138674E-008   3.0588101862945988E-008   4.5464647903852811E-008  -6.0987887208890170E-022   1.4441626921039635E-021
 EOF
-$TEST_BIN_DIR/test_values.sh strain.tmp answer.tmp 9 "o92util: ffm input, strain output" || exit 1
+$TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util: ffm input, strain output" || exit 1
+if [ "$BIN_DIR_PAR" != "" ]
+then
+    echo "----------"
+    echo "Test #5-parallel"
+    echo "----------"
+    $BIN_DIR_PAR/o92util-par -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp || exit 1
+    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util-par: ffm input, disp output" || exit 1
+    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util-par: ffm input, strain output" || exit 1
+fi
 
 
 echo "----------------------------------------------------------"
@@ -804,20 +790,29 @@ EOF
 #echo lame 40e9 40e9 > haf.tmp
 #o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -haf haf.tmp
 $BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -prog || exit 1
-cat > answer.tmp << EOF
+cat > answer-dsp.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -4.9271672098820289       -1.0506817728466533        1.1206996258297568
   -74.099999999999994       -37.299999999999997        0.0000000000000000       -4.8523384224063166      -0.65649401226543536        2.3548504927992888
   -74.200000000000003       -37.799999999999997        0.0000000000000000       -2.5602153415345903       -1.5273031615662676        1.1148488369609002
   -74.599999999999994       -37.000000000000000        0.0000000000000000      -0.19982527855966012       -8.5810895339092197E-002  0.12013011045535567
 EOF
-$TEST_BIN_DIR/test_values.sh disp.tmp answer.tmp 6 "o92util: fsp input, disp output" || exit 1
-cat > answer.tmp << EOF
+$TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util: fsp input, disp output" || exit 1
+cat > answer-stn.tmp << EOF
   -74.000000000000000       -37.200000000000003        0.0000000000000000       -5.0212247921626235E-005  -1.0041693123323925E-005   2.0084647014977046E-005  -7.7575261686076063E-006  -7.4199974463866171E-020   6.2910278360338942E-020
   -74.099999999999994       -37.299999999999997        0.0000000000000000       -1.6314830959935751E-005   3.0990055226106301E-005  -4.8917414220178586E-006  -2.9829580051010603E-005   1.4649369895601918E-019  -2.2098677411407339E-021
   -74.200000000000003       -37.799999999999997        0.0000000000000000        3.0602840673828507E-005  -1.2638011817868725E-005  -5.9882762853182923E-006   1.4539080164378956E-005   1.0383682312629550E-019  -1.5807451811361982E-019
   -74.599999999999994       -37.000000000000000        0.0000000000000000       -4.5603682817282361E-005  -2.0929226097108183E-006   1.5898868475636763E-005   4.0882974756412985E-006   6.3945384446203221E-020  -1.7835596490646303E-020
 EOF
-$TEST_BIN_DIR/test_values.sh strain.tmp answer.tmp 9 "o92util: fsp input, strain output" || exit 1
+$TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util: fsp input, strain output" || exit 1
+if [ "$BIN_DIR_PAR" != "" ]
+then
+    echo "----------"
+    echo "Test #6-parallel"
+    echo "----------"
+    $BIN_DIR_PAR/o92util-par -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp || exit 1
+    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util-par: fsp input, disp output" || exit 1
+    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util-par: fsp input, strain output" || exit 1
+fi
 
 
 
@@ -836,6 +831,14 @@ cat > answer.tmp << EOF
   -74.599999999999994       -37.000000000000000        0.0000000000000000       -3945444.8481556000       -1334366.6268596614       -3.1781382858753204E-006   251290.02888417014        2.8638910509231282E-009  -3.7081728076987578E-009
 EOF
 $TEST_BIN_DIR/test_values.sh stress.tmp answer.tmp 9 "o92util: fsp input, stress output" -zero 1e-4 || exit 1
+if [ "$BIN_DIR_PAR" != "" ]
+then
+    echo "----------"
+    echo "Test #7-parallel"
+    echo "----------"
+    $BIN_DIR_PAR/o92util-par -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp || exit 1
+    $TEST_BIN_DIR/test_values.sh stress.tmp answer.tmp 9 "o92util-par: fsp input, stress output" -zero 1e-4 || exit 1
+fi
 
 
 echo "----------------------------------------------------------"
