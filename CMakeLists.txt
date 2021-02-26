@@ -433,7 +433,6 @@ if (useLAPACK)
         test_lola2distaz
         test_mtutil
         test_o92util
-        test_o92util-par
         test_platemotion
         test_rangen
         test_readGCMT
@@ -453,7 +452,6 @@ else()
         test_lola2distaz
         test_mtutil
         test_o92util
-        test_o92util-par
         test_platemotion
         test_rangen
         test_readGCMT
