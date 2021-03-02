@@ -346,6 +346,17 @@ foreach(s ${shell_scripts})
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${s}.sh DESTINATION bin)
 endforeach()
 
+# Perl script for parsing ComCat CSV file
+add_custom_target(parse_usgs_query-script ALL DEPENDS parse_usgs_query.pl)
+add_custom_command(
+    OUTPUT parse_usgs_query.pl
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/scripts/parse_usgs_query.pl ${CMAKE_CURRENT_BINARY_DIR}/parse_usgs_query.pl
+    MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/scripts/parse_usgs_query.pl
+    COMMENT "Building target parse_usgs_query.pl"
+)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/parse_usgs_query.pl DESTINATION bin)
+
+
 message(STATUS "*********************************************************************************")
 message(STATUS "")
 
