@@ -363,7 +363,7 @@ endif
 
 ! If only first value is set, then make sure we only print it
 if (dabs(end).gt.1.0d98) then
-    if (n.gt.1.or.dabs(d).lt.1.0d98) then
+    if (n.gt.1.or.dabs(d).lt.1.0d20) then
         write(stderr,*) 'get_spacing: only first ',trim(dim),' value defined, setting n',trim(dim),' to 1'
     endif
     n = 1
@@ -601,7 +601,7 @@ do while (i.le.narg)
             cycle
         else
             call get_command_argument(i,tag)
-            if (.not.isNumeric(tag)) call usage('grid: x_end is not numeric')
+            ! if (.not.isNumeric(tag)) call usage('grid: x_end is not numeric')
             read (tag,*,iostat=ios) x_end
             if (ios.ne.0) then
                 ! No second value provided
