@@ -38,6 +38,7 @@ function usage() {
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
     echo "-hdefbin DIR        Directory with Hdef executables" 1>&2
     echo "-o FILENAME         Basename for output file" 1>&2
+    echo "-parallel           Use o92util-par (if available)" 1>&2
     echo "-noclean            Keep all temporary files (useful for debugging)" 1>&2
     echo 1>&2
     exit 1
@@ -95,6 +96,7 @@ EMPREL="WC"
 AUTO_THR="0.001" # Map limits defined based on this displacement threshold
 HDEF_BIN_DIR=""
 OFILE="insar"
+USE_PAR="N"
 CLEAN="Y"
 while [ "$1" != "" ]
 do
@@ -106,6 +108,7 @@ do
         -emprel) shift;EMPREL="$1";;
         -hdefbin) shift;HDEF_BIN_DIR="$1";;
         -o) shift;OFILE="$1" ;;
+        -parallel) USE_PAR="Y";;
         -noclean) CLEAN="N";;
         *) echo "insar.sh: no option \"$1\"" 1>&2; usage;;
     esac
@@ -127,6 +130,7 @@ echo "EMPREL=$EMPREL" | tee -a insar.sh.log
 echo "AUTO_THR=$AUTO_THR" | tee -a insar.sh.log
 echo "HDEF_BIN_DIR=$HDEF_BIN_DIR" | tee -a insar.sh.log
 echo "OFILE=$OFILE" | tee -a insar.sh.log
+echo "USE_PAR=$USE_PAR" | tee -a insar.sh.log
 echo "CLEAN=$CLEAN" | tee -a insar.sh.log
 
 PSFILE="$OFILE.ps"
@@ -156,6 +160,24 @@ else
     fi
 fi
 echo "Using Hdef executables in BIN_DIR=$BIN_DIR" | tee -a insar.sh.log
+
+
+# Check for parallel o92util, if using
+if [ "$USE_PAR" == "Y" ]
+then
+    FOUND_PAR=$(which $BIN_DIR/o92util-par)
+    if [ "$FOUND_PAR" == "" ]
+    then
+        echo "Could not find o92util-par, using o92util" | tee -a insar.sh.log
+        O92UTIL=o92util
+        USE_PAR=N
+    else
+        echo "Using o92util-par" | tee -a insar.sh.log
+        O92UTIL=o92util-par
+    fi
+else
+    O92UTIL=o92util
+fi
 
 
 # GMT executables are required for this script!
@@ -292,19 +314,19 @@ then
     NINIT="10"  # Large initial increment, to get map limits without taking much time
     if [ $SRC_TYPE == "FFM" ]
     then
-        ${BIN_DIR}/o92util -ffm source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp || \
+        ${BIN_DIR}/$O92UTIL -ffm source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp || \
             { echo "insar.sh: error running o92util with FFM source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FSP" ]
     then
-        ${BIN_DIR}/o92util -fsp source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/$O92UTIL -fsp source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "insar.sh: error running o92util with FSP source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "MT" ]
     then
-        ${BIN_DIR}/o92util -mag source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/$O92UTIL -mag source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "insar.sh: error running o92util with MT source" 1>&2; exit 1; }
     elif [ $SRC_TYPE == "FLT" ]
     then
-        ${BIN_DIR}/o92util -flt source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
+        ${BIN_DIR}/$O92UTIL -flt source.tmp -auto h $Z $NINIT -auto:thr $AUTO_THR -haf haf.tmp -disp disp.tmp  || \
             { echo "insar.sh: error running o92util with FLT source" 1>&2; exit 1; }
     else
         echo "insar.sh: no source type named \"$SRC_TYPE\"" 1>&2
@@ -410,19 +432,19 @@ echo "----------" | tee -a insar.sh.log
 echo "Calculating 3-D surface displacements with o92util..." | tee -a insar.sh.log
 if [ $SRC_TYPE == "FFM" ]
 then
-    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
+    ${BIN_DIR}/$O92UTIL -ffm source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
         { echo "insar.sh: error running o92util with FFM source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FSP" ]
 then
-    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
+    ${BIN_DIR}/$O92UTIL -fsp source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
         { echo "insar.sh: error running o92util with FSP source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "MT" ]
 then
-    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog -empirical ${EMPREL} || \
+    ${BIN_DIR}/$O92UTIL -mag source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog -empirical ${EMPREL} || \
         { echo "insar.sh: error running o92util with MT source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FLT" ]
 then
-    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
+    ${BIN_DIR}/$O92UTIL -flt source.tmp -sta sta.tmp -haf haf.tmp -disp disp.tmp -prog || \
         { echo "insar.sh: error running o92util with FLT source" 1>&2; exit 1; }
 else
     echo "insar.sh: no source type named $SRC_TYPE" 1>&2
