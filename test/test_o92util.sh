@@ -987,6 +987,7 @@ echo "----------"
 # Test auto stations
 echo "0 0 10 40 20 80 1 6 4" > flt.tmp
 $BIN_DIR/o92util -flt flt.tmp -auto 0 10 -disp disp.tmp || exit 1
+rm o92util_auto_lims.dat
 
 
 echo "----------------------------------------------------------"
