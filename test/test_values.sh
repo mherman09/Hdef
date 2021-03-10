@@ -56,7 +56,7 @@ paste $COMPUTED $EXPECTED |\
             # Compare calculated difference with allowed threshold difference
             if (expected_abs<'"$THRESHOLD"'/10) {
                 if (diff>'"$THRESHOLD"') {
-                    print "FAIL"
+                    print "FAIL",NR
                     printf("computed %14.6e\n"),computed > "/dev/stderr"
                     printf("expected %14.6e\n"),expected > "/dev/stderr"
                     exit
@@ -65,7 +65,7 @@ paste $COMPUTED $EXPECTED |\
                 }
             } else {
                 if (diff/expected_abs>'"$THRESHOLD"') {
-                    print "FAIL"
+                    print "FAIL",NR
                     printf("computed %16.8e\n"),computed > "/dev/stderr"
                     printf("expected %16.8e\n"),expected > "/dev/stderr"
                     exit
@@ -78,6 +78,13 @@ paste $COMPUTED $EXPECTED |\
 FAIL=`grep FAIL result.tmp`
 if [ "$FAIL" != "" ]
 then
-    echo Failed test $MESSAGE 1>&2
+    echo "Failed test $MESSAGE" 1>&2
+    echo
+    OFFENDING_LINE=$(echo $FAIL | awk '{print $2}')
+    echo "Offending line of \"$COMPUTED\" is line $OFFENDING_LINE:" 1>&2
+    sed -ne "${OFFENDING_LINE}p" $COMPUTED 1>&2
+    echo
+    echo "Expected to see:" 1>&2
+    sed -ne "${OFFENDING_LINE}p" $EXPECTED 1>&2
     exit 1
 fi
