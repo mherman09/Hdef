@@ -930,6 +930,8 @@ double precision :: disp(3), disptmp(3), stn(3,3), stntmp(3,3), sts(3,3), ests, 
                     tshrmx, tnor, coul
 double precision :: nvec(3), svec(3), tstr, tupd
 
+! integer :: OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+
 
 if (verbosity.ge.1) then
     write(stdout,*) 'calc_deformation: starting'
@@ -1000,6 +1002,38 @@ coordTypeWarning = .false.
 depthWarning = .false.
 
 
+
+! Parallelize the calculation of deformation with OpenMP.
+!
+! The following block of code (enclosed between !$OMP PARALLEL and !$OMP PARALLEL END) will be
+! executed by multiple threads if o92util is compiled with OpenMP enabled (-fopenmp -frecursive
+! options in the GNU compiler).
+!
+! SHARED variables are shared across threads
+! PRIVATE variables are uninitialized and isolated to each thread
+! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread
+!$OMP PARALLEL SHARED(nstations,nfaults,ntensile,faults,tensile,stations,lame,shearmod), &
+!$OMP          SHARED(fault_type,coord_type,iWantDisp,iWantStrain,coordTypeWarning,debug_mode), &
+!$OMP          SHARED(displacement_file,strain_file,stress_file,estress_file,normal_file,shear_file,coulomb_file), &
+!$OMP          SHARED(disp_output_mode,iWantStress,iWantTraction,iWantProg), &
+!$OMP&         FIRSTPRIVATE(warn_dist), &
+!$OMP&         PRIVATE(iSta,disp,stn,sta_coord), &
+!$OMP&         PRIVATE(iFlt,ierr), &
+!$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az,test_dist), &
+!$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
+!$OMP&         PRIVATE(sts,ests,tshr,tshrmx,coul,svec,nvec,trac,tupd,tstr,tnor,targets), &
+!$OMP&         DEFAULT(NONE)
+
+! if (OMP_GET_THREAD_NUM().eq.0) then
+!     write(0,*) 'OMP_NUM_THREADS=',OMP_GET_NUM_THREADS()
+! endif
+
+! The following loop is executed in parallel, with chunks of size 1, and ordering the output
+! Chunks of size 1 interleaves the iterations, massively speeding up the ordered loop
+!$OMP DO SCHEDULE(STATIC,1) ORDERED
+
+
+
 ! Calculate the requested quantities at each station by summing contribution from each source
 do iSta = 1,nstations
 
@@ -1018,24 +1052,30 @@ do iSta = 1,nstations
     endif
 
 
-    ! Parallelize the calculation of deformation at each station with OpenMP.
-    ! The following block of code will be executed by multiple threads if o92util is compiled with
-    ! OpenMP enabled (-fopenmp -frecursive options in the GNU compiler).
-    ! SHARED variables are shared across threads.
-    ! PRIVATE variables are uninitialized and isolated to each thread.
-    ! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread.
-    ! REDUCTION defines the operation for shared (deformation) variables.
-    !$OMP PARALLEL SHARED(nfaults,ntensile,faults,tensile,stations,lame,shearmod), &
-    !$OMP          SHARED(fault_type,coord_type,iWantDisp,iWantStrain,coordTypeWarning,debug_mode), &
-    !$OMP&         PRIVATE(iFlt,ierr), &
-    !$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az,test_dist), &
-    !$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
-    !$OMP&         FIRSTPRIVATE(iSta,sta_coord,warn_dist), &
-    !$OMP&         REDUCTION(+:disp), REDUCTION(+:stn), &
-    !$OMP&         DEFAULT(NONE)
+    ! This is the old parallel construct, looping only over the faults to compute the deformation at
+    ! each station. This works great for situations with multiple faults, but not so well when there
+    ! are multiple stations (the typical case).
+    !
+    !! Parallelize the calculation of deformation at each station with OpenMP.
+    !
+    !! The following block of code will be executed by multiple threads if o92util is compiled with
+    !! OpenMP enabled (-fopenmp -frecursive options in the GNU compiler).
+    !
+    !! SHARED variables are shared across threads
+    !! PRIVATE variables are uninitialized and isolated to each thread
+    !! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread
+    !! REDUCTION defines the operation for shared (deformation) variables
+    !!$OMP PARALLEL SHARED(nfaults,ntensile,faults,tensile,stations,lame,shearmod), &
+    !!$OMP          SHARED(fault_type,coord_type,iWantDisp,iWantStrain,coordTypeWarning,debug_mode), &
+    !!$OMP&         PRIVATE(iFlt,ierr), &
+    !!$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az,test_dist), &
+    !!$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
+    !!$OMP&         FIRSTPRIVATE(iSta,sta_coord,warn_dist), &
+    !!$OMP&         REDUCTION(+:disp), REDUCTION(+:stn), &
+    !!$OMP&         DEFAULT(NONE)
 
-    ! The following loop is executed in parallel
-    !$OMP DO
+    !! The following loop is executed in parallel
+    !!$OMP DO
 
 
     ! Calculate deformation from each fault and tensile source at the station
@@ -1187,12 +1227,16 @@ do iSta = 1,nstations
     enddo
 
 
-    ! End the parallel do loop
-    !$OMP END DO
+    !! End the parallel do loop
+    !!$OMP END DO
 
-    ! Stop parallelizing - the rest of the calculation for this station is serial
-    !$OMP END PARALLEL
+    !! Stop parallelizing - the rest of the calculation for this station is serial
+    !!$OMP END PARALLEL
 
+
+    ! Enforce that the output is ordered the same way as it would be in a serial run.
+    ! This slows things down, but is more practical for my use cases.
+    !$OMP ORDERED
 
 
     if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
@@ -1275,7 +1319,21 @@ do iSta = 1,nstations
             call usage('calc_deformation: error in progress_indicator (usage:none)')
         endif
     endif
+
+
+    ! End the ordered directive, so threads can be FREE!!!!
+    !$OMP END ORDERED
+
+
 enddo
+
+
+! End the parallel do loop
+!$OMP END DO
+
+! Stop parallelizing - the rest of the subroutine is serial
+!$OMP END PARALLEL
+
 
 ! Close files that were opened for writing
 inquire(file=displacement_file,number=file_unit,opened=isThisUnitOpen)
