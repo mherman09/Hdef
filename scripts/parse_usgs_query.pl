@@ -63,40 +63,41 @@ my $i = 0;
 for (@$row) {
     if ($_ =~ "longitude") {
         $i_longitude = $i;
-        print "i_longitude=$i_longitude\n";
+        #print "i_longitude=$i_longitude\n";
     } elsif ($_ =~ "latitude") {
         $i_latitude = $i;
-        print "i_latitude=$i_latitude\n";
+        #print "i_latitude=$i_latitude\n";
     } elsif ($_ =~ "depth") {
         $i_depth = $i;
-        print "i_depth=$i_depth\n";
+        #print "i_depth=$i_depth\n";
     } elsif ($_ =~ "magnitude") {
         $i_magnitude = $i;
-        print "i_magnitude=$i_magnitude\n";
+        #print "i_magnitude=$i_magnitude\n";
     } elsif ($_ =~ "time") {
         $i_time = $i;
-        print "i_time=$i_time\n";
+        #print "i_time=$i_time\n";
     } elsif ($_ =~ "us_Mww_mrr") {
         $i_us_Mww = $i;
-        print "i_us_Mww=$i_us_Mww\n";
+        #print "i_us_Mww=$i_us_Mww\n";
     } elsif ($_ =~ "us_Mwr_mrr") {
         $i_us_Mwr = $i;
-        print "i_us_Mwr=$i_us_Mwr\n";
+        #print "i_us_Mwr=$i_us_Mwr\n";
     } elsif ($_ =~ "us_Mwb_mrr") {
         $i_us_Mwb = $i;
-        print "i_us_Mwb=$i_us_Mwb\n";
+        #print "i_us_Mwb=$i_us_Mwb\n";
     } elsif ($_ =~ "us_Mwc_mrr") {
         $i_us_Mwc = $i;
-        print "i_us_Mwc=$i_us_Mwc\n";
+        #print "i_us_Mwc=$i_us_Mwc\n";
     } elsif ($_ =~ "duputel_Mww_mrr") {
         $i_duputel_Mww = $i;
-        print "i_us_Mwb=$i_duputel_Mww\n";
+        #print "i_us_Mwb=$i_duputel_Mww\n";
     }
     $i = $i + 1;
 }
 
 
 # Go through the rest of the file and print the requested quantities
+my $iWantSomething = 0;
 while (my $row = $csv->getline ($fh)) {
     my $ot = $row->[$i_time];
     my $lon = sprintf "%10.4f", $row->[$i_longitude];
@@ -116,6 +117,7 @@ while (my $row = $csv->getline ($fh)) {
             print "parse_usgs_query.pl: requested origin time but \"time\" was not found in the header\n";
             die;
         }
+        $iWantSomething = 1;
     }
     if ($iWantLocation) {
         if ($i_longitude >= 0) {
@@ -136,6 +138,7 @@ while (my $row = $csv->getline ($fh)) {
             print "parse_usgs_query.pl: requested location but \"depth\" was not found in the header\n";
             die;
         }
+        $iWantSomething = 1;
     }
     if ($iWantMagnitude) {
         if ($i_magnitude >= 0) {
@@ -144,6 +147,7 @@ while (my $row = $csv->getline ($fh)) {
             print "parse_usgs_query.pl: requested magnitude but \"magnitude\" was not found in the header\n";
             die;
         }
+        $iWantSomething = 1;
     }
     if ($iWantMomentTensor) {
         if ($i_us_Mww >= 0 && $row->[$i_us_Mww] ne "") {
@@ -173,8 +177,14 @@ while (my $row = $csv->getline ($fh)) {
             $mij[5] = sprintf "%12.4e", $row->[$i_mt+5];
             $output = $output."@mij $mt_type ";
         }
+        $iWantSomething = 1;
     }
-    print "$output\n";
+    if ($iWantSomething eq 1) {
+        print "$output\n";
+    } else {
+        print "parse_usgs_query.pl: no output defined\n";
+        &usage;
+    }
 }
 
 
