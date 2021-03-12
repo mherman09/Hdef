@@ -14,6 +14,7 @@ ff2gmt \- convert FFM to GMT-readable formats
 .BI [-dep " dep_file" ]
 .BI [-clip[seg] " clip_file" ]
 .BI [-epi " epi_file" ]
+.BI [-flt " flt_file" ]
 
 .SH DESCRIPTION
 .B ff2gmt
@@ -59,5 +60,9 @@ will print a quadrilateral for each segment defined in the input file.
 .TP
 .BI -epi " epi_file"
 Print the epicenter to a file.
+
+.TP
+.BI -flt " flt_file"
+Print output in format for use with o92util -flt (useful for combining finite fault models).
 
 .RS
