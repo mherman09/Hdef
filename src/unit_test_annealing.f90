@@ -130,7 +130,7 @@ if (string.eq.'init') then
     enddo
 elseif (string.eq.'append') then
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,' isAccepted ',isAccepted
     do i = 1,n
         write(29,*) model_current(i),model_proposed(i)
     enddo
@@ -262,7 +262,7 @@ if (string.eq.'init') then
     enddo
 elseif (string.eq.'append') then
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,' isAccepted ',isAccepted
     do i = 1,n
         write(29,*) model_current(i),model_proposed(i)
     enddo
@@ -383,7 +383,7 @@ if (string.eq.'init') then
     enddo
 elseif (string.eq.'append') then
     ! Write locked/unlocked, fault slip, old model results to log file
-    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj
+    write(29,*) 'Iteration ',it,' Temperature ',temp,' Objective ',obj,' isAccepted ',isAccepted
     do i = 1,n
         write(29,*) model_current(i),model_proposed(i)
     enddo
