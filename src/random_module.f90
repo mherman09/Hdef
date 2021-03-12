@@ -89,7 +89,7 @@ integer(K4B), save :: k
 
 ! Initialize
 if (idum.le.0.or.iy.lt.0) then
-    am = nearest(1.0,-1.0)/IM
+    am = nearest(1.0,-1.0)/real(IM)
     iy = ior(ieor(888889999,abs(idum)),1)
     ix = ieor(777755555,abs(idum))
 
