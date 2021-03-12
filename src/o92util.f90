@@ -1174,13 +1174,14 @@ do iSta = 1,nstations
             sta_coord(2) = dist*radius_earth_m*cos(az)
 
             ! If user input Cartesian coordinates but forgot the -xy flag, then the distance between
-            ! coordinates (measured by pythogorean distance) will typically be larger than 10.
+            ! coordinates (measured by pythogorean distance) will typically be larger than 100.
             if (.not.coordTypeWarning) then
                 test_dist = sqrt((evlo-stations(iSta,1))**2+(evla-stations(iSta,2))**2)
                 if (test_dist.gt.warn_dist) then
+                    !$OMP ATOMIC WRITE
+                    coordTypeWarning = .true.
                     write(stderr,*) 'calc_deformation: found large fault-station distance'
                     write(stderr,*) 'Did you mean to use the -xy flag for Cartesian coordinates?'
-                    coordTypeWarning = .true.
                 endif
             endif
 
