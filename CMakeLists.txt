@@ -175,7 +175,11 @@ find_package(OpenMP)
 # Print found message during configuration
 if (OpenMP_Fortran_FOUND)
     message(STATUS "Found OpenMP_Fortran_LIBRARIES: ${OpenMP_Fortran_LIBRARIES}")
-    message(STATUS "Building o92util (serial) and o92util-par (parallel)")
+    message(STATUS "Building o92util with parallel capability")
+    add_compile_definitions(USE_OPENMP)
+else()
+    message(STATUS "Could not find package OpenMP")
+    message(STATUS "Building o92util without parallel capability")
 endif()
 
 message(STATUS "*********************************************************************************")
@@ -252,7 +256,6 @@ list(APPEND f90_files
      interpolate
      lola2distaz
      mtutil
-     o92util
      perspective
      platemotion
      rangen
@@ -273,14 +276,14 @@ foreach(executable ${f90_files})
 endforeach()
 
 # If OpenMP is available, create parallel version of o92util
+add_executable(o92util src/o92util.f90)
+add_dependencies(o92util hdef)
+target_link_libraries(o92util hdef ${LAPACK_LIBRARIES})
 if (OpenMP_Fortran_FOUND)
-    add_executable(o92util-par src/o92util.f90)
-    add_dependencies(o92util-par hdef)
-    target_link_libraries(o92util-par hdef ${LAPACK_LIBRARIES})
-    target_link_libraries(o92util-par OpenMP::OpenMP_Fortran)
-    target_compile_options(o92util-par PUBLIC "-frecursive")
-    install(TARGETS o92util-par DESTINATION bin)
+    target_link_libraries(o92util OpenMP::OpenMP_Fortran)
+    target_compile_options(o92util PUBLIC "-frecursive")
 endif()
+install(TARGETS o92util DESTINATION bin)
 
 # fltinv is divided into multiple source files, so build it separately
 add_executable(fltinv src/fltinv.f90
@@ -300,6 +303,7 @@ list(APPEND f77_files
 )
 foreach(executable ${f77_files})
     add_executable(${executable} src/${executable}.f)
+    target_compile_options(${executable} PRIVATE "-frecursive")
 endforeach()
 
 # Install compiled executables in bin directory
@@ -510,11 +514,28 @@ message(STATUS "")
 
 # Add a message to print about LAPACK during build
 if(useLAPACK)
+    message(STATUS "Building Hdef with LAPACK")
+    message(STATUS "")
     add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with LAPACK")
 else()
+    message(STATUS "Building Hdef without LAPACK")
+    message(STATUS "")
     add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables}
                       COMMENT "Hdef built without LAPACK: inversion and fitting programs will not work.
        To build with LAPACK, run cmake with '-DLAPACK_LIB_DIR=/path/to/lapack/lib'")
+endif()
+
+
+# Add a message to print about OpenMP during build
+if(OpenMP_Fortran_FOUND)
+    message(STATUS "Building Hdef with OpenMP")
+    message(STATUS "")
+    add_custom_target(hdef-openmp-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with OpenMP")
+else()
+    message(STATUS "Building Hdef without OpenMP")
+    message(STATUS "")
+    add_custom_target(hdef-openmp-check ALL DEPENDS hdef ${hdef_executables}
+                      COMMENT "Hdef built without OpenMP: no parallel capabilities enabled")
 endif()
 
 
