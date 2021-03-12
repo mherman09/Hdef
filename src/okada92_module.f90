@@ -128,7 +128,7 @@ public :: test_rect_partial_components
 !$OMP THREADPRIVATE(D11,Re,Rk,logRe,logRk,TH)
 !$OMP THREADPRIVATE(chinnery_factor)
 !$OMP THREADPRIVATE(isSingular)
-!$OMP THREADPRIVATE(depthWarning)
+! $OMP THREADPRIVATE(depthWarning)
 
 
 !--------------------------------------------------------------------------------------------------!
