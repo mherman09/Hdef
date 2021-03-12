@@ -272,7 +272,7 @@ subroutine load_dp_array_constraints(Ain,bin,nrows,ncols,constraints,isXConstr,i
 !     ierr:         Output: exit status
 !----
 
-use io, only: stderr, stdout, verbosity
+use io, only: stdout, verbosity
 
 implicit none
 
@@ -562,7 +562,7 @@ implicit none
 !
 ! Arguments
 integer :: nrows
-integer :: ncols
+! integer :: ncols
 double precision :: Ain(nrows,nrows)
 double precision :: Bin(nrows,nrhs)
 double precision :: Xout(nrows,nrhs)
