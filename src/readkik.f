@@ -182,12 +182,9 @@ C----------------------------------------------------------------------C
       PARAMETER (NMAX=100000)
       REAL*8 oser(NMAX),iser(NMAX),dt
 
-      do 101 n = 1,npts
-          if (n.eq.1) then
-              oser(n) = 0.0d0
-          else
-              oser(n) = oser(n-1) + dt*0.5d0*(iser(n-1)+iser(n))
-          endif
+      oser(1) = 0.0d0
+      do 101 n = 2,npts
+          oser(n) = oser(n-1) + dt*0.5d0*(iser(n-1)+iser(n))
   101 continue
 
       RETURN
