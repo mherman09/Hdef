@@ -1,4 +1,4 @@
-.TH O92UTIL 1 "June 2019" "Version 2019.06.01" "User Manuals"
+.TH O92UTIL 1 "March 2021" "Version 2021.03.01" "User Manuals"
 
 .SH NAME
 o92util \- compute fault-generated deformation in an elastic half-space
@@ -220,12 +220,30 @@ resolved onto target geometry (requires
 .B OTHER OPTIONS
 
 .TP
+.BI -parallel " [nthreads]"
+Run deformation calculation in parallel (if
+.B o92util
+was compiled with OpenMP).
+Default uses all available threads.
+Argument
+.I nthreads
+specifies the number of threads to use.
+
+
+.TP
+.B -geo
+Treat input and output coordinates
+.IR "" ( evlo ", " evla ", " stlo ", " stla )
+as geographic (default).
+
+.TP
 .B -xy
 Treat input and output coordinates
 .IR "" ( evlo ", " evla ", " stlo ", " stla )
 as Cartesian (km) instead of geographic.
 .I Strike
 angle is still defined clockwise from north.
+
 
 .TP
 .B -az
@@ -235,23 +253,25 @@ to
 .IR "hor_disp_az hor_disp_mag disp_z" .
 
 .TP
-.BI -prog
-Print program progress to the terminal.
+.B -prog
+Print deformation progress to the terminal.
 
 .TP
-.BI -v " level"
+.BI -v " [level]"
 Run in verbose mode, printing progress to standard output.
 .I Level
 from 1 (low, default) to 3 (high) controls amount of output.
 
 .TP
-.BI -debug " routine"
+.BI -debug " [routine]"
 Run in debugging mode, printing messages to standard output.
 The argument
 .I routine
 defines the subroutine to debug, or you can indicate "all".
 There is significant overlap between debugging and verbose
 level 3, especially for I/O.
+
+
 
 .SH REFERENCES
 .TP
