@@ -70,6 +70,11 @@ double precision, allocatable :: stations(:,:)    ! Station location array
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 double precision :: centroid(3)                   ! Moment weighted mean position of EQ
 
+! Parallel options
+logical :: isParallel
+integer :: nthreads
+
+! Debugging
 character(len=32) :: debug_mode                   ! Verbose output for debugging
 
 end module
@@ -917,7 +922,9 @@ use o92util, only: iWantDisp, &
                    stations, &
                    targets, &
                    iWantProg, &
-                   debug_mode
+                   debug_mode, &
+                   isParallel, &
+                   nthreads
 
 implicit none
 
@@ -930,7 +937,10 @@ double precision :: disp(3), disptmp(3), stn(3,3), stntmp(3,3), sts(3,3), ests, 
                     tshrmx, tnor, coul
 double precision :: nvec(3), svec(3), tstr, tupd
 
-! integer :: OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+
+#ifdef USE_OPENMP
+integer :: OMP_GET_MAX_THREADS
+#endif
 
 
 if (verbosity.ge.1) then
@@ -1004,7 +1014,40 @@ depthWarning = .false.
 
 
 ! Parallelize the calculation of deformation with OpenMP.
-!
+#ifdef USE_OPENMP
+
+if (isParallel) then
+    if (nthreads.le.0) then
+        nthreads = OMP_GET_MAX_THREADS()
+    elseif (nthreads.gt.OMP_GET_MAX_THREADS()) then
+        write(stderr,*) '***** User set nthreads to',nthreads,' on the command line'
+        write(stderr,*) '***** The maximum number of threads available is',OMP_GET_MAX_THREADS()
+        write(stderr,*) '***** Setting nthreads to',OMP_GET_MAX_THREADS()
+        nthreads = OMP_GET_MAX_THREADS()
+    endif
+    if (verbosity.ge.1) then
+        write(stdout,*) 'calc_deformation: running with nthreads=',nthreads
+    endif
+else
+    nthreads = 1
+    if (nstations*(nfaults+ntensile).gt.10000000) then
+        write(stderr,*) '***** There are',OMP_GET_MAX_THREADS(),' threads available'
+        write(stderr,*) '***** If your run takes a long time, consider using the "-parallel" option'
+    endif
+endif
+
+#else
+
+if (isParallel) then
+    nthreads = 1
+    write(stderr,*) 'o92util was compiled without OpenMP, so running in parallel is not possible'
+    write(stderr,*)
+endif
+
+#endif
+
+
+
 ! The following block of code (enclosed between !$OMP PARALLEL and !$OMP PARALLEL END) will be
 ! executed by multiple threads if o92util is compiled with OpenMP enabled (-fopenmp -frecursive
 ! options in the GNU compiler).
@@ -1012,20 +1055,28 @@ depthWarning = .false.
 ! SHARED variables are shared across threads
 ! PRIVATE variables are uninitialized and isolated to each thread
 ! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread
-!$OMP PARALLEL SHARED(nstations,nfaults,ntensile,faults,tensile,stations,lame,shearmod), &
-!$OMP          SHARED(fault_type,coord_type,iWantDisp,iWantStrain,coordTypeWarning,debug_mode), &
-!$OMP          SHARED(displacement_file,strain_file,stress_file,estress_file,normal_file,shear_file,coulomb_file), &
-!$OMP          SHARED(disp_output_mode,iWantStress,iWantTraction,iWantProg), &
+!$OMP PARALLEL SHARED(nstations,stations,coord_type), &
+!$OMP          SHARED(nfaults,faults,ntensile,tensile,fault_type), &
+!$OMP          SHARED(targets), &
+!$OMP          SHARED(lame,shearmod), &
+!$OMP          SHARED(iWantDisp,iWantStrain,iWantStress,iWantTraction), &
+!$OMP          SHARED(debug_mode,iWantProg,depthWarning,coordTypeWarning), &
+!$OMP          SHARED(displacement_file,strain_file,stress_file,estress_file), &
+!$OMP          SHARED(normal_file,shear_file,coulomb_file), &
+!$OMP          SHARED(disp_output_mode), &
 !$OMP&         FIRSTPRIVATE(warn_dist), &
-!$OMP&         PRIVATE(iSta,disp,stn,sta_coord), &
-!$OMP&         PRIVATE(iFlt,ierr), &
-!$OMP&         PRIVATE(evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,dist,az,test_dist), &
-!$OMP&         PRIVATE(slip,mom,disptmp,stntmp), &
-!$OMP&         PRIVATE(sts,ests,tshr,tshrmx,coul,svec,nvec,trac,tupd,tstr,tnor,targets), &
-!$OMP&         DEFAULT(NONE)
+!$OMP&         PRIVATE(iSta,sta_coord), &
+!$OMP&         PRIVATE(iFlt,evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,slip,mom), &
+!$OMP&         PRIVATE(dist,az,test_dist), &
+!$OMP&         PRIVATE(disptmp,stntmp), &
+!$OMP&         PRIVATE(svec,nvec,trac,tupd,tstr,tnor), &
+!$OMP&         PRIVATE(disp,stn,sts,ests,tshr,tshrmx,coul), &
+!$OMP&         PRIVATE(ierr), &
+!$OMP&         DEFAULT(NONE), &
+!$OMP&         NUM_THREADS(nthreads)
 
 ! if (OMP_GET_THREAD_NUM().eq.0) then
-!     write(0,*) 'OMP_NUM_THREADS=',OMP_GET_NUM_THREADS()
+!     write(stdout,*) 'OMP_NUM_THREADS=',OMP_GET_NUM_THREADS()
 ! endif
 
 ! The following loop is executed in parallel, with chunks of size 1, and ordering the output
@@ -2165,7 +2216,7 @@ subroutine gcmdln()
 ! Parse o92util command line arguments and set default values
 !----
 
-use io, only: stdout, stderr, verbosity
+use io, only: stdout, stderr, verbosity, isNumeric
 use o92util, only: ffm_file, &
                    fsp_file, &
                    mag_file, &
@@ -2202,6 +2253,8 @@ use o92util, only: ffm_file, &
                    iWantStrain, &
                    iWantStress, &
                    iWantTraction, &
+                   isParallel, &
+                   nthreads, &
                    coord_type, &
                    iWantProg, &
                    debug_mode
@@ -2254,6 +2307,9 @@ iWantDisp = .false.
 iWantStrain = .false.
 iWantStress = .false.
 iWantTraction = .false.
+
+isParallel = .false.
+nthreads = 0
 
 coord_type = 'geographic'
 
@@ -2414,6 +2470,33 @@ do while (i.le.narg)
 
 
     ! Miscellaneous options
+    elseif (trim(tag).eq.'-parallel') then
+        isParallel = .true.
+        ! Check for optional argument specifying number of threads
+        i = i + 1
+        if (i.gt.narg) then                       ! "-parallel" was the last command line argument
+            cycle
+        endif
+        call get_command_argument(i,arg)
+        if (isNumeric(arg)) then                  ! the argument is numeric, read nthreads
+            read(arg,*,iostat=ios) nthreads
+            if (ios.ne.0) then                    ! trouble reading numeric argument, not an integer?
+                write(stderr,*) 'o92util: could not read ',trim(arg),' as an integer NTHREADS'
+                call usage('(usage:misc)')
+            endif
+        else                                      ! the argument is not numeric, reset i
+            i = i - 1
+        endif
+
+    elseif (trim(tag).eq.'-parallel-check') then  ! Check whether compiled with OpenMP
+#ifdef USE_OPENMP
+        write(*,*) 'o92util: compiled with OpenMP'
+#else
+        write(*,*) 'o92util: compiled without OpenMP'
+#endif
+        stop
+
+
     elseif (trim(tag).eq.'-cartesian'.or.trim(tag).eq.'-xy') then
         coord_type = 'cartesian'
     elseif (trim(tag).eq.'-geographic'.or.trim(tag).eq.'-geo') then
@@ -2494,6 +2577,8 @@ if (debug_mode.eq.'gcmdln'.or.debug_mode.eq.'all') then
     write(stdout,*) 'iWantStrain:              ',iWantStrain
     write(stdout,*) 'iWantStress:              ',iWantStress
     write(stdout,*) 'iWantTraction:            ',iWantTraction
+    write(stdout,*) 'isParallel:               ',isParallel
+    write(stdout,*) 'nthreads:                 ',nthreads
     write(stdout,*) 'coord_type:               ',trim(coord_type)
     write(stdout,*) 'prog:                     ',iWantProg
     write(stdout,*) 'debug_mode:               ',trim(debug_mode)
@@ -2590,6 +2675,7 @@ if (info.eq.'all'.or.info.eq.'output') then
 endif
 if (info.eq.'all'.or.info.eq.'misc') then
     write(stderr,*) 'Miscellaneous options'
+    write(stderr,*) '-parallel [NTHREADS] Calculate deformation in parallel'
     write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
     write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
     write(stderr,*) '-prog                Turn on progress indicator'
