@@ -10,8 +10,8 @@ implicit none
 integer :: i
 double precision :: dp1, dp2
 real :: real1, real2
-complex :: c1, c2
-complex (kind=8) :: dc1, dc2
+complex :: c1 !, c2
+complex (kind=8) :: dc1 !, dc2
 
 ! timeseed()
 iseed = timeseed()
