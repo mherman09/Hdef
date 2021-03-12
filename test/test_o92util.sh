@@ -13,9 +13,10 @@ TEST_BIN_DIR=$(echo $0 | xargs dirname)
 $TEST_BIN_DIR/test_find_hdef_exec.sh o92util || { echo "$0: could not find o92util; exiting" 1>&2; exit 1; }
 BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
 
-# Check for o92util-par
-$TEST_BIN_DIR/test_find_hdef_exec.sh o92util-par || echo "$0: could not find o92util-par; only testing serial o92util" 1>&2
-BIN_DIR_PAR=$(cat hdefexec.tmp | xargs dirname)
+# Check for o92util -parallel option
+$BIN_DIR/o92util -parallel-check
+IS_O92UTIL_PARALLEL=$($BIN_DIR/o92util -parallel-check | grep "o92util: compiled with OpenMP" | awk 'BEGIN{found="N"}{if(/[a-z]/){found="Y"}}END{print found}')
+echo $IS_O92UTIL_PARALLEL
 
 
 #####
@@ -423,14 +424,14 @@ cat > answer-stn.tmp << EOF
    126.30000000000000       -8.0999999999999996        0.0000000000000000       -2.5069710810689036E-008  -6.6694594778138674E-008   3.0588101862945988E-008   4.5464647903852811E-008  -6.0987887208890170E-022   1.4441626921039635E-021
 EOF
 $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util: ffm input, strain output" || exit 1
-if [ "$BIN_DIR_PAR" != "" ]
+if [ "$IS_O92UTIL_PARALLEL" == "Y" ]
 then
     echo "----------"
     echo "Test #5-parallel"
     echo "----------"
-    $BIN_DIR_PAR/o92util-par -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp || exit 1
-    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util-par: ffm input, disp output" || exit 1
-    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util-par: ffm input, strain output" || exit 1
+    $BIN_DIR/o92util -ffm ffm.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -parallel || exit 1
+    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util -parallel: ffm input, disp output" || exit 1
+    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util -parallel: ffm input, strain output" || exit 1
 fi
 
 
@@ -804,14 +805,14 @@ cat > answer-stn.tmp << EOF
   -74.599999999999994       -37.000000000000000        0.0000000000000000       -4.5603682817282361E-005  -2.0929226097108183E-006   1.5898868475636763E-005   4.0882974756412985E-006   6.3945384446203221E-020  -1.7835596490646303E-020
 EOF
 $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util: fsp input, strain output" || exit 1
-if [ "$BIN_DIR_PAR" != "" ]
+if [ "$IS_O92UTIL_PARALLEL" == "Y" ]
 then
     echo "----------"
     echo "Test #6-parallel"
     echo "----------"
-    $BIN_DIR_PAR/o92util-par -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp || exit 1
-    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util-par: fsp input, disp output" || exit 1
-    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util-par: fsp input, strain output" || exit 1
+    $BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -disp disp.tmp -strain strain.tmp -parallel || exit 1
+    $TEST_BIN_DIR/test_values.sh disp.tmp answer-dsp.tmp 6 "o92util -parallel: fsp input, disp output" || exit 1
+    $TEST_BIN_DIR/test_values.sh strain.tmp answer-stn.tmp 9 "o92util-parallel: fsp input, strain output" || exit 1
 fi
 
 
@@ -831,13 +832,13 @@ cat > answer.tmp << EOF
   -74.599999999999994       -37.000000000000000        0.0000000000000000       -3945444.8481556000       -1334366.6268596614       -3.1781382858753204E-006   251290.02888417014        2.8638910509231282E-009  -3.7081728076987578E-009
 EOF
 $TEST_BIN_DIR/test_values.sh stress.tmp answer.tmp 9 "o92util: fsp input, stress output" -zero 1e-4 || exit 1
-if [ "$BIN_DIR_PAR" != "" ]
+if [ "$IS_O92UTIL_PARALLEL" == "Y" ]
 then
     echo "----------"
     echo "Test #7-parallel"
     echo "----------"
-    $BIN_DIR_PAR/o92util-par -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp || exit 1
-    $TEST_BIN_DIR/test_values.sh stress.tmp answer.tmp 9 "o92util-par: fsp input, stress output" -zero 1e-4 || exit 1
+    $BIN_DIR/o92util -fsp fsp.tmp -sta sta.tmp -haf haf.tmp -stress stress.tmp -parallel || exit 1
+    $TEST_BIN_DIR/test_values.sh stress.tmp answer.tmp 9 "o92util -parallel: fsp input, stress output" -zero 1e-4 || exit 1
 fi
 
 
