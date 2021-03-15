@@ -211,7 +211,7 @@ if (debug_mode.eq.'read_halfspace'.or.debug_mode.eq.'all') then
     write(stdout,'(X,"(DEBUG)",X,A,F12.6)')   'read_halfspace: poissons_ratio= ',poisson
     write(stdout,'(X,"(DEBUG)",X,A,1PE12.4)') 'read_halfspace: lame_parameter= ',lame
 endif
-if (verbosity.ge.3) then
+if (verbosity.ge.2) then
     write(stdout,'(X,A,1PE12.4)') 'read_halfspace: shear_modulus=  ',shearmod
     write(stdout,'(X,A,F12.6)')   'read_halfspace: poissons_ratio= ',poisson
     write(stdout,'(X,A,1PE12.4)') 'read_halfspace: lame_parameter= ',lame
@@ -484,6 +484,9 @@ if (coord_type.eq.'geographic'.and. &
 endif
 
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_faults: read',nfaults,' faults'
+endif
 if (verbosity.ge.3) then
     if (coord_type.eq.'geographic') then
         write(stdout,*) '   #         Lon         Lat   Dep(km)     Str     Dip     Rak   '//&
@@ -612,6 +615,9 @@ if (coord_type.eq.'geographic'.and. &
 endif
 
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_tensile: read',ntensile,' tensile sources'
+endif
 if (verbosity.ge.3) then
     if (coord_type.eq.'geographic') then
         write(stdout,*) '   #         Lon         Lat   Dep(km)     Str     Dip  '//&
@@ -727,6 +733,9 @@ if (coord_type.eq.'geographic'.and. &
 endif
 
 
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_stations: read',nstations,' stations'
+endif
 if (verbosity.ge.3) then
     if (auto_mode.eq.'') then
         if (coord_type.eq.'geographic') then
@@ -847,6 +856,9 @@ if (ntargets.eq.1) then
     do i = 2,nstations
         targets(i,:) = targets(1,:)
     enddo
+endif
+if (verbosity.ge.2) then
+    write(stdout,*) 'read_targets: read',ntargets,' target fault geometries'
 endif
 
 if (debug_mode.eq.'read_targets'.or.debug_mode.eq.'all') then
