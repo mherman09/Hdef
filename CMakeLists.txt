@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.12)
 #		-DLAPACK_LIB_DIR=/path/to/lapack \
 #		..
 
-project(Hdef VERSION 2021.02)
+project(Hdef VERSION 2021.03)
 
 # This project uses mostly Fortran and a bit of C
 enable_language(C Fortran)
@@ -221,8 +221,15 @@ add_library(hdef
             src/tri_disloc_module.f90
 )
 
+
+# Compile with OpenMP if it is found
 if (OpenMP_Fortran_FOUND)
-    target_compile_options(hdef PRIVATE "-frecursive")
+    # Fortran subroutines need to be recursive to work with OpenMP
+    # The "-frecursive" option does not apply to C subroutines, so only add to Fortran flags
+    # target_compile_options(hdef PRIVATE "-frecursive")
+    set(APPEND CMAKE_Fortran_FLAGS "-frecursive")
+
+    # Link the hdef library with OpenMP libraries
     target_link_libraries(hdef PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
