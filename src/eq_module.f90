@@ -421,7 +421,9 @@ end subroutine
 
 subroutine pnt2mom(pnt,mom)
 !----
-! Calculate the seismic moment from the P and T magnitudes
+! Calculate the seismic moment from the P and T magnitudes by adding the absolute values of the
+! two largest eigenvalues and dividing by two (Jost and Herrmann, 1989: Equation 19). This is the
+! scalar moment defined by the Global Centroid Moment Tensor project.
 !----
 
 implicit none
@@ -429,7 +431,27 @@ implicit none
 ! Arguments
 double precision :: pnt(12), mom
 
-mom = 0.5d0*(pnt(12)-pnt(10))
+mom = 0.5d0*(abs(pnt(12))+abs(pnt(10)))
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine pnt2mom_nondc(pnt,mom)
+!----
+! Calculate the seismic moment from the P and T magnitudes by adding the sum of squares of the
+! eigenvalues, dividing by two, and taking the square root (Jost and Herrmann, 1989: Equation 20;
+! from Silver and Jordan, 1982). This is equivalent to pnt2mom for a double couple source. This is
+! the scalar moment defined by the USGS, and the value used for scaling beachballs in GMT psmeca.
+!----
+
+implicit none
+
+! Arguments
+double precision :: pnt(12), mom
+
+mom = sqrt(0.5d0*(pnt(10)*pnt(10)+pnt(11)*pnt(11)+pnt(12)*pnt(12)))
 
 return
 end subroutine
