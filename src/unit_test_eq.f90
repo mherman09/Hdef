@@ -28,8 +28,10 @@ call mij2dcp(mrr,mtt,mpp,mrt,mrp,mtp,dcp)
 call test_value(dcp,0.58784927087317074d0,'mij2dcp: dcp')
 
 ! mij2mag
-call mij2mag(mrr,mtt,mpp,mrt,mrp,mtp,mag)
-call test_value(mag,6.4522434199195224d0,'mij2mag: mag')
+call mij2mag(mrr,mtt,mpp,mrt,mrp,mtp,mag,'dc')
+call test_value(mag,6.4522434199195224d0,'mij2mag: mag (dc)')
+call mij2mag(mrr,mtt,mpp,mrt,mrp,mtp,mag,'nondc')
+call test_value(mag,6.4578638576982641d0,'mij2mag: mag (non-dc)')
 
 ! mij2mom
 ! Moment tensor to scalar moment
@@ -39,8 +41,10 @@ mpp = -1.1477d+18
 mrt = -3.5502d+18
 mrp = -3.843d+18
 mtp = 1.1714d+18
-call mij2mom(mrr,mtt,mpp,mrt,mrp,mtp,mom)
-call test_value(mom,5.3501397941634130d+018,'mij2mom: mom')
+call mij2mom(mrr,mtt,mpp,mrt,mrp,mtp,mom,'dc')
+call test_value(mom,5.3501397941634130d+018,'mij2mom: mom (dc)')
+call mij2mom(mrr,mtt,mpp,mrt,mrp,mtp,mom,'nondc')
+call test_value(mom,5.4550129578214554d+018,'mij2mom: mom (non-dc)')
 
 ! mij2pnt
 ! Moment tensor to P, N, and T axes
@@ -176,6 +180,8 @@ call test_value(mtp, 1.0330000000000004d+021,'pnt2mij: mtp')
 ! pnt2mag
 call pnt2mag(pnt,mag)
 call test_value(mag,8.4494036748523378d0,'pnt2mag: mag')
+call pnt2mag_nondc(pnt,mag)
+call test_value(mag,8.4494124278966609d0,'pnt2mag_nondc: mag')
 
 ! pnt2mom
 ! P, N, and T axes to scalar moment
@@ -193,6 +199,8 @@ pnt(11) = -1.2291843110556710d+018
 pnt(12) =  5.9647319496912486d+018
 call pnt2mom(pnt,mom)
 call test_value(mom,5.3501397941634130d+018,'pnt2mom: mom')
+call pnt2mom_nondc(pnt,mom)
+call test_value(mom,5.4550129578214554d+018,'pnt2mom_nondc: mom')
 
 ! pnt2sdr
 ! P, N, and T axes to best-fitting double couple strike, dip, and rake
