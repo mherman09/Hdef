@@ -34,6 +34,7 @@ public :: pnt2dcp
 public :: pnt2mag
 public :: pnt2mij
 public :: pnt2mom
+public :: pnt2mom_nondc
 public :: pnt2sdr
 public :: pnt2sv
 public :: pnt2ter
@@ -84,21 +85,32 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine mij2mag(mrr,mpp,mtt,mrp,mrt,mtp,mag)
+subroutine mij2mag(mrr,mpp,mtt,mrp,mrt,mtp,mag,mode)
 !----
 ! Calculate the moment magnitude of the moment tensor
 !----
 
+use io, only: stderr
 implicit none
 
 ! Arguments
 double precision :: mrr, mpp, mtt, mrp, mrt, mtp, mag
+character(len=*) :: mode
 
 ! Local variables
 double precision :: pnt(12), mom
 
 call mij2pnt(mrr,mpp,mtt,mrp,mrt,mtp,pnt)
-call pnt2mom(pnt,mom)
+if (mode.eq.'dc') then
+    call pnt2mom(pnt,mom)
+elseif (mode.eq.'nondc') then
+    call pnt2mom_nondc(pnt,mom)
+else
+    write(stderr,*) 'mij2mag: no mode named "',trim(mode),'"'
+    write(stderr,*) 'returning with magnitude of -100'
+    mag = -100.0d0
+    return
+endif
 call mom2mag(mom,mag)
 
 return
@@ -106,21 +118,32 @@ end subroutine
 
 !--------------------------------------------------------------------------------------------------!
 
-subroutine mij2mom(mrr,mpp,mtt,mrp,mrt,mtp,mom)
+subroutine mij2mom(mrr,mpp,mtt,mrp,mrt,mtp,mom,mode)
 !----
 ! Calculate the scalar moment of the moment tensor
 !----
 
+use io, only: stderr
 implicit none
 
 ! Arguments
 double precision :: mrr, mpp, mtt, mrp, mrt, mtp, mom
+character(len=*) :: mode
 
 ! Local variables
 double precision :: pnt(12)
 
 call mij2pnt(mrr,mpp,mtt,mrp,mrt,mtp,pnt)
-call pnt2mom(pnt,mom)
+if (mode.eq.'dc') then
+    call pnt2mom(pnt,mom)
+elseif (mode.eq.'nondc') then
+    call pnt2mom_nondc(pnt,mom)
+else
+    write(stderr,*) 'mij2mag: no mode named "',trim(mode),'"'
+    write(stderr,*) 'returning with moment of 0'
+    mom = 0.0d0
+    return
+endif
 
 return
 end subroutine
@@ -411,7 +434,28 @@ double precision :: pnt(12), mag
 ! Local variables
 double precision :: mom
 
-mom = 0.5d0*(pnt(12)-pnt(10))
+call pnt2mom(pnt,mom)
+call mom2mag(mom,mag)
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine pnt2mag_nondc(pnt,mag)
+!----
+! Calculate the moment magnitude from the P and T magnitudes
+!----
+
+implicit none
+
+! Arguments
+double precision :: pnt(12), mag
+
+! Local variables
+double precision :: mom
+
+call pnt2mom_nondc(pnt,mom)
 call mom2mag(mom,mag)
 
 return
