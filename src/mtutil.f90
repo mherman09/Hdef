@@ -62,6 +62,8 @@ implicit none
 integer :: i, j, ninputs, luin, luout, ios
 double precision :: input_values(12), input_values2(12), output_values(12)
 character(len=512) :: tmp_file, input_line
+character(len=64) :: fmt_string
+character(len=8) :: output_mode
 
 
 ! Initialize variables
@@ -248,7 +250,39 @@ do i = 1,ninputs
     else
         call usage('mtutil: no option '//trim(mtutil_mode))
     endif
-    write(luout,*) output_values(1:nvals_output)
+
+    ! Print output quantity
+    j = index(mtutil_mode,'2')
+    output_mode = mtutil_mode(j+1:len(mtutil_mode))
+    if (output_mode.eq.'mag') then
+        fmt_string = '(1F10.4)'
+    elseif (output_mode.eq.'mom') then
+        fmt_string = '(1P1E14.6)'
+    elseif (output_mode.eq.'mij') then
+        fmt_string = '(1P6E14.6)'
+    elseif (output_mode.eq.'pnt') then
+        fmt_string = '(3(3F12.8,X),X,1P3E14.6)'
+    elseif (output_mode.eq.'sdr') then
+        if (nvals_output.eq.3) then
+            fmt_string = '(F12.6,F12.6,F12.4)'
+        else
+            fmt_string = '(F12.6,F12.6,F12.4,4X,F12.6,F12.6,F12.4)'
+        endif
+    elseif (output_mode.eq.'ter') then
+        fmt_string = '(3F12.8)'
+    elseif (output_mode.eq.'dcp') then
+        fmt_string = '(1F12.8)'
+    elseif (output_mode.eq.'sv') then
+        if (nvals_output.eq.3) then
+            fmt_string = '(3F12.8)'
+        else
+            fmt_string = '(3F12.8,2X,3F12.8)'
+        endif
+    else
+        write(fmt_string,'("(1P",I3,"E14.6)")') nvals_output
+    endif
+    write(luout,fmt_string) output_values(1:nvals_output)
+
 enddo
 1001 continue
 
