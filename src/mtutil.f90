@@ -6,6 +6,7 @@ character(len=32) :: input_mode
 character(len=512) :: output
 integer :: nvals_input
 integer :: nvals_output
+character(len=5) :: scalar_moment_mode
 
 end module
 
@@ -33,8 +34,10 @@ use eq, only: mag2mom, &
               mij2ter, &
               pnt2dcp, &
               pnt2mag, &
+              pnt2mag_nondc, &
               pnt2mij, &
               pnt2mom, &
+              pnt2mom_nondc, &
               pnt2sdr, &
               pnt2sv, &
               pnt2ter, &
@@ -51,7 +54,8 @@ use mtutil, only: mtutil_mode, &
                   input_mode, &
                   output, &
                   nvals_input, &
-                  nvals_output
+                  nvals_output, &
+                  scalar_moment_mode
 implicit none
 
 ! Local variables
@@ -129,11 +133,14 @@ do i = 1,ninputs
         call usage('')
     endif
     ! write(0,*) input_values(1:nvals_input)
+
+    ! Convert between moment and magnitude
     if (mtutil_mode.eq.'mag2mom') then
         call mag2mom(input_values(1),output_values(1))
     elseif (mtutil_mode.eq.'mom2mag') then
         call mom2mag(input_values(1),output_values(1))
 
+    ! Input quantity: moment tensor
     elseif (mtutil_mode.eq.'mij2dcp') then
         call mij2dcp(input_values(1),input_values(2),input_values(3),&
                      input_values(4),input_values(5),input_values(6),&
@@ -141,11 +148,17 @@ do i = 1,ninputs
     elseif (mtutil_mode.eq.'mij2mag') then
         call mij2mag(input_values(1),input_values(2),input_values(3),&
                      input_values(4),input_values(5),input_values(6),&
-                     output_values(1))
+                     output_values(1),scalar_moment_mode)
+        if (abs(output_values(1)).le.-99.0d0) then
+            call usage('mtutil: no scalar moment mode called '//trim(scalar_moment_mode))
+        endif
     elseif (mtutil_mode.eq.'mij2mom') then
         call mij2mom(input_values(1),input_values(2),input_values(3),&
                      input_values(4),input_values(5),input_values(6),&
-                     output_values(1))
+                     output_values(1),scalar_moment_mode)
+        if (abs(output_values(1)).le.1.0d-50) then
+            call usage('mtutil: no scalar moment mode called '//trim(scalar_moment_mode))
+        endif
     elseif (mtutil_mode.eq.'mij2pnt') then
         call mij2pnt(input_values(1),input_values(2),input_values(3),&
                      input_values(4),input_values(5),input_values(6),&
@@ -166,16 +179,29 @@ do i = 1,ninputs
                      input_values(4),input_values(5),input_values(6),&
                      output_values(1),output_values(2),output_values(3))
 
+    ! Input quantity: moment tensor eigenvectors/eigenvalues (P, N, T axes)
     elseif (mtutil_mode.eq.'pnt2dcp') then
         call pnt2dcp(input_values,output_values(1))
     elseif (mtutil_mode.eq.'pnt2mag') then
-        call pnt2mag(input_values,output_values(1))
+        if (scalar_moment_mode.eq.'dc') then
+            call pnt2mag(input_values,output_values(1))
+        elseif (scalar_moment_mode.eq.'nondc') then
+            call pnt2mag_nondc(input_values,output_values(1))
+        else
+            call usage('mtutil: no scalar moment mode called '//trim(scalar_moment_mode))
+        endif
     elseif (mtutil_mode.eq.'pnt2mij') then
         call pnt2mij(input_values,&
                      output_values(1),output_values(2),output_values(3),&
                      output_values(4),output_values(5),output_values(6))
     elseif (mtutil_mode.eq.'pnt2mom') then
-        call pnt2mom(input_values,output_values(1))
+        if (scalar_moment_mode.eq.'dc') then
+            call pnt2mom(input_values,output_values(1))
+        elseif (scalar_moment_mode.eq.'nondc') then
+            call pnt2mom_nondc(input_values,output_values(1))
+        else
+            call usage('mtutil: no scalar moment mode called '//trim(scalar_moment_mode))
+        endif
     elseif (mtutil_mode.eq.'pnt2sdr') then
         nvals_output = 6
         call pnt2sdr(input_values,&
@@ -187,6 +213,7 @@ do i = 1,ninputs
     elseif (mtutil_mode.eq.'pnt2ter') then
         call pnt2ter(input_values,output_values(1),output_values(2),output_values(3))
 
+    ! Input quantity: double couple strike, dip, rake
     elseif (mtutil_mode.eq.'sdr2mij') then
         call sdr2mij(input_values(1),input_values(2),input_values(3),&
                      output_values(1),output_values(2),output_values(3),&
@@ -244,18 +271,19 @@ end
 
 subroutine gcmdln()
 
+use io, only: isNumeric
 use mtutil, only: mtutil_mode, &
                   input, &
                   input_mode, &
                   output, &
                   nvals_input, &
-                  nvals_output
+                  nvals_output, &
+                  scalar_moment_mode
 implicit none
 
 ! Local variables
-integer :: i, j, narg, ios
+integer :: i, j, narg
 character(len=512) :: tag
-double precision :: dp
 
 ! Initialize
 mtutil_mode = ''
@@ -264,6 +292,7 @@ input_mode = ''
 output = 'stdout'
 nvals_input = 0
 nvals_output = 0
+scalar_moment_mode = 'dc'
 
 ! Number of arguments
 narg = command_argument_count()
@@ -299,7 +328,7 @@ endif
 ! Optional argument defines a file name or value(s) for input
 i = i + 1
 if (i.gt.narg) then
-    call usage('mtutil: at least two arguments are required')
+    call usage('mtutil: input and output are required')
 endif
 ! Determine how to read the second argument
 call get_command_argument(i,input)
@@ -310,8 +339,7 @@ if (j.ne.0) then
     i = i + 1
 else
     ! no comma => single number OR file name OR blank
-    read(input,*,iostat=ios) dp
-    if (ios.eq.0) then
+    if (isNumeric(input)) then
         ! argument is readable as floating point number => read directly
         input_mode = 'cmdln'
         i = i + 1
@@ -319,7 +347,7 @@ else
         ! argument is not readable as floating point number
         j = index(input,'-')
         if (j.eq.1) then
-            ! argument starts with dash => output specifier
+            ! argument starts with dash => mtutil flag
             input_mode = 'stdin'
         else
             ! argument does not start with dash => file name
@@ -378,8 +406,29 @@ endif
 i = i + 1
 if (i.le.narg) then
     call get_command_argument(i,output)
+    j = index(output,'-')
+    if (j.eq.1) then
+        ! argument starts with dash => mtutil flag, so send output to stdout
+        output = 'stdout'
+    else
+        ! argument does not start with dash => output file name
+        i = i + 1
+    endif
 endif
 
+
+! Extra arguments
+do while (i.le.narg)
+    call get_command_argument(i,tag)
+    if (trim(tag).eq.'-dc') then
+        scalar_moment_mode = 'dc'
+    elseif (trim(tag).eq.'-non-dc') then
+        scalar_moment_mode = 'nondc'
+    else
+        call usage('mtutil: no option '//trim(tag))
+    endif
+    i = i + 1
+enddo
 
 return
 end subroutine
@@ -396,7 +445,7 @@ if (str.ne.'') then
     write(stderr,*)
 endif
 
-write(stderr,*) 'Usage: mtutil -opt [INPUT] -opt [FILE]'
+write(stderr,*) 'Usage: mtutil -opt [INPUT] -opt [FILE] [...OPTIONS...]'
 write(stderr,*)
 write(stderr,*) 'Input/output:'
 write(stderr,*) '-sdr      Strike, dip, and rake angles'
@@ -410,6 +459,10 @@ write(stderr,*) '-ternary  Ternary classification (fth fss fno)'
 write(stderr,*) '-dcp      Double couple percentage'
 write(stderr,*) '-sv       Slip vector (e n z components)'
 write(stderr,*) '-kagan    Calculate angle between two moment tensors (requires double inputs)'
+write(stderr,*)
+write(stderr,*) 'Other options:'
+write(stderr,*) '-dc       Use the double couple scalar seismic moment for -mom/-mag (default)'
+write(stderr,*) '-non-dc   Use the general scalar seismic moment for -mom/-mag'
 write(stderr,*)
 write(stderr,*) 'Input format options:'
 write(stderr,*) 'file name: read from file INPUT'
