@@ -807,11 +807,13 @@ end subroutine
 subroutine mom2mag(mom,mag)
 !----
 ! Convert the scalar seismic moment (in Nm) to moment magnitude
+! From Kanamori (1977), p. 2984
 !----
 implicit none
 ! Arguments
 double precision :: mom, mag
-mag = 2.0d0/3.0d0*log10(mom*nm2dynecm)-10.7d0
+! mag = 2.0d0/3.0d0*log10(mom*nm2dynecm)-10.7d0
+mag = 2.0d0/3.0d0*(log10(mom*nm2dynecm)-16.101d0)
 return
 end subroutine
 
@@ -820,11 +822,13 @@ end subroutine
 subroutine mag2mom(mag,mom)
 !----
 ! Convert the moment magnitude to the scalar seismic moment (in Nm)
+! From Kanamori (1977), p. 2984
 !----
 implicit none
 ! Arguments
 double precision :: mag, mom
-mom = 10.0d0**((mag+10.7d0)*1.5d0)
+! mom = 10.0d0**((mag+10.7d0)*1.5d0)
+mom = 10.0d0**(1.5d0*mag+16.101d0)
 mom = mom*dynecm2nm
 return
 end subroutine
