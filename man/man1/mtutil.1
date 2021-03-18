@@ -1,4 +1,4 @@
-.TH MTUTIL 1 "January 2020" "Version 2020.01.01" "User Manuals"
+.TH MTUTIL 1 "March 2021" "Version 2021.03.01" "User Manuals"
 
 .SH NAME
 mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic parameters
@@ -9,6 +9,7 @@ mtutil \- manipulate earthquake moment tensor, magnitude, and kinematic paramete
 .BI [ input ]
 .B -sdr|-mij|-pnt|-mag|-mom|-ternary|-dcp|-sv|-kagan
 .BI [ output ]
+.BI [...]
 
 .SH DESCRIPTION
 .B mtutil
@@ -184,6 +185,31 @@ components
 .BI "-kagan [" output_file ]
 Angle between two sources, after Tape and Tape (2012). This is the minimum angle required to rotate
 the first source into the second source. The input must contain two sources instead of one.
+
+.TP
+.B OTHER OPTIONS
+.TP
+.B -[non-]dc
+The default behavior of
+.B mtutil
+is
+.BR -dc ,
+to use the scalar seismic moment for a double couple source to calculate the seismic moment
+and moment magnitude, as defined in Jost and Herrmann (1989) Equation 19:
+.br
+    M0 = 1/2 * (|m1| + |m2|)
+.br
+where m1 and m2 are the two largest eigenvalues of the moment tensor (in an absolute sense). This
+is the definition of the seismic moment used by the Global Centroid Moment Tensor catalog.
+Specify
+.B -non-dc
+to instead use the scalar seismic moment for a full moment tensor (Jost and Herrmann, 1989
+Equation 20):
+.br
+    M0 = sqrt((m1^2 + m2^2 + m3^2)/2)
+.br
+where m1, m2, and m3 are the eigenvalues of the moment tensor. This is the definition used by the
+USGS and the scaling factor for GMT psmeca.
 
 .SH REFERENCES
 .TP
