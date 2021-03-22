@@ -56,12 +56,12 @@ EOF
 #$BIN_DIR/mtutil -mag 7.0 -mom
 
 # Magnitude to seismic moment
-echo 1.9952623149688665E+020 > answer.tmp
+echo 2.24388200E+020 > answer.tmp
 $BIN_DIR/mtutil -mag 7.5 -mom mom.tmp
 $TEST_BIN_DIR/test_values.sh mom.tmp answer.tmp 1 "mtutil: mag2mom" || exit 1
 
 # Seismic moment to magnitude
-echo 8.6333 > answer.tmp
+echo 8.5993 > answer.tmp
 $BIN_DIR/mtutil -mom 1.0e22 -mag mag.tmp
 $TEST_BIN_DIR/test_values.sh mag.tmp answer.tmp 1 "mtutil: mom2mag" || exit 1
 
@@ -71,7 +71,7 @@ $BIN_DIR/mtutil -mij 4.173e+17,7.304e+17,-1.1477e+18,-3.5502e+18,-3.843e+18,1.17
 $TEST_BIN_DIR/test_values.sh dcp.tmp answer.tmp 1 "mtutil: mij2dcp" || exit 1
 
 # Moment tensor to moment magnitude
-echo 6.4522 > answer.tmp
+echo 6.4182 > answer.tmp
 $BIN_DIR/mtutil -mij 4.173e+17,7.304e+17,-1.1477e+18,-3.5502e+18,-3.843e+18,1.1714e+18 -mag mag.tmp
 $TEST_BIN_DIR/test_values.sh mag.tmp answer.tmp 1 "mtutil: mij2mag" || exit 1
 
@@ -139,7 +139,7 @@ $BIN_DIR/mtutil -pnt -0.64401587537772065,0.31483723501120958,-0.697223828990349
 $TEST_BIN_DIR/test_values.sh dcp.tmp answer.tmp 1 "mtutil: pnt2dcp" || exit 1
 
 # PNT axes to moment magnitude
-echo 6.4522 > answer.tmp
+echo 6.4182 > answer.tmp
 $BIN_DIR/mtutil -pnt -0.64401587537772065,0.31483723501120958,-0.69722382899034951,0.60972258020181702,0.76168884485343713,-0.21924524810785431,0.46204104520432626,-0.56631053237277174,-0.68250307945837219,-4.7355476386355784d+018,-1.2291843110556710d+018,5.9647319496912486d+018 -mag mag.tmp
 $TEST_BIN_DIR/test_values.sh mag.tmp answer.tmp 1 "mtutil: pnt2mag" || exit 1
 
@@ -222,3 +222,8 @@ $TEST_BIN_DIR/test_values.sh sv.tmp answer.tmp 3 "mtutil: sdr2sv" || exit 1
 echo 0.78910590  0.00233684  0.20855726 > answer.tmp
 $BIN_DIR/mtutil -sdr 357,18,99 -ternary ternary.tmp
 $TEST_BIN_DIR/test_values.sh ternary.tmp answer.tmp 3 "mtutil: sdr2ter" || exit 1
+
+# Kagan angle between two double couples
+echo 45 0 0 90 0 0 > sdr.tmp
+$BIN_DIR/mtutil -sdr sdr.tmp -kagan
+# $TEST_BIN_DIR/test_values.sh answer.tmp ternary.tmp 3 "mtutil: sdr2ter" || exit 1
