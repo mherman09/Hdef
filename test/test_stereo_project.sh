@@ -1,44 +1,17 @@
 #!/bin/bash
 
 #####
-#	SET PATH TO HDEF EXECUTABLE
-#####
-# Check if stereo_project is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which stereo_project | xargs dirname)
-fi
-
-# Check for stereo_project in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/stereo_project | xargs dirname)
-fi
-
-# Check for stereo_project in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/stereo_project | xargs dirname)
-fi
-
-# Check for stereo_project in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/stereo_project | xargs dirname)
-fi
-
-# Hdef executables are required!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "$0: unable to find Hdef executable stereo_project; exiting" 1>&2
-    exit 1
-fi
-
-
-#####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=`echo $0 | xargs dirname`
+TEST_BIN_DIR=$(echo $0 | xargs dirname)
+
+
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check for o92util
+$TEST_BIN_DIR/test_find_hdef_exec.sh stereo_project || { echo "$0: could not find stereo_project; exiting" 1>&2; exit 1; }
+BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
 
 
 #####

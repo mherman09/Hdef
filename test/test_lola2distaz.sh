@@ -1,44 +1,17 @@
 #!/bin/bash
 
 #####
-#	SET PATH TO HDEF EXECUTABLE
-#####
-# Check if lola2distaz is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which lola2distaz | xargs dirname)
-fi
-
-# Check for lola2distaz in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/lola2distaz | xargs dirname)
-fi
-
-# Check for lola2distaz in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/lola2distaz | xargs dirname)
-fi
-
-# Check for lola2distaz in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/lola2distaz | xargs dirname)
-fi
-
-# Hdef executables are required!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "$0: unable to find Hdef executable lola2distaz; exiting" 1>&2
-    exit 1
-fi
-
-
-#####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=`echo $0 | xargs dirname`
+TEST_BIN_DIR=$(echo $0 | xargs dirname)
+
+
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check for o92util
+$TEST_BIN_DIR/test_find_hdef_exec.sh lola2distaz || { echo "$0: could not find lola2distaz; exiting" 1>&2; exit 1; }
+BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
 
 
 #####

@@ -1,49 +1,17 @@
 #!/bin/bash
 
 #####
-#	SET PATH TO HDEF EXECUTABLE
-#####
-# Check if fltinv is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which fltinv | xargs dirname)
-fi
-
-# Check for fltinv in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/fltinv | xargs dirname)
-fi
-
-# Check for fltinv in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/fltinv | xargs dirname)
-fi
-
-# Check for fltinv in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/fltinv | xargs dirname)
-fi
-
-# Hdef executables are required!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "$0: unable to find Hdef executable fltinv; exiting" 1>&2
-    exit 1
-fi
-
-COMPILED_WITH_LAPACK=$(fltinv 2>&1 | grep "does not do much")
-if [ ! "$COMPILED_WITH_LAPACK" == "" ]
-then
-    echo "$0: fltinv compiled without LAPACK; leaving test"; exit
-fi
-
-#####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=`echo $0 | xargs dirname`
+TEST_BIN_DIR=$(echo $0 | xargs dirname)
+
+
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check for o92util
+$TEST_BIN_DIR/test_find_hdef_exec.sh fltinv || { echo "$0: could not find fltinv; exiting" 1>&2; exit 1; }
+BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
 
 
 #####
@@ -1321,12 +1289,12 @@ EOF
     cat > answer.tmp << EOF
    2.1000000000000001E-002
    9.1999999999999998E-002
-  0.10400000000000000     
-  0.13500000000000001     
-  0.81699999999999995     
+  0.10400000000000000
+  0.13500000000000001
+  0.81699999999999995
    5.7000000000000002E-002
-  0.18500000000000000     
-  0.18200000000000000     
+  0.18500000000000000
+  0.18200000000000000
   0.20899999999999999
 EOF
     $TEST_BIN_DIR/test_values.sh plock.tmp answer.tmp 1 "fltinv: simulated annealing + pseudo-coupling, resampled, probability locked" || exit 1

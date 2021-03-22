@@ -1,49 +1,17 @@
 #!/bin/bash
 
 #####
-#	SET PATH TO HDEF EXECUTABLE
-#####
-# Check if fitutil is set in PATH
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which fitutil | xargs dirname)
-fi
-
-# Check for fitutil in same directory as script
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/fitutil | xargs dirname)
-fi
-
-# Check for fitutil in relative directory ../bin (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../bin/fitutil | xargs dirname)
-fi
-
-# Check for fitutil in relative directory ../build (assumes script is in Hdef/dir)
-if [ "$BIN_DIR" == "" ]
-then
-    BIN_DIR=$(which $(dirname $0)/../build/fitutil | xargs dirname)
-fi
-
-# Hdef executables are required!
-if [ "$BIN_DIR" == "" ]
-then
-    echo "$0: unable to find Hdef executable fitutil; exiting" 1>&2
-    exit 1
-fi
-
-COMPILED_WITH_LAPACK=$(fitutil 2>&1 | grep "does not work")
-if [ ! "$COMPILED_WITH_LAPACK" == "" ]
-then
-    echo "$0: fitutil compiled without LAPACK; leaving test"; exit
-fi
-
-#####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=`echo $0 | xargs dirname`
+TEST_BIN_DIR=$(echo $0 | xargs dirname)
+
+
+#####
+#	SET PATH TO HDEF EXECUTABLE
+#####
+# Check for o92util
+$TEST_BIN_DIR/test_find_hdef_exec.sh fitutil || { echo "$0: could not find fitutil; exiting" 1>&2; exit 1; }
+BIN_DIR=$(cat hdefexec.tmp | xargs dirname)
 
 
 #####
