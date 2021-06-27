@@ -23,6 +23,7 @@ function usage() {
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
+    echo "-plates PB_FILE               Plot plate boundaries (default: no boundaries)" 1>&2
     exit 1
 }
 
@@ -49,6 +50,7 @@ MAG_MAX=8
 MAG_COLOR_CHANGE=
 TIME_CPT=
 PLOT_MECH=N
+PLATE_BOUNDARY_FILE=
 
 while [ "$1" != "" ]
 do
@@ -65,6 +67,7 @@ do
         -fade) shift; FADE_TIME=$1;;
         -trans:max) shift; MAX_TRANS=$1;;
         -mech) PLOT_MECH=Y;;
+        -plates) shift; PLATE_BOUNDARY_FILE=$1;;
         *) ;;
     esac
     shift
@@ -91,6 +94,17 @@ then
     echo "$0: getting map limits from the input file"
     MAP_LIMS=$(gmt gmtinfo $SEIS_FILE -I0.01 -i1:2)
     echo "$0: using map limits $MAP_LIMS"
+fi
+
+# If plate boundary file is defined but does not exist, set to none
+if [ "$PLATE_BOUNDARY_FILE" != "" ]
+then
+    if [ ! -f $PLATE_BOUNDARY_FILE ]
+    then
+        echo "$0: could not find plate boundary file named \"$PLATE_BOUNDARY_FILE\""
+        echo "$0: not plotting plate boundaries"
+        PLATE_BOUNDARY_FILE=
+    fi
 fi
 
 # Check that variables are defined
@@ -177,8 +191,10 @@ MONTH_TIKS=$(echo $NDAYS |\
                    print 3
                } else if ($1<365*4) {
                    print 6
-               } else {
+               } else if ($1<365*6) {
                    print 12
+               } else {
+                   print 0
                }
            }')
 YEAR_TIKS=$(echo $NDAYS |\
@@ -211,8 +227,12 @@ DAY_TIKS=$(echo $NDAYS |\
                    print 100
                } else if ($1<1000) {
                    print 200
-               } else {
+               } else if ($1<2000) {
                    print 500
+               } else if ($1<5000) {
+                   print 1000
+               } else {
+                   print 2000
                }
            }')
 MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
@@ -303,6 +323,12 @@ do
     # Coastline
     gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W1p -K -O >> $PSFILE
 
+    # Plate boundaries
+    if [ "$PLATE_BOUNDARY_FILE" != "" ]
+    then
+        gmt psxy $PLATE_BOUNDARY_FILE $MAP_PROJ $MAP_LIMS -W1p -K -O >> $PSFILE
+    fi
+
     # Seismicity
     awk '{print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
         gmt psxy $MAP_PROJ $MAP_LIMS -Sci -W0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
@@ -360,5 +386,5 @@ gmt psconvert -Tg -A frame_*.ps -Vt
 rm frame_*.ps
 rm seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
 
-
+echo "$0: creating movie \"seis_movie.mp4\""
 ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
