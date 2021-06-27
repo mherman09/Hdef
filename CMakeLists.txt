@@ -342,6 +342,7 @@ list(APPEND shell_scripts
      surf_disp
      ternary
      trg_schem
+     make_seis_movie
 )
 
 # To build and install these, define them as custom targets
