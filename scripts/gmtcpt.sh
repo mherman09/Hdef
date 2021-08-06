@@ -90,6 +90,15 @@ function usage () {
         echo "tail -1 slip.cpt | awk '{print \"F\",\$2}' >> slip.cpt"
         echo "head -1 slip.cpt | awk '{print \"B\",\$2}' >> slip.cpt"
         echo "echo "N white" >> slip.cpt"
+        echo
+        echo "Use colortool from Hdef package to make nice Coulomb stress color palette"
+        echo "colortool -hue 270,270 -chroma 40,40 -lightness 20,40 -gmt -T-1e6/-1e5/5e4 > coul.cpt"
+        echo "colortool -hue 270,180 -chroma 40,0 -lightness 40,100 -gmt -T-1e5/0/5e3 >> coul.cpt"
+        echo "colortool -hue 100,10 -chroma 100,30 -lightness 100,50 -gmt -T0/1e5/5e3 >> coul.cpt"
+        echo "colortool -hue 10,10 -chroma 30,30 -lightness 50,15 -gmt -T1e5/1e6/5e4 >> coul.cpt"
+        echo "tail -1 coul.cpt | awk '{print "F",$2}' >> coul.cpt"
+        echo "awk '{if($1!="#"){print "B",$2}}' coul.cpt >> coul.cpt"
+        echo "echo N white >> coul.cpt"
     fi
     exit 1
 }
