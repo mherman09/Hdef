@@ -4,6 +4,7 @@ character(len=512) :: input_file
 character(len=512) :: output_file
 character(len=32) :: date_option
 character(len=32) :: date_format
+logical :: iWantMilliseconds
 
 end module
 
@@ -20,7 +21,8 @@ use calendar, only: parse_date, date2jd, jd2date
 use dateutil, only: input_file, &
                     output_file, &
                     date_option, &
-                    date_format
+                    date_format, &
+                    iWantMilliseconds
 
 implicit none
 
@@ -146,10 +148,30 @@ do
         if (len(trim(date_format)).le.10) then
             write(luout,1001) (date2(i),i=1,3)
         else
-            write(luout,1002) (date2(i),i=1,7)
+            if (iWantMilliseconds) then
+                write(luout,1002) (date2(i),i=1,7)
+            else
+                if (date2(7).ge.500) then
+                    date2(6) = date2(6) + 1
+                endif
+                if (date2(6).ge.60) then
+                    date2(5) = date2(5) + 1
+                    date2(6) = date2(6) - 60
+                endif
+                if (date2(5).ge.60) then
+                    date2(4) = date2(4) + 1
+                    date2(5) = date2(5) - 60
+                endif
+                if (date2(4).ge.24) then
+                    date2(3) = date2(3) + 1
+                    date2(4) = date2(4) - 24
+                endif
+                write(luout,1003) (date2(i),i=1,6)
+            endif
         endif
         1001 format(I0.4,"-",I0.2,"-",I0.2)
         1002 format(I0.4,"-",I0.2,"-",I0.2,"T",I0.2,":",I0.2,":",I0.2,".",I0.3)
+        1003 format(I0.4,"-",I0.2,"-",I0.2,"T",I0.2,":",I0.2,":",I0.2)
     endif
 enddo
 
@@ -171,7 +193,8 @@ subroutine gcmdln()
 use dateutil, only: input_file, &
                     output_file, &
                     date_option, &
-                    date_format
+                    date_format, &
+                    iWantMilliseconds
 
 implicit none
 
@@ -184,6 +207,7 @@ input_file = ''
 output_file = ''
 date_option = ''
 date_format = 'YYYY-MM-DDTHH:MM:SS'
+iWantMilliseconds = .false.
 
 ! Number of arguments
 narg = command_argument_count()
