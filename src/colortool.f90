@@ -7,9 +7,11 @@ double precision, parameter :: refz = 108.883d0 ! For perfect reflecting diffuse
 double precision :: hue(2)
 double precision :: lightness(2)
 double precision :: chroma(2)
+double precision :: chroma_exp
 character(len=16) :: color_path_type
 character(len=8) :: convert(2)
 double precision :: gmt_cpt_lims(2)
+character(len=8) :: output_mode
 
 integer :: verbose
 
@@ -45,6 +47,7 @@ character(len=200) :: background, foreground     ! Background and foreground col
 integer :: i
 integer :: uout
 double precision :: lcheck,ccheck,hcheck
+double precision :: hsv1,hsv2,hsv3
 
 ! Parse command line
 call gcmdln(option,hue1,hue2,light1,light2,chroma1,chroma2,ncolors,convert1,convert2,&
@@ -76,7 +79,18 @@ else
     uout = 6
 endif
 
-! Create list of RGB colors
+! Write GMT cpt header
+if (gmtfile.ne.'none') then
+    if (output_mode.eq.'RGB') then
+        write(uout,'(A)') '# COLOR_MODEL = rgb'
+    elseif (output_mode.eq.'HSV') then
+        write(uout,'(A)') '# COLOR_MODEL = hsv'
+    else
+        call usage('colortool: no output_mode "'//trim(output_mode)//'"')
+    endif
+endif
+
+! Create list of RGB/HSV colors
 do i = 1,ncolors
     if (ncolors.eq.1) then
         l = light1
@@ -86,7 +100,7 @@ do i = 1,ncolors
         ! Interpolate location in CIE-LAB color space
         l = light1  + (light2  - light1 )*(i-1)/(ncolors-1)
         if (option.eq.'spiral') then
-            c = chroma1 + (chroma2 - chroma1)*(i-1)/(ncolors-1)
+            c = chroma1 + (chroma2 - chroma1)*(dble(i-1)/dble(ncolors-1))**chroma_exp
             h = hue1    + (hue2    - hue1   )*(i-1)/(ncolors-1)
         elseif (option.eq.'linear') then
             call lch2lab(chroma1,hue1,a1,b1)
@@ -105,8 +119,16 @@ do i = 1,ncolors
     call lch2rgb(l,c,h,red,grn,blu)
     call checkrgb(red,grn,blu,clip)
     call rgb2lch(red,grn,blu,lcheck,ccheck,hcheck)
-    ! Print nicely formatted RGB coordinates
-    call formatrgb(red,grn,blu,rgbstring)
+    if (output_mode.eq.'RGB') then
+        ! Print nicely formatted RGB coordinates
+        call formatrgb(red,grn,blu,rgbstring)
+    elseif (output_mode.eq.'HSV') then
+        ! Print nicely formatted HSV coordinates
+        call rgb2hsv(red,grn,blu,hsv1,hsv2,hsv3)
+        call formathsv(hsv1,hsv2,hsv3,rgbstring)
+    else
+        call usage('colortool: no output_mode "'//trim(output_mode)//'"')
+    endif
     if (gmtfile.eq.'none') then
         write(uout,'(A)') trim(rgbstring)
     else
@@ -278,6 +300,38 @@ jj = 1
 do j = 1,len(tmpstring)
     if (tmpstring(j:j).ne.' ') then
         rgbstring(jj:jj) = tmpstring(j:j)
+        jj = jj + 1
+    endif
+enddo
+
+return
+end
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine formathsv(hue,sat,val,hsvstring)
+implicit none
+double precision :: hue,sat,val
+character(len=1024) :: tmpstring
+character(len=*) :: hsvstring
+integer :: j,jj
+
+! Write H-S-V triplet with dashes to tmpstring
+! This will have whitespace in it, which we will then remove
+write(tmpstring,1001) int(hue),sat,val
+1001 format(I10,'-',F10.3,'-',F10.3)
+
+! Initialize hsvstring to be blank
+do j = 1,len(hsvstring)
+    hsvstring(j:j) = ' '
+enddo
+
+! Loop through each character of tmpstring
+! If it is not whitespace, add it to hsvstring
+jj = 1
+do j = 1,len(tmpstring)
+    if (tmpstring(j:j).ne.' ') then
+        hsvstring(jj:jj) = tmpstring(j:j)
         jj = jj + 1
     endif
 enddo
@@ -549,6 +603,64 @@ call lab2lch(a,b,c,h)
 return
 end
 
+!--------------------------------------------------------------------------------------------------!
+
+subroutine rgb2hsv(red,grn,blu,hue,sat,val)
+implicit none
+double precision :: red, grn, blu
+double precision :: hue, sat, val
+double precision :: minv, maxv, delta
+character(len=64) :: hsvstring
+! Minimum RGB value (0-255)
+minv = red
+if (grn.lt.minv) then
+    minv = grn
+endif
+if (blu.lt.minv) then
+    minv = blu
+endif
+! Maximum RGB value (0-255)
+maxv = red
+if (grn.gt.maxv) then
+    maxv = grn
+endif
+if (blu.gt.maxv) then
+    maxv = blu
+endif
+! Value is the maximum RGB value
+val = maxv/255.0d0
+! Difference between maximum and minimum defines saturation
+delta = maxv-minv
+! Difference is zero implies greyscale
+if (delta.lt.1.0d-5) then
+    sat = 0.0d0
+    hue = 0.0d0
+    return
+endif
+! Saturation
+if (maxv.gt.0.0d0) then
+    sat = delta/maxv
+else
+    sat = 0.0d0
+    hue = 0.0d0
+endif
+! Hue
+if (red.ge.maxv) then
+    hue = (grn-blu)/delta
+else
+    if (grn>=maxv) then
+        hue = 2.0d0 + (blu-red)/delta
+    else
+        hue = 4.0d0 + (red-grn)/delta
+    endif
+endif
+hue = hue*60.0d0
+if (hue.lt.0.0d0) then
+    hue = hue + 360.0d0
+endif
+return
+end subroutine
+
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 ! User interface subroutines
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
@@ -571,6 +683,7 @@ light1 = 0.0
 light2 = 100.0
 chroma1 = 40.0
 chroma2 = 40.0
+chroma_exp = 1.0d0
 ncolors = 10
 convert1 = ''
 convert2 = ''
@@ -580,6 +693,7 @@ verbose = 0
 dz = -1.0
 gmtfile = 'none'
 saturate = 0
+output_mode = 'RGB'
 narg = iargc()
 if (narg.eq.0) call usage('')
 i = 1
@@ -639,12 +753,16 @@ do while (i.le.narg)
         j = index(tag,',')
         tag(j:j) = ' '
         read(tag,*) light1,light2
-    elseif (tag(1:7).eq.'-chroma') then
+    elseif (tag.eq.'-chroma') then
         i = i + 1
         call getarg(i,tag)
         j = index(tag,',')
         tag(j:j) = ' '
         read(tag,*) chroma1,chroma2
+    elseif (tag.eq.'-chroma:exp') then
+        i = i + 1
+        call getarg(i,tag)
+        read(tag,*) chroma_exp
     elseif (tag(1:8).eq.'-convert') then
         i = i + 1
         call getarg(i,convert1)
@@ -662,6 +780,9 @@ do while (i.le.narg)
                 i = i - 1
             endif
         endif
+    elseif (tag.eq.'-mode') then
+        i = i + 1
+        call getarg(i,output_mode)
     elseif (tag(1:7).eq.'-limits') then
         i = i + 1
         call getarg(i,tag)
@@ -744,6 +865,7 @@ if (str.eq.'long') then
     write(0,*) '    The max chroma will be limited by the program automatically to fit into RGB space'
     write(0,*)
 endif
+write(0,*) '-chroma:exp EXP           Change the chroma from linear to power law (default: 1)'
 write(0,*) '-n[colors] N              Number of colors (default: 10)'
 if (str.eq.'long') then
     write(0,*)
