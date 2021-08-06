@@ -92,6 +92,13 @@ case $MODE in
 esac
 
 BIN_DIR="BIN_DIR_CHANGEME"
+BIN_DIR=$(which o92util | xargs dirname)
+echo "ternary.sh: using Hdef executables found in BIN_DIR=$BIN_DIR" 1>&2
+if [ "$BIN_DIR" == "" ]
+then
+    echo "ternary.sh: unable to find Hdef executables in PATH; exiting" 1>&2
+    usage
+fi
 
 
 #####
