@@ -18,6 +18,7 @@ character(len=512) :: fsp_file                    ! source faults: SRCMOD FSP fo
 character(len=512) :: mag_file                    ! source faults: ... mag format
 character(len=512) :: flt_file                    ! source faults: ... slip wid len format
 character(len=512) :: tns_file                    ! volume source: ... opening wid len
+character(len=512) :: gmt_fault_file              ! for plotting with psxy -SJ
 logical :: isFaultFileDefined                     ! input fault tag
 logical :: isTensileFileDefined                   ! input tensile source tag
 character(len=16) :: fault_type                   ! point or finite source tag
@@ -246,6 +247,7 @@ use o92util, only: ffm_file, &
                    fsp_file, &
                    mag_file, &
                    flt_file, &
+                   gmt_fault_file, &
                    isFaultFileDefined, &
                    empirical_relation, &
                    slip_threshold, &
@@ -381,6 +383,19 @@ if (mag_file.ne.'') then
     enddo
 
     nfaults = nfaults + mag_data%nflt
+
+    ! To plot faults with psxy -SJ, write to the file here (lon lat str len proj_wid)
+    if (gmt_fault_file.ne.'') then
+        open(unit=6213,file=gmt_fault_file,status='unknown')
+        do i = 1,mag_data%nflt
+            write(6213,*) mag_data%subflt(i,1), &
+                          mag_data%subflt(i,2), &
+                          mag_data%subflt(i,4), &
+                          mag_data%subflt(i,9)/1.0d3,&
+                          mag_data%subflt(i,8)/1.0d3*cos(mag_data%subflt(i,5)*0.0174533d0)
+        enddo
+        close(6213)
+    endif
 
     if (debug_mode.eq.'read_faults'.or.debug_mode.eq.'all') then
         write(stdout,*) '(DEBUG) read_faults: finished read_mag'
@@ -2235,6 +2250,7 @@ use o92util, only: ffm_file, &
                    mag_file, &
                    flt_file, &
                    tns_file, &
+                   gmt_fault_file, &
                    isFaultFileDefined, &
                    isTensileFileDefined, &
                    fault_type, &
@@ -2286,6 +2302,7 @@ fsp_file = ''
 flt_file = ''
 mag_file = ''
 tns_file = ''
+gmt_fault_file = ''
 isFaultFileDefined = .false.
 isTensileFileDefined = .false.
 fault_type = 'rect'
@@ -2518,6 +2535,10 @@ do while (i.le.narg)
     elseif (tag.eq.'-az') then
         disp_output_mode = 'amz'
 
+    elseif (tag.eq.'-gmt') then
+        i = i + 1
+        call get_command_argument(i,gmt_fault_file)
+
     elseif (trim(tag).eq.'-v'.or.trim(tag).eq.'-verbose'.or.trim(tag).eq.'-verbosity') then
         i = i + 1
         call get_command_argument(i,arg)
@@ -2691,6 +2712,7 @@ if (info.eq.'all'.or.info.eq.'misc') then
     write(stderr,*) '-parallel [NTHREADS] Calculate deformation in parallel'
     write(stderr,*) '-geo|-xy             Use geographic (default) or cartesian coordinates'
     write(stderr,*) '-az                  Displacement vector outputs (AZ HMAG Z)'
+    write(stderr,*) '-gmt FILE            GMT psxy -SJ file (lon lat str len proj_wid)'
     write(stderr,*) '-prog                Turn on progress indicator'
     write(stderr,*) '-v LVL               Turn on verbose mode'
     write(stderr,*) '-debug [ROUTINE]     Turn on debugging'
