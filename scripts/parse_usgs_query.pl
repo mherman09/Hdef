@@ -8,15 +8,15 @@ use Text::CSV;
 
 # Usage statement
 sub usage {
-    print "Usage: parse_usgs_query.pl --input_file FILE [...options...]]\n";
+    print "Usage: parse_usgs_query.pl --input_file FILE [...options...]\n";
     print "-i|--input_file FILE            Name of input CSV file\n";
     print "-o|--origin_time                Origin time\n";
     print "-l|--location                   Location\n";
     print "-m|--magnitude                  Magnitude\n";
     print "-t|--tensor                     Moment tensor\n";
+    print "-p|--priority MT_TYP            Select priority MT type (Mww,Mwc,Mwr,Mwb,duputel_Mww)\n";
     die;
 }
-
 
 # Parse the command line
 my $input_file = '';
@@ -24,12 +24,14 @@ my $iWantOriginTime = 0;
 my $iWantLocation = 0;
 my $iWantMagnitude = 0;
 my $iWantMomentTensor = 0;
+my $priorityMTType = 'Mww';
 GetOptions(
     'input_file=s' => \$input_file,
     'origin_time' => \$iWantOriginTime,
     'location' => \$iWantLocation,
     'magnitude' => \$iWantMagnitude,
-    'tensor' => \$iWantMomentTensor
+    'tensor' => \$iWantMomentTensor,
+    'priority=s' => \$priorityMTType
 );
 
 
@@ -150,23 +152,46 @@ while (my $row = $csv->getline ($fh)) {
         $iWantSomething = 1;
     }
     if ($iWantMomentTensor) {
-        if ($i_us_Mww >= 0 && $row->[$i_us_Mww] ne "") {
-            $i_mt = $i_us_Mww;
-            $mt_type = "Mww";
-        } elsif ($i_us_Mwc >= 0 && $row->[$i_us_Mwc] ne "") {
-            $i_mt = $i_us_Mwc;
-            $mt_type = "Mwc";
-        } elsif ($i_us_Mwr >= 0 && $row->[$i_us_Mwr] ne "") {
-            $i_mt = $i_us_Mwr;
-            $mt_type = "Mwr";
-        } elsif ($i_us_Mwb >= 0 && $row->[$i_us_Mwb] ne "") {
-            $i_mt = $i_us_Mwb;
-            $mt_type = "Mwb";
-        } elsif ($i_duputel_Mww >= 0 && $row->[$i_duputel_Mww] ne "") {
-            $i_mt = $i_duputel_Mww;
-            $mt_type = "duputel_Mww";
-        } else {
-            $output = $output."no_MT ";
+        # Specifically defined moment tensor priority
+        if ($priorityMTType ne "") {
+            if ($priorityMTType eq "Mww" && $i_us_Mww >= 0 && $row->[$i_us_Mww] ne "") {
+                $i_mt = $i_us_Mww;
+                $mt_type = "Mww";
+            } elsif ($priorityMTType eq "Mwc" && $i_us_Mwc >= 0 && $row->[$i_us_Mwc] ne "") {
+                $i_mt = $i_us_Mwc;
+                $mt_type = "Mwc";
+            } elsif ($priorityMTType eq "Mwr" && $i_us_Mwr >= 0 && $row->[$i_us_Mwr] ne "") {
+                $i_mt = $i_us_Mwr;
+                $mt_type = "Mwr";
+            } elsif ($priorityMTType eq "Mwb" && $i_us_Mwb >= 0 && $row->[$i_us_Mwb] ne "") {
+                $i_mt = $i_us_Mwb;
+                $mt_type = "Mwb";
+            } elsif ($priorityMTType eq "duputel_Mww" && $i_duputel_Mww >= 0 && $row->[$i_duputel_Mww] ne "") {
+                $i_mt = $i_duputel_Mww;
+                $mt_type = "duputel_Mww";
+            }
+        }
+
+        # Default moment tensor priority list
+        if ($mt_type eq "") {
+            if ($i_us_Mww >= 0 && $row->[$i_us_Mww] ne "") {
+                $i_mt = $i_us_Mww;
+                $mt_type = "Mww";
+            } elsif ($i_us_Mwc >= 0 && $row->[$i_us_Mwc] ne "") {
+                $i_mt = $i_us_Mwc;
+                $mt_type = "Mwc";
+            } elsif ($i_us_Mwr >= 0 && $row->[$i_us_Mwr] ne "") {
+                $i_mt = $i_us_Mwr;
+                $mt_type = "Mwr";
+            } elsif ($i_us_Mwb >= 0 && $row->[$i_us_Mwb] ne "") {
+                $i_mt = $i_us_Mwb;
+                $mt_type = "Mwb";
+            } elsif ($i_duputel_Mww >= 0 && $row->[$i_duputel_Mww] ne "") {
+                $i_mt = $i_duputel_Mww;
+                $mt_type = "duputel_Mww";
+            } else {
+                $output = $output."no_MT ";
+            }
         }
         if ($i_mt >= 0) {
             $mij[0] = sprintf "%12.4e", $row->[$i_mt];
