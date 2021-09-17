@@ -68,6 +68,7 @@ integer :: nstations                              ! Number of stations/targets/r
 double precision, allocatable :: faults(:,:)      ! Fault parameter array
 double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
+character(len=1), allocatable :: sta_char(:)      ! Station character (optional)
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 double precision :: centroid(3)                   ! Moment weighted mean position of EQ
 
@@ -677,6 +678,7 @@ use io, only: verbosity, stdout, stderr, line_count, fileExists
 use o92util, only: station_file, &
                    nstations, &
                    stations, &
+                   sta_char, &
                    isStationFileDefined, &
                    coord_type, &
                    auto_mode, &
@@ -710,12 +712,19 @@ endif
 ! Count number of stations and allocate memory to station array (x y z)
 nstations = line_count(station_file)
 allocate(stations(nstations,3))
+allocate(sta_char(nstations))
 
 
 ! Read stations
 open(unit=13,file=station_file,status='old')
 do i = 1,nstations
     read(13,'(A)') input_line
+    input_line = adjustl(input_line)
+    sta_char(i) = input_line(1:1)
+    if (sta_char(i).eq.'#'.or.sta_char(i).eq.'>') then
+        ! This line is a comment (#) or a segment header (>)
+        cycle
+    endif
     read(input_line,*,iostat=ios,err=1003,end=1004) (stations(i,j),j=1,3)
 enddo
 close(13)
@@ -947,6 +956,7 @@ use o92util, only: iWantDisp, &
                    faults, &
                    tensile, &
                    stations, &
+                   sta_char, &
                    targets, &
                    iWantProg, &
                    debug_mode, &
@@ -1082,7 +1092,7 @@ endif
 ! SHARED variables are shared across threads
 ! PRIVATE variables are uninitialized and isolated to each thread
 ! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread
-!$OMP PARALLEL SHARED(nstations,stations,coord_type), &
+!$OMP PARALLEL SHARED(nstations,stations,sta_char,coord_type), &
 !$OMP          SHARED(nfaults,faults,ntensile,tensile,fault_type), &
 !$OMP          SHARED(targets), &
 !$OMP          SHARED(lame,shearmod), &
@@ -1155,6 +1165,8 @@ do iSta = 1,nstations
     !! The following loop is executed in parallel
     !!$OMP DO
 
+
+    if (sta_char(iSta).ne.'#'.and.sta_char(iSta).ne.'>') then
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1305,6 +1317,8 @@ do iSta = 1,nstations
         endif
     enddo
 
+    endif ! (sta_char(iSta).ne.'#'.and.sta_char(iSta).ne.'>')
+
 
     !! End the parallel do loop
     !!$OMP END DO
@@ -1331,7 +1345,9 @@ do iSta = 1,nstations
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz
     if (displacement_file.ne.'') then
-        if (disp_output_mode.eq.'enz') then
+        if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+            write(101,'(A)') sta_char(iSta)
+        elseif (disp_output_mode.eq.'enz') then
             write(101,*) stations(iSta,:),disp
         elseif (disp_output_mode.eq.'amz') then
             write(101,*) stations(iSta,:), &
@@ -1347,7 +1363,11 @@ do iSta = 1,nstations
 
     ! Strain tensor: exx, eyy, ezz, exy, exz, eyz
     if (strain_file.ne.'') then
-        write(111,*) stations(iSta,:),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
+        if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+            write(111,'(A)') sta_char(iSta)
+        else
+            write(111,*) stations(iSta,:),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
+        endif
     endif
 
     ! Stress
@@ -1356,13 +1376,21 @@ do iSta = 1,nstations
 
         ! Stress tensor: sxx, syy, szz, sxy, sxz, syz
         if (stress_file.ne.'') then
-            write(121,*) stations(iSta,:),sts(1,1),sts(2,2),sts(3,3),sts(1,2),sts(1,3),sts(2,3)
+            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+                write(121,'(A)') sta_char(iSta)
+            else
+                write(121,*) stations(iSta,:),sts(1,1),sts(2,2),sts(3,3),sts(1,2),sts(1,3),sts(2,3)
+            endif
         endif
 
         ! Maximum (effective) shear stress (aka, second invariant of deviatoric stress tensor): ests
         if (estress_file.ne.'') then
             call max_shear_stress(sts,ests)
-            write(122,*) stations(iSta,:),ests
+            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+                write(122,'(A)') sta_char(iSta)
+            else
+                write(122,*) stations(iSta,:),ests
+            endif
         endif
     endif
 
@@ -1376,19 +1404,31 @@ do iSta = 1,nstations
 
         ! Normal traction: normal (positive=dilation)
         if (normal_file.ne.'') then
-            write(131,*) stations(iSta,:),tnor
+            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+                write(131,'(A)') sta_char(iSta)
+            else
+                write(131,*) stations(iSta,:),tnor
+            endif
         endif
 
         ! Shear traction: resolved_onto_rake, max_shear_on_plane
         if (shear_file.ne.'') then
             tshrmx = sqrt(tstr*tstr+tupd*tupd)
-            write(132,*) stations(iSta,:),tshr,tshrmx
+            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+                write(132,'(A)') sta_char(iSta)
+            else
+                write(132,*) stations(iSta,:),tshr,tshrmx
+            endif
         endif
 
         ! Coulomb stress: coulomb
         if (coulomb_file.ne.'') then
             coul = tshr + targets(iSta,4)*tnor
-            write(133,*) stations(iSta,:),coul
+            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+                write(133,'(A)') sta_char(iSta)
+            else
+                write(133,*) stations(iSta,:),coul
+            endif
         endif
     endif
 
