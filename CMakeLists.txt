@@ -336,6 +336,7 @@ list(APPEND shell_scripts
      coul_dip
      coul_hor
      coul_xsec
+     eqmatch
      gmtcpt
      insar
      simplify_ffm
