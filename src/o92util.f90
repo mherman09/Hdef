@@ -68,7 +68,7 @@ integer :: nstations                              ! Number of stations/targets/r
 double precision, allocatable :: faults(:,:)      ! Fault parameter array
 double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
-character(len=1), allocatable :: sta_char(:)      ! Station character (optional)
+character(len=32), allocatable :: sta_char(:)      ! Station character (optional)
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 double precision :: centroid(3)                   ! Moment weighted mean position of EQ
 
@@ -720,8 +720,8 @@ open(unit=13,file=station_file,status='old')
 do i = 1,nstations
     read(13,'(A)') input_line
     input_line = adjustl(input_line)
-    sta_char(i) = input_line(1:1)
-    if (sta_char(i).eq.'#'.or.sta_char(i).eq.'>') then
+    sta_char(i) = input_line
+    if (sta_char(i)(1:1).eq.'#'.or.sta_char(i)(1:1).eq.'>') then
         ! This line is a comment (#) or a segment header (>)
         cycle
     endif
@@ -1166,7 +1166,7 @@ do iSta = 1,nstations
     !!$OMP DO
 
 
-    if (sta_char(iSta).ne.'#'.and.sta_char(iSta).ne.'>') then
+    if (sta_char(iSta)(1:1).ne.'#'.and.sta_char(iSta)(1:1).ne.'>') then
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1345,7 +1345,7 @@ do iSta = 1,nstations
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz
     if (displacement_file.ne.'') then
-        if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
+        if (sta_char(iSta)(1:1).eq.'#'.or.sta_char(iSta)(1:1).eq.'>') then
             write(101,'(A)') sta_char(iSta)
         elseif (disp_output_mode.eq.'enz') then
             write(101,*) stations(iSta,:),disp
