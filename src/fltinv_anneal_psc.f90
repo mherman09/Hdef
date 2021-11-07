@@ -596,6 +596,20 @@ logical :: doInversion, isSlipFixed(2*n)
 double precision :: A(2*n,2*n), b(2*n), x(2*n)
 double precision, allocatable :: atmp(:,:)
 
+#else
+
+implicit none
+
+! Arguments needed to make sure compiling works (otherwise array ranks do not match)
+integer :: n, locked(n)
+double precision :: slip(n,2)
+
+#endif
+
+
+
+#ifdef USE_LAPACK
+
 
 ! Set dimension variables for arrays
 nflt = fault%nrows
