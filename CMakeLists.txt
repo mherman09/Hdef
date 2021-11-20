@@ -251,6 +251,7 @@ message(STATUS "Setting up executable builds")
 
 # List of modern Fortran files (.f90 extensions)
 list(APPEND f90_files
+     anneal_fem_post
      anneal_post
      clip
      colortool
