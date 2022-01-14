@@ -607,8 +607,9 @@ echo 45 |\
 
 # Map frame
 echo "    -> Map frame" | tee -a insar.sh.log
-ANNOT=`echo $W $E | awk '{if($2-$1<=10){print 1}else{print 2}}'`
-gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya1 -BWeSn -K -O --MAP_FRAME_TYPE=plain >> $PSFILE || \
+ANNOT=`echo $W $E | awk '{if($2-$1<=2){print 0.5}else if($2-$1<=10){print 1}else{print 2}}'`
+YANNOT=$(echo $S $N | awk '{if($2-$1<=2){print 0.2}else if($2-$1<=10){print 1}else{print 2}}')
+gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya${YANNOT} -BWeSn -K -O --MAP_FRAME_TYPE=plain --FORMAT_GEO_MAP=D >> $PSFILE || \
     { echo "insar.sh: psbasemap error" 1>&2; exit 1; }
 
 
@@ -621,7 +622,7 @@ then
     echo "Ghostscript 9.50 works fine for me" 1>&2
     echo "See: https://github.com/GenericMappingTools/gmt/issues/2903" 1>&2
 fi
-gmt pscoast $PROJ $LIMS -W1p,105@85 -G205@85 -S255@5 -N1/0.5p,black@85 -Dh -K -O >> $PSFILE || \
+gmt pscoast $PROJ $LIMS -W1p,105@85 -G205@85 -S255@5 -N1/0.5p,black@85 -Df -K -O >> $PSFILE || \
     { echo "insar.sh: pscoast error" 1>&2; exit 1; }
 
 
@@ -754,14 +755,15 @@ echo "2.5 -1.2 10,2 CT (Positive: away from satellite)" |\
 
 # Map frame
 echo "    -> Map frame" | tee -a insar.sh.log
-ANNOT=`echo $W $E | awk '{if($2-$1<=10){print 1}else{print 2}}'`
-gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya1 -BWeSn -K -O --MAP_FRAME_TYPE=plain >> $PSFILE || \
+ANNOT=`echo $W $E | awk '{if($2-$1<=2){print 0.5}else if($2-$1<=10){print 1}else{print 2}}'`
+YANNOT=$(echo $S $N | awk '{if($2-$1<=2){print 0.2}else if($2-$1<=10){print 1}else{print 2}}')
+gmt psbasemap $PROJ $LIMS -Bxa${ANNOT} -Bya${YANNOT} -BWeSn -K -O --MAP_FRAME_TYPE=plain --FORMAT_GEO_MAP=D >> $PSFILE || \
     { echo "insar.sh: psbasemap error" 1>&2; exit 1; }
 
 
 # Coastline
 echo "    -> Coastline" | tee -a insar.sh.log
-gmt pscoast $PROJ $LIMS -W1p,105@85 -G205@85 -S255@5 -N1/0.5p,black@85 -Dh -K -O >> $PSFILE || \
+gmt pscoast $PROJ $LIMS -W1p,105@85 -G205@85 -S255@5 -N1/0.5p,black@85 -Df -K -O >> $PSFILE || \
     { echo "insar.sh: pscoast error" 1>&2; exit 1; }
 
 
