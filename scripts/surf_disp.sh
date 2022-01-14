@@ -198,7 +198,8 @@ cat > vert_scale_max.awk << EOF
   else if (\$1>=0.02) {print 0.01}
   else if (\$1>=0.01) {print 0.005}
   else if (\$1>=0.005) {print 0.002}
-  else {print 0.001}
+  else if (\$1>=0.002) {print 0.001}
+  else {print 0.0005}
 }
 EOF
 
@@ -217,7 +218,8 @@ cat > vert_scale_lbl.awk << EOF
   else if (\$1>=0.02) {print 0.01}
   else if (\$1>=0.01) {print 0.005}
   else if (\$1>=0.005) {print 0.002}
-  else {print 0.001}
+  else if (\$1>=0.002) {print 0.001}
+  else {print 0.0005}
 }
 EOF
 
@@ -232,7 +234,10 @@ cat > vect_label.awk << EOF
   else if (\$1>0.5) {print 0.5}
   else if (\$1>0.1) {print 0.1}
   else if (\$1>0.05) {print 0.05}
-  else {print 0.02}
+  else if (\$1>0.02) {print 0.02}
+  else if (\$1>0.01) {print 0.01}
+  else if (\$1>0.005) {print 0.005}
+  else {print 0.002}
 }
 EOF
 
@@ -249,7 +254,12 @@ cat > vect_scale.awk << EOF
   else if (\$1>0.2) {print 5}
   else if (\$1>0.1) {print 10}
   else if (\$1>0.05) {print 15}
-  else {print 20}
+  else if (\$1>0.02) {print 30}
+  else if (\$1>0.01) {print 60}
+  else if (\$1>0.005) {print 120}
+  else if (\$1>0.002) {print 250}
+  else if (\$1>0.001) {print 500}
+  else {print 1000}
 }
 EOF
 
@@ -420,6 +430,7 @@ echo "Maximum vertical displacement: $(echo $MINMAX | awk '{printf("%.3f m\n"),$
 V1=`echo $MINMAX | awk '{if($1<0){print -$1}else{print $1}}'`
 V2=`echo $MINMAX | awk '{if($2<0){print -$2}else{print $2}}'`
 T=`echo $V1 $V2 | awk '{if($1>$2){print $1}else{print $2}}' | awk -f vert_scale_max.awk`
+COLOR_STEP=$(echo $T | awk '{print $1/100}')
 DT=`echo $T | awk -f vert_scale_lbl.awk`
 
 
@@ -435,7 +446,7 @@ LIMS="-R$W/$E/$S/$N"
 # Colored grid of vertical displacements plotted under horizontal displacement vectors
 if [ -z $VERT_CPT_RANGE ]
 then
-    gmt makecpt -T-${T}/${T}/0.01 -C./polar_mwh.cpt -D > vert.cpt || \
+    gmt makecpt -T-${T}/${T}/${COLOR_STEP} -C./polar_mwh.cpt -D > vert.cpt || \
         { echo "surf_disp.sh: makecpt error" 1>&2; exit 1; }
 else
     gmt makecpt $VERT_CPT_RANGE -C./polar_mwh.cpt -D > vert.cpt || \
@@ -461,7 +472,7 @@ then
     echo "Ghostscript 9.50 works fine for me" 1>&2
     echo "See: https://github.com/GenericMappingTools/gmt/issues/2903" 1>&2
 fi
-gmt pscoast $PROJ $LIMS -W1p,105/105/105 -G205/205/205 -N1/0.5p -Dh -K -O -t85 >> $PSFILE || \
+gmt pscoast $PROJ $LIMS -W1p,105/105/105 -G205/205/205 -N1/0.5p -Df -K -O -t85 >> $PSFILE || \
     { echo "surf_disp.sh: pscoast error" 1>&2; exit 1; }
 
 # Plot FFM slip contours
