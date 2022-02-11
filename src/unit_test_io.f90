@@ -16,6 +16,9 @@ write(11,*) 1
 write(11,*) 2
 write(11,*) 3
 write(11,*) 4
+write(11,*) '#'
+write(11,*) '>'
+write(11,*) ''
 close(11)
 
 if (fileExists('io_module_unit_test')) then
@@ -26,7 +29,10 @@ endif
 call test_value(i,1,'fileExists')
 
 i = line_count('io_module_unit_test')
-call test_value(i,4,'line_count')
+call test_value(i,7,'line_count')
+
+i = line_count_ignore('io_module_unit_test',2,['>','#'])
+call test_value(i,7,'line_count_ignore')
 
 ! subroutine progress_indicator()
 

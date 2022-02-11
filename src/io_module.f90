@@ -21,6 +21,7 @@ public :: verbosity
 
 public :: fileExists
 public :: line_count
+public :: line_count_ignore
 public :: progress_indicator
 
 public :: isNumeric
@@ -97,6 +98,74 @@ close(41)
 
 return
 end function line_count
+
+!--------------------------------------------------------------------------------------------------!
+
+function line_count_ignore(file_name,nignore,ignore_array)
+!----
+! Count the number of lines in a file, return integer value
+! Ignore lines beginning with characters listed in ignore_array and blank lines
+! Return value:
+!     >0: routine executed correctly, value is number of lines in file
+!      0: file not found
+!     -1: file open in another unit
+!----
+
+implicit none
+
+! I/O variables
+character(len=*) :: file_name
+integer :: line_count_ignore
+integer :: nignore
+character(len=1) :: ignore_array(nignore)
+
+! Local variables
+integer :: ios, i
+logical :: iopen
+character(len=16) :: input_line
+
+line_count_ignore = 0
+
+! Check whether file is already open in another unit
+inquire(file=file_name,opened=iopen)
+if (iopen) then
+    write(stderr,*) 'line_count_ignore: file "',trim(file_name),'" is already open in another unit'
+    line_count_ignore = -1
+    return
+endif
+
+if (.not.fileExists(file_name)) then
+    write(stderr,*) 'line_count_ignore: file "',trim(file_name),'" not found'
+    return
+endif
+
+open(unit=41,file=file_name,status='old')
+
+do
+    read(41,'(A)',iostat=ios) input_line
+
+    if (ios.ne.0) then
+        exit
+    endif
+
+    input_line = adjustl(input_line)
+    do i = 1,nignore
+        if (input_line(1:1).eq.ignore_array(i).or.input_line.eq.'') then
+            cycle
+        endif
+    enddo
+
+    if (ios.eq.0) then
+        line_count_ignore = line_count_ignore + 1
+    else
+        exit
+    endif
+enddo
+
+close(41)
+
+return
+end function line_count_ignore
 
 !--------------------------------------------------------------------------------------------------!
 
