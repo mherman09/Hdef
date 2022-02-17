@@ -121,7 +121,7 @@ character(len=1) :: ignore_array(nignore)
 
 ! Local variables
 integer :: ios, i
-logical :: iopen
+logical :: iopen, ignoreLine
 character(len=16) :: input_line
 
 line_count_ignore = 0
@@ -144,18 +144,23 @@ open(unit=41,file=file_name,status='old')
 do
     read(41,'(A)',iostat=ios) input_line
 
+    ! Exit loop if at end of file (other degenerate situations?)
     if (ios.ne.0) then
         exit
     endif
 
+    ! Check for whether we should ignore this line
+    ignoreLine = .false.
     input_line = adjustl(input_line)
     do i = 1,nignore
         if (input_line(1:1).eq.ignore_array(i).or.input_line.eq.'') then
-            cycle
+            ignoreLine = .true.
+            exit
         endif
     enddo
 
-    if (ios.eq.0) then
+    ! Count the line or not
+    if (.not.ignoreLine) then
         line_count_ignore = line_count_ignore + 1
     else
         exit

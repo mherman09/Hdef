@@ -32,7 +32,7 @@ i = line_count('io_module_unit_test')
 call test_value(i,7,'line_count')
 
 i = line_count_ignore('io_module_unit_test',2,['>','#'])
-call test_value(i,7,'line_count_ignore')
+call test_value(i,4,'line_count_ignore')
 
 ! subroutine progress_indicator()
 
