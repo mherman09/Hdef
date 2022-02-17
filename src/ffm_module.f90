@@ -30,6 +30,8 @@ public :: ffm_data
 
 public :: read_usgs_param
 public :: read_srcmod_fsp
+public :: read_flt
+public :: read_mag
 public :: get_ffm_outline
 
 !--------------------------------------------------------------------------------------------------!
@@ -603,7 +605,7 @@ subroutine read_mag(mag_file,mag_data,ierr)
 !     evlo evla evdp(km) str dip rak mag
 !----
 
-use io, only: verbosity, stdout, stderr, fileExists, line_count
+use io, only: verbosity, stdout, stderr, fileExists, line_count, line_count_ignore
 implicit none
 
 ! Arguments
@@ -612,7 +614,8 @@ type(ffm_data) :: mag_data
 integer :: ierr
 
 ! Local variables
-integer :: iflt, j
+integer :: iflt, j, nlines, ct
+character(len=512) :: input_line
 
 
 if (verbosity.ge.2) then
@@ -630,8 +633,9 @@ if (.not.fileExists(mag_file)) then
     return
 endif
 
-! Allocate memory to sub-fault array
-mag_data%nflt = line_count(mag_file)
+! Count number of faults and allocate memory to sub-fault array
+nlines = line_count(mag_file)
+mag_data%nflt = line_count_ignore(mag_file,2,['>','#'])
 if (allocated(mag_data%subflt)) then
     deallocate(mag_data%subflt)
 endif
@@ -639,10 +643,25 @@ allocate(mag_data%subflt(mag_data%nflt,9))
 
 ! Read the file
 open(unit=31,file=mag_file,status='old')
-do iflt = 1,mag_data%nflt
-    read(31,*) (mag_data%subflt(iflt,j),j=1,7)
+ct = 0
+do iflt = 1,nlines
+    read(31,'(A)') input_line
+    if (adjustl(input_line).eq.'#'.or.adjustl(input_line).eq.'>'.or.input_line.eq.'') then
+        ! Ignore this line
+        cycle
+    else
+        ct = ct + 1
+    endif
+    read(input_line,*) (mag_data%subflt(iflt,j),j=1,7)
     mag_data%subflt(iflt,3) = mag_data%subflt(iflt,3)*1.0d3 ! Depth km->m
 enddo
+
+! Check that any ignored lines were correctly handled
+if (ct.ne.mag_data%nflt) then
+    write(stderr,*) 'read_mag: error counting input faults with ignored lines'
+    ierr = 2
+    return
+endif
 close(31)
 
 if (verbosity.ge.2) then
@@ -660,7 +679,7 @@ subroutine read_flt(flt_file,flt_data,ierr)
 !     evlo evla evdp(km) str dip rak slip(m) wid(km) len(km)
 !----
 
-use io, only: verbosity, stdout, stderr, fileExists, line_count
+use io, only: verbosity, stdout, stderr, fileExists, line_count, line_count_ignore
 implicit none
 
 ! Arguments
@@ -669,7 +688,8 @@ type(ffm_data) :: flt_data
 integer :: ierr
 
 ! Local variables
-integer :: iflt, j
+integer :: iflt, j, nlines, ct
+character(len=512) :: input_line
 
 
 if (verbosity.ge.2) then
@@ -687,7 +707,9 @@ if (.not.fileExists(flt_file)) then
 endif
 
 ! Allocate memory to sub-fault array
-flt_data%nflt = line_count(flt_file)
+! Count number of faults and allocate memory to sub-fault array
+nlines = line_count(flt_file)
+flt_data%nflt = line_count_ignore(flt_file,2,['>','#'])
 if (allocated(flt_data%subflt)) then
     deallocate(flt_data%subflt)
 endif
@@ -695,8 +717,17 @@ allocate(flt_data%subflt(flt_data%nflt,9))
 
 ! Read the file
 open(unit=32,file=flt_file,status='old')
-do iflt = 1,flt_data%nflt
-    read(32,*,end=9001,iostat=ierr) (flt_data%subflt(iflt,j),j=1,9)
+ct = 0
+do iflt = 1,nlines
+    read(32,'(A)') input_line
+    if (adjustl(input_line).eq.'#'.or.adjustl(input_line).eq.'>'.or.input_line.eq.'') then
+        ! Ignore this line
+        cycle
+    else
+        ct = ct + 1
+    endif
+
+    read(input_line,*,end=9001,iostat=ierr) (flt_data%subflt(iflt,j),j=1,9)
     flt_data%subflt(iflt,3) = flt_data%subflt(iflt,3)*1.0d3 ! Depth km->m
     flt_data%subflt(iflt,8) = flt_data%subflt(iflt,8)*1.0d3 ! Width km->m
     flt_data%subflt(iflt,9) = flt_data%subflt(iflt,9)*1.0d3 ! Length km->m
@@ -709,6 +740,14 @@ close(32)
     ierr = 1
     return
 endif
+
+! Check that any ignored lines were correctly handled
+if (ct.ne.flt_data%nflt) then
+    write(stderr,*) 'read_flt: error counting input faults with ignored lines'
+    ierr = 2
+    return
+endif
+close(31)
 
 
 if (verbosity.ge.2) then

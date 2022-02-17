@@ -27,9 +27,19 @@ displacements, strains, stresses, and resolved stresses. Note that depths are
 defined positive down, while displacements, strains, and stresses have z defined
 positive up.
 
+For the
+.BR -mag ,
+.BR -flt ", and"
+.BR -tns 
+input options, blank lines and lines starting with "#" or ">" are ignored.
+For the
+.B -sta
+option, blank lines and lines starting with "#" or ">" are ignored,
+and are not printed to the output file.
+
 .SH OPTIONS
 .TP
-.B INPUTS
+.B ----- INPUTS - FAULTS -----
 
 .TP
 .BI -ffm " fault_file"
@@ -108,6 +118,9 @@ is negative, then
 
 
 .TP
+.B ----- INPUTS - TARGETS/RECEIVERS -----
+
+.TP
 .BI -sta " station_file"
 Locations to compute deformation:
 .I stlo stla stdp(km)
@@ -149,6 +162,9 @@ has the same number of entries as
 then target fault parameters correspond to matching station coordinate.
 
 .TP
+.B ----- INPUTS - HALF-SPACE -----
+
+.TP
 .BI -haf " halfspace_file"
 Optional file to define half-space elastic moduli. The default values
 are
@@ -163,7 +179,7 @@ is the value in Pa.
 
 
 .TP
-.B OUTPUTS
+.B ----- OUTPUTS -----
 
 .TP
 .BI -disp " output_file"
@@ -217,7 +233,7 @@ resolved onto target geometry (requires
 
 
 .TP
-.B OTHER OPTIONS
+.B ----- OTHER OPTIONS -----
 
 .TP
 .BI -parallel " [nthreads]"

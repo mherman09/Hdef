@@ -713,6 +713,8 @@ endif
 nstations = line_count(station_file)
 allocate(stations(nstations,3))
 allocate(sta_char(nstations))
+stations = 0.0d0
+sta_char = ''
 
 
 ! Read stations
@@ -720,12 +722,18 @@ open(unit=13,file=station_file,status='old')
 do i = 1,nstations
     read(13,'(A)') input_line
     input_line = adjustl(input_line)
-    sta_char(i) = input_line
+    sta_char(i) = input_line(1:32)
     if (sta_char(i)(1:1).eq.'#'.or.sta_char(i)(1:1).eq.'>') then
         ! This line is a comment (#) or a segment header (>)
+        sta_char(i) = 'skip'
+        cycle
+    elseif (sta_char(i).eq.'') then
+        ! This line is empty
+        sta_char(i) = 'skip'
         cycle
     endif
     read(input_line,*,iostat=ios,err=1003,end=1004) (stations(i,j),j=1,3)
+    ! print *,i,trim(input_line)
 enddo
 close(13)
 
@@ -1166,7 +1174,7 @@ do iSta = 1,nstations
     !!$OMP DO
 
 
-    if (sta_char(iSta)(1:1).ne.'#'.and.sta_char(iSta)(1:1).ne.'>') then
+    if (sta_char(iSta).ne.'skip') then
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1317,7 +1325,7 @@ do iSta = 1,nstations
         endif
     enddo
 
-    endif ! (sta_char(iSta).ne.'#'.and.sta_char(iSta).ne.'>')
+    endif ! (sta_char(iSta).ne.'skip')
 
 
     !! End the parallel do loop
@@ -1345,8 +1353,8 @@ do iSta = 1,nstations
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz
     if (displacement_file.ne.'') then
-        if (sta_char(iSta)(1:1).eq.'#'.or.sta_char(iSta)(1:1).eq.'>') then
-            write(101,'(A)') sta_char(iSta)
+        if (sta_char(iSta).eq.'skip') then
+            !write(101,'(A)') sta_char(iSta)
         elseif (disp_output_mode.eq.'enz') then
             write(101,*) stations(iSta,:),disp
         elseif (disp_output_mode.eq.'amz') then
@@ -1363,8 +1371,8 @@ do iSta = 1,nstations
 
     ! Strain tensor: exx, eyy, ezz, exy, exz, eyz
     if (strain_file.ne.'') then
-        if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-            write(111,'(A)') sta_char(iSta)
+        if (sta_char(iSta).eq.'skip') then
+            !write(111,'(A)') sta_char(iSta)
         else
             write(111,*) stations(iSta,:),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
         endif
@@ -1376,8 +1384,8 @@ do iSta = 1,nstations
 
         ! Stress tensor: sxx, syy, szz, sxy, sxz, syz
         if (stress_file.ne.'') then
-            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-                write(121,'(A)') sta_char(iSta)
+            if (sta_char(iSta).eq.'skip') then
+                !write(121,'(A)') sta_char(iSta)
             else
                 write(121,*) stations(iSta,:),sts(1,1),sts(2,2),sts(3,3),sts(1,2),sts(1,3),sts(2,3)
             endif
@@ -1386,8 +1394,8 @@ do iSta = 1,nstations
         ! Maximum (effective) shear stress (aka, second invariant of deviatoric stress tensor): ests
         if (estress_file.ne.'') then
             call max_shear_stress(sts,ests)
-            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-                write(122,'(A)') sta_char(iSta)
+            if (sta_char(iSta).eq.'skip') then
+                !write(122,'(A)') sta_char(iSta)
             else
                 write(122,*) stations(iSta,:),ests
             endif
@@ -1404,8 +1412,8 @@ do iSta = 1,nstations
 
         ! Normal traction: normal (positive=dilation)
         if (normal_file.ne.'') then
-            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-                write(131,'(A)') sta_char(iSta)
+            if (sta_char(iSta).eq.'skip') then
+                !write(131,'(A)') sta_char(iSta)
             else
                 write(131,*) stations(iSta,:),tnor
             endif
@@ -1414,8 +1422,8 @@ do iSta = 1,nstations
         ! Shear traction: resolved_onto_rake, max_shear_on_plane
         if (shear_file.ne.'') then
             tshrmx = sqrt(tstr*tstr+tupd*tupd)
-            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-                write(132,'(A)') sta_char(iSta)
+            if (sta_char(iSta).eq.'skip') then
+                !write(132,'(A)') sta_char(iSta)
             else
                 write(132,*) stations(iSta,:),tshr,tshrmx
             endif
@@ -1424,8 +1432,8 @@ do iSta = 1,nstations
         ! Coulomb stress: coulomb
         if (coulomb_file.ne.'') then
             coul = tshr + targets(iSta,4)*tnor
-            if (sta_char(iSta).eq.'#'.or.sta_char(iSta).eq.'>') then
-                write(133,'(A)') sta_char(iSta)
+            if (sta_char(iSta).eq.'skip') then
+                !write(133,'(A)') sta_char(iSta)
             else
                 write(133,*) stations(iSta,:),coul
             endif
