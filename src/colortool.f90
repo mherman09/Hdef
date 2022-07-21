@@ -12,6 +12,7 @@ character(len=16) :: color_path_type
 character(len=8) :: convert(2)
 double precision :: gmt_cpt_lims(2)
 character(len=8) :: output_mode
+logical :: printOutputMode
 
 integer :: verbose
 
@@ -81,12 +82,14 @@ endif
 
 ! Write GMT cpt header
 if (gmtfile.ne.'none') then
-    if (output_mode.eq.'RGB') then
-        write(uout,'(A)') '# COLOR_MODEL = rgb'
-    elseif (output_mode.eq.'HSV') then
-        write(uout,'(A)') '# COLOR_MODEL = hsv'
-    else
-        call usage('colortool: no output_mode "'//trim(output_mode)//'"')
+    if (printOutputMode) then
+        if (output_mode.eq.'RGB') then
+            write(uout,'(A)') '# COLOR_MODEL = rgb'
+        elseif (output_mode.eq.'HSV') then
+            write(uout,'(A)') '# COLOR_MODEL = hsv'
+        else
+            call usage('colortool: no output_mode "'//trim(output_mode)//'"')
+        endif
     endif
 endif
 
@@ -694,6 +697,7 @@ dz = -1.0
 gmtfile = 'none'
 saturate = 0
 output_mode = 'RGB'
+printOutputMode = .false.
 narg = iargc()
 if (narg.eq.0) call usage('')
 i = 1
@@ -781,6 +785,7 @@ do while (i.le.narg)
             endif
         endif
     elseif (tag.eq.'-mode') then
+        printOutputMode = .true.
         i = i + 1
         call getarg(i,output_mode)
     elseif (tag(1:7).eq.'-limits') then
