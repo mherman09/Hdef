@@ -6,6 +6,7 @@ double precision :: x2
 double precision :: mean
 double precision :: stdev
 integer :: npts
+integer :: nlist
 character(len=512) :: seed_file
 
 end module
@@ -23,12 +24,15 @@ use rangen, only: ran_mode, &
                   mean, &
                   stdev, &
                   npts, &
+                  nlist, &
                   seed_file
 
 implicit none
 
 ! Local variables
-integer :: i
+integer :: i, j, jtmp, listtmp
+integer, allocatable :: list(:)
+double precision :: jdble
 
 
 call gcmdln()
@@ -41,6 +45,23 @@ do i = 1,npts
         write(stdout,*) x1 + (x2-x1)*r8_uniform_01(iseed)
     elseif (ran_mode.eq.'normal') then
         write(stdout,*) r8_normal_ab(mean,stdev,iseed)
+    elseif (ran_mode.eq.'list') then
+        if (.not.allocated(list)) then
+            allocate(list(nlist))
+        endif
+        do j = 1,nlist
+            list(j) = j
+        enddo
+        do j = 1,nlist
+           jdble = 1.0d0 + (dble(nlist))*r8_uniform_01(iseed)
+           jtmp = int(jdble)
+           listtmp = list(j)
+           list(j) = list(jtmp)
+           list(jtmp) = listtmp
+        enddo
+        do j = 1,nlist
+            write(stdout,*) list(j)
+        enddo
     else
         call usage('rangen: no generator mode named '//trim(ran_mode))
     endif
@@ -66,6 +87,7 @@ use rangen, only: ran_mode, &
                   mean, &
                   stdev, &
                   npts, &
+                  nlist, &
                   seed_file
 
 implicit none
@@ -82,6 +104,7 @@ x2 = 1.0d0
 mean = 0.0d0
 stdev = 1.0d0
 npts = 100
+nlist = 0
 seed_file = ''
 iseed = timeseed()*100
 
@@ -114,6 +137,13 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,tag)
         read(tag,*) stdev
+
+    elseif (tag.eq.'-l'.or.tag.eq.'-list') then
+        npts = 1
+        ran_mode = 'list'
+        i = i + 1
+        call get_command_argument(i,tag)
+        read(tag,*) nlist
 
     elseif (tag.eq.'-n'.or.tag.eq.'-npts') then
         i = i + 1
@@ -163,6 +193,7 @@ write(stderr,*) '              [-printseed FILE]'
 write(stderr,*)
 write(stderr,*) '-uniform X1 X2        Uniform distribution between X1 and X2'
 write(stderr,*) '-normal MEAN STD      Gaussian distribution centered on MEAN with std dev STD'
+write(stderr,*) '-list NLIST           Generate randomized list of NLIST numbers'
 write(stderr,*) '-n NPTS               Number of points to generate (default: 100)'
 write(stderr,*) '-seed SEED            Random number seed'
 write(stderr,*) '-printseed FILE       Print output random number seed (to keep chain going)'
