@@ -57,6 +57,11 @@ my $i_us_Mwb = -1;
 my $i_us_Mwr = -1;
 my $i_us_Mwc = -1;
 my $i_duputel_Mww = -1;
+my $i_nc_TMTS = -1;
+my $i_nc_TDMT = -1;
+my $i_nc_Mw = -1;
+my $i_nn_Mw = -1;
+my $i_nc_Mww = -1;
 
 # First line of the file is a header with field information
 # Get the indices of all variables
@@ -72,7 +77,7 @@ for (@$row) {
     } elsif ($_ =~ "depth") {
         $i_depth = $i;
         #print "i_depth=$i_depth\n";
-    } elsif ($_ =~ "magnitude") {
+    } elsif ($_ =~ "magnitude" || $_ eq "mag") {
         $i_magnitude = $i;
         #print "i_magnitude=$i_magnitude\n";
     } elsif ($_ =~ "time") {
@@ -93,6 +98,16 @@ for (@$row) {
     } elsif ($_ =~ "duputel_Mww_mrr") {
         $i_duputel_Mww = $i;
         #print "i_us_Mwb=$i_duputel_Mww\n";
+    } elsif ($_ =~ "nc_TMTS_mrr") {
+        $i_nc_TMTS = $i;
+    } elsif ($_ =~ "nc_TDMT_mrr") {
+        $i_nc_TDMT = $i;
+    } elsif ($_ =~ "nn_Mw_mrr") {
+        $i_nn_Mw = $i;
+    } elsif ($_ =~ "nc_Mww_mrr") {
+        $i_nc_Mww = $i;
+    } elsif ($_ =~ "nc_Mw_mrr") {
+        $i_nc_Mw = $i;
     }
     $i = $i + 1;
 }
@@ -189,6 +204,21 @@ while (my $row = $csv->getline ($fh)) {
             } elsif ($i_duputel_Mww >= 0 && $row->[$i_duputel_Mww] ne "") {
                 $i_mt = $i_duputel_Mww;
                 $mt_type = "duputel_Mww";
+            } elsif ($i_nc_Mw >= 0 && $row->[$i_nc_Mw] ne "") {
+                $i_mt = $i_nc_Mw;
+                $mt_type = "nc_Mw";
+            } elsif ($i_nc_Mww >= 0 && $row->[$i_nc_Mww] ne "") {
+                $i_mt = $i_nc_Mww;
+                $mt_type = "nc_Mww";
+            } elsif ($i_nn_Mw >= 0 && $row->[$i_nn_Mw] ne "") {
+                $i_mt = $i_nn_Mw;
+                $mt_type = "nn_Mw";
+            } elsif ($i_nc_TDMT >= 0 && $row->[$i_nc_TDMT] ne "") {
+                $i_mt = $i_nc_TDMT;
+                $mt_type = "nc_TDMT";
+            } elsif ($i_nc_TMTS >= 0 && $row->[$i_nc_TMTS] ne "") {
+                $i_mt = $i_nc_TMTS;
+                $mt_type = "nc_TMTS";
             } else {
                 $output = $output."no_MT ";
             }
