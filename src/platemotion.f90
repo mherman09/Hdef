@@ -58,6 +58,10 @@ if (plates(1).ne.'') then
     if (ierr.ne.0) then
         call usage('platemotion: problem computing pole of rotation from plate circuit')
     endif
+    if (convert_mode.eq.'print') then
+        write(*,*) pole
+        stop
+    endif
 endif
 
 ! Convert pole to Cartesian coordinates
@@ -176,6 +180,15 @@ do while (i.le.narg)
         i = i + 1
         call get_command_argument(i,model_name)
 
+    elseif (tag.eq.'-printpole') then
+        i = i + 1
+        call get_command_argument(i,plates(1))
+        j = index(plates(1),'/')
+        plates(1)(j:j) = ' '
+        read(plates(1),*) plates(2),plates(2)
+        plates(1)(j:len(plates(1))) = ''
+        convert_mode = 'print'
+
     elseif (trim(tag).eq.'-list') then
         i = i + 1
         if (i.gt.narg) then
@@ -241,6 +254,7 @@ write(stderr,*) '-geo2xyz           Convert Euler pole in geographic coordinates
 write(stderr,*) '-xyz2geo           Convert Euler pole in Cartesian coordinates to geographic (assumes LON/LAT/VEL is X/Y/Z)'
 write(stderr,*) '-f IFILE           Input file (default: stdin)'
 write(stderr,*) '-o OFILE           Output file (default: stdout)'
+write(stderr,*) '-printpole P1/P2   Print Euler pole (lon lat deg/Ma) for P2 w.r.t. P1'
 write(stderr,*)
 
 call error_exit(1)
