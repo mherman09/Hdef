@@ -24,6 +24,7 @@ function usage() {
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
     echo "-plates PB_FILE               Plot plate boundaries (default: no boundaries)" 1>&2
+    echo "-other:psxy FILE    Other psxy file to plot (can repeat)" 1>&2
     exit 1
 }
 
@@ -52,6 +53,10 @@ TIME_CPT=
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
 
+# Other commands
+PSXY_LIST=""
+
+
 while [ "$1" != "" ]
 do
     case $1 in
@@ -68,6 +73,7 @@ do
         -trans:max) shift; MAX_TRANS=$1;;
         -mech) PLOT_MECH=Y;;
         -plates) shift; PLATE_BOUNDARY_FILE=$1;;
+        -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         *) ;;
     esac
     shift
@@ -106,6 +112,8 @@ then
         PLATE_BOUNDARY_FILE=
     fi
 fi
+
+
 
 # Check that variables are defined
 for VAR in DATE_START DATE_END DDAY MAP_LIMS
@@ -213,7 +221,11 @@ YEAR_TIKS=$(echo $NDAYS |\
            }')
 DAY_TIKS=$(echo $NDAYS |\
            awk '{
-               if ($1<10) {
+               if ($1<2) {
+                   print 0.5
+               } else if ($1<5) {
+                   print 1
+               } else if ($1<10) {
                    print 2
                } else if ($1<20) {
                    print 5
@@ -328,6 +340,25 @@ do
     then
         gmt psxy $PLATE_BOUNDARY_FILE $MAP_PROJ $MAP_LIMS -W1p -K -O >> $PSFILE
     fi
+
+
+
+    # Other datasets
+    if [ "$PSXY_LIST" != "" ]
+    then
+        echo $PSXY_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psxy_list.tmp
+        while read PSXY
+        do
+            echo $0: plotting file $PSXY
+            PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
+            PSXY_OPTIONS=`echo $PSXY | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+            #echo $PSXY_FILE
+            #echo $PSXY_OPTIONS
+            gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $PSFILE
+        done < psxy_list.tmp
+    fi
+
+
 
     # Seismicity
     awk '{print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
