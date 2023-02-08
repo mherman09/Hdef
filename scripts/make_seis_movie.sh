@@ -24,7 +24,9 @@ function usage() {
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
     echo "-plates PB_FILE               Plot plate boundaries (default: no boundaries)" 1>&2
-    echo "-other:psxy FILE    Other psxy file to plot (can repeat)" 1>&2
+    echo "-topo TOPO_FILE               Plot shaded topography in background" 1>&2
+    echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
+    echo "-other:pstext WORDS:OPT       Other psxy file to plot (can repeat)" 1>&2
     exit 1
 }
 
@@ -52,9 +54,11 @@ MAG_COLOR_CHANGE=
 TIME_CPT=
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
+TOPO_FILE=
 
 # Other commands
 PSXY_LIST=""
+PSTEXT_LIST=""
 
 
 while [ "$1" != "" ]
@@ -73,7 +77,9 @@ do
         -trans:max) shift; MAX_TRANS=$1;;
         -mech) PLOT_MECH=Y;;
         -plates) shift; PLATE_BOUNDARY_FILE=$1;;
+        -topo) shift; TOPO_FILE=$1;;
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
+        -other:pstext) shift;PSTEXT_LIST="$PSTEXT_LIST;$1";;
         *) ;;
     esac
     shift
@@ -332,8 +338,29 @@ do
     # Initialize plot
     gmt psxy -T -K -Y3.5i > $PSFILE
 
+    # Topography
+    if [ "$TOPO_FILE" != "" ]
+    then
+        if [ ! -f topo_cut_grad.grd ]
+        then
+            gmt grdcut $SRTM15 $MAP_LIMS -Gtopo_cut.grd
+            gmt grdgradient topo_cut.grd -A0/270 -Ne0.4 -Gtopo_cut_grad.grd
+        fi
+        if [ ! -f topo_bw.cpt ]
+        then
+            TOPO_MINMAX=`gmt grdinfo topo_cut.grd -C | awk '{print $6,$7}'`
+            TOPO_MIN=`echo $TOPO_MINMAX | awk '{printf("%d"),$1}'`
+            TOPO_MAX=`echo $TOPO_MINMAX | awk '{printf("%d"),$2}'`
+            colortool -hue 300,180 -chroma 0,0 -lightness 75,100 -gmt -T${TOPO_MIN}/0/1 > topo_bw.cpt
+            colortool -hue 150,60 -chroma 0,0 -lightness 95,100 -gmt -T0/${TOPO_MAX}/1 >> topo_bw.cpt
+            tail -1 topo_bw.cpt | awk '{print "F",$2}' >> topo_bw.cpt
+            head -1 topo_bw.cpt | awk '{print "B",$2}' >> topo_bw.cpt
+        fi
+        gmt grdimage topo_cut.grd $MAP_PROJ $MAP_LIMS -Itopo_cut_grad.grd -Ctopo_bw.cpt -K -O >> $PSFILE
+    fi
+
     # Coastline
-    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W1p -K -O >> $PSFILE
+    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W1p -C245 -K -O >> $PSFILE
 
     # Plate boundaries
     if [ "$PLATE_BOUNDARY_FILE" != "" ]
@@ -349,9 +376,9 @@ do
         echo $PSXY_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psxy_list.tmp
         while read PSXY
         do
-            echo $0: plotting file $PSXY
             PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
             PSXY_OPTIONS=`echo $PSXY | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+            echo plotting file $PSXY_FILE
             #echo $PSXY_FILE
             #echo $PSXY_OPTIONS
             gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $PSFILE
@@ -377,6 +404,23 @@ do
     # Date in bottom left corner
     echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"10,2 LT '$DATE'"}' |\
         gmt pstext $MAP_PROJ $MAP_LIMS -F+f+j -D0.05i/-0.05i -N -K -O >> $PSFILE
+
+    # Other text
+    if [ "$PSTEXT_LIST" != "" ]
+    then
+        echo $PSTEXT_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > pstext_list.tmp
+        while read PSTEXT
+        do
+            PSTEXT_WORDS=`echo $PSTEXT | awk -F: '{print $1}'`
+            PSTEXT_OPTIONS=`echo $PSTEXT | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+            echo plotting words $PSTEXT_WORDS
+            #echo $PSTEXT_FILE
+            #echo $PSTEXT_OPTIONS
+            echo $PSTEXT_WORDS | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O >> $PSFILE
+        done < pstext_list.tmp
+    fi
+
+
 
     # Initialize magnitude versus time origin
     gmt psxy -T -K -O -Y-2.5i >> $PSFILE
@@ -416,6 +460,7 @@ echo "$0: converting PostScript frames to PNG"
 gmt psconvert -Tg -A frame_*.ps -Vt
 rm frame_*.ps
 rm seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
+rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
 
 echo "$0: creating movie \"seis_movie.mp4\""
 ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
