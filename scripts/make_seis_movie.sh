@@ -27,6 +27,7 @@ function usage() {
     echo "-topo TOPO_FILE               Plot shaded topography in background" 1>&2
     echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
     echo "-other:pstext WORDS:OPT       Other psxy file to plot (can repeat)" 1>&2
+    echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
     exit 1
 }
 
@@ -59,6 +60,7 @@ TOPO_FILE=
 # Other commands
 PSXY_LIST=""
 PSTEXT_LIST=""
+PSIMAGE_LIST=""
 
 
 while [ "$1" != "" ]
@@ -80,6 +82,7 @@ do
         -topo) shift; TOPO_FILE=$1;;
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         -other:pstext) shift;PSTEXT_LIST="$PSTEXT_LIST;$1";;
+        -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
         *) ;;
     esac
     shift
@@ -418,6 +421,22 @@ do
             #echo $PSTEXT_OPTIONS
             echo $PSTEXT_WORDS | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O >> $PSFILE
         done < pstext_list.tmp
+    fi
+
+
+
+    if [ "$PSIMAGE_LIST" != "" ]
+    then
+        echo $PSIMAGE_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psimage_list.tmp
+        while read PSIMAGE
+        do
+            PSIMAGE_FILE=`echo $PSIMAGE | awk -F: '{print $1}'`
+            PSIMAGE_OPTIONS=`echo $PSIMAGE | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+            echo plotting file $PSIMAGE_FILE
+            #echo $PSIMAGE_FILE
+            #echo $PSIMAGE_OPTIONS
+            gmt psimage $MAP_PROJ $MAP_LIMS $PSIMAGE_FILE $PSIMAGE_OPTIONS -K -O >> $PSFILE
+        done < psimage_list.tmp
     fi
 
 
