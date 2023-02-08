@@ -30,6 +30,7 @@ function usage() {
     echo "-emprel EMPREL      Empirical relation for rect source" 1>&2
     echo "-o FILENAME         Basename for output file" 1>&2
     echo "-noclean            Keep all temporary files (useful for debugging)"
+    echo "-other:psxy FILE    Other psxy file to plot (can repeat)" 1>&2
     echo 1>&2
     exit 1
 }
@@ -75,6 +76,7 @@ EMPREL="WC"
 OFILE="coul_hor"
 THR="0.15"
 CLEAN="Y"
+PSXY_LIST=""
 while [ "$1" != "" ]
 do
     case $1 in
@@ -91,6 +93,7 @@ do
         -emprel) shift;EMPREL="$1";;
         -o) shift;OFILE="$1" ;;
         -noclean) CLEAN="N";;
+        -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         *) echo "coul_hor.sh: no option \"$1\"" 1>&2; usage;;
     esac
     shift
@@ -490,7 +493,7 @@ then
     echo $CONT $MAXSLIP | awk '{for (i=$1;i<=$2;i=i+$1){print i,"C"}}' > junk || \
         { echo "coul_hor.sh: error making contour definition file" 1>&2; exit 1; }
     awk '{print $1,$2,$3}' slip.tmp |\
-        gmt surface -Gslip.grd -I0.10/0.10 -Tb1 -Ti0.25 $LIMS || \
+        gmt surface -Gslip.grd -I0.10/0.10 -Ti0.25 $LIMS || \
         { echo "coul_hor.sh: GMT surface error" 1>&2; exit 1; }
     gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE || \
         { echo "coul_hor.sh: psclip error" 1>&2; exit 1; }
@@ -517,6 +520,27 @@ then
         gmt psxy $PROJ $LIMS -Sa0.15i -W1p,55/55/55 -K -O -t50 >> $PSFILE || \
         { echo "coul_hor.sh: psxy error plotting epicenter" 1>&2; exit 1; }
 fi
+
+
+
+
+
+# Other datasets
+if [ "$PSXY_LIST" != "" ]
+then
+    echo $PSXY_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psxy_list.tmp
+    while read PSXY
+    do
+        echo $0: plotting file $PSXY
+        PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
+        PSXY_OPTIONS=`echo $PSXY | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+        #echo $PSXY_FILE
+        #echo $PSXY_OPTIONS
+        gmt psxy $PROJ $LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $PSFILE
+    done < psxy_list.tmp
+fi 
+
+
 
 
 # Legend (all coordinates are in cm from the bottom left)
@@ -602,4 +626,4 @@ echo 0 0 | gmt psxy $PROJ $LIMS -O >> $PSFILE
 #####
 #	CLEAN UP
 #####
-ps2pdf $PSFILE
+gmt psconvert $PSFILE -Tf -A
