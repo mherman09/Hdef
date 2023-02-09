@@ -463,12 +463,34 @@ do
         gmt psxy $TIME_PROJ $TIME_LIMS -W1p -K -O >> $PSFILE
 
     # Magnitude versus time frame
-    gmt psbasemap $TIME_PROJ $TIME_LIMS \
-        -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
-        -BWeN -K -O \
-        --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
-    gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
-        -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+    NDAYS_INT=`echo $NDAYS | awk '{printf("%d"),$1}'`
+    if [ $NDAYS_INT -le 7 ]
+    then
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}D -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
+            --FORMAT_DATE_MAP=o-dd --FORMAT_TIME_MAP=a >> $PSFILE
+    elif [ $NDAYS_INT -le 31 ]
+    then
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+    else
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+    fi
+    if [ $NDAYS_INT -le 5 ]
+    then
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+            -Bxa${DAY_TIKS}+l"Number of Days Since ${DATE_START}" -BS -K -O >> $PSFILE
+    else
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+            -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+    fi
 
     # Finalize plot
     gmt psxy -T -O >> $PSFILE
