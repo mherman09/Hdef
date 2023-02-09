@@ -495,10 +495,10 @@ LIMS="-R$W/$E/$S/$N"
 
 
 # LOS phase color palette
-if [ -f $BIN_DIR/../cpt/ScientificColourMaps7_gmt-only/romaO.cpt ]
+if [ -f $BIN_DIR/../cpt/romaO.cpt ]
 then
     echo "Using romaO colormap for interferograms" | tee -a insar.sh.log
-    gmt makecpt -T-3.15/3.15/0.02 -C$BIN_DIR/../cpt/ScientificColourMaps7_gmt-only/romaO.cpt -D > phase.cpt
+    gmt makecpt -T-3.15/3.15/0.02 -C$BIN_DIR/../cpt/romaO.cpt -D > phase.cpt
 else
     echo "Using rainbow colormap for interferograms" | tee -a insar.sh.log
     gmt makecpt -T-3.15/3.15/0.02 -Crainbow -D > phase.cpt
@@ -657,7 +657,7 @@ then
         { echo "insar.sh: error making contour definition file" 1>&2; exit 1; }
     awk '{print $1,$2,$3}' slip.tmp |\
         gmt blockmedian -I0.10/0.10 $LIMS |\
-        gmt surface -Gslip.grd -I0.10/0.10 -Tb1 -Ti0.25 $LIMS || \
+        gmt surface -Gslip.grd -I0.10/0.10 -Ti0.25 $LIMS || \
         { echo "insar.sh: GMT surface error" 1>&2; exit 1; }
     gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE || \
         { echo "insar.sh: psclip error" 1>&2; exit 1; }
@@ -799,7 +799,7 @@ then
         { echo "insar.sh: error making contour definition file" 1>&2; exit 1; }
     awk '{print $1,$2,$3}' slip.tmp |\
         gmt blockmedian -I0.10/0.10 $LIMS |\
-        gmt surface -Gslip.grd -I0.10/0.10 -Tb1 -Ti0.25 $LIMS || \
+        gmt surface -Gslip.grd -I0.10/0.10 -Ti0.25 $LIMS || \
         { echo "insar.sh: GMT surface error" 1>&2; exit 1; }
     gmt psclip clip.tmp $PROJ $LIMS -K -O >> $PSFILE || \
         { echo "insar.sh: psclip error" 1>&2; exit 1; }
@@ -873,7 +873,7 @@ echo "----------" | tee -a insar.sh.log
 gmt psconvert $PSFILE -Tf -A > /dev/null
 gmt psconvert $PSFILE -Tg -A > /dev/null
 
-echo "Created $(basename $PSFILE.ps .ps).pdf and $(basename $PSFILE.ps .ps).png" | tee -a insar.sh.log
+echo "Created $(basename $PSFILE .ps).pdf and $(basename $PSFILE .ps).png" | tee -a insar.sh.log
 echo "This output is saved in insar.sh.log" | tee -a insar.sh.log
 
 echo "--------------------------------------------------------------------------------" | tee -a insar.sh.log
