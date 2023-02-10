@@ -19,9 +19,10 @@ function usage() {
     echo "-mag:min MAG_MIN              Minimum magnitude for magnitude versus time frame" 1>&2
     echo "-mag:max MAG_MAX              Maximum magnitude for magnitude versus time frame" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
+    echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
-    echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols" 1>&2
+    echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols (default:90)" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
     echo "-plates PB_FILE               Plot plate boundaries (default: no boundaries)" 1>&2
     echo "-topo TOPO_FILE               Plot shaded topography in background" 1>&2
@@ -53,6 +54,7 @@ MAP_LIMS=
 MAG_MIN=2
 MAG_MAX=8
 MAG_COLOR_CHANGE=
+MAG_BOLD=-10
 TIME_CPT=
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
@@ -76,6 +78,7 @@ do
         -mag:min) shift; MAG_MIN=$1;;
         -mag:max) shift; MAG_MAX=$1;;
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
+        -mag:bold) shift; MAG_BOLD=$1;;
         -timecpt) shift; TIME_CPT=$1;;
         -fade) shift; FADE_TIME=$1;;
         -trans:max) shift; MAX_TRANS=$1;;
@@ -255,8 +258,12 @@ DAY_TIKS=$(echo $NDAYS |\
                    print 500
                } else if ($1<5000) {
                    print 1000
-               } else {
+               } else if ($1<10000) {
                    print 2000
+               } else if ($1<20000) {
+                   print 5000
+               } else {
+                   print 10000
                }
            }')
 MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
@@ -306,6 +313,8 @@ then
         paste - color_list.tmp |\
         awk '{if(NF>1){print $1,$3,$2,$3}}END{print "B black";print "F",$1}' > make_seis_movie_time.cpt
     rm make_seis_movie_nday_color.tmp
+    echo Built timing color palette make_seis_movie_time.cpt:
+    cat make_seis_movie_time.cpt
 else
     cp $TIME_CPT make_seis_movie_time.cpt
 fi
@@ -395,8 +404,10 @@ do
 
 
     # Seismicity
-    awk '{print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
+    awk '{if($5<'$MAG_BOLD')print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
         gmt psxy $MAP_PROJ $MAP_LIMS -Sci -W0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+    awk '{if($5>='$MAG_BOLD')print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
+        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -W1.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
     # Focal mechanisms
     if [ "$PLOT_MECH" == "Y" ]
