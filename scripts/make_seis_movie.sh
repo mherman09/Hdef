@@ -28,6 +28,7 @@ function usage() {
     echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
     echo "-other:pstext WORDS:OPT       Other psxy file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
+    echo "-clean                        Remove frame files after running (default is to keep them)" 1>&2
     exit 1
 }
 
@@ -61,6 +62,7 @@ TOPO_FILE=
 PSXY_LIST=""
 PSTEXT_LIST=""
 PSIMAGE_LIST=""
+CLEAN="N"
 
 
 while [ "$1" != "" ]
@@ -83,6 +85,7 @@ do
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         -other:pstext) shift;PSTEXT_LIST="$PSTEXT_LIST;$1";;
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
+        -clean) CLEAN="Y";;
         *) ;;
     esac
     shift
@@ -376,7 +379,7 @@ do
     # Other datasets
     if [ "$PSXY_LIST" != "" ]
     then
-        echo $PSXY_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psxy_list.tmp
+        echo $PSXY_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > make_seis_movie_psxy_list.tmp
         while read PSXY
         do
             PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
@@ -385,7 +388,8 @@ do
             #echo $PSXY_FILE
             #echo $PSXY_OPTIONS
             gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $PSFILE
-        done < psxy_list.tmp
+        done < make_seis_movie_psxy_list.tmp
+        rm make_seis_movie_psxy_list.tmp
     fi
 
 
@@ -411,7 +415,7 @@ do
     # Other text
     if [ "$PSTEXT_LIST" != "" ]
     then
-        echo $PSTEXT_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > pstext_list.tmp
+        echo $PSTEXT_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > make_seis_movie_pstext_list.tmp
         while read PSTEXT
         do
             PSTEXT_WORDS=`echo $PSTEXT | awk -F: '{print $1}'`
@@ -420,7 +424,8 @@ do
             #echo $PSTEXT_FILE
             #echo $PSTEXT_OPTIONS
             echo $PSTEXT_WORDS | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O >> $PSFILE
-        done < pstext_list.tmp
+        done < make_seis_movie_pstext_list.tmp
+        rm make_seis_movie_pstext_list.tmp
     fi
 
 
@@ -502,6 +507,10 @@ gmt psconvert -Tg -A frame_*.ps -Vt
 rm frame_*.ps
 rm seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
 rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
+if [ "$CLEAN" == "Y" ]
+then
+    rm frame_*.png
+fi
 
 echo "$0: creating movie \"seis_movie.mp4\""
 ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
