@@ -31,6 +31,7 @@ function usage() {
     echo "-o FILENAME         Basename for output file" 1>&2
     echo "-noclean            Keep all temporary files (useful for debugging)"
     echo "-other:psxy FILE    Other psxy file to plot (can repeat)" 1>&2
+    echo "-parallel           Run o92util in parallel (if compiled)" 1>&2
     echo 1>&2
     exit 1
 }
@@ -77,6 +78,7 @@ OFILE="coul_hor"
 THR="0.15"
 CLEAN="Y"
 PSXY_LIST=""
+PAR=
 while [ "$1" != "" ]
 do
     case $1 in
@@ -94,6 +96,7 @@ do
         -o) shift;OFILE="$1" ;;
         -noclean) CLEAN="N";;
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
+        -parallel) PAR="-parallel";;
         *) echo "coul_hor.sh: no option \"$1\"" 1>&2; usage;;
     esac
     shift
@@ -415,19 +418,19 @@ ${BIN_DIR}/grid -x $W $E -nx $NN -y $S $N -ny $NN -z $Z -o sta.tmp
 #####
 if [ $SRC_TYPE == "FFM" ]
 then
-    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
+    ${BIN_DIR}/o92util -ffm source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog $PAR || \
         { echo "coul_hor.sh: error running o92util with FFM source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FSP" ]
 then
-    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
+    ${BIN_DIR}/o92util -fsp source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog $PAR || \
         { echo "coul_hor.sh: error running o92util with FSP source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "MT" ]
 then
-    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog -empirical ${EMPREL} || \
+    ${BIN_DIR}/o92util -mag source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog -empirical ${EMPREL} $PAR || \
         { echo "coul_hor.sh: error running o92util with MT source" 1>&2; exit 1; }
 elif [ $SRC_TYPE == "FLT" ]
 then
-    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog || \
+    ${BIN_DIR}/o92util -flt source.tmp -sta sta.tmp -haf haf.tmp -trg trg.tmp -coul coul.tmp -thr $THR -prog $PAR || \
         { echo "coul_hor.sh: error running o92util with FLT source" 1>&2; exit 1; }
 else
     echo "coul_hor.sh: no source type named $SRC_TYPE" 1>&2
