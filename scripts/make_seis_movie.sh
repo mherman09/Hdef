@@ -20,6 +20,7 @@ function usage() {
     echo "-mag:max MAG_MAX              Maximum magnitude for magnitude versus time frame" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
+    echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols (default:90)" 1>&2
@@ -48,13 +49,14 @@ DATE_END=                               # Ending date
 DDAY=                                   # Number of days between frames
 FADE_TIME=10000000                      # Time to fade earthquakes out (days)
 MAX_TRANS=90
+DDAY_NDAY_CHANGE_LIST=
 
 # Map parameters
 MAP_LIMS=
 MAG_MIN=2
 MAG_MAX=8
 MAG_COLOR_CHANGE=
-MAG_BOLD=-10
+MAG_BOLD=15
 TIME_CPT=
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
@@ -74,6 +76,7 @@ do
         -start) shift; DATE_START=$1;;
         -end) shift; DATE_END=$1;;
         -dday) shift; DDAY=$1;;
+        -dday:change) shift; DDAY_NDAY_CHANGE_LIST="$DDAY_NDAY_CHANGE_LIST $1";;
         -R*) MAP_LIMS=$1;;
         -mag:min) shift; MAG_MIN=$1;;
         -mag:max) shift; MAG_MAX=$1;;
@@ -171,7 +174,32 @@ fi
 #	SET ANIMATION PARAMETERS
 #####
 NDAYS=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS")
-NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2}')
+if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
+then
+    NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2}')
+    IFRAME_CHANGE=1
+    DDAY_CHANGE=$DDAY
+else
+    NDAY0=0
+    DDAY0=$DDAY
+    NFRAMES=0
+    IFRAME_CHANGE=1
+    DDAY_CHANGE=$DDAY
+    for DDAY_NDAY_CHANGE in $DDAY_NDAY_CHANGE_LIST
+    do
+        DDAY_NEW=`echo $DDAY_NDAY_CHANGE | awk -F, '{print $1}'`
+        NDAY_CHANGE=`echo $DDAY_NDAY_CHANGE | awk -F, '{print $2}'`
+        DFRAMES=`echo $NDAY0 $NDAY_CHANGE $DDAY0 | awk '{printf("%d"),($2-$1)/$3}'`
+        NFRAMES=`echo $NFRAMES $DFRAMES | awk '{print $1+$2+1}'`
+        IFRAME_CHANGE="$IFRAME_CHANGE $NFRAMES"
+        DDAY_CHANGE="$DDAY_CHANGE $DDAY_NEW"
+        NDAY0=$NDAY_CHANGE
+        DDAY0=$DDAY_NEW
+    done
+    NCHANGE=`echo $IFRAME_CHANGE | awk '{print NF}'`
+    DFRAMES=`echo $NDAY0 $NDAYS $DDAY0 | awk '{printf("%d"),($2-$1)/$3}'`
+    NFRAMES=`echo $NFRAMES $DFRAMES | awk '{print $1+$2}'`
+fi
 
 gmt set PS_MEDIA 11ix17i
 gmt set FORMAT_GEO_OUT D
@@ -289,16 +317,16 @@ MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
            }')
 
 # Select only data inside map frame
-gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:7 -o2,0:1,3:7 > seis.tmp
+gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:7 -o2,0:1,3:7 > make_seis_movie_seis.tmp
 
 # Calculate number of days since starting time
-awk '{print "'$DATE_START'",$1}' seis.tmp |\
+awk '{print "'$DATE_START'",$1}' make_seis_movie_seis.tmp |\
     dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" > nday.tmp
 
 # Color palette
 if [ "$TIME_CPT" == "" ]
 then
-    paste nday.tmp seis.tmp |\
+    paste nday.tmp make_seis_movie_seis.tmp |\
         awk '{if($1>0 && $6>='$MAG_COLOR_CHANGE'){printf("%.5f\n"),$1}}' > make_seis_movie_nday_color.tmp
     NCOLORS=$(wc make_seis_movie_nday_color.tmp | awk '{print $1+1}')
     colortool -hue -20,90 -lightness 30,95 -chroma 100,100 -ncolors $NCOLORS > color_list.tmp
@@ -332,11 +360,51 @@ do
     PSFILE=frame_${IFRAME_ZEROS}.ps
 
     # Date of frame
-    DATE=$(echo $DATE_START $IFRAME $DDAY | awk '{print $1,($2-1)*$3}' | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
+    if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
+    then    
+        DATE=$(echo $DATE_START $IFRAME $DDAY | awk '{print $1,($2-1)*$3}' | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
+    else
+        #echo $IFRAME $IFRAME_CHANGE
+        IDDAY=`echo $IFRAME $IFRAME_CHANGE |\
+            awk '{
+                iframe = $1
+                idday = $2
+                for(i=NF; i>=2; i--) {
+                    if (iframe > $i) {
+                        idday = i-1
+                        break
+                    }
+                }
+                print idday
+            }'`
+        DDAY_CURRENT=`echo $IFRAME_CHANGE $DDAY_CHANGE |\
+            awk '{
+                for (i=1;i<='$NCHANGE';i++) {
+                    iframe_change[i] = $i
+                    dday_array[i] = $(i+'$NCHANGE')
+                    #print iframe_change[i],dday_array[i]
+                }
+            } END {
+                dday = 0
+                i = 1
+                last_frame_change = 1
+                while (i<'$IDDAY') {
+                    dday = dday + (iframe_change[i+1] - last_frame_change)*dday_array[i]
+                    #print dday"..."
+                    last_frame_change = iframe_change[i+1]
+                    i++
+                }
+                dday = dday + ('$IFRAME'-last_frame_change)*dday_array[i]
+                print dday
+            }'`
+        DATE=$(echo $DATE_START $DDAY_CURRENT | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
+        echo DDAY_CURRENT=$DDAY_CURRENT
+        echo DATE=$DATE
+    fi
 
     # Seismicity in time range of interest
     DAY=$(echo $DATE_START $DATE | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}')
-    paste nday.tmp seis.tmp |\
+    paste nday.tmp make_seis_movie_seis.tmp |\
         awk '{
             if (0<=$1 && $1<='$DAY') {
                 trans = ('$DAY'-$1)/'$FADE_TIME'
@@ -401,13 +469,16 @@ do
         rm make_seis_movie_psxy_list.tmp
     fi
 
-
-
     # Seismicity
-    awk '{if($5<'$MAG_BOLD')print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
-        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -W0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
-    awk '{if($5>='$MAG_BOLD')print $3,$4,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
-        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -W1.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+    awk '{
+        if ($5>='$MAG_BOLD') {
+            print "> -W2p"
+        } else {
+            print "> -W0.5p"
+        }
+        print $3,$4,$1,$5*$5*$5*0.001,$6
+    }' seis_range.tmp |\
+        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
     # Focal mechanisms
     if [ "$PLOT_MECH" == "Y" ]
@@ -464,8 +535,15 @@ do
     gmt psbasemap $TIME_PROJ $TIME_LIMS -Bsxg${MONTH_TIKS}o -Byg1 -K -O --MAP_GRID_PEN=0.25p,225,4_2:0 >> $PSFILE
 
     # Seismicity
-    awk '{print $2,$5,$1,$5*$5*$5*0.001,$6}' seis_range.tmp |\
-        gmt psxy $TIME_PROJ $TIME_LIMS -Sci -W0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+    awk '{
+        if ($5>='$MAG_BOLD') {
+            print "> -W2p"
+        } else {
+            print "> -W0.5p"
+        }
+        print $2,$5,$1,$5*$5*$5*0.001,$6
+    }' seis_range.tmp |\
+        gmt psxy $TIME_PROJ $TIME_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
     # Focal mechanisms
     if [ "$PLOT_MECH" == "Y" ]
@@ -516,7 +594,7 @@ done
 echo "$0: converting PostScript frames to PNG"
 gmt psconvert -Tg -A frame_*.ps -Vt
 rm frame_*.ps
-rm seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
+rm make_seis_movie_seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
 rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
 if [ "$CLEAN" == "Y" ]
 then
