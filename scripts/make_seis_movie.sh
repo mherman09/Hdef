@@ -20,6 +20,7 @@ function usage() {
     echo "-mag:max MAG_MAX              Maximum magnitude for magnitude versus time frame" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
+    echo "-scale SCALE                  Adjust earthquake scaling (default: 0.001)" 1>&2
     echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
@@ -30,6 +31,7 @@ function usage() {
     echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
     echo "-other:pstext WORDS:OPT       Other psxy file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
+    echo "-pscoast:options OPT          Additional flags for pscoast (separate by \":\")" 1>&2
     echo "-clean                        Remove frame files after running (default is to keep them)" 1>&2
     exit 1
 }
@@ -61,11 +63,13 @@ TIME_CPT=
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
 TOPO_FILE=
+SEIS_SCALE=0.001
 
 # Other commands
 PSXY_LIST=""
 PSTEXT_LIST=""
 PSIMAGE_LIST=""
+PSCOAST_OPTIONS=""
 CLEAN="N"
 
 
@@ -82,6 +86,7 @@ do
         -mag:max) shift; MAG_MAX=$1;;
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
         -mag:bold) shift; MAG_BOLD=$1;;
+        -scale) shift; SEIS_SCALE=$1;;
         -timecpt) shift; TIME_CPT=$1;;
         -fade) shift; FADE_TIME=$1;;
         -trans:max) shift; MAX_TRANS=$1;;
@@ -91,6 +96,7 @@ do
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         -other:pstext) shift;PSTEXT_LIST="$PSTEXT_LIST;$1";;
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
+        -pscoast:options) shift;PSCOAST_OPTIONS=`echo $1 | sed -e "s/:/ /g"`;;
         -clean) CLEAN="Y";;
         *) ;;
     esac
@@ -176,7 +182,7 @@ fi
 NDAYS=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS")
 if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
 then
-    NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2}')
+    NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2+1}')
     IFRAME_CHANGE=1
     DDAY_CHANGE=$DDAY
 else
@@ -322,6 +328,8 @@ gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:7 -o2,0:1,3:7 > make_seis_movie_sei
 # Calculate number of days since starting time
 awk '{print "'$DATE_START'",$1}' make_seis_movie_seis.tmp |\
     dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" > nday.tmp
+paste nday.tmp make_seis_movie_seis.tmp |\
+    sort -gk6 | tail
 
 # Color palette
 if [ "$TIME_CPT" == "" ]
@@ -443,7 +451,7 @@ do
     fi
 
     # Coastline
-    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W1p -C245 -K -O >> $PSFILE
+    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W0.75p -C245 -K -O >> $PSFILE
 
     # Plate boundaries
     if [ "$PLATE_BOUNDARY_FILE" != "" ]
@@ -476,7 +484,7 @@ do
         } else {
             print "> -W0.5p"
         }
-        print $3,$4,$1,$5*$5*$5*0.001,$6
+        print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
     }' seis_range.tmp |\
         gmt psxy $MAP_PROJ $MAP_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
