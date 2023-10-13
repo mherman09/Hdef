@@ -14,6 +14,7 @@ sub usage {
     print "-l|--location                   Location\n";
     print "-m|--magnitude                  Magnitude\n";
     print "-t|--tensor                     Moment tensor\n";
+    print "-f|--focal_mechanism            Focal mechanism\n";
     print "-p|--priority MT_TYP            Select priority MT type (Mww,Mwc,Mwr,Mwb,duputel_Mww)\n";
     die;
 }
@@ -25,12 +26,14 @@ my $iWantLocation = 0;
 my $iWantMagnitude = 0;
 my $iWantMomentTensor = 0;
 my $priorityMTType = 'Mww';
+my $iWantFocalMechanism = 0;
 GetOptions(
     'input_file=s' => \$input_file,
     'origin_time' => \$iWantOriginTime,
     'location' => \$iWantLocation,
     'magnitude' => \$iWantMagnitude,
     'tensor' => \$iWantMomentTensor,
+    'focal_mechanism' => \$iWantFocalMechanism,
     'priority=s' => \$priorityMTType
 );
 
@@ -52,7 +55,7 @@ my $i_longitude = -1;
 my $i_latitude = -1;
 my $i_depth = -1;
 my $i_magnitude = -1;
-my $i_us_Mww = -1;
+my $i_us_Mww = -1; # Moment tensors
 my $i_us_Mwb = -1;
 my $i_us_Mwr = -1;
 my $i_us_Mwc = -1;
@@ -62,6 +65,9 @@ my $i_nc_TDMT = -1;
 my $i_nc_Mw = -1;
 my $i_nn_Mw = -1;
 my $i_nc_Mww = -1;
+my $i_gcmt_np = -1; # Focal mechanisms
+my $i_us_np = -1;
+my $i_nc_np = -1;
 
 # First line of the file is a header with field information
 # Get the indices of all variables
@@ -82,7 +88,7 @@ for (@$row) {
         #print "i_magnitude=$i_magnitude\n";
     } elsif ($_ =~ "time") {
         $i_time = $i;
-        #print "i_time=$i_time\n";
+        #print "i_time=$i_time\n";         # Moment tensors
     } elsif ($_ =~ "us_Mww_mrr") {
         $i_us_Mww = $i;
         #print "i_us_Mww=$i_us_Mww\n";
@@ -108,6 +114,12 @@ for (@$row) {
         $i_nc_Mww = $i;
     } elsif ($_ =~ "nc_Mw_mrr") {
         $i_nc_Mw = $i;
+    } elsif ($_ =~ "gcmt_np1_strike") {    # Focal mechanisms
+        $i_gcmt_np = $i;
+    } elsif ($_ =~ "us_np1_strike") {
+        $i_us_np = $i;
+    } elsif ($_ =~ "nc_np1_strike") {
+        $i_nc_np = $i;
     }
     $i = $i + 1;
 }
@@ -124,6 +136,9 @@ while (my $row = $csv->getline ($fh)) {
     my $i_mt = -1;
     my $mt_type = "";
     my @mij = (0,0,0,0,0,0);
+    my $i_fm = -1;
+    my $fm_type = "";
+    my @fm = (0,0,0,0,0,0);
 
     # Build the output string
     my $output = "";
@@ -231,6 +246,33 @@ while (my $row = $csv->getline ($fh)) {
             $mij[4] = sprintf "%12.4e", $row->[$i_mt+4];
             $mij[5] = sprintf "%12.4e", $row->[$i_mt+5];
             $output = $output."@mij $mt_type ";
+        }
+        $iWantSomething = 1;
+    }
+    if ($iWantFocalMechanism) {
+        # Default focal mechanism priority list
+        if ($mt_type eq "") {
+            if ($i_us_np >= 0 && $row->[$i_us_np] ne "") {
+                $i_fm = $i_us_np;
+                $fm_type = "us";
+            } elsif ($i_gcmt_np >= 0 && $row->[$i_gcmt_np] ne "") {
+                $i_fm = $i_gcmt_np;
+                $fm_type = "gcmt";
+            } elsif ($i_nc_np >= 0 && $row->[$i_nc_np] ne "") {
+                $i_fm = $i_nc_np;
+                $fm_type = "nc";
+            } else {
+                $output = $output."no_FM ";
+            }
+        }
+        if ($i_fm >= 0) {
+            $fm[0] = sprintf "%12.4e", $row->[$i_fm];
+            $fm[1] = sprintf "%12.4e", $row->[$i_fm+1];
+            $fm[2] = sprintf "%12.4e", $row->[$i_fm+2];
+            $fm[3] = sprintf "%12.4e", $row->[$i_fm+3];
+            $fm[4] = sprintf "%12.4e", $row->[$i_fm+4];
+            $fm[5] = sprintf "%12.4e", $row->[$i_fm+5];
+            $output = $output."@fm $fm_type ";
         }
         $iWantSomething = 1;
     }
