@@ -126,12 +126,18 @@ for (@$row) {
 
 
 # Go through the rest of the file and print the requested quantities
+$i = 2;
 my $iWantSomething = 0;
 while (my $row = $csv->getline ($fh)) {
     my $ot = $row->[$i_time];
     my $lon = sprintf "%10.4f", $row->[$i_longitude];
     my $lat = sprintf "%8.4f", $row->[$i_latitude];
-    my $dep = sprintf "%6.2f", $row->[$i_depth];
+    my $dep = 0.0;
+    if ($row->[$i_depth] ne "") {
+        $dep = sprintf "%6.2f", $row->[$i_depth];
+    } else {
+        print STDERR "parse_usgs_query.pl: [WARNING] line $i has blank depth\n";
+    }
     my $mag = sprintf "%6.2f", $row->[$i_magnitude];
     my $i_mt = -1;
     my $mt_type = "";
@@ -282,6 +288,7 @@ while (my $row = $csv->getline ($fh)) {
         print "parse_usgs_query.pl: no output defined\n";
         &usage;
     }
+    $i = $i + 1;
 }
 
 
