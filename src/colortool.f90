@@ -1,20 +1,20 @@
 module color
 
-double precision, parameter :: refx =  95.047d0 ! For perfect reflecting diffuser in daylight at 2 degrees
-double precision, parameter :: refy = 100.000d0 ! For perfect reflecting diffuser in daylight at 2 degrees
-double precision, parameter :: refz = 108.883d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+    double precision, parameter :: refx =  95.047d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+    double precision, parameter :: refy = 100.000d0 ! For perfect reflecting diffuser in daylight at 2 degrees
+    double precision, parameter :: refz = 108.883d0 ! For perfect reflecting diffuser in daylight at 2 degrees
 
-double precision :: hue(2)
-double precision :: lightness(2)
-double precision :: chroma(2)
-double precision :: chroma_exp
-character(len=16) :: color_path_type
-character(len=8) :: convert(2)
-double precision :: gmt_cpt_lims(2)
-character(len=8) :: output_mode
-logical :: printOutputMode
+    double precision :: hue(2)
+    double precision :: lightness(2)
+    double precision :: chroma(2)
+    double precision :: chroma_exp
+    character(len=16) :: color_path_type
+    character(len=8) :: convert(2)
+    double precision :: gmt_cpt_lims(2)
+    character(len=8) :: output_mode
+    logical :: printOutputMode
 
-integer :: verbose
+    integer :: verbose
 
 end module
 
@@ -124,6 +124,10 @@ do i = 1,ncolors
     call rgb2lch(red,grn,blu,lcheck,ccheck,hcheck)
     if (output_mode.eq.'RGB') then
         ! Print nicely formatted RGB coordinates
+        if (c.le.0.0d0) then
+            grn = red
+            blu = red
+        endif
         call formatrgb(red,grn,blu,rgbstring)
     elseif (output_mode.eq.'HSV') then
         ! Print nicely formatted HSV coordinates
