@@ -130,6 +130,9 @@ do while (i.le.narg)
     elseif (trim(tag).eq.'-o') then
         i = i + 1
         call get_command_argument(i,output_file)
+    else
+        write(0,*) 'wraplos: no option '//trim(tag)//' found'
+        call error_exit(1)
     endif
 
     i = i + 1

@@ -614,8 +614,9 @@ type(ffm_data) :: mag_data
 integer :: ierr
 
 ! Local variables
-integer :: iflt, j, nlines, ct
+integer :: iflt, i, j, iline, nlines, ct
 character(len=512) :: input_line
+character(len=1) :: char1
 
 
 if (verbosity.ge.2) then
@@ -643,21 +644,22 @@ allocate(mag_data%subflt(mag_data%nflt,9))
 
 ! Read the file
 open(unit=31,file=mag_file,status='old')
-ct = 0
-do iflt = 1,nlines
+iflt = 0
+do iline = 1,nlines
     read(31,'(A)') input_line
-    if (adjustl(input_line).eq.'#'.or.adjustl(input_line).eq.'>'.or.input_line.eq.'') then
+    read(input_line,'(A)') char1
+    if (char1.eq.'#' .or. char1.eq.'>' .or. input_line.eq.'') then
         ! Ignore this line
         cycle
     else
-        ct = ct + 1
+        iflt = iflt + 1
     endif
     read(input_line,*) (mag_data%subflt(iflt,j),j=1,7)
     mag_data%subflt(iflt,3) = mag_data%subflt(iflt,3)*1.0d3 ! Depth km->m
 enddo
 
 ! Check that any ignored lines were correctly handled
-if (ct.ne.mag_data%nflt) then
+if (iflt.ne.mag_data%nflt) then
     write(stderr,*) 'read_mag: error counting input faults with ignored lines'
     ierr = 2
     return

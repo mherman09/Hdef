@@ -162,8 +162,6 @@ do
     ! Count the line or not
     if (.not.ignoreLine) then
         line_count_ignore = line_count_ignore + 1
-    else
-        exit
     endif
 enddo
 
