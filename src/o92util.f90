@@ -684,6 +684,7 @@ use o92util, only: station_file, &
                    stations, &
                    sta_char, &
                    staSkipLine, &
+                   keepAllLines, &
                    isStationFileDefined, &
                    coord_type, &
                    auto_mode, &
