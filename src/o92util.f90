@@ -48,6 +48,7 @@ character(len=512) :: displacement_file           ! output: displacement
 character(len=4) :: disp_output_mode              ! enz, amz
 character(len=512) :: disp_file_save              ! temporary displacement file
 character(len=512) :: strain_file                 ! output: strain tensor
+character(len=512) :: rotation_file               ! output: rotation tensor
 character(len=512) :: stress_file                 ! output: stress tensor
 character(len=512) :: estress_file                ! output: effective (maximum) shear stress
 character(len=512) :: normal_file                 ! output: normal stress
@@ -56,6 +57,7 @@ character(len=512) :: coulomb_file                ! output: coulomb stress
 logical :: isOutputFileDefined                    ! output file tag
 logical :: iWantDisp                              ! displacement calculation tag
 logical :: iWantStrain                            ! strain calculation tag
+logical :: iWantRotation                          ! rotation calculation tag
 logical :: iWantStress                            ! stress calculation tag
 logical :: iWantTraction                          ! traction calculation tag
 character(len=16) :: coord_type                   ! cartesian-m, cartesian-km, geographic
@@ -940,15 +942,23 @@ use earth, only: radius_earth_m
 use elast, only: strain2stress, stress2traction, max_shear_stress, traction_components
 use eq, only: sdr2sv
 use geom, only: lola2distaz, strdip2normal
-use okada92, only: o92_pt_disp, o92_rect_disp, o92_pt_strain, o92_rect_strain, depthWarning
+use okada92, only: o92_pt_disp, &
+                   o92_rect_disp, &
+                   o92_pt_strain, &
+                   o92_pt_rotation, &
+                   o92_rect_strain, &
+                   o92_rect_rotation, &
+                   depthWarning
 
 use o92util, only: iWantDisp, &
                    iWantStrain, &
+                   iWantRotation, &
                    iWantStress, &
                    iWantTraction, &
                    displacement_file, &
                    disp_output_mode, &
                    strain_file, &
+                   rotation_file, &
                    stress_file, &
                    estress_file, &
                    normal_file, &
@@ -1016,6 +1026,16 @@ if (iWantStrain) then
     endif
     if (strain_file.ne.'') then
         open(unit=111,file=strain_file,status='unknown')
+    endif
+endif
+
+! Rotation
+if (iWantRotation) then
+    if (verbosity.ge.2) then
+        write(stdout,*) 'calc_deformation: calculating rotations'
+    endif
+    if (rotation_file.ne.'') then
+        open(unit=112,file=rotation_file,status='unknown')
     endif
 endif
 
@@ -1104,18 +1124,18 @@ endif
 !$OMP          SHARED(nfaults,faults,ntensile,tensile,fault_type), &
 !$OMP          SHARED(targets), &
 !$OMP          SHARED(lame,shearmod), &
-!$OMP          SHARED(iWantDisp,iWantStrain,iWantStress,iWantTraction), &
+!$OMP          SHARED(iWantDisp,iWantStrain,iWantRotation,iWantStress,iWantTraction), &
 !$OMP          SHARED(debug_mode,iWantProg,depthWarning,coordTypeWarning), &
-!$OMP          SHARED(displacement_file,strain_file,stress_file,estress_file), &
+!$OMP          SHARED(displacement_file, strain_file, rotation_file, stress_file, estress_file), &
 !$OMP          SHARED(normal_file,shear_file,coulomb_file), &
 !$OMP          SHARED(disp_output_mode), &
 !$OMP&         FIRSTPRIVATE(warn_dist), &
 !$OMP&         PRIVATE(iSta,sta_coord), &
 !$OMP&         PRIVATE(iFlt,evlo,evla,evdp,str,dip,rak,slip_mag,wid,len,slip,mom), &
 !$OMP&         PRIVATE(dist,az,test_dist), &
-!$OMP&         PRIVATE(disptmp,stntmp), &
+!$OMP&         PRIVATE(disptmp,stntmp,rottmp), &
 !$OMP&         PRIVATE(svec,nvec,trac,tupd,tstr,tnor), &
-!$OMP&         PRIVATE(disp,stn,sts,ests,tshr,tshrmx,coul), &
+!$OMP&         PRIVATE(disp,stn,rot,sts,ests,tshr,tshrmx,coul), &
 !$OMP&         PRIVATE(ierr), &
 !$OMP&         DEFAULT(NONE), &
 !$OMP&         NUM_THREADS(nthreads)
@@ -1136,6 +1156,7 @@ do iSta = 1,nstations
     ! Initialize displacement and strain to zero
     disp = 0.0d0
     stn = 0.0d0
+    rot = 0.0d0
 
     ! Initialize lateral station coordinates to zero
     sta_coord(1) = 0.0d0
@@ -1323,6 +1344,28 @@ do iSta = 1,nstations
             ! Add to total
             stn = stn + stntmp
         endif
+
+        ! Calculate rotation
+        if (iWantRotation) then
+            if (fault_type.eq.'point') then
+                call o92_pt_rotation(rottmp,sta_coord,evdp,dip,mom,lame,shearmod)
+            elseif (fault_type.eq.'rect') then
+                call o92_rect_rotation(rottmp,sta_coord,evdp,dip,slip,wid,len,lame,shearmod)
+            endif
+            ! Rotate rotation tensor back to x=E, y=N, z=up
+            call rotate_matrix_angle_axis(rottmp,90.0d0-str,'z',rottmp,ierr)
+            if (ierr.ne.0) then
+                call usage('calc_deformation: error in rotating rotation tensor to ENV (usage:none)')
+            endif
+
+            if (debug_mode.eq.'calc_deformation'.or.debug_mode.eq.'all') then
+                write(stdout,'(X,"(DEBUG)",5X,A8,1P6E14.6)') 'rottmp: ', rottmp(1,1) ,rottmp(2,2), &
+                                                rottmp(3,3), rottmp(1,2), rottmp(1,3), rottmp(2,3)
+            endif
+
+            ! Add to total
+            rot = rot + rottmp
+        endif
     enddo
 
     endif ! (sta_char(iSta).ne.'skip')
@@ -1376,6 +1419,11 @@ do iSta = 1,nstations
         else
             write(111,*) stations(iSta,:),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
         endif
+    endif
+
+    ! Rotation tensor: rxy, rxz, ryz
+    if (rotation_file.ne.'') then
+            write(112,*) stations(iSta,:),rot(1,2),rot(1,3),rot(2,3)
     endif
 
     ! Stress
@@ -2320,6 +2368,7 @@ use o92util, only: ffm_file, &
                    displacement_file, &
                    disp_output_mode, &
                    strain_file, &
+                   rotation_file, &
                    stress_file, &
                    estress_file, &
                    normal_file, &
@@ -2328,6 +2377,7 @@ use o92util, only: ffm_file, &
                    isOutputFileDefined, &
                    iWantDisp, &
                    iWantStrain, &
+                   iWantRotation, &
                    iWantStress, &
                    iWantTraction, &
                    isParallel, &
@@ -2375,6 +2425,7 @@ shearmod = 40.0d9
 displacement_file = ''
 disp_output_mode = 'enz'
 strain_file = ''
+rotation_file = ''
 stress_file = ''
 estress_file = ''
 normal_file = ''
@@ -2507,6 +2558,12 @@ do while (i.le.narg)
         call get_command_argument(i,strain_file,status=ios)
         isOutputFileDefined = .true.
         iWantStrain = .true.
+
+    elseif (trim(tag).eq.'-rotation') then
+        i = i + 1
+        call get_command_argument(i,rotation_file,status=ios)
+        isOutputFileDefined = .true.
+        iWantRotation = .true.
 
     elseif (trim(tag).eq.'-stress') then
         i = i + 1
@@ -2649,6 +2706,7 @@ if (debug_mode.eq.'gcmdln'.or.debug_mode.eq.'all') then
     write(stdout,*) 'displacement_file:        ',trim(displacement_file)
     write(stdout,*) 'disp_output_mode:         ',trim(disp_output_mode)
     write(stdout,*) 'strain_file:              ',trim(strain_file)
+    write(stdout,*) 'rotation_file:            ',trim(rotation_file)
     write(stdout,*) 'stress_file:              ',trim(stress_file)
     write(stdout,*) 'estress_file:             ',trim(estress_file)
     write(stdout,*) 'normal_file:              ',trim(normal_file)
@@ -2748,6 +2806,7 @@ if (info.eq.'all'.or.info.eq.'output') then
     write(stderr,*) 'Output options'
     write(stderr,*) '-disp DSPFILE        Displacement (E N Z)'
     write(stderr,*) '-strain STNFILE      Strain matrix (EE NN ZZ EN EZ NZ)'
+    write(stderr,*) '-rotation ROTFILE    Rotation matrix (EE NN ZZ EN EZ NZ)'
     write(stderr,*) '-stress STSFILE      Stress matrix (EE NN ZZ EN EZ NZ)'
     write(stderr,*) '-estress ESTSFILE    Effective (maximum) shear stress'
     write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires -trg)'
