@@ -18,11 +18,13 @@ function usage() {
     echo "-Rw/e/s/n                     Map limits (default: plot all seismicity)" 1>&2
     echo "-mag:min MAG_MIN              Minimum magnitude for magnitude versus time frame" 1>&2
     echo "-mag:max MAG_MAX              Maximum magnitude for magnitude versus time frame" 1>&2
+    echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
     echo "-scale SCALE                  Adjust earthquake scaling (default: 0.001)" 1>&2
     echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
+    echo "-color-by-depth               Color earthquakes by depth instead of date" 1>&2
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols (default:90)" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
@@ -60,10 +62,12 @@ MAG_MAX=8
 MAG_COLOR_CHANGE=
 MAG_BOLD=15
 TIME_CPT=
+COLOR_BY=DATE
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
 TOPO_FILE=
 SEIS_SCALE=0.001
+PLOT_MAG_VS_TIME=Y
 
 # Other commands
 PSXY_LIST=""
@@ -88,6 +92,8 @@ do
         -mag:bold) shift; MAG_BOLD=$1;;
         -scale) shift; SEIS_SCALE=$1;;
         -timecpt) shift; TIME_CPT=$1;;
+        -color-by-depth) COLOR_BY=DEPTH;;
+        -no-mag-vs-time) PLOT_MAG_VS_TIME=N;;
         -fade) shift; FADE_TIME=$1;;
         -trans:max) shift; MAX_TRANS=$1;;
         -mech) PLOT_MECH=Y;;
@@ -119,6 +125,7 @@ do
 done
 
 # If MAP_LIMS is not defined, set it here from SEIS_FILE
+echo $MAP_LIMS
 if [ "$MAP_LIMS" == "" ]
 then
     echo "$0: getting map limits from the input file"
@@ -323,13 +330,14 @@ MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
            }')
 
 # Select only data inside map frame
-gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:7 -o2,0:1,3:7 > make_seis_movie_seis.tmp
+NCOLS=`head -1 $SEIS_FILE | awk '{print NF-1}'`
+gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:$NCOLS -o2,0:1,3:$NCOLS > make_seis_movie_seis.tmp
 
 # Calculate number of days since starting time
 awk '{print "'$DATE_START'",$1}' make_seis_movie_seis.tmp |\
     dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" > nday.tmp
-paste nday.tmp make_seis_movie_seis.tmp |\
-    sort -gk6 | tail
+#paste nday.tmp make_seis_movie_seis.tmp |\
+#    sort -gk6 | tail
 
 # Color palette
 if [ "$TIME_CPT" == "" ]
@@ -353,6 +361,10 @@ then
     cat make_seis_movie_time.cpt
 else
     cp $TIME_CPT make_seis_movie_time.cpt
+fi
+if [ "$COLOR_BY" == "DEPTH" ]
+then
+    gmt makecpt -T0/100/10 -Cplasma -D -I > make_seis_movie_time.cpt # THIS IS GONNA MESS ME UP LATER...
 fi
 
 #####
@@ -422,9 +434,9 @@ do
                 } else if (trans<0) {
                     trans = 0
                 }
-                print $1,$2,$3,$4,$6,trans,$7,$8,$9
+                print $1,$2,$3,$4,$6,trans,$7,$8,$9,$5
             }
-        }' > seis_range.tmp # day date lon lat mag fade
+        }' > seis_range.tmp # day date lon lat mag fade [str dipq rak] dep
 
     # Initialize plot
     gmt psxy -T -K -Y3.5i > $PSFILE
@@ -451,7 +463,7 @@ do
     fi
 
     # Coastline
-    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W0.75p -C245 -K -O >> $PSFILE
+    gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W0.75p -C245 $PSCOAST_OPTIONS -K -O >> $PSFILE
 
     # Plate boundaries
     if [ "$PLATE_BOUNDARY_FILE" != "" ]
@@ -484,7 +496,13 @@ do
         } else {
             print "> -W0.5p"
         }
-        print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
+        if ("'$COLOR_BY'"=="TIME") {
+            print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
+        } else if ("'$COLOR_BY'"=="DEPTH" && NF==7) {
+            print $3,$4,$7,$5*$5*$5*'$SEIS_SCALE',$6
+        } else if ("'$COLOR_BY'"=="DEPTH" && NF==10) {
+            print $3,$4,$10,$5*$5*$5*'$SEIS_SCALE',$6
+        }
     }' seis_range.tmp |\
         gmt psxy $MAP_PROJ $MAP_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
@@ -536,6 +554,9 @@ do
 
 
 
+    if [ "$PLOT_MAG_VS_TIME" == "Y" ]
+    then
+
     # Initialize magnitude versus time origin
     gmt psxy -T -K -O -Y-2.5i >> $PSFILE
 
@@ -549,7 +570,11 @@ do
         } else {
             print "> -W0.5p"
         }
-        print $2,$5,$1,$5*$5*$5*0.001,$6
+        if ("'$COLOR_BY'"=="DATE") {
+            print $2,$5,$1,$5*$5*$5*'"$SEIS_SCALE"',$6
+        } else if ("'$COLOR_BY'"=="DEPTH" && NF==7) {
+            print $2,$5,$7,$5*$5*$5*'"$SEIS_SCALE"',$6
+        }
     }' seis_range.tmp |\
         gmt psxy $TIME_PROJ $TIME_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
 
@@ -592,6 +617,8 @@ do
     else
         gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
             -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+    fi
+
     fi
 
     # Finalize plot
