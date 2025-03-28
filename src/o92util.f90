@@ -70,9 +70,11 @@ integer :: nstations                              ! Number of stations/targets/r
 double precision, allocatable :: faults(:,:)      ! Fault parameter array
 double precision, allocatable :: tensile(:,:)     ! Tensile source parameter array
 double precision, allocatable :: stations(:,:)    ! Station location array
-character(len=32), allocatable :: sta_char(:)      ! Station character (optional)
+character(len=32), allocatable :: sta_char(:)     ! Station character (for header/comment lines)
+logical, allocatable :: staSkipLine(:)            ! Lines to skip
 double precision, allocatable :: targets(:,:)     ! Target/receiver geometry array
 double precision :: centroid(3)                   ! Moment weighted mean position of EQ
+logical :: keepAllLines                           ! Default: false (ignore blank/commented lines)
 
 ! Parallel options
 logical :: isParallel
@@ -681,6 +683,7 @@ use o92util, only: station_file, &
                    nstations, &
                    stations, &
                    sta_char, &
+                   staSkipLine, &
                    isStationFileDefined, &
                    coord_type, &
                    auto_mode, &
@@ -691,6 +694,7 @@ implicit none
 ! Local variables
 integer :: i, j, ios
 character(len=512) :: input_line
+logical :: foundLineToSkip
 
 
 if (verbosity.ge.1) then
@@ -700,6 +704,7 @@ endif
 
 ! Initialize I/O status
 ios = 0
+foundLineToSkip = .false.
 
 
 ! Check that station file is defined and the file exists
@@ -715,8 +720,10 @@ endif
 nstations = line_count(station_file)
 allocate(stations(nstations,3))
 allocate(sta_char(nstations))
+allocate(staSkipLine(nstations))
 stations = 0.0d0
 sta_char = ''
+staSkipLine = .false.
 
 
 ! Read stations
@@ -727,11 +734,32 @@ do i = 1,nstations
     sta_char(i) = input_line(1:32)
     if (sta_char(i)(1:1).eq.'#'.or.sta_char(i)(1:1).eq.'>') then
         ! This line is a comment (#) or a segment header (>)
-        sta_char(i) = 'skip'
+        staSkipLine(i) = .true.
+        if (.not.foundLineToSkip) then
+            write(*,*) 'o92util: found a line to skip in the input station file starting with '//&
+                       sta_char(i)(1:1)
+            if (keepAllLines) then
+                write(*,*) 'o92util: keeping this line in the output file'
+            else
+                write(*,*) 'o92util: ignoring this line and omitting from the output file'
+                write(*,*) 'To keep these lines in the output file, use "--keep-all-lines" option'
+            endif
+            foundLineToSkip = .true.
+        endif
         cycle
     elseif (sta_char(i).eq.'') then
         ! This line is empty
-        sta_char(i) = 'skip'
+        if (.not.foundLineToSkip) then
+            write(*,*) 'o92util: found a blank line'
+            if (keepAllLines) then
+                write(*,*) 'o92util: keeping this line in the output file'
+            else
+                write(*,*) 'o92util: ignoring this line and omitting from the output file'
+                write(*,*) 'To keep these lines in the output file, use "--keep-all-lines" option'
+            endif
+            foundLineToSkip = .true.
+        endif
+        foundLineToSkip = .true.
         cycle
     endif
     read(input_line,*,iostat=ios,err=1003,end=1004) (stations(i,j),j=1,3)
@@ -964,6 +992,7 @@ use o92util, only: iWantDisp, &
                    normal_file, &
                    shear_file, &
                    coulomb_file, &
+                   keepAllLines, &
                    lame, &
                    shearmod, &
                    fault_type, &
@@ -975,6 +1004,7 @@ use o92util, only: iWantDisp, &
                    tensile, &
                    stations, &
                    sta_char, &
+                   staSkipLine, &
                    targets, &
                    iWantProg, &
                    debug_mode, &
@@ -989,7 +1019,7 @@ logical :: isThisUnitOpen, coordTypeWarning
 double precision :: evlo, evla, evdp, str, dip, rak, slip_mag, wid, len, slip(3), mom(4)
 double precision :: sta_coord(3), dist, az, warn_dist, test_dist
 double precision :: disp(3), disptmp(3), stn(3,3), stntmp(3,3), sts(3,3), ests, trac(3), tshr, &
-                    tshrmx, tnor, coul
+                    tshrmx, tnor, coul, rot(3,3), rottmp(3,3)
 double precision :: nvec(3), svec(3), tstr, tupd
 
 
@@ -1120,14 +1150,14 @@ endif
 ! SHARED variables are shared across threads
 ! PRIVATE variables are uninitialized and isolated to each thread
 ! FIRSTPRIVATE variables are initialized with their existing value and isolated to each thread
-!$OMP PARALLEL SHARED(nstations,stations,sta_char,coord_type), &
+!$OMP PARALLEL SHARED(nstations,stations,sta_char,staSkipLine,coord_type), &
 !$OMP          SHARED(nfaults,faults,ntensile,tensile,fault_type), &
 !$OMP          SHARED(targets), &
 !$OMP          SHARED(lame,shearmod), &
 !$OMP          SHARED(iWantDisp,iWantStrain,iWantRotation,iWantStress,iWantTraction), &
 !$OMP          SHARED(debug_mode,iWantProg,depthWarning,coordTypeWarning), &
 !$OMP          SHARED(displacement_file, strain_file, rotation_file, stress_file, estress_file), &
-!$OMP          SHARED(normal_file,shear_file,coulomb_file), &
+!$OMP          SHARED(normal_file, shear_file, coulomb_file, keepAllLines), &
 !$OMP          SHARED(disp_output_mode), &
 !$OMP&         FIRSTPRIVATE(warn_dist), &
 !$OMP&         PRIVATE(iSta,sta_coord), &
@@ -1195,7 +1225,7 @@ do iSta = 1,nstations
     !!$OMP DO
 
 
-    if (sta_char(iSta).ne.'skip') then
+    if (.not.staSkipLine(iSta)) then
 
     ! Calculate deformation from each fault and tensile source at the station
     do iFlt = 1,nfaults+ntensile
@@ -1368,7 +1398,7 @@ do iSta = 1,nstations
         endif
     enddo
 
-    endif ! (sta_char(iSta).ne.'skip')
+    endif ! (.not.staSkipLine(iSta))
 
 
     !! End the parallel do loop
@@ -1396,8 +1426,10 @@ do iSta = 1,nstations
 
     ! Displacement: ux, uy, uz  OR  az, uhor, uz
     if (displacement_file.ne.'') then
-        if (sta_char(iSta).eq.'skip') then
-            !write(101,'(A)') sta_char(iSta)
+        if (staSkipLine(iSta)) then
+            if (keepAllLines) then
+                write(101,'(A)') sta_char(iSta)
+            endif
         elseif (disp_output_mode.eq.'enz') then
             write(101,*) stations(iSta,:),disp
         elseif (disp_output_mode.eq.'amz') then
@@ -1414,8 +1446,10 @@ do iSta = 1,nstations
 
     ! Strain tensor: exx, eyy, ezz, exy, exz, eyz
     if (strain_file.ne.'') then
-        if (sta_char(iSta).eq.'skip') then
-            !write(111,'(A)') sta_char(iSta)
+        if (staSkipLine(iSta)) then
+            if (keepAllLines) then
+                write(111,'(A)') sta_char(iSta)
+            endif
         else
             write(111,*) stations(iSta,:),stn(1,1),stn(2,2),stn(3,3),stn(1,2),stn(1,3),stn(2,3)
         endif
@@ -1423,7 +1457,13 @@ do iSta = 1,nstations
 
     ! Rotation tensor: rxy, rxz, ryz
     if (rotation_file.ne.'') then
+        if (staSkipLine(iSta)) then
+            if (keepAllLines) then
+                write(112,'(A)') sta_char(iSta)
+            endif
+        else
             write(112,*) stations(iSta,:),rot(1,2),rot(1,3),rot(2,3)
+        endif
     endif
 
     ! Stress
@@ -1432,8 +1472,10 @@ do iSta = 1,nstations
 
         ! Stress tensor: sxx, syy, szz, sxy, sxz, syz
         if (stress_file.ne.'') then
-            if (sta_char(iSta).eq.'skip') then
-                !write(121,'(A)') sta_char(iSta)
+            if (staSkipLine(iSta)) then
+                if (keepAllLines) then
+                    write(121,'(A)') sta_char(iSta)
+                endif
             else
                 write(121,*) stations(iSta,:),sts(1,1),sts(2,2),sts(3,3),sts(1,2),sts(1,3),sts(2,3)
             endif
@@ -1442,8 +1484,10 @@ do iSta = 1,nstations
         ! Maximum (effective) shear stress (aka, second invariant of deviatoric stress tensor): ests
         if (estress_file.ne.'') then
             call max_shear_stress(sts,ests)
-            if (sta_char(iSta).eq.'skip') then
-                !write(122,'(A)') sta_char(iSta)
+            if (staSkipLine(iSta)) then
+                if (keepAllLines) then
+                    write(122,'(A)') sta_char(iSta)
+                endif
             else
                 write(122,*) stations(iSta,:),ests
             endif
@@ -1460,8 +1504,10 @@ do iSta = 1,nstations
 
         ! Normal traction: normal (positive=dilation)
         if (normal_file.ne.'') then
-            if (sta_char(iSta).eq.'skip') then
-                !write(131,'(A)') sta_char(iSta)
+            if (staSkipLine(iSta)) then
+                if (keepAllLines) then
+                    write(131,'(A)') sta_char(iSta)
+                endif
             else
                 write(131,*) stations(iSta,:),tnor
             endif
@@ -1470,8 +1516,10 @@ do iSta = 1,nstations
         ! Shear traction: resolved_onto_rake, max_shear_on_plane
         if (shear_file.ne.'') then
             tshrmx = sqrt(tstr*tstr+tupd*tupd)
-            if (sta_char(iSta).eq.'skip') then
-                !write(132,'(A)') sta_char(iSta)
+            if (staSkipLine(iSta)) then
+                if (keepAllLines) then
+                    write(132,'(A)') sta_char(iSta)
+                endif
             else
                 write(132,*) stations(iSta,:),tshr,tshrmx
             endif
@@ -1480,8 +1528,10 @@ do iSta = 1,nstations
         ! Coulomb stress: coulomb
         if (coulomb_file.ne.'') then
             coul = tshr + targets(iSta,4)*tnor
-            if (sta_char(iSta).eq.'skip') then
-                !write(133,'(A)') sta_char(iSta)
+            if (staSkipLine(iSta)) then
+                if (keepAllLines) then
+                    write(133,'(A)') sta_char(iSta)
+                endif
             else
                 write(133,*) stations(iSta,:),coul
             endif
@@ -2375,6 +2425,7 @@ use o92util, only: ffm_file, &
                    shear_file, &
                    coulomb_file, &
                    isOutputFileDefined, &
+                   keepAllLines, &
                    iWantDisp, &
                    iWantStrain, &
                    iWantRotation, &
@@ -2432,6 +2483,7 @@ normal_file = ''
 shear_file = ''
 coulomb_file = ''
 isOutputFileDefined = .false.
+keepAllLines = .false.
 iWantDisp = .false.
 iWantStrain = .false.
 iWantStress = .false.
@@ -2603,6 +2655,8 @@ do while (i.le.narg)
         iWantStress = .true.
         iWantTraction = .true.
 
+    elseif (trim(tag).eq.'--keep-all-lines') then
+        keepAllLines = .true.
 
     ! Miscellaneous options
     elseif (trim(tag).eq.'-parallel') then
@@ -2712,6 +2766,7 @@ if (debug_mode.eq.'gcmdln'.or.debug_mode.eq.'all') then
     write(stdout,*) 'normal_file:              ',trim(normal_file)
     write(stdout,*) 'shear_file:               ',trim(shear_file)
     write(stdout,*) 'coulomb_file:             ',trim(coulomb_file)
+    write(stdout,*) 'keepAllLines:             ',keepAllLines
     write(stdout,*) 'isOutputFileDefined:      ',isOutputFileDefined
     write(stdout,*) 'iWantDisp:                ',iWantDisp
     write(stdout,*) 'iWantStrain:              ',iWantStrain
@@ -2812,6 +2867,7 @@ if (info.eq.'all'.or.info.eq.'output') then
     write(stderr,*) '-normal NORFILE      Normal traction on target faults (requires -trg)'
     write(stderr,*) '-shear SHRFILE       Shear traction on target faults (requires -trg)'
     write(stderr,*) '-coul COULFILE       Coulomb stress on target faults (requires -trg)'
+    write(stderr,*) '--keep-all-lines     Keep comment (#), segment (>), and blank lines'
     write(stderr,*)
 endif
 if (info.eq.'all'.or.info.eq.'misc') then
