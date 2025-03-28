@@ -97,9 +97,11 @@ logical :: depthWarning
 ! Public routines
 public :: o92_pt_disp
 public :: o92_pt_strain
+public :: o92_pt_rotation
 public :: o92_pt_partials
 public :: o92_rect_disp
 public :: o92_rect_strain
+public :: o92_rect_rotation
 public :: o92_rect_partials
 public :: test_halfspace_vars
 public :: test_dip_vars
@@ -366,6 +368,65 @@ strain(3,2) = strain(2,3)
 strain(3,3) = uzz
 
 ! write(0,*) 'o92_pt_strain: finished'
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine o92_pt_rotation(rotation,sta_coord,evdp,dip,moment,lambda,shear_modulus)
+!----
+! Compute rotation tensor at a point in an elastic half-space due to a point source dislocation
+! Subroutine arguments:
+!     rotation(3,3): output rotation tensor
+!     sta_coord(3): input station location(m); x=along-strike, y=hor-up-dip, z=depth
+!     evdp: source depth (m), positive down
+!     dip: source fault dip (degrees)
+!     moment(4): strike-slip, dip-slip, tensile, and volume moments (N-m = shear_modulus*area*slip)
+!     lambda, shear_modulus: half-space parameters (Pa)
+!----
+
+use io, only: stderr
+
+implicit none
+
+! Arguments
+double precision :: rotation(3,3), sta_coord(3), evdp, dip, moment(4), lambda, shear_modulus
+
+! Local variables
+double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
+
+! write(0,*) 'o92_pt_rotation: starting'
+
+! Initialize rotations
+rotation = 0.0d0
+
+! If station is above surface, exit with warning
+if (sta_coord(3).lt.0.0d0) then
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_pt_rotation: station depth less than zero; setting rotation to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
+    return
+endif
+
+! Partial derivatives of displacement equations
+call o92_pt_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
+                     sta_coord,evdp,dip,moment,lambda,shear_modulus)
+
+! rotations
+rotation(1,1) = 0.0d0
+rotation(1,2) = uxy-uyx
+rotation(1,3) = uxz-uzx
+rotation(2,1) = -rotation(1,2)
+rotation(2,2) = 0.0d0
+rotation(2,3) = uyz-uzy
+rotation(3,1) = -rotation(1,3)
+rotation(3,2) = -rotation(2,3)
+rotation(3,3) = 0.0d0
+
+! write(0,*) 'o92_pt_rotation: finished'
 
 return
 end subroutine
@@ -1279,6 +1340,64 @@ strain(2,3) = 1.0d0/2.0d0*(uyz+uzy)
 strain(3,1) = strain(1,3)
 strain(3,2) = strain(2,3)
 strain(3,3) = uzz
+
+return
+end subroutine
+
+!--------------------------------------------------------------------------------------------------!
+
+subroutine o92_rect_rotation(rotation,sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+!----
+! Compute rotation tensor at a point in an elastic half-space due to a rectangular dislocation
+! Subroutine arguments:
+!     rotation(3,3): output strain tensor
+!     sta_coord(3): input station location(m) relative to center of rectangle;
+!                   x=along-strike, y=hor-up-dip, z=depth
+!     evdp: depth to center of rectangle (m), positive down
+!     dip: source fault dip (degrees)
+!     wid: down-dip width of fault (m)
+!     len: along-strike length of fault (m)
+!     slip(3): strike-slip, dip-slip, tensile-slip (m)
+!     lambda, shear_modulus: half-space parameters (Pa)
+!----
+
+use io, only: stderr
+
+implicit none
+
+! Arguments
+double precision :: rotation(3,3), sta_coord(3), evdp, dip, wid, len, slip(3), lambda, shear_modulus
+
+! Local variables
+double precision :: uxx, uxy, uxz, uyx, uyy, uyz, uzx, uzy, uzz
+
+! Initialize rotation tensor
+rotation = 0.0d0
+
+! If station is above surface, exit with warning
+if (sta_coord(3).lt.0.0d0) then
+    if (.not.depthWarning) then
+        write(stderr,*) 'o92_rect_rotation: station depth less than zero; setting rotation to zero'
+        write(stderr,*) 'Note: this warning message is only printed once'
+        depthWarning = .true.
+    endif
+    return
+endif
+
+! Partial derivatives of displacement equations
+call o92_rect_partials(uxx,uxy,uxz,uyx,uyy,uyz,uzx,uzy,uzz, &
+                       sta_coord,evdp,dip,slip,wid,len,lambda,shear_modulus)
+
+! Rotations
+rotation(1,1) = 0.0d0
+rotation(1,2) = uxy - uyx
+rotation(1,3) = uxz - uzx
+rotation(2,1) = -rotation(1,2)
+rotation(2,2) = 0.0d0
+rotation(2,3) = uyz - uzy
+rotation(3,1) = -rotation(1,3)
+rotation(3,2) = -rotation(2,3)
+rotation(3,3) = 0.0d0
 
 return
 end subroutine
