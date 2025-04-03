@@ -425,12 +425,24 @@ fi
 ####################################################################################################
 #	CREATE ANIMATION
 ####################################################################################################
-# Make fixed basemap
-echo $0: Making fixed basemap >> $LOG_FILE
+
+
+
+##### Plot fixed features
+
+
+echo $0: Generating fixed features of animation >> $LOG_FILE
+
+
+
 PSFILE=frame_base.ps
+
+
 
 # Initialize plot
 gmt psxy -T -K -Y3.5i > $PSFILE
+
+
 
 # Topography
 if [ "$TOPO_FILE" != "" ]
@@ -459,7 +471,7 @@ then
     then
         colortool -hue 300,180 -chroma 40,40 -lightness 45,100 -gmt -T${TOPO_MIN}/0/1 > make_seis_movie_topo.cpt
         colortool -hue 150,60 -chroma 40,40 -lightness 60,100 -gmt -T0/${TOPO_MAX}/1 >> make_seis_movie_topo.cpt
-    else 
+    else
         colortool -hue 300,180 -chroma 0,0 -lightness 75,100 -gmt -T${TOPO_MIN}/0/1 > make_seis_movie_topo.cpt
         colortool -hue 150,60 -chroma 0,0 -lightness 95,100 -gmt -T0/${TOPO_MAX}/1 >> make_seis_movie_topo.cpt
     fi
@@ -468,15 +480,21 @@ then
     gmt grdimage topo_cut.grd $MAP_PROJ $MAP_LIMS -Itopo_cut_grad.grd -Cmake_seis_movie_topo.cpt -K -O >> $PSFILE
 fi
 
+
+
 # Coastline
 echo gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W${PSCOAST_PEN} -C245 $PSCOAST_OPTIONS -K -O >> $LOG_FILE
 gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W${PSCOAST_PEN} -C245 $PSCOAST_OPTIONS -K -O >> $PSFILE
+
+
 
 # Plate boundaries
 if [ "$PLATE_BOUNDARY_FILE" != "" ]
 then
     gmt psxy $PLATE_BOUNDARY_FILE $MAP_PROJ $MAP_LIMS -W1p -K -O >> $PSFILE
 fi
+
+
 
 # Other datasets
 if [ "$PSXY_LIST" != "" ]
@@ -496,9 +514,63 @@ then
 fi
 
 
+# Basemap
+gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
 
-# Make changing frames
+
+if [ "$PLOT_MAG_VS_TIME" == "Y" ]
+then
+
+    # Initialize magnitude versus time origin
+    gmt psxy -T -K -O -Y-2.5i >> $PSFILE
+
+    # Magnitude versus time gridlines
+    gmt psbasemap $TIME_PROJ $TIME_LIMS -Bsxg${MONTH_TIKS}o -Byg1 -K -O --MAP_GRID_PEN=0.25p,225,4_2:0 >> $PSFILE
+
+    # Magnitude versus time frame
+    NDAYS_INT=`echo $NDAYS | awk '{printf("%d"),$1}'`
+    if [ $NDAYS_INT -le 7 ]
+    then
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}D -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
+            --FORMAT_DATE_MAP=o-dd --FORMAT_TIME_MAP=a >> $PSFILE
+    elif [ $NDAYS_INT -le 31 ]
+    then
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+    else
+        gmt psbasemap $TIME_PROJ $TIME_LIMS \
+            -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
+            -BWeN -K -O \
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+    fi
+    if [ $NDAYS_INT -le 5 ]
+    then
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+            -Bxa${DAY_TIKS}+l"Number of Days Since ${DATE_START}" -BS -K -O >> $PSFILE
+    else
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+            -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+    fi
+
+fi
+
+# Finalize plot
+gmt psxy -T -O >> $PSFILE
+
+gmt psconvert -Tg -A frame_base.ps -Vt
+rm frame_base.ps
+
+
+##### Make changing frames
+
+
 IFRAME=1
+
 while [ $IFRAME -le $NFRAMES ]
 do
     echo "$0: Working on frame $IFRAME of $NFRAMES" >> $LOG_FILE
@@ -507,9 +579,13 @@ do
     IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
     PSFILE=frame_${IFRAME_ZEROS}.ps
 
+    # Initialize frame
+    gmt psxy -T -K -Y3.5i > $PSFILE
+
+
     # Date of frame
     if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
-    then    
+    then
         DATE=$(echo $DATE_START $IFRAME $DDAY | awk '{print $1,($2-1)*$3}' | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
     else
         #echo $IFRAME $IFRAME_CHANGE
@@ -566,9 +642,6 @@ do
             }
         }' > seis_range.tmp # day date lon lat mag fade [str dipq rak] dep
 
-    # Copy fixed part of map here instead of re-creating every iteration
-    cp frame_base.ps $PSFILE
-
     # Seismicity
     awk '{
         if ($5>='$MAG_BOLD') {
@@ -596,8 +669,8 @@ do
     # Basemap
     gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
 
-    # Date in bottom left corner
-    echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"10,2 LT '$DATE'"}' |\
+    # Date in top left corner
+    echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
         gmt pstext $MAP_PROJ $MAP_LIMS -F+f+j -D0.05i/-0.05i -N -K -O >> $PSFILE
 
     # Other text
@@ -639,9 +712,6 @@ do
 
         # Initialize magnitude versus time origin
         gmt psxy -T -K -O -Y-2.5i >> $PSFILE
-
-        # Magnitude versus time gridlines
-        gmt psbasemap $TIME_PROJ $TIME_LIMS -Bsxg${MONTH_TIKS}o -Byg1 -K -O --MAP_GRID_PEN=0.25p,225,4_2:0 >> $PSFILE
 
         # Seismicity
         awk '{
@@ -703,23 +773,37 @@ do
 
     # Finalize plot
     gmt psxy -T -O >> $PSFILE
+
+    # Update frame counter
     IFRAME=$(echo $IFRAME | awk '{print $1+1}')
+
 done
 
-rm frame_base.ps
+
+
+
 echo "$0: converting PostScript frames to PNG"
-gmt psconvert -Tg -A frame_*.ps -Vt
+for FRAME in frame_*.ps
+do
+    PNG=`basename $FRAME .ps`.png
+    gmt psconvert -TG -A %FRAME -Vt
+    gm composite $PNG frame_base.png j && mv j $PNG
+done
 rm frame_*.ps
 rm make_seis_movie_seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
 rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
+
+
+echo "$0: running ffmpeg to create movie \"seis_movie.mp4\"" >> $LOG_FILE
+echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
+ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
+
+
 if [ "$CLEAN" == "Y" ]
 then
     rm frame_*.png
 fi
 
-echo "$0: running ffmpeg to create movie \"seis_movie.mp4\"" >> $LOG_FILE
-echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
-ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
 
 
 echo $0: see messages in log file $LOG_FILE
