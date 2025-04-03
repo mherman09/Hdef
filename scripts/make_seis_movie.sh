@@ -786,7 +786,7 @@ echo "$0: converting PostScript frames to PNG"
 for FRAME in frame_*.ps
 do
     PNG=`basename $FRAME .ps`.png
-    gmt psconvert -TG -A %FRAME -Vt
+    gmt psconvert $FRAME -TG -A -Vt
     gm composite $PNG frame_base.png j && mv j $PNG
 done
 rm frame_*.ps
