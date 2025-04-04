@@ -1,5 +1,17 @@
 #!/bin/bash
 
+
+# Initialize script name and log file
+SCRIPT=`basename $0`
+
+LOG_FILE=$SCRIPT.log
+
+echo "$SCRIPT [`date`]: starting" | tee $LOG_FILE
+
+
+
+
+
 ####################################################################################################
 # USAGE STATEMENT
 ####################################################################################################
@@ -15,12 +27,10 @@ function usage() {
     echo "-dday DDAY                    Time increment between frames (days)" 1>&2
     echo "" 1>&2
     echo "Optional arguments" 1>&2
-    echo "-Rw/e/s/n                     Map limits (default: plot all seismicity)" 1>&2
-    echo "-mag:min MAG_MIN              Minimum magnitude for magnitude versus time frame" 1>&2
-    echo "-mag:max MAG_MAX              Maximum magnitude for magnitude versus time frame" 1>&2
-    echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
+    echo "-Rw/e/s/n                     Map limits (default: plot all seismicity in file)" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
+    echo "-mag:label MAG_LABEL          Label earthquakes larger than MAG_LABEL" 1>&2
     echo "-scale SCALE                  Adjust earthquake scaling (default: 0.001)" 1>&2
     echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
@@ -33,9 +43,12 @@ function usage() {
     echo "-topo TOPO_FILE               Plot shaded topography in background" 1>&2
     echo "-topo:color-mode MODE         BW, COLOR-LAND-ONLY, COLOR-OCEAN-ONLY, COLOR" 1>&2
     echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
-    echo "-other:pstext WORDS:OPT       Other psxy file to plot (can repeat)" 1>&2
+    echo "-other:pstext WORDS:OPT       Other pstext file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
     echo "-pscoast:options OPT          Additional flags for pscoast (separate by \":\")" 1>&2
+    echo "-mag:min MAG_MIN              Minimum magnitude on y-axis of mag vs time frame" 1>&2
+    echo "-mag:max MAG_MAX              Maximum magnitude on y-axis of mag vs time frame" 1>&2
+    echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
     echo "-clean                        Remove frame files after running (default is to keep them)" 1>&2
     exit 1
 }
@@ -46,9 +59,17 @@ then
 fi
 
 
+
+
 ####################################################################################################
 # SCRIPT VARIABLES
 ####################################################################################################
+
+
+echo "$SCRIPT [`date`]: parsing command line arguments" >> $LOG_FILE
+
+
+
 # Seismicity file: origin_time(YYYY-MM-DDTHH:MM:SS)  lon  lat  dep  mag  [str  dip  rak]
 SEIS_FILE=
 SEIS_FILE=seis.dat
@@ -67,6 +88,7 @@ MAG_MIN=2
 MAG_MAX=8
 MAG_COLOR_CHANGE=
 MAG_BOLD=15
+MAG_LABEL=15
 TIME_CPT=
 DATE_CPT=
 COLOR_BY=DATE
@@ -85,10 +107,6 @@ PSCOAST_OPTIONS=""
 PSCOAST_PEN="0.75p"
 CLEAN="N"
 
-# Log file
-LOG_FILE=`basename $0`.log
-echo $0: starting at `date` > $LOG_FILE
-
 
 # Parse command line
 while [ "$1" != "" ]
@@ -104,6 +122,7 @@ do
         -mag:max) shift; MAG_MAX=$1;;
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
         -mag:bold) shift; MAG_BOLD=$1;;
+        -mag:label) shift; MAG_LABEL=$1;;
         -scale) shift; SEIS_SCALE=$1;;
         -timecpt) shift; TIME_CPT=$1;;
         -datecpt) shift; DATE_CPT=$1;;
@@ -128,7 +147,7 @@ done
 
 
 # Check that file variables are defined and files exist
-echo $0: checking that file variable is set >> $LOG_FILE
+echo "$SCRIPT [`date`]: checking that seismicity file variable is set" >> $LOG_FILE
 for VAR in SEIS_FILE
 do
     if [ "${!VAR}" == "" ]
@@ -138,20 +157,21 @@ do
     fi
     if [ ! -f ${!VAR} ]
     then
-        echo "$0: Could not find $VAR named \"${!VAR}\"" 1>&2
+        echo "$SCRIPT: Could not find $VAR named \"${!VAR}\"" 1>&2
         usage
     fi
 done
+echo "$SCRIPT [`date`]: using seismicity file $SEIS_FILE" >> $LOG_FILE
 
 
 # If MAP_LIMS is not defined, set it here from SEIS_FILE
 if [ "$MAP_LIMS" == "" ]
 then
-    echo "$0: getting map limits from the input file" >> $LOG_FILE
+    echo "$SCRIPT: getting map limits from the input file" >> $LOG_FILE
     MAP_LIMS=$(gmt gmtinfo $SEIS_FILE -I0.01 -i1:2)
-    echo "$0: using map limits $MAP_LIMS" >> $LOG_FILE
+    echo "$SCRIPT: using map limits $MAP_LIMS" >> $LOG_FILE
 else
-    echo $0: setting map limits from command line >> $LOG_FILE
+    echo $SCRIPT: setting map limits from command line >> $LOG_FILE
 fi
 echo $MAP_LIMS >> $LOG_FILE
 
@@ -161,8 +181,8 @@ if [ "$PLATE_BOUNDARY_FILE" != "" ]
 then
     if [ ! -f $PLATE_BOUNDARY_FILE ]
     then
-        echo "$0: could not find plate boundary file named \"$PLATE_BOUNDARY_FILE\""
-        echo "$0: not plotting plate boundaries"
+        echo "$SCRIPT: could not find plate boundary file named \"$PLATE_BOUNDARY_FILE\""
+        echo "$SCRIPT: not plotting plate boundaries"
         PLATE_BOUNDARY_FILE=
     fi
 fi
@@ -173,7 +193,7 @@ for VAR in DATE_START DATE_END DDAY MAP_LIMS
 do
     if [ "${!VAR}" == "" ]
     then
-        echo "$0: Variable $VAR is not defined" 1>&2
+        echo "$SCRIPT: Variable $VAR is not defined" 1>&2
         usage
     fi
 done
@@ -188,8 +208,8 @@ if [[ $DATE_END == ????-??-?? ]]
 then
     DATE_END=${DATE_END}T00:00:00
 fi
-echo $0: starting animation at $DATE_START >> $LOG_FILE
-echo $0: ending animation at $DATE_END >> $LOG_FILE
+echo $SCRIPT: starting animation at $DATE_START >> $LOG_FILE
+echo $SCRIPT: ending animation at $DATE_END >> $LOG_FILE
 
 
 # Determine magnitude for color changes
@@ -197,20 +217,20 @@ if [ "$TIME_CPT" == "" ]
 then
     if [ "$MAG_COLOR_CHANGE" == "" ]
     then
-        echo "$0: determining magnitude to change colors" >> $LOG_FILE
+        echo "$SCRIPT: determining magnitude to change colors" >> $LOG_FILE
         MAG_COLOR_CHANGE=$(gmt gmtinfo $SEIS_FILE -i4 -C | awk '{print $2-1.0}')
-        echo "$0: changing colors every magnitude ${MAG_COLOR_CHANGE}+" >> $LOG_FILE
+        echo "$SCRIPT: changing colors every magnitude ${MAG_COLOR_CHANGE}+" >> $LOG_FILE
     fi
 fi
 
 # Look for user-defined cpt files
 if [ "$DATE_CPT" != "" ]
 then
-    test -f $DATE_CPT || { echo "$0: could not find date color palette named \"$DATE_CPT\""; usage; }
+    test -f $DATE_CPT || { echo "$SCRIPT: could not find date color palette named \"$DATE_CPT\""; usage; }
 fi
 if [ "$TIME_CPT" != "" ]
 then
-    test -f $TIME_CPT || { echo "$0: could not find timing color palette named \"$TIME_CPT\""; usage; }
+    test -f $TIME_CPT || { echo "$SCRIPT: could not find timing color palette named \"$TIME_CPT\""; usage; }
 fi
 
 
@@ -423,15 +443,11 @@ fi
 
 
 ####################################################################################################
-#	CREATE ANIMATION
+#	CREATE ANIMATION BACKGROUND
 ####################################################################################################
 
 
-
-##### Plot fixed features
-
-
-echo $0: Generating fixed features of animation >> $LOG_FILE
+echo "$SCRIPT [`date`]: Generating fixed background features for animation" | tee -a $LOG_FILE
 
 
 
@@ -562,18 +578,25 @@ fi
 # Finalize plot
 gmt psxy -T -O >> $PSFILE
 
+echo "$SCRIPT [`date`]: converting background PostScript image to PNG" | tee -a $LOG_FILE
 gmt psconvert -Tg -A frame_base.ps -Vt
 rm frame_base.ps
 
 
-##### Make changing frames
+
+
+
+
+####################################################################################################
+#	CREATE REST OF ANIMATION
+####################################################################################################
 
 
 IFRAME=1
 
 while [ $IFRAME -le $NFRAMES ]
 do
-    echo "$0: Working on frame $IFRAME of $NFRAMES" >> $LOG_FILE
+    echo "$SCRIPT [`date`]: Working on frame $IFRAME of $NFRAMES" | tee -a $LOG_FILE
 
     # Postscript file name
     IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
@@ -658,6 +681,16 @@ do
         }
     }' seis_range.tmp |\
         gmt psxy $MAP_PROJ $MAP_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+
+
+    # Label large events
+    awk '{
+        if ($5>='$MAG_LABEL') {
+            printf("%.3f %.3f %.3f M %.1f\n"),$3,$4,$6,$5
+        }
+    }' seis_range.tmp |\
+        gmt pstext $MAP_PROJ $MAP_LIMS -F+f11,1+jCB -D0/0.1i -t -K -O >> $PSFILE
+
 
     # Focal mechanisms
     if [ "$PLOT_MECH" == "Y" ]
@@ -781,20 +814,23 @@ done
 
 
 
-
-echo "$0: converting PostScript frames to PNG"
+# Convert frames to PNG and superimpose on fixed bacgkround image
+echo "$SCRIPT [`date`]: converting PostScript frames to PNG" | tee -a $LOG_FILE
 for FRAME in frame_*.ps
 do
     PNG=`basename $FRAME .ps`.png
     gmt psconvert $FRAME -TG -A -Vt
     gm composite $PNG frame_base.png j && mv j $PNG
 done
+
+
+# Clean up a little bit
 rm frame_*.ps
 rm make_seis_movie_seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
 rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
 
 
-echo "$0: running ffmpeg to create movie \"seis_movie.mp4\"" >> $LOG_FILE
+echo "$SCRIPT [`date`]: running ffmpeg to create movie \"seis_movie.mp4\"" | tee -a $LOG_FILE
 echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
 ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
 
@@ -806,5 +842,5 @@ fi
 
 
 
-echo $0: see messages in log file $LOG_FILE
-echo $0: finished at `date` >> $LOG_FILE
+echo "$SCRIPT [`date`]: see messages in log file $LOG_FILE"
+echo "$SCRIPT [`date`]: finished" | tee -a $LOG_FILE
