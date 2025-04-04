@@ -6,7 +6,7 @@ SCRIPT=`basename $0`
 
 LOG_FILE=$SCRIPT.log
 
-echo "$SCRIPT [`date`]: starting" | tee $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: starting" | tee $LOG_FILE
 
 
 
@@ -42,6 +42,7 @@ function usage() {
     echo "-plates PB_FILE               Plot plate boundaries (default: no boundaries)" 1>&2
     echo "-topo TOPO_FILE               Plot shaded topography in background" 1>&2
     echo "-topo:color-mode MODE         BW, COLOR-LAND-ONLY, COLOR-OCEAN-ONLY, COLOR" 1>&2
+    echo "-topo:clean ON|OFF            Remove topo and gradient file after script finishes (default:ON)" 1>&2
     echo "-other:psxy FILE:OPT          Other psxy file to plot (can repeat)" 1>&2
     echo "-other:pstext WORDS:OPT       Other pstext file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
@@ -66,7 +67,8 @@ fi
 ####################################################################################################
 
 
-echo "$SCRIPT [`date`]: parsing command line arguments" >> $LOG_FILE
+echo | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: parsing command line arguments" | tee -a $LOG_FILE
 
 
 
@@ -95,6 +97,7 @@ COLOR_BY=DATE
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
 TOPO_FILE=
+TOPO_CLEAN=ON
 COLOR_MODE=BW
 SEIS_SCALE=0.001
 PLOT_MAG_VS_TIME=Y
@@ -134,6 +137,7 @@ do
         -plates) shift; PLATE_BOUNDARY_FILE=$1;;
         -topo) shift; TOPO_FILE=$1;;
         -topo:color-mode) shift; COLOR_MODE=$1;;
+        -topo:clean) shift; TOPO_CLEAN=$1;;
         -other:psxy) shift;PSXY_LIST="$PSXY_LIST;$1";;
         -other:pstext) shift;PSTEXT_LIST="$PSTEXT_LIST;$1";;
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
@@ -147,7 +151,7 @@ done
 
 
 # Check that file variables are defined and files exist
-echo "$SCRIPT [`date`]: checking that seismicity file variable is set" >> $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: checking that seismicity file variable is set" | tee -a $LOG_FILE
 for VAR in SEIS_FILE
 do
     if [ "${!VAR}" == "" ]
@@ -161,17 +165,17 @@ do
         usage
     fi
 done
-echo "$SCRIPT [`date`]: using seismicity file $SEIS_FILE" >> $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: using seismicity file $SEIS_FILE" >> $LOG_FILE
 
 
 # If MAP_LIMS is not defined, set it here from SEIS_FILE
 if [ "$MAP_LIMS" == "" ]
 then
-    echo "$SCRIPT: getting map limits from the input file" >> $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: getting map limits from the input file" | tee -a $LOG_FILE
     MAP_LIMS=$(gmt gmtinfo $SEIS_FILE -I0.01 -i1:2)
-    echo "$SCRIPT: using map limits $MAP_LIMS" >> $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: using map limits $MAP_LIMS" | tee -a $LOG_FILE
 else
-    echo $SCRIPT: setting map limits from command line >> $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: setting map limits from command line" | tee -a $LOG_FILE
 fi
 echo $MAP_LIMS >> $LOG_FILE
 
@@ -181,8 +185,8 @@ if [ "$PLATE_BOUNDARY_FILE" != "" ]
 then
     if [ ! -f $PLATE_BOUNDARY_FILE ]
     then
-        echo "$SCRIPT: could not find plate boundary file named \"$PLATE_BOUNDARY_FILE\""
-        echo "$SCRIPT: not plotting plate boundaries"
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: could not find plate boundary file named \"$PLATE_BOUNDARY_FILE\"" | tee -a $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: not plotting plate boundaries" | tee -a $LOG_FILE
         PLATE_BOUNDARY_FILE=
     fi
 fi
@@ -208,8 +212,8 @@ if [[ $DATE_END == ????-??-?? ]]
 then
     DATE_END=${DATE_END}T00:00:00
 fi
-echo $SCRIPT: starting animation at $DATE_START >> $LOG_FILE
-echo $SCRIPT: ending animation at $DATE_END >> $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: starting animation at $DATE_START" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: ending animation at $DATE_END" | tee -a $LOG_FILE
 
 
 # Determine magnitude for color changes
@@ -217,9 +221,11 @@ if [ "$TIME_CPT" == "" ]
 then
     if [ "$MAG_COLOR_CHANGE" == "" ]
     then
-        echo "$SCRIPT: determining magnitude to change colors" >> $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: determining magnitude to change colors" | tee -a $LOG_FILE
         MAG_COLOR_CHANGE=$(gmt gmtinfo $SEIS_FILE -i4 -C | awk '{print $2-1.0}')
-        echo "$SCRIPT: changing colors every magnitude ${MAG_COLOR_CHANGE}+" >> $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: changing colors every magnitude ${MAG_COLOR_CHANGE}+" | tee -a $LOG_FILE
+    else
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: changing colors every magnitude ${MAG_COLOR_CHANGE}+ (from cmdln)" | tee -a $LOG_FILE
     fi
 fi
 
@@ -235,11 +241,23 @@ fi
 
 
 
+
+
+
+
 ####################################################################################################
 #	SET ANIMATION PARAMETERS
 ####################################################################################################
+
+
+echo | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: setting animation frame parameters" | tee -a $LOG_FILE
+
+
 # Determine number of days in animation
 NDAYS=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS")
+echo "$SCRIPT [`date "+%H:%M:%S"`]: animation is a total of $NDAYS days" | tee -a $LOG_FILE
+
 
 # Calculate number of frames
 if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
@@ -247,6 +265,7 @@ then
     NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2+1}')
     IFRAME_CHANGE=1
     DDAY_CHANGE=$DDAY
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting frames every $DDAYS days" | tee -a $LOG_FILE
 else
     NDAY0=0
     DDAY0=$DDAY
@@ -268,11 +287,15 @@ else
     DFRAMES=`echo $NDAY0 $NDAYS $DDAY0 | awk '{printf("%d"),($2-$1)/$3}'`
     NFRAMES=`echo $NFRAMES $DFRAMES | awk '{print $1+$2}'`
 fi
+echo "$SCRIPT [`date "+%H:%M:%S"`]: generating $NFRAMES frames" | tee -a $LOG_FILE
+
+
 
 # GMT parameters
 gmt set PS_MEDIA 100ix100i
 gmt set FORMAT_GEO_OUT D
 gmt set FORMAT_GEO_MAP D
+
 
 # Map parameters
 MAP_PROJ="-JM5i"
@@ -297,11 +320,30 @@ MAP_TIKS=$(echo $MAP_LIMS | sed -e "s/-R//" |\
                    print 5.0
                }
            }')
+echo "$SCRIPT [`date "+%H:%M:%S"`]: map projection: $MAP_PROJ" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: map tick interval: $MAP_TIKS" | tee -a $LOG_FILE
 
+
+# Magnitude versus time parameters
 TIME_PROJ="-JX5iT/1.5i"
 DAY_TIME_PROJ=$(echo $TIME_PROJ | sed -e "s/T//")
 TIME_LIMS="-R${DATE_START}/${DATE_END}/${MAG_MIN}/${MAG_MAX}"
-DAY_END=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}')
+DAY_END=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}') # LOOKS LIKE I CAN REPLACE THIS WITH $NDAYS
+echo "$SCRIPT [`date "+%H:%M:%S"`]: ending day of animation: $DAY_END (REPLACE WITH \$NDAYS?)" | tee -a $LOG_FILE
+YEAR_TIKS=$(echo $NDAYS |\
+           awk '{
+               if ($1<365*5) {
+                   print 1
+               } else if ($1<365*10) {
+                   print 2
+               } else if ($1<365*20) {
+                   print 5
+               } else if ($1<365*50) {
+                   print 10
+               } else {
+                   print 20
+               }
+           }')
 MONTH_TIKS=$(echo $NDAYS |\
            awk '{
                if ($1<365) {
@@ -316,20 +358,6 @@ MONTH_TIKS=$(echo $NDAYS |\
                    print 12
                } else {
                    print 0
-               }
-           }')
-YEAR_TIKS=$(echo $NDAYS |\
-           awk '{
-               if ($1<365*5) {
-                   print 1
-               } else if ($1<365*10) {
-                   print 2
-               } else if ($1<365*20) {
-                   print 5
-               } else if ($1<365*50) {
-                   print 10
-               } else {
-                   print 20
                }
            }')
 DAY_TIKS=$(echo $NDAYS |\
@@ -385,20 +413,32 @@ MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
                    print 5.0
                }
            }')
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time projection: $TIME_PROJ" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time limits: $TIME_LIMS" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time year tick interval: $YEAR_TIKS" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time month tick interval: $MONTH_TIKS" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time day tick interval: $DAY_TIKS" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: mag vs time magnitude tick interval: $MAG_TIKS" | tee -a $LOG_FILE
+
 
 # Select only data inside map frame
+echo "$SCRIPT [`date "+%H:%M:%S"`]: selecting data within map frame" | tee -a $LOG_FILE
 NCOLS=`head -1 $SEIS_FILE | awk '{print NF-1}'`
-gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:$NCOLS -o2,0:1,3:$NCOLS > make_seis_movie_seis.tmp
+CMD="gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:$NCOLS -o2,0:1,3:$NCOLS"
+echo $CMD >> $LOG_FILE
+$CMD > make_seis_movie_seis.tmp
 
-# Calculate number of days since starting time
+
+# Calculate number of days since starting time for each earthquake
+echo "$SCRIPT [`date "+%H:%M:%S"`]: calculating number of days since start time for each event" | tee -a $LOG_FILE
 awk '{print "'$DATE_START'",$1}' make_seis_movie_seis.tmp |\
     dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" > nday.tmp
-#paste nday.tmp make_seis_movie_seis.tmp |\
-#    sort -gk6 | tail
+
 
 # Color palette
 if [ "$TIME_CPT" == "" ]
 then
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: generating timing color palette" | tee -a $LOG_FILE
     paste nday.tmp make_seis_movie_seis.tmp |\
         awk '{if($1>0 && $6>='$MAG_COLOR_CHANGE'){printf("%.5f\n"),$1}}' > make_seis_movie_nday_color.tmp
     NCOLORS=$(wc make_seis_movie_nday_color.tmp | awk '{print $1+1}')
@@ -422,23 +462,30 @@ then
         paste - color_list.tmp |\
         awk '{if(NF>1){print $1,$3,$2,$3}}END{print "B black";print "F",$1}' > make_seis_movie_time.cpt
     rm make_seis_movie_nday_color.tmp
-    echo Built timing color palette make_seis_movie_time.cpt: >> $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: built timing color palette make_seis_movie_time.cpt" | tee -a $LOG_FILE
     cat make_seis_movie_time.cpt >> $LOG_FILE
 else
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: copying timing color palette $TIME_CPT to make_seis_movie_time.cpt" | tee -a $LOG_FILE
     cp $TIME_CPT make_seis_movie_time.cpt
 fi
+
 if [ "$DATE_CPT" != "" ]
 then
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: using date-specified timing color palette $DATE_CPT" | tee -a $LOG_FILE
     awk '{if(NF==4){print "'"$DATE_START"'",$1;print "'"$DATE_START"'",$3}}' $DATE_CPT |\
         dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" |\
         awk '{d1=$1;getline;d2=$1;print d1,d2}' > j
     paste j $DATE_CPT |\
         awk '{if(NF==6){print $1,$4,$2,$6}else{print $0}}' > make_seis_movie_time.cpt
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: created make_seis_movie_time.cpt" | tee -a $LOG_FILE
 fi
+
 if [ "$COLOR_BY" == "DEPTH" ]
 then
     gmt makecpt -T0/100/10 -Cplasma -D -I > make_seis_movie_time.cpt # THIS NAME IS GONNA MESS ME UP LATER...
 fi
+
+
 
 
 
@@ -447,7 +494,8 @@ fi
 ####################################################################################################
 
 
-echo "$SCRIPT [`date`]: Generating fixed background features for animation" | tee -a $LOG_FILE
+echo | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: generating background features" | tee -a $LOG_FILE
 
 
 
@@ -463,14 +511,25 @@ gmt psxy -T -K -Y3.5i > $PSFILE
 # Topography
 if [ "$TOPO_FILE" != "" ]
 then
+
+    # Topography gradient for shaded hillslopes
     if [ ! -f topo_cut_grad.grd ]
     then
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: could not find topo gradient file...generating" | tee -a $LOG_FILE
         gmt grdcut $TOPO_FILE $MAP_LIMS -Gtopo_cut.grd
         gmt grdgradient topo_cut.grd -A0/270 -Ne0.4 -Gtopo_cut_grad.grd
+    else
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: using existing topo gradient file" | tee -a $LOG_FILE
+
     fi
+
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: calculating min/max elevation for color palette" | tee -a $LOG_FILE
     TOPO_MINMAX=`gmt grdinfo topo_cut.grd -C | awk '{print $6,$7}'`
     TOPO_MIN=`echo $TOPO_MINMAX | awk '{printf("%d"),$1}'`
     TOPO_MAX=`echo $TOPO_MINMAX | awk '{printf("%d"),$2}'`
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: minimum elevation: $TOPO_MIN" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: maximum elevation: $TOPO_MAX" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: using color mode $COLOR_MODE for topography cpt" | tee -a $LOG_FILE
     if [ "$COLOR_MODE" == "BW" ]
     then
         colortool -hue 300,180 -chroma 0,0 -lightness 75,100 -gmt -T${TOPO_MIN}/0/1 > make_seis_movie_topo.cpt
@@ -493,20 +552,26 @@ then
     fi
     tail -1 make_seis_movie_topo.cpt | awk '{print "F",$2}' >> make_seis_movie_topo.cpt
     head -1 make_seis_movie_topo.cpt | awk '{print "B",$2}' >> make_seis_movie_topo.cpt
-    gmt grdimage topo_cut.grd $MAP_PROJ $MAP_LIMS -Itopo_cut_grad.grd -Cmake_seis_movie_topo.cpt -K -O >> $PSFILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting topography" | tee -a $LOG_FILE
+    CMD="gmt grdimage topo_cut.grd $MAP_PROJ $MAP_LIMS -Itopo_cut_grad.grd -Cmake_seis_movie_topo.cpt -K -O"
+    echo $CMD >> $LOG_FILE
+    $CMD >> $PSFILE
 fi
 
 
 
 # Coastline
-echo gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W${PSCOAST_PEN} -C245 $PSCOAST_OPTIONS -K -O >> $LOG_FILE
-gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W${PSCOAST_PEN} -C245 $PSCOAST_OPTIONS -K -O >> $PSFILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting coastline" | tee -a $LOG_FILE
+CMD="gmt pscoast $MAP_PROJ $MAP_LIMS -Dh -W${PSCOAST_PEN} -C245 $PSCOAST_OPTIONS -K -O"
+echo $CMD >> $LOG_FILE
+$CMD >> $PSFILE
 
 
 
 # Plate boundaries
 if [ "$PLATE_BOUNDARY_FILE" != "" ]
 then
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting plate boundaries" | tee -a $LOG_FILE
     gmt psxy $PLATE_BOUNDARY_FILE $MAP_PROJ $MAP_LIMS -W1p -K -O >> $PSFILE
 fi
 
@@ -520,28 +585,34 @@ then
     do
         PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
         PSXY_OPTIONS=`echo $PSXY | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
-        echo plotting file $PSXY_FILE >> $LOG_FILE
-        #echo $PSXY_FILE
-        #echo $PSXY_OPTIONS
-        echo gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $LOG_FILE
-        gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O >> $PSFILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSXY_FILE" | tee -a $LOG_FILE
+        CMD="gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O"
+        echo $CMD >> $LOG_FILE
+        $CMD >> $PSFILE
     done < make_seis_movie_psxy_list.tmp
     rm make_seis_movie_psxy_list.tmp
 fi
 
 
 # Basemap
-gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting basemap" | tee -a $LOG_FILE
+CMD="gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O"
+echo $CMD >> $LOG_FILE
+$CMD >> $PSFILE
 
 
 if [ "$PLOT_MAG_VS_TIME" == "Y" ]
 then
 
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting magnitude versus time frame" | tee -a $LOG_FILE
+
     # Initialize magnitude versus time origin
     gmt psxy -T -K -O -Y-2.5i >> $PSFILE
 
     # Magnitude versus time gridlines
-    gmt psbasemap $TIME_PROJ $TIME_LIMS -Bsxg${MONTH_TIKS}o -Byg1 -K -O --MAP_GRID_PEN=0.25p,225,4_2:0 >> $PSFILE
+    CMD="gmt psbasemap $TIME_PROJ $TIME_LIMS -Bsxg${MONTH_TIKS}o -Byg1 -K -O --MAP_GRID_PEN=0.25p,225,4_2:0"
+    echo $CMD >> $LOG_FILE
+    $CMD >> $PSFILE
 
     # Magnitude versus time frame
     NDAYS_INT=`echo $NDAYS | awk '{printf("%d"),$1}'`
@@ -578,7 +649,7 @@ fi
 # Finalize plot
 gmt psxy -T -O >> $PSFILE
 
-echo "$SCRIPT [`date`]: converting background PostScript image to PNG" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: converting background PostScript image to PNG" | tee -a $LOG_FILE
 gmt psconvert -Tg -A frame_base.ps -Vt
 rm frame_base.ps
 
@@ -592,11 +663,17 @@ rm frame_base.ps
 ####################################################################################################
 
 
+
+
+echo | tee -a $LOG_FILE
+
+
+
 IFRAME=1
 
 while [ $IFRAME -le $NFRAMES ]
 do
-    echo "$SCRIPT [`date`]: Working on frame $IFRAME of $NFRAMES" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: Working on frame $IFRAME of $NFRAMES" | tee -a $LOG_FILE
 
     # Postscript file name
     IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
@@ -684,12 +761,11 @@ do
 
 
     # Label large events
-    awk '{
-        if ($5>='$MAG_LABEL') {
-            printf("%.3f %.3f %.3f M %.1f\n"),$3,$4,$6,$5
-        }
-    }' seis_range.tmp |\
-        gmt pstext $MAP_PROJ $MAP_LIMS -F+f11,1+jCB -D0/0.1i -t -K -O >> $PSFILE
+    awk '{if ($5>='$MAG_LABEL') {print $3,$4,$6,$5}}' seis_range.tmp |\
+        gmt mapproject $MAP_PROJ $MAP_LIMS |\
+        awk '{printf("%.3f %.3f %.3f %.1f\n"),$1,$2+2.54*$4*$4*$4*'$SEIS_SCALE'/2+0.08,$3,$4}' |\
+        gmt mapproject $MAP_PROJ $MAP_LIMS -I |\
+        gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,1,black=0.5p,white+jCB -t -K -O >> $PSFILE
 
 
     # Focal mechanisms
@@ -702,9 +778,11 @@ do
     # Basemap
     gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
 
+
     # Date in top left corner
     echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
-        gmt pstext $MAP_PROJ $MAP_LIMS -F+f+j -D0.05i/-0.05i -N -K -O >> $PSFILE
+        gmt pstext $MAP_PROJ $MAP_LIMS -F+f+j -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
+
 
     # Other text
     if [ "$PSTEXT_LIST" != "" ]
@@ -715,8 +793,6 @@ do
             PSTEXT_WORDS=`echo $PSTEXT | awk -F: '{print $1}'`
             PSTEXT_OPTIONS=`echo $PSTEXT | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
             echo plotting words $PSTEXT_WORDS
-            #echo $PSTEXT_FILE
-            #echo $PSTEXT_OPTIONS
             echo $PSTEXT_WORDS | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O >> $PSFILE
         done < make_seis_movie_pstext_list.tmp
         rm make_seis_movie_pstext_list.tmp
@@ -732,8 +808,6 @@ do
             PSIMAGE_FILE=`echo $PSIMAGE | awk -F: '{print $1}'`
             PSIMAGE_OPTIONS=`echo $PSIMAGE | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
             echo plotting file $PSIMAGE_FILE
-            #echo $PSIMAGE_FILE
-            #echo $PSIMAGE_OPTIONS
             gmt psimage $MAP_PROJ $MAP_LIMS $PSIMAGE_FILE $PSIMAGE_OPTIONS -K -O >> $PSFILE
         done < psimage_list.tmp
     fi
@@ -807,6 +881,13 @@ do
     # Finalize plot
     gmt psxy -T -O >> $PSFILE
 
+
+    # Convert frame to PNG and superimpose on fixed background image
+    PNG=`basename $PSFILE .ps`.png
+    gmt psconvert $PSFILE -TG -A -Vt
+    gm composite $PNG frame_base.png j && mv j $PNG
+
+
     # Update frame counter
     IFRAME=$(echo $IFRAME | awk '{print $1+1}')
 
@@ -814,23 +895,25 @@ done
 
 
 
-# Convert frames to PNG and superimpose on fixed bacgkround image
-echo "$SCRIPT [`date`]: converting PostScript frames to PNG" | tee -a $LOG_FILE
-for FRAME in frame_*.ps
-do
-    PNG=`basename $FRAME .ps`.png
-    gmt psconvert $FRAME -TG -A -Vt
-    gm composite $PNG frame_base.png j && mv j $PNG
-done
+
+
 
 
 # Clean up a little bit
 rm frame_*.ps
 rm make_seis_movie_seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
-rm topo_cut.grd topo_cut_grad.grd topo_bw.cpt
+if [ "$TOPO_CLEAN" == "ON" ]
+then
+    rm topo_cut.grd topo_cut_grad.grd
+fi
+rm topo_bw.cpt
 
 
-echo "$SCRIPT [`date`]: running ffmpeg to create movie \"seis_movie.mp4\"" | tee -a $LOG_FILE
+
+
+
+echo | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: running ffmpeg to create movie \"seis_movie.mp4\"" | tee -a $LOG_FILE
 echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
 ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
 
@@ -842,5 +925,5 @@ fi
 
 
 
-echo "$SCRIPT [`date`]: see messages in log file $LOG_FILE"
-echo "$SCRIPT [`date`]: finished" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: see messages in log file $LOG_FILE"
+echo "$SCRIPT [`date "+%H:%M:%S"`]: finished" | tee -a $LOG_FILE
