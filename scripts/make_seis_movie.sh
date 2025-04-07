@@ -85,6 +85,7 @@ MAX_TRANS=90                            # Maximum transparency level (out of 100
 DDAY_NDAY_CHANGE_LIST=
 
 # Map parameters
+MAP_PROJ="-JM5i"
 MAP_LIMS=
 MAG_MIN=2
 MAG_MAX=8
@@ -121,6 +122,7 @@ do
         -dday) shift; DDAY=$1;;
         -dday:change) shift; DDAY_NDAY_CHANGE_LIST="$DDAY_NDAY_CHANGE_LIST $1";;
         -R*) MAP_LIMS=$1;;
+        -J*) MAP_PROJ=$1;;
         -mag:min) shift; MAG_MIN=$1;;
         -mag:max) shift; MAG_MAX=$1;;
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
@@ -173,9 +175,9 @@ if [ "$MAP_LIMS" == "" ]
 then
     echo "$SCRIPT [`date "+%H:%M:%S"`]: getting map limits from the input file" | tee -a $LOG_FILE
     MAP_LIMS=$(gmt gmtinfo $SEIS_FILE -I0.01 -i1:2)
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: using map limits $MAP_LIMS" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: using map limits: MAP_LIMS=$MAP_LIMS" | tee -a $LOG_FILE
 else
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: setting map limits from command line" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: setting map limits from command line: MAP_LIMS=$MAP_LIMS" | tee -a $LOG_FILE
 fi
 echo $MAP_LIMS >> $LOG_FILE
 
@@ -298,7 +300,10 @@ gmt set FORMAT_GEO_MAP D
 
 
 # Map parameters
-MAP_PROJ="-JM5i"
+MAP_WID="5i"
+MAP_PROJ_FLAG=`echo $MAP_PROJ | grep -o  "\-J[A-Za-z]*"`
+MAP_PROJ_PARAM=`echo $MAP_PROJ | sed -e "s/-J[A-Za-z]*//" | awk -F"/" '{for(i=1;i<=NF-1;i++){printf("%s/"),$i}}END{printf("'$MAP_WID'\n")}'`
+echo "$SCRIPT [`date "+%H:%M:%S"`]: using MAP_PROJ=$MAP_PROJ" | tee -a $LOG_FILE
 MAP_TIKS=$(echo $MAP_LIMS | sed -e "s/-R//" |\
            awk -F/ '{
                dlon = $2-$1
@@ -780,8 +785,8 @@ do
 
 
     # Date in top left corner
-    echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
-        gmt pstext $MAP_PROJ $MAP_LIMS -F+f+j -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
+    # echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
+    echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+cTL -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
 
 
     # Other text
