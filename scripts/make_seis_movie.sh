@@ -3,6 +3,7 @@
 
 # Initialize script name and log file
 SCRIPT=`basename $0`
+TIMESTAMP=`date "+%s"`
 
 LOG_FILE=$SCRIPT.log
 
@@ -35,7 +36,8 @@ function usage() {
     echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
     echo "-datecpt DATE_CPT             Earthquake timing (by date) color palette" 1>&2
-    echo "-color-by-depth               Color earthquakes by depth instead of date" 1>&2
+    echo "-color-by-col4                Color earthquakes by value in column 4 of SEIS_FILE instead of date" 1>&2
+    echo "-col4cpt CPT                  Color palette file for custom coloring" 1>&2
     echo "-fade FADE_TIME               Time to fade out symbols (days)" 1>&2
     echo "-trans:max MAX_TRANS          Maximum transparency of faded symbols (default:90)" 1>&2
     echo "-mech                         Plot focal mechanisms (default: no mechanisms)" 1>&2
@@ -47,6 +49,7 @@ function usage() {
     echo "-other:pstext WORDS:OPT       Other pstext file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
     echo "-pscoast:options OPT          Additional flags for pscoast (separate by \":\")" 1>&2
+    echo "-add-north-arrow JUST         Add north arrow in GMT justified corner (e.g., TR)" 1>&2
     echo "-mag:min MAG_MIN              Minimum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-mag:max MAG_MAX              Maximum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
@@ -94,6 +97,7 @@ MAG_BOLD=15
 MAG_LABEL=15
 TIME_CPT=
 DATE_CPT=
+COL4_CPT=
 COLOR_BY=DATE
 PLOT_MECH=N
 PLATE_BOUNDARY_FILE=
@@ -102,6 +106,7 @@ TOPO_CLEAN=ON
 COLOR_MODE=BW
 SEIS_SCALE=0.001
 PLOT_MAG_VS_TIME=Y
+ADD_NORTH_ARROW=
 
 # Other commands
 PSXY_LIST=""
@@ -131,7 +136,8 @@ do
         -scale) shift; SEIS_SCALE=$1;;
         -timecpt) shift; TIME_CPT=$1;;
         -datecpt) shift; DATE_CPT=$1;;
-        -color-by-depth) COLOR_BY=DEPTH;;
+        -col4cpt) shift; COL4_CPT=$1;;
+        -color-by-col4) COLOR_BY=COL4;;
         -no-mag-vs-time) PLOT_MAG_VS_TIME=N;;
         -fade) shift; FADE_TIME=$1;;
         -trans:max) shift; MAX_TRANS=$1;;
@@ -145,6 +151,7 @@ do
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
         -pscoast:options) shift; PSCOAST_OPTIONS=`echo $1 | sed -e "s/:/ /g"` ;;
         -pscoast:pen) shift; PSCOAST_PEN="$1" ;;
+        -add-north-arrow) shift; ADD_NORTH_ARROW="$1" ;;
         -clean) CLEAN="Y";;
         *) ;;
     esac
@@ -368,33 +375,33 @@ MONTH_TIKS=$(echo $NDAYS |\
 DAY_TIKS=$(echo $NDAYS |\
            awk '{
                if ($1<2) {
-                   print 0.5
+                   print 0.25
                } else if ($1<5) {
-                   print 1
+                   print 0.5
                } else if ($1<10) {
-                   print 2
+                   print 1
                } else if ($1<20) {
-                   print 5
+                   print 2
                } else if ($1<50) {
-                   print 10
+                   print 5
                } else if ($1<100) {
-                   print 20
+                   print 10
                } else if ($1<200) {
-                   print 50
+                   print 20
                } else if ($1<500) {
-                   print 100
+                   print 50
                } else if ($1<1000) {
-                   print 200
+                   print 100
                } else if ($1<2000) {
-                   print 500
+                   print 200
                } else if ($1<5000) {
-                   print 1000
+                   print 500
                } else if ($1<10000) {
-                   print 2000
+                   print 1000
                } else if ($1<20000) {
-                   print 5000
+                   print 2000
                } else {
-                   print 10000
+                   print 5000
                }
            }')
 MAG_TIKS=$(echo $TIME_LIMS | sed -e "s/-R//" |\
@@ -441,6 +448,7 @@ awk '{print "'$DATE_START'",$1}' make_seis_movie_seis.tmp |\
 
 
 # Color palette
+EQ_CPT="${SCRIPT}.${TIMESTAMP}.cpt"
 if [ "$TIME_CPT" == "" ]
 then
     echo "$SCRIPT [`date "+%H:%M:%S"`]: generating timing color palette" | tee -a $LOG_FILE
@@ -465,13 +473,13 @@ then
         nday = $1
     }' make_seis_movie_nday_color.tmp |\
         paste - color_list.tmp |\
-        awk '{if(NF>1){print $1,$3,$2,$3}}END{print "B black";print "F",$1}' > make_seis_movie_time.cpt
+        awk '{if(NF>1){print $1,$3,$2,$3}}END{print "B black";print "F",$1}' > ${EQ_CPT}
     rm make_seis_movie_nday_color.tmp
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: built timing color palette make_seis_movie_time.cpt" | tee -a $LOG_FILE
-    cat make_seis_movie_time.cpt >> $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: built timing color palette ${EQ_CPT}" | tee -a $LOG_FILE
+    cat ${EQ_CPT} >> $LOG_FILE
 else
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: copying timing color palette $TIME_CPT to make_seis_movie_time.cpt" | tee -a $LOG_FILE
-    cp $TIME_CPT make_seis_movie_time.cpt
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: copying timing color palette $TIME_CPT to ${EQ_CPT}" | tee -a $LOG_FILE
+    cp $TIME_CPT ${EQ_CPT}
 fi
 
 if [ "$DATE_CPT" != "" ]
@@ -481,13 +489,22 @@ then
         dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" |\
         awk '{d1=$1;getline;d2=$1;print d1,d2}' > j
     paste j $DATE_CPT |\
-        awk '{if(NF==6){print $1,$4,$2,$6}else{print $0}}' > make_seis_movie_time.cpt
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: created make_seis_movie_time.cpt" | tee -a $LOG_FILE
+        awk '{if(NF==6){print $1,$4,$2,$6}else{print $0}}' > ${EQ_CPT}
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: created ${EQ_CPT}" | tee -a $LOG_FILE
 fi
 
-if [ "$COLOR_BY" == "DEPTH" ]
+if [ "$COLOR_BY" == "COL4" ]
 then
-    gmt makecpt -T0/100/10 -Cplasma -D -I > make_seis_movie_time.cpt # THIS NAME IS GONNA MESS ME UP LATER...
+    if [ "$COL4_CPT" != "" ]
+    then
+        cp $COL4_CPT $EQ_CPT
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: copied $COL4_CPT to $EQ_CPT" | tee -a $LOG_FILE
+    else
+        CMD="gmt makecpt -T0/100/10 -Cplasma -D -I"
+        $CMD > ${EQ_CPT}
+        echo $CMD >> $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: made $EQ_CPT with $CMD" | tee -a $LOG_FILE
+    fi
 fi
 
 
@@ -590,7 +607,7 @@ then
     do
         PSXY_FILE=`echo $PSXY | awk -F: '{print $1}'`
         PSXY_OPTIONS=`echo $PSXY | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
-        echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSXY_FILE" | tee -a $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSXY_FILE with psxy" | tee -a $LOG_FILE
         CMD="gmt psxy $MAP_PROJ $MAP_LIMS $PSXY_FILE $PSXY_OPTIONS -K -O"
         echo $CMD >> $LOG_FILE
         $CMD >> $PSFILE
@@ -599,11 +616,51 @@ then
 fi
 
 
+# Other text
+if [ "$PSTEXT_LIST" != "" ]
+then
+    echo $PSTEXT_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > make_seis_movie_pstext_list.tmp
+    while read PSTEXT
+    do
+        PSTEXT_FILE=`echo $PSTEXT | awk -F: '{print $1}'`
+        PSTEXT_OPTIONS=`echo $PSTEXT | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSTEXT_FILE with pstext" | tee -a $LOG_FILE
+        CMD="gmt pstext $PSTEXT_FILE $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O"
+        echo $CMD >> $LOG_FILE
+        $CMD >> $PSFILE
+    done < make_seis_movie_pstext_list.tmp
+    rm make_seis_movie_pstext_list.tmp
+fi
+
+
+
+
+
+
+# North arrow
+if [ "$ADD_NORTH_ARROW" != "" ]
+then
+    case $ADD_NORTH_ARROW in
+        TR) XSHFT=-0.1i; YSHFT=-0.1i;;
+        *) XSHFT=0; YSHFT=0;;
+    esac
+    CMD="gmt psbasemap $MAP_PROJ $MAP_LIMS -Tdj${ADD_NORTH_ARROW} -Xa$XSHFT -Ya$YSHFT -K -O"
+    $CMD >> $PSFILE
+    echo $CMD >> $LOG_FILE
+fi
+
+
+
 # Basemap
 echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting basemap" | tee -a $LOG_FILE
 CMD="gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O"
 echo $CMD >> $LOG_FILE
 $CMD >> $PSFILE
+
+
+
+
+
 
 
 if [ "$PLOT_MAG_VS_TIME" == "Y" ]
@@ -633,7 +690,8 @@ then
         gmt psbasemap $TIME_PROJ $TIME_LIMS \
             -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
             -BWeN -K -O \
-            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+            --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
+            --FORMAT_DATE_MAP=o --FORMAT_TIME_MAP=a >> $PSFILE
     else
         gmt psbasemap $TIME_PROJ $TIME_LIMS \
             -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
@@ -756,13 +814,13 @@ do
         }
         if ("'$COLOR_BY'"=="DATE") {
             print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
-        } else if ("'$COLOR_BY'"=="DEPTH" && NF==7) {
+        } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
             print $3,$4,$7,$5*$5*$5*'$SEIS_SCALE',$6
-        } else if ("'$COLOR_BY'"=="DEPTH" && NF==10) {
+        } else if ("'$COLOR_BY'"=="COL4" && NF==10) {
             print $3,$4,$10,$5*$5*$5*'$SEIS_SCALE',$6
         }
     }' seis_range.tmp |\
-        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
 
 
     # Label large events
@@ -777,7 +835,7 @@ do
     if [ "$PLOT_MECH" == "Y" ]
     then
         awk '{if($7!=0||$8!=0||$9!=0){print $3,$4,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' seis_range.tmp |\
-            gmt psmeca $MAP_PROJ $MAP_LIMS -Sa5i -L0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+            gmt psmeca $MAP_PROJ $MAP_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
     fi
 
     # Basemap
@@ -787,22 +845,6 @@ do
     # Date in top left corner
     # echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
     echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+cTL -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
-
-
-    # Other text
-    if [ "$PSTEXT_LIST" != "" ]
-    then
-        echo $PSTEXT_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > make_seis_movie_pstext_list.tmp
-        while read PSTEXT
-        do
-            PSTEXT_WORDS=`echo $PSTEXT | awk -F: '{print $1}'`
-            PSTEXT_OPTIONS=`echo $PSTEXT | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
-            echo plotting words $PSTEXT_WORDS
-            echo $PSTEXT_WORDS | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O >> $PSFILE
-        done < make_seis_movie_pstext_list.tmp
-        rm make_seis_movie_pstext_list.tmp
-    fi
-
 
 
     if [ "$PSIMAGE_LIST" != "" ]
@@ -834,17 +876,17 @@ do
             }
             if ("'$COLOR_BY'"=="DATE") {
                 print $2,$5,$1,$5*$5*$5*'"$SEIS_SCALE"',$6
-            } else if ("'$COLOR_BY'"=="DEPTH" && NF==7) {
+            } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
                 print $2,$5,$7,$5*$5*$5*'"$SEIS_SCALE"',$6
             }
         }' seis_range.tmp |\
-            gmt psxy $TIME_PROJ $TIME_LIMS -Sci -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+            gmt psxy $TIME_PROJ $TIME_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
 
         # Focal mechanisms
         if [ "$PLOT_MECH" == "Y" ]
         then
             awk '{if($7!=0||$8!=0||$9!=0){print $2,$5,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' seis_range.tmp |\
-                gmt psmeca $TIME_PROJ $TIME_LIMS -Sa5i -L0.5p -Cmake_seis_movie_time.cpt -t -K -O >> $PSFILE
+                gmt psmeca $TIME_PROJ $TIME_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
         fi
 
         # Date line
@@ -906,12 +948,13 @@ done
 
 # Clean up a little bit
 rm frame_*.ps
-rm make_seis_movie_seis.tmp nday.tmp color_list.tmp make_seis_movie_time.cpt seis_range.tmp
+rm make_seis_movie_seis.tmp nday.tmp color_list.tmp ${EQ_CPT} seis_range.tmp
 if [ "$TOPO_CLEAN" == "ON" ]
 then
     rm topo_cut.grd topo_cut_grad.grd
 fi
 rm topo_bw.cpt
+rm $EQ_CPT
 
 
 
