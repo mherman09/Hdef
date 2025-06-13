@@ -620,7 +620,7 @@ type(ffm_data) :: mag_data
 integer :: ierr
 
 ! Local variables
-integer :: iflt, i, j, iline, nlines, ct
+integer :: iflt, j, iline, nlines
 character(len=512) :: input_line
 character(len=1) :: char1
 
@@ -660,9 +660,19 @@ do iline = 1,nlines
     else
         iflt = iflt + 1
     endif
-    read(input_line,*) (mag_data%subflt(iflt,j),j=1,7)
+
+    read(input_line,*,end=9002,iostat=ierr) (mag_data%subflt(iflt,j),j=1,7)
     mag_data%subflt(iflt,3) = mag_data%subflt(iflt,3)*1.0d3 ! Depth km->m
 enddo
+
+9002 if (ierr.ne.0) then
+    write(stderr,*) 'read_mag: at line ',iline,', reached end of line early'
+    write(stderr,*) 'Tried to parse "',trim(input_line),'"'
+    write(stderr,*) 'Expecting 7 values (lon lat dep str dip rak mag)'
+    ierr = 1
+    return
+endif
+
 
 ! Check that any ignored lines were correctly handled
 if (iflt.ne.mag_data%nflt) then
@@ -698,6 +708,7 @@ integer :: ierr
 ! Local variables
 integer :: iflt, j, nlines, ct
 character(len=512) :: input_line
+character(len=1) :: char1
 
 
 if (verbosity.ge.2) then
@@ -728,7 +739,8 @@ open(unit=32,file=flt_file,status='old')
 ct = 0
 do iflt = 1,nlines
     read(32,'(A)') input_line
-    if (adjustl(input_line).eq.'#'.or.adjustl(input_line).eq.'>'.or.input_line.eq.'') then
+    read(input_line,'(A)') char1
+    if (char1.eq.'#' .or. char1.eq.'>' .or. input_line.eq.'') then
         ! Ignore this line
         cycle
     else
@@ -744,6 +756,8 @@ close(32)
 
 9001 if (ierr.ne.0) then
     write(stderr,*) 'read_flt: at line ',iflt,', reached end of line early'
+    write(stderr,*) 'Tried to parse "',trim(input_line),'"'
+    write(stderr,*) 'Expecting 9 values (lon lat dep str dip rak slip wid len)'
     write(stderr,*) 'Did you mean to use -mag?'
     ierr = 1
     return
