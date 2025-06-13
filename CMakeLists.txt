@@ -21,61 +21,59 @@ endif()
 
 
 
+#####
+#	BEGIN CONFIGURATION
+#####
 message(STATUS "")
-message(STATUS "*********************************************************************************")
-message(STATUS "************************* CONFIGURING HDEF INSTALLATION *************************")
-message(STATUS "*********************************************************************************")
+message(STATUS "********************************************************************************")
+message(STATUS "******************************* CONFIGURING HDEF *******************************")
+message(STATUS "********************************************************************************")
 message(STATUS "")
 
 
-#####
-#	INSTALLATION DIRECTORY
-#####
-message(STATUS "*********************************************************************************")
-message(STATUS "Configuring installation directory")
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    unset(CMAKE_INSTALL_PREFIX CACHE)
-    message(FATAL_ERROR "Set installation directory with: '-DCMAKE_INSTALL_PREFIX=/path/to/hdef/install'")
-endif()
-message(STATUS "CMAKE_INSTALL_PREFIX=" ${CMAKE_INSTALL_PREFIX})
-message(STATUS "*********************************************************************************")
-message(STATUS "")
+
 
 
 #####
 #	COMPILER SETUP
 #####
-# Hdef build must use gcc and gfortran (for now...)
-message(STATUS "*********************************************************************************")
-message(STATUS "Configuring compilers")
 
-# Check for gcc
-message(STATUS "CMAKE_C_COMPILER=" ${CMAKE_C_COMPILER})
-if (NOT CMAKE_C_COMPILER_ID MATCHES "GNU")
-    unset(CMAKE_C_COMPILER CACHE)
-    unset(CMAKE_Fortran_COMPILER CACHE)
-    message(STATUS "Hdef is only set up to compile with the GNU compiler set")
-    message(FATAL_ERROR "Set C compiler with: '-DCMAKE_C_COMPILER=/path/to/gcc'")
-endif()
+# Hdef build must use gfortran and gcc
+message(STATUS "Looking for gfortran and gcc compilers")
 
 # Check for gfortran
 message(STATUS "CMAKE_Fortran_COMPILER=" ${CMAKE_Fortran_COMPILER})
+
+# Does it exist?
+if ("${CMAKE_Fortran_COMPILER}" STREQUAL "")
+    message(STATUS "No Fortran compiler found")
+    message(FATAL_ERROR "Set path to gfortran with: '-DCMAKE_Fortran_COMPILER=/path/to/gfortran'")
+endif()
+
+# Is it gfortran?
 if (NOT CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     unset(CMAKE_C_COMPILER CACHE)
     unset(CMAKE_Fortran_COMPILER CACHE)
     message(STATUS "Hdef is only set up to compile with the GNU compiler set")
-    message(FATAL_ERROR "Set Fortran compiler with: '-DCMAKE_Fortran_COMPILER=/path/to/gfortran'")
+    message(FATAL_ERROR "Set path to gfortran with: '-DCMAKE_Fortran_COMPILER=/path/to/gfortran'")
 endif()
 
-# Make sure that compilers are using same version
-if (NOT ${CMAKE_Fortran_COMPILER_VERSION} MATCHES ${CMAKE_C_COMPILER_VERSION})
-    message(STATUS "")
-    message(WARNING "Compiler versions do not match; this may lead to unanticipated behavior")
-    message(STATUS "CMAKE_C_COMPILER_VERSION=" ${CMAKE_C_COMPILER_VERSION})
-    message(STATUS "CMAKE_Fortran_COMPILER_VERSION=" ${CMAKE_Fortran_COMPILER_VERSION})
-    message(STATUS "")
-else()
-    message(STATUS "Compiler versions match: ${CMAKE_Fortran_COMPILER_VERSION}")
+
+# Check for gcc
+message(STATUS "CMAKE_C_COMPILER=" ${CMAKE_C_COMPILER})
+
+# Does it exist?
+if ("${CMAKE_C_COMPILER}" STREQUAL "")
+    message(STATUS "No C compiler found")
+    message(FATAL_ERROR "Set path to gcc with: '-DCMAKE_C_COMPILER=/path/to/gcc")
+endif()
+
+# Is it gcc?
+if (NOT CMAKE_C_COMPILER_ID MATCHES "GNU")
+    unset(CMAKE_C_COMPILER CACHE)
+    unset(CMAKE_Fortran_COMPILER CACHE)
+    message(STATUS "Hdef is only set up to compile with the GNU compiler set")
+    message(FATAL_ERROR "Set path to gcc with: '-DCMAKE_C_COMPILER=/path/to/gcc'")
 endif()
 
 # Use pre-processing commands
@@ -84,81 +82,9 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -cpp")
 # Compilation flags
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall -Wextra -Wunused -Wconversion -fcheck=bounds,do,mem,pointer,recursion -fbacktrace")
 
-message(STATUS "*********************************************************************************")
 message(STATUS "")
 
 
-
-
-#####
-#	LAPACK
-#####
-message(STATUS "*********************************************************************************")
-message(STATUS "Looking for LAPACK")
-
-
-# Default: do not use LAPACK
-set(useLAPACK 0)
-
-
-# Define LAPACK libraries
-if ("${LAPACK_LIB_DIR}" STREQUAL "" )
-    # If LAPACK directory is not set on the command line
-    message(STATUS "Compiling Hdef ***without*** LAPACK")
-    message(STATUS "Set LAPACK directory with: '-DLAPACK_LIB_DIR=/path/to/lapack/lib'")
-
-elseif (EXISTS ${LAPACK_LIB_DIR})
-    # If LAPACK directory is set on the command line and exists
-    message(STATUS "Found LAPACK directory: " ${LAPACK_LIB_DIR})
-    set(useLAPACK 1)
-    unset(LAPACK_LIBRARIES)
-
-    # Find lapack lib
-    if (EXISTS ${LAPACK_LIB_DIR}/liblapack.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/liblapack.a)
-    elseif (EXISTS ${LAPACK_LIB_DIR}/libreflapack.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libreflapack.a)
-    else()
-        message(WARNING "Could not find library lapack or reflapack in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
-        set(useLAPACK 0)
-    endif()
-
-    # Find blaslib
-    if (EXISTS ${LAPACK_LIB_DIR}/libblas.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libblas.a)
-    elseif (EXISTS ${LAPACK_LIB_DIR}/librefblas.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/librefblas.a)
-    else()
-        message(FATAL_ERROR "Could not find library blas or refblas in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
-        set(useLAPACK 0)
-    endif()
-
-    # Find tmglib
-    if (EXISTS ${LAPACK_LIB_DIR}/libtmglib.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libtmglib.a)
-    elseif (EXISTS ${LAPACK_LIB_DIR}/libreftmglib.a)
-        set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACK_LIB_DIR}/libreftmglib.a)
-    else()
-        message(FATAL_ERROR "Could not find library tmglib or reftmglib in " ${LAPACK_LIB_DIR} ". Compiling Hdef ***without*** LAPACK.")
-        set(useLAPACK 0)
-    endif()
-
-else()
-    # If LAPACK directory is set on the command line, but does not exist
-    message(WARNING "Could not find LAPACK directory: '" ${LAPACK_LIB_DIR} "'. Compiling Hdef ***without*** LAPACK")
-endif()
-
-
-# Print message if LAPACK is found
-if (useLAPACK)
-    foreach (lib ${LAPACK_LIBRARIES})
-        message(STATUS "Using LAPACK library: " ${lib} )
-    endforeach()
-    add_compile_definitions(USE_LAPACK)
-endif()
-
-message(STATUS "*********************************************************************************")
-message(STATUS "")
 
 
 
@@ -166,7 +92,8 @@ message(STATUS "")
 #####
 #	OPENMP
 #####
-message(STATUS "*********************************************************************************")
+message(STATUS "**********")
+message(STATUS "")
 message(STATUS "Looking for OpenMP libraries")
 
 # Look for package OpenMP
@@ -182,17 +109,47 @@ else()
     message(STATUS "Building o92util without parallel capability")
 endif()
 
-message(STATUS "*********************************************************************************")
 message(STATUS "")
 
 
 
 
+
+
 #####
-#	LIBRARIES
+#	LAPACK
 #####
-message(STATUS "*********************************************************************************")
-message(STATUS "Setting up libhdef build")
+message(STATUS "**********")
+message(STATUS "")
+
+message(STATUS "Looking for LAPACK")
+
+
+# Default: do not use LAPACK
+
+find_package(LAPACK)
+if (LAPACK_FOUND)
+    message(STATUS "Found LAPACK_LIBRARIES: ${LAPACK_LIBRARIES}")
+    add_compile_definitions(USE_LAPACK)
+    set(useLAPACK 1)
+else()
+    message("LAPACK not found")
+    message("Set LAPACK libraries with -DLAPACK_LIBRARIES=/path/to/lapack/library")
+    set(useLAPACK 0)
+endif()
+
+message(STATUS "")
+
+
+
+
+
+
+#####
+#	HDEF LIBRARIES
+#####
+# message(STATUS "********************************************************************************")
+# message(STATUS "Setting up libhdef build")
 
 # Compile with UNIT_TEST preprocessing directives
 add_compile_definitions(UNIT_TEST)
@@ -237,8 +194,8 @@ endif()
 # Install the hdef library
 install(TARGETS hdef DESTINATION lib)
 
-message(STATUS "*********************************************************************************")
-message(STATUS "")
+# message(STATUS "********************************************************************************")
+# message(STATUS "")
 
 
 
@@ -246,8 +203,8 @@ message(STATUS "")
 #####
 #	EXECUTABLES
 #####
-message(STATUS "*********************************************************************************")
-message(STATUS "Setting up executable builds")
+# message(STATUS "********************************************************************************")
+# message(STATUS "Setting up executable builds")
 
 # List of modern Fortran files (.f90 extensions)
 list(APPEND f90_files
@@ -320,8 +277,8 @@ foreach(executable ${hdef_executables})
     install(TARGETS ${executable} DESTINATION bin)
 endforeach()
 
-message(STATUS "*********************************************************************************")
-message(STATUS "")
+# message(STATUS "********************************************************************************")
+# message(STATUS "")
 
 
 
@@ -329,8 +286,8 @@ message(STATUS "")
 #####
 #	SCRIPTS
 #####
-message(STATUS "*********************************************************************************")
-message(STATUS "Setting up script builds")
+# message(STATUS "********************************************************************************")
+# message(STATUS "Setting up script builds")
 
 # Shell scripts that use executables
 list(APPEND shell_scripts
@@ -371,8 +328,8 @@ add_custom_command(
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/parse_usgs_query.pl DESTINATION bin)
 
 
-message(STATUS "*********************************************************************************")
-message(STATUS "")
+# message(STATUS "********************************************************************************")
+# message(STATUS "")
 
 
 
@@ -380,50 +337,34 @@ message(STATUS "")
 #####
 #	TESTS
 #####
-message(STATUS "*********************************************************************************")
-message(STATUS "Setting up tests")
+# message(STATUS "********************************************************************************")
+# message(STATUS "Setting up tests")
 
 # Activate cmake testing in build directory
 enable_testing()
 
 # Unit tests
+list(APPEND unit_test_list
+    unit_test_algebra
+    unit_test_annealing
+    unit_test_calendar
+    unit_test_earth
+    unit_test_elast
+    unit_test_eq
+    unit_test_ffm
+    unit_test_geom
+    unit_test_interpolation
+    unit_test_io
+    unit_test_map
+    unit_test_okada92
+    unit_test_random
+    unit_test_sort
+    unit_test_tri_disloc
+)
 if (useLAPACK)
     list(APPEND unit_test_list
-        unit_test_algebra
-        unit_test_annealing
-        unit_test_calendar
-        unit_test_earth
-        unit_test_elast
-        unit_test_eq
-        unit_test_ffm
-        unit_test_geom
-        unit_test_interpolation
-        unit_test_io
-        unit_test_map
         unit_test_misfit
-        unit_test_okada92
-        unit_test_random
         unit_test_solver
-        unit_test_sort
-        unit_test_tri_disloc
-    )
-else()
-    list(APPEND unit_test_list
-        unit_test_algebra
-        unit_test_annealing
-        unit_test_calendar
-        unit_test_earth
-        unit_test_elast
-        unit_test_eq
-        unit_test_ffm
-        unit_test_geom
-        unit_test_interpolation
-        unit_test_io
-        unit_test_map
-        unit_test_okada92
-        unit_test_random
-        unit_test_sort
-        unit_test_tri_disloc
     )
 endif()
 
@@ -507,69 +448,71 @@ add_custom_target(test-exec DEPENDS ${executable_test_list})
 # # Also install script test_values.sh to check output values
 # install(PROGRAMS ${CMAKE_SOURCE_DIR}/test/test_values.sh DESTINATION test)
 
-message(STATUS "*********************************************************************************")
-message(STATUS "")
-
+# message(STATUS "********************************************************************************")
+# message(STATUS "")
 
 
 
 #####
 #	FINISH UP
 #####
-message(STATUS "*********************************************************************************")
-message(STATUS "Finished configuring Hdef")
+message(STATUS "**********")
 message(STATUS "")
 
-
-# Add a message to print about LAPACK during build
-if(useLAPACK)
-    message(STATUS "Building Hdef with LAPACK")
-    message(STATUS "")
-    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with LAPACK")
-else()
-    message(STATUS "Building Hdef without LAPACK")
-    message(STATUS "")
-    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables}
-                      COMMENT "Hdef built without LAPACK: inversion and fitting programs will not work.
-       To build with LAPACK, run cmake with '-DLAPACK_LIB_DIR=/path/to/lapack/lib'")
-endif()
+message(STATUS "Finished configuring Hdef")
 
 
 # Add a message to print about OpenMP during build
 if(OpenMP_Fortran_FOUND)
-    message(STATUS "Building Hdef with OpenMP")
-    message(STATUS "")
     add_custom_target(hdef-openmp-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with OpenMP")
 else()
-    message(STATUS "Building Hdef without OpenMP")
-    message(STATUS "")
     add_custom_target(hdef-openmp-check ALL DEPENDS hdef ${hdef_executables}
-                      COMMENT "Hdef built without OpenMP: no parallel capabilities enabled")
+                      COMMENT "Hdef built without OpenMP; no parallel capabilities enabled")
+endif()
+
+
+# Add a message to print about LAPACK during build
+if(useLAPACK)
+    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables} COMMENT "Hdef built with LAPACK")
+else()
+    add_custom_target(hdef-lapack-check ALL DEPENDS hdef ${hdef_executables}
+                      COMMENT "Hdef built without LAPACK; inversion and fitting programs will not work.
+       To build with LAPACK, configure with '-DLAPACK_LIBRARIES=/path/to/lapack/library'")
 endif()
 
 
 # Print preprocessing COMPILE_DEFINITIONS
-message(STATUS "Compiling Hdef with preprocessor definitions:")
+message(STATUS "Preprocessor definitions:")
 get_directory_property(DIRECTORY_COMPILE_DEFINITIONS DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS)
 foreach(DEF ${DIRECTORY_COMPILE_DEFINITIONS})
     message(STATUS "    ${DEF}")
 endforeach()
-message(STATUS "")
 
 
 # Print preprocessing COMPILE_DEFINITIONS
-message(STATUS "Using Fortran compiler flags: ${CMAKE_Fortran_FLAGS}")
-message(STATUS "Using C compiler flags: ${CMAKE_C_FLAGS}")
+message(STATUS "Fortran compiler flags: ${CMAKE_Fortran_FLAGS}")
+message(STATUS "C compiler flags: ${CMAKE_C_FLAGS}")
+
+
+
+message(STATUS "")
+message(STATUS "********************************************************************************")
+message(STATUS "**************************** CONFIGURATION FINISHED ****************************")
+message(STATUS "********************************************************************************")
+message(STATUS "")
+message(STATUS "1. Compile Hdef package in ${CMAKE_BINARY_DIR} (this directory)")
+message(STATUS "")
+message(STATUS "    cmake --build .")
+message(STATUS "")
+message(STATUS "2. (OPTIONAL) Run unit tests and/or executable tests")
+message(STATUS "")
+message(STATUS "    cmake --build . -t test         [run unit tests & executable tests]")
+message(STATUS "    cmake --build . -t test-exec    [run only executable tests]")
+message(STATUS "")
+message(STATUS "3. (OPTIONAL) Install Hdef executables, libraries, and tests (default location: ${CMAKE_INSTALL_PREFIX})")
+message(STATUS "")
+message(STATUS "    cmake --install . [--prefix=/path/to/hdef/install]")
 message(STATUS "")
 
-
-# Print simple directions
-message(STATUS "Type 'make' to compile Hdef (in this directory)")
-message(STATUS "Type 'make test' to run unit tests")
-message(STATUS "Type 'make test-exec' to run executable tests")
-message(STATUS "Type 'make install' to install Hdef in directory '${CMAKE_INSTALL_PREFIX}'")
-message(STATUS "    Executables   -> ${CMAKE_INSTALL_PREFIX}/bin")
-message(STATUS "    Libraries     -> ${CMAKE_INSTALL_PREFIX}/lib")
-message(STATUS "    Tests         -> ${CMAKE_INSTALL_PREFIX}/test")
-message(STATUS "*********************************************************************************")
+message(STATUS "********************************************************************************")
 message(STATUS "")
