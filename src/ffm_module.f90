@@ -314,6 +314,12 @@ do
         cycle
     endif
 
+    i = index(line,';')
+    do while (i.ne.0)
+        line(i:i) = ' '
+        i = index(line,';')
+    enddo
+
     ! Read elements of line
     linef = ''
     read(line,*,end=101) (linef(i),i=1,NFMAX)
