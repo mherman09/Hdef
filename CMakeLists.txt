@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.12)
 #		-DLAPACK_LIB_DIR=/path/to/lapack \
 #		..
 
-project(Hdef VERSION 2021.03)
+project(Hdef VERSION 2025.06)
 
 # This project uses mostly Fortran and a bit of C
 enable_language(C Fortran)
@@ -511,7 +511,7 @@ message(STATUS "    cmake --build . -t test-exec    [run only executable tests]"
 message(STATUS "")
 message(STATUS "3. (OPTIONAL) Install Hdef executables, libraries, and tests (default location: ${CMAKE_INSTALL_PREFIX})")
 message(STATUS "")
-message(STATUS "    cmake --install . [--prefix=/path/to/hdef/install]")
+message(STATUS "    cmake --install . [--prefix /path/to/hdef/install]")
 message(STATUS "")
 
 message(STATUS "********************************************************************************")

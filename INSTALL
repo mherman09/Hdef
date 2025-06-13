@@ -1,89 +1,82 @@
 PREREQUISITES
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- GNU compilers
-	- Available from most package managers
-	- To use other compilers, you will need to modify CMakeLists.txt
+- GNU Fortran and C compilers
+  - Available from most package managers (e.g., APT on Ubuntu, Homebrew on macOS)
 - CMake
-	- Version 3.12 or higher
-	- Available from most package managers
-	- Download CMake directly at: https://cmake.org/download
+  - Version 3.12 or higher
+  - Available from most package managers
+  - Download CMake directly at: https://cmake.org/download
 - Make
-	- Standard on most *nix operating systems
+  - Standard on most *nix operating systems
 - LAPACK
-	- I use LAPACK version 3.9.0 but older versions should work fine
-	- Available at: http://www.netlib.org/lapack
-	- Hdef can be compiled without LAPACK; some programs will not work at all, and a few
-	  others will have LAPACK-dependent options disabled
-	- I recommend installing LAPACK with the same compilers as Hdef
+  - Most versions should work fine
+  - Available from most package managers
+  - Available at: http://www.netlib.org/lapack
+  - Hdef can be compiled without LAPACK; some programs will not work at all, and a few others will
+    have LAPACK-dependent features disabled
 
 
-COMPILING HDEF DIRECTIONS
+BUILDING AND INSTALLING HDEF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-I did not think too hard about other users installing the software, so this process is a little
-haphazard. Sorry. (It is better now than it was!)
-
-!! NOTE: THERE IS NO LONGER A CONFIGURATION SCRIPT OR A MAKEFILE
-!! HDEF IS NOW CONFIGURED AND BUILT WITH CMAKE!
+0. If you have not downloaded or cloned Hdef from Github, do that first. Make sure you unzip the
+   zipfile before moving on to the next steps.
 
 
-1. Go to the Hdef directory in your terminal and make a new directory called build/.
-   Change into the build/ directory:
+1. In a terminal, go to the Hdef directory. Make a new directory called build/ and change into the
+   build/ directory. Assuming you are in the directory where you put Hdef (e.g., /path/to/hdef):
 
-		>> mkdir build
-		>> cd build
-
-
-2. Enter the following cmake command one one line, replacing the variables with the appropriate
-   values for your environment:
-
-		>> cmake \
-			-DCMAKE_INSTALL_PREFIX=/path/to/hdef/installation/directory \
-			-DCMAKE_C_COMPILER=[/path/to/]gcc \
-			-DCMAKE_Fortran_COMPILER=[/path/to/]gfortran \
-			[-DLAPACK_LIB_DIR=/path/to/lapack] \
-			..
-
-   The following variables need to be defined with the CMake command line arguments in order for
-   Hdef to be built and installed:
-   - CMAKE_INSTALL_PREFIX: location to install Hdef code
-   - CMAKE_C_COMPILER: (path to) gcc
-   - CMAKE_Fortran_COMPILER: (path to) gfortran
-   - LAPACK_LIB_DIR: path to LAPACK libraries (OPTIONAL)
-
-   For example, on my machine I go to /Users/mherman2-local/Research/Hdef/build/ and type:
-
-		>> cmake \
-			-DCMAKE_INSTALL_PREFIX=.. \
-			-DCMAKE_C_COMPILER=gcc-10 \
-			-DCMAKE_Fortran_COMPILER=gfortran-10 \
-			-DLAPACK_LIB_DIR=/Users/mherman2-local/Research/lapack-3.9.0 \
-			..
+    >> pwd
+        /path/to/hdef
+    >> mkdir build
+    >> cd build
 
 
-3. Once cmake has finished configuring, type:
+2. Use cmake to configure the project:
 
-		>> make
+    >> cmake ..
 
-   to compile the Hdef executables. Then type:
+   On a Linux machine with the prerequisites listed above installed, this simple command *SHOULD*
+   be sufficient to configure Hdef. On macOS, the default C compiler is not gcc, so you need to
+   specify the version of gcc you have installed as the C compiler, e.g.:
 
-		>> make install
+    >> cmake -DCMAKE_C_COMPILER=gcc-15 ..
 
-   to create the bin/, lib/, and test/ directories in the installation directory you specified,
-   and copy the Hdef programs, libraries, and tests to these directories.
+   The main variables you may need to specify to configure Hdef are:
+   -DCMAKE_C_COMPILER=[/path/to/]gcc
+   -DCMAKE_Fortran_COMPILER=[/path/to/]gfortran
+   -DLAPACK_LIBRARIES=/path/to/lapack/libraries
 
 
-4. To test all subroutines and executables, go to the build/ directory and type:
+3. Once cmake has finished configuring Hdef, type:
 
-		>> make test
+    >> cmake --build .
 
-   To test only the executables and see the standard output from the test scripts, go to the
-   build/ directory and type:
+   to compile the Hdef executables in your build/ directory.
 
-		>> make test-exec
 
-   If the codes are compiled and installed correctly, the tests *should* complete with no errors.
+4. (OPTIONAL, BUT RECOMMENDED) To test all of the Hdef subroutines and executables, make sure you
+   are in the build/ directory and type:
+
+    >> cmake --build . -t test
+
+   This will run all the unit tests and executable test scripts. To run only the executable test
+   scripts and see their output, type:
+
+    >> cmake --build . -t test-exec
+
+   If the codes are compiled and installed correctly, the tests *SHOULD* complete with no errors.
    However, the tests are still a bit of a work in progress. So please report testing issues to
    me if you run into them!
+
+
+5. (OPTIONAL) To install the Hdef executables, libraries, and tests in a particular location, type:
+
+    >> cmake --install . --prefix /path/to/hdef/install
+
+    If the --prefix option is left out, Hdef will be installed in a default location, which is
+    something like /usr/local. I recommend specifying the installation directory.
+
+
 
 
 QUESTIONS, COMMENTS, OR CONCERNS?
