@@ -57,7 +57,7 @@ character(len=8) :: string
 call itime(time)
 
 ! Convert to a single integer
-write(string,'(I0.2I0.2I0.2)') time(1), time(2), time(3)
+write(string,'(I0.2,I0.2,I0.2)') time(1), time(2), time(3)
 read(string,*) timeseed
 
 return
