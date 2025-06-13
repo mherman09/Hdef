@@ -717,7 +717,7 @@ if (.not.fileExists(station_file)) then
 endif
 
 
-! Count number of stations and allocate memory to station array (x y z)
+! Count number of lines in the station file and allocate memory to station array (x y z)
 nstations = line_count(station_file)
 allocate(stations(nstations,3))
 allocate(sta_char(nstations))
@@ -729,16 +729,27 @@ staSkipLine = .false.
 
 ! Read stations
 open(unit=13,file=station_file,status='old')
+
 do i = 1,nstations
+
+    ! Read line and remove leading whitespace
     read(13,'(A)') input_line
     input_line = adjustl(input_line)
+
+    ! Save leading characters
     sta_char(i) = input_line(1:32)
-    if (sta_char(i)(1:1).eq.'#'.or.sta_char(i)(1:1).eq.'>') then
-        ! This line is a comment (#) or a segment header (>)
+
+
+    ! Check whether line is to be skipped
+    if (sta_char(i)(1:1).eq.'#' .or. sta_char(i)(1:1).eq.'>') then
+
+        ! This line is a comment (#) or a segment header (>) - skipping
         staSkipLine(i) = .true.
+
+        ! Print a message if this is the first line to be skipped
         if (.not.foundLineToSkip) then
             write(*,*) 'o92util: found a line to skip in the input station file starting with '//&
-                       sta_char(i)(1:1)
+                       '# or >, or it is blank'
             if (keepAllLines) then
                 write(*,*) 'o92util: keeping this line in the output file'
             else
@@ -748,10 +759,16 @@ do i = 1,nstations
             foundLineToSkip = .true.
         endif
         cycle
+
     elseif (sta_char(i).eq.'') then
-        ! This line is empty
+
+        ! This line is blank - skipping
+        staSkipLine(i) = .true.
+
+        ! Print a message if this is the first line to be skipped
         if (.not.foundLineToSkip) then
-            write(*,*) 'o92util: found a blank line'
+            write(*,*) 'o92util: found a line to skip in the input station file starting with '//&
+                       '# or >, or it is blank'
             if (keepAllLines) then
                 write(*,*) 'o92util: keeping this line in the output file'
             else
@@ -760,13 +777,20 @@ do i = 1,nstations
             endif
             foundLineToSkip = .true.
         endif
-        foundLineToSkip = .true.
         cycle
+
+    else
+        ! Do nothing - this line has input to read!
     endif
+
+
     read(input_line,*,iostat=ios,err=1003,end=1004) (stations(i,j),j=1,3)
     ! print *,i,trim(input_line)
+
 enddo
+
 close(13)
+
 
 ! Error messages
 1003 if (ios.ne.0) then
