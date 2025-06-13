@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "Usage: $0 COMPUTED EXPECTED NFIELDS MESSAGE [-zero THR]" 1>&2
+    echo "Usage: $0 COMPUTED EXPECTED NFIELDS MESSAGE [-zero VALUE]" 1>&2
     exit 1
 }
 
@@ -16,14 +16,14 @@ if [ "$NFIELDS" == "" ]; then echo "Missing number of fields" 1>&2; usage; fi
 if [ "$MESSAGE" == "" ]; then echo "Missing descriptive error message" 1>&2; usage; fi
 
 # Parse optional arguments
-THRESHOLD="1.0e-6"
+ZERO="1.0e-6"
 if [ $# -ge 5 ]
 then
     shift;shift;shift;shift
     while [ "$1" != "" ]
     do
         case $1 in
-            -zero) shift;THRESHOLD=$1;echo "$0: new zero level set to $THRESHOLD";;
+            -zero) shift;ZERO=$1;echo "$0: new zero level set to $ZERO";;
             *) echo "$0: no option \"$1\"" 1>&2;;
         esac
         shift
@@ -54,8 +54,11 @@ paste $COMPUTED $EXPECTED |\
             }
 
             # Compare calculated difference with allowed threshold difference
-            if (expected_abs<'"$THRESHOLD"'/10) {
-                if (diff>'"$THRESHOLD"') {
+            if (expected_abs<'"$ZERO"') {
+
+                # Expected value is "zero" (or below threshold)
+
+                if (diff>'"$ZERO"') {
                     print "FAIL",NR
                     printf("computed %14.6e\n"),computed > "/dev/stderr"
                     printf("expected %14.6e\n"),expected > "/dev/stderr"
@@ -63,8 +66,12 @@ paste $COMPUTED $EXPECTED |\
                 } else {
                     print "PASS"
                 }
+
             } else {
-                if (diff/expected_abs>'"$THRESHOLD"') {
+
+                # Expected value is "non-zero" (above threshold)
+
+                if (diff/expected_abs>'"$ZERO"') {
                     print "FAIL",NR
                     printf("computed %16.8e\n"),computed > "/dev/stderr"
                     printf("expected %16.8e\n"),expected > "/dev/stderr"

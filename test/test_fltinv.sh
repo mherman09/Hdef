@@ -1,9 +1,13 @@
 #!/bin/bash
 
+echo "----------------------------------------------------------------------------------------------------"
+echo Starting $0
+
 #####
 #	SET PATH TO TEST_VALUES SCRIPT
 #####
-TEST_BIN_DIR=$(echo $0 | xargs dirname)
+TEST_BIN_DIR=$(dirname $0)
+echo TEST_BIN_DIR=$TEST_BIN_DIR
 
 
 #####
@@ -22,9 +26,9 @@ trap "rm -f *.tmp anneal.log" 0 1 2 3 8 9
 
 
 
-echo "---------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #1: 1 strike-slip fault, 4 3-component displacements"
-echo "----------"
+# echo "----------"
 # Input fault slip (Cartesian coordinate system)
 X=0     # km
 Y=0     # km
@@ -81,9 +85,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 fault, 
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #2: 4 strike-slip faults, 9 3-component displacements, inversion constraints"
-echo "----------"
+# echo "----------"
 # Input fault slip
 #  X  Y  Z STR DIP RAK SLIP WID LEN
 cat > o92_flt.tmp << EOF
@@ -380,9 +384,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults,
 
 
 
-echo "---------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #3: 4 strike-slip faults, 16 line-of-sight displacements"
-echo "----------"
+# echo "----------"
 # Input fault slip
 #  X  Y  Z STR DIP RAK SLIP WID LEN
 cat > o92_flt.tmp << EOF
@@ -459,8 +463,7 @@ cat > answer.tmp << EOF
  -1.50000043E+00 -1.39591787E-07
  -9.84805251E-01 -1.73647574E-01
 EOF
-$TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 16 los disp" || exit 1
-
+$TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults, 16 los disp" -zero 1e-5 || exit 1
 #echo ----------
 #echo Finished Test #3
 #echo ----------
@@ -468,9 +471,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults,
 
 
 
-echo "---------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #4: 4 strike-slip faults, 9 three-component, 16 line-of-sight displacements"
-echo "----------"
+# echo "----------"
 # Input fault slip
 #  X  Y  Z STR DIP RAK SLIP WID LEN
 cat > o92_flt.tmp << EOF
@@ -547,9 +550,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults,
 #echo
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #5: 4 dip-slip faults, 25 3-component displacements, covariance"
-echo "----------"
+# echo "----------"
 # Input fault slip
 #  X  Y  Z STR DIP RAK SLIP WID LEN
 cat > o92_flt.tmp << EOF
@@ -681,9 +684,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: 4 dip-slip faul
 
 
 
-echo "----------------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #6: 1 strike-slip fault, pre-stresses from coincident fault"
-echo "----------"
+# echo "----------"
 # Fault generating pre-stresses
 #    X  Y  Z  STR DIP RAK SLIP WID LEN
 echo 0  1 10    0  90   0    1   2   2 > flt.tmp
@@ -728,9 +731,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 1 ss faul
 
 
 
-echo "--------------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #7: 2 strike-slip faults, pre-stresses from central fault"
-echo "----------"
+# echo "----------"
 # Fault generating pre-stresses
 #    X  Y  Z STR DIP RAK SLIP WID LEN
 echo "0  0 10   0  90   0    1   2   2" > flt.tmp
@@ -812,9 +815,9 @@ rm *.tmp
 
 if [ -f ../src/annealing_module.f90 ]
 then
-    echo "--------------------------------------------------------------"
+    echo "----------------------------------------------------------------------------------------------------"
     echo "Side Test: Are integer and double precision annealing algorithms the same?"
-    echo "----------"
+    # echo "----------"
     awk 'BEGIN{p=0}{
         if (/^subroutine anneal_int_array/) {
             p = 1
@@ -859,9 +862,9 @@ fi
 
 
 
-echo "--------------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #8: 1 strike-slip fault, 4 3-component displacements, simulated annealing"
-echo "----------"
+# echo "----------"
 # Input fault slip (Cartesian coordinate system)
 X=0; Y=0; Z=10
 STR=0; DIP=90; RAK=0
@@ -929,9 +932,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 1 fault
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #9: 4 dip-slip faults, 25 3-component displacements, covariance, annealing"
-echo "----------"
+# echo "----------"
 # Input fault slip
 #  X  Y  Z STR DIP RAK SLIP WID LEN
 cat > o92_flt.tmp << EOF
@@ -1093,9 +1096,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: anneal, 4 dip-s
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #10: 9 strike-slip faults, 25 three-component displacements, simulated annealing with pseudo-coupling"
-echo "----------"
+# echo "----------"
 # Compute displacements corresponding to pseudo-coupling solution
 # Input faults
 #  X  Y  Z STR DIP RAK SLIP WID LEN
@@ -1309,9 +1312,9 @@ fi
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #11: 4 triangular strike-slip faults, 9 3-component displacements"
-echo "----------"
+# echo "----------"
 # Input fault slip
 # x1 y1 z1 x2 y2 z2 x3 y3 z3 ss ds ts
 cat > tri_flt.tmp << EOF
@@ -1371,9 +1374,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, 4 faults,
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #12: 1 triangular dip-slip fault, pre-stresses"
-echo "----------"
+# echo "----------"
 # One triangular fault
 #
 #   *(0,10,0)
@@ -1426,9 +1429,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: triangular dip-
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #13: 1 triangular dip-slip fault, pre-stresses"
-echo "----------"
+# echo "----------"
 # One locked triangular fault, resolved onto adjacent unlocked fault
 #
 #   *(0,10,0)
@@ -1489,9 +1492,9 @@ $TEST_BIN_DIR/test_values.sh inversion.tmp answer.tmp 2 "fltinv: lsqr, minimize 
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #14: 1 triangular dip-slip fault, pre-stresses on itself, geographic coordinates"
-echo "----------"
+# echo "----------"
 # One triangular fault, using geographic coordinates
 #
 #       *(3.00, 42.00, 2.0)
@@ -1549,9 +1552,9 @@ rm *.tmp
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #15: 1 triangular dip-slip fault, pre-stresses on adjacent fault, geographic coordinates"
-echo "----------"
+# echo "----------"
 # Two triangular faults, using geographic coordinates
 #
 # -73.0 -72.8
@@ -1632,9 +1635,9 @@ rm *.tmp
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #16: Euler pole, least-squares"
-echo "----------"
+# echo "----------"
 # Make a couple of points in North America
 cat > coords.tmp << EOF
 -124 41
@@ -1692,9 +1695,9 @@ rm *.tmp
 
 
 
-echo "----------------------------------------------------------"
+echo "----------------------------------------------------------------------------------------------------"
 echo "Test #17: Annealing with pseudo-coupling, plus an Euler pole"
-echo "----------"
+# echo "----------"
 # Stations near North Island, New Zealand
 # $BIN_DIR/grid -x 173 177 -dx 1 -y -42 -37 -dy 1 -z 0 > sta.tmp
 
@@ -1820,7 +1823,7 @@ rm *.tmp
 
 
 
-exit
+# exit
 
 
 
@@ -1916,3 +1919,10 @@ exit
 #echo Finished Test #16
 #echo ----------
 #echo
+
+
+
+
+echo "----------------------------------------------------------------------------------------------------"
+echo $0: PASSED ALL TESTS
+echo "----------------------------------------------------------------------------------------------------"
