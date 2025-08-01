@@ -28,8 +28,10 @@ function usage() {
     echo "-dday DDAY                    Time increment between frames (days)" 1>&2
     echo "" 1>&2
     echo "Optional arguments" 1>&2
-    echo "-Rw/e/s/n                     Map limits (default: plot all seismicity in file)" 1>&2
+    echo "-J<opt>                       Map projection in GMT format (default: Mercator)" 1>&2
+    echo "-Rw/e/s/n                     Map limits in GMT format (default: plot all seismicity in file)" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
+    echo "-mag:min MAG_MIN              Minimum magnitude to include on map/graph (default: all)" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
     echo "-mag:label MAG_LABEL          Label earthquakes larger than MAG_LABEL" 1>&2
     echo "-scale SCALE                  Adjust earthquake scaling (default: 0.001)" 1>&2
@@ -50,9 +52,10 @@ function usage() {
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
     echo "-pscoast:options OPT          Additional flags for pscoast (separate by \":\")" 1>&2
     echo "-add-north-arrow JUST         Add north arrow in GMT justified corner (e.g., TR)" 1>&2
-    echo "-mag:min MAG_MIN              Minimum magnitude on y-axis of mag vs time frame" 1>&2
-    echo "-mag:max MAG_MAX              Maximum magnitude on y-axis of mag vs time frame" 1>&2
+    echo "-mag-axis:min MAG_MIN         Minimum magnitude on y-axis of mag vs time frame" 1>&2
+    echo "-mag-axis:max MAG_MAX         Maximum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
+    echo "-parallel N                   Make frames on N processes (default: N=1)" 1>&2
     echo "-clean                        Remove frame files after running (default is to keep them)" 1>&2
     exit 1
 }
@@ -90,8 +93,9 @@ DDAY_NDAY_CHANGE_LIST=
 # Map parameters
 MAP_PROJ="-JM5i"
 MAP_LIMS=
-MAG_MIN=2
-MAG_MAX=8
+MAG_MIN=-10
+MAG_AXIS_MIN=2
+MAG_AXIS_MAX=8
 MAG_COLOR_CHANGE=
 MAG_BOLD=15
 MAG_LABEL=15
@@ -107,6 +111,8 @@ COLOR_MODE=BW
 SEIS_SCALE=0.001
 PLOT_MAG_VS_TIME=Y
 ADD_NORTH_ARROW=
+GRIDLINES=OFF
+NPROC=1
 
 # Other commands
 PSXY_LIST=""
@@ -129,7 +135,8 @@ do
         -R*) MAP_LIMS=$1;;
         -J*) MAP_PROJ=$1;;
         -mag:min) shift; MAG_MIN=$1;;
-        -mag:max) shift; MAG_MAX=$1;;
+        -mag-axis:min) shift; MAG_AXIS_MIN=$1;;
+        -mag-axis:max) shift; MAG_AXIS_MAX=$1;;
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
         -mag:bold) shift; MAG_BOLD=$1;;
         -mag:label) shift; MAG_LABEL=$1;;
@@ -151,7 +158,9 @@ do
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
         -pscoast:options) shift; PSCOAST_OPTIONS=`echo $1 | sed -e "s/:/ /g"` ;;
         -pscoast:pen) shift; PSCOAST_PEN="$1" ;;
+        -add-gridlines) shift; GRIDLINES=ON ;;
         -add-north-arrow) shift; ADD_NORTH_ARROW="$1" ;;
+        -parallel) shift; NPROC="$1" ;;
         -clean) CLEAN="Y";;
         *) ;;
     esac
@@ -274,7 +283,7 @@ then
     NFRAMES=$(echo $NDAYS $DDAY | awk '{printf("%d"),$1/$2+1}')
     IFRAME_CHANGE=1
     DDAY_CHANGE=$DDAY
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting frames every $DDAYS days" | tee -a $LOG_FILE
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting frames every $DDAY days" | tee -a $LOG_FILE
 else
     NDAY0=0
     DDAY0=$DDAY
@@ -307,39 +316,44 @@ gmt set FORMAT_GEO_MAP D
 
 
 # Map parameters
-MAP_WID="5i"
+MAP_WID=`echo $MAP_PROJ | awk -F/ '{print $NF}'`
 MAP_PROJ_FLAG=`echo $MAP_PROJ | grep -o  "\-J[A-Za-z]*"`
 MAP_PROJ_PARAM=`echo $MAP_PROJ | sed -e "s/-J[A-Za-z]*//" | awk -F"/" '{for(i=1;i<=NF-1;i++){printf("%s/"),$i}}END{printf("'$MAP_WID'\n")}'`
 echo "$SCRIPT [`date "+%H:%M:%S"`]: using MAP_PROJ=$MAP_PROJ" | tee -a $LOG_FILE
 MAP_TIKS=$(echo $MAP_LIMS | sed -e "s/-R//" |\
            awk -F/ '{
-               dlon = $2-$1
-               if (dlon<0.1) {
-                   print 0.02
-               } else if (dlon<0.2) {
-                   print 0.05
-               } else if (dlon<0.5) {
-                   print 0.1
-               } else if (dlon<1.0) {
-                   print 0.2
-               } else if (dlon<2.0) {
-                   print 0.5
-               } else if (dlon<5.0) {
-                   print 1.0
-               } else if (dlon<10.0) {
-                   print 2.0
-               } else {
-                   print 5.0
-               }
-           }')
+                if (/\+r/) {
+                   dlon = $3-$1
+                } else {
+                   dlon = $2-$1
+                }
+                if (dlon<0.1) {
+                    print 0.02
+                } else if (dlon<0.2) {
+                    print 0.05
+                } else if (dlon<0.5) {
+                    print 0.1
+                } else if (dlon<1.0) {
+                    print 0.2
+                } else if (dlon<2.0) {
+                    print 0.5
+                } else if (dlon<5.0) {
+                    print 1.0
+                } else if (dlon<10.0) {
+                    print 2.0
+                } else {
+                    print 5.0
+                }
+            }')
 echo "$SCRIPT [`date "+%H:%M:%S"`]: map projection: $MAP_PROJ" | tee -a $LOG_FILE
 echo "$SCRIPT [`date "+%H:%M:%S"`]: map tick interval: $MAP_TIKS" | tee -a $LOG_FILE
 
 
 # Magnitude versus time parameters
-TIME_PROJ="-JX5iT/1.5i"
+GRAPH_WID=`echo $MAP_WID | sed -e "s/i//"`
+TIME_PROJ="-JX${GRAPH_WID}iT/1.5i"
 DAY_TIME_PROJ=$(echo $TIME_PROJ | sed -e "s/T//")
-TIME_LIMS="-R${DATE_START}/${DATE_END}/${MAG_MIN}/${MAG_MAX}"
+TIME_LIMS="-R${DATE_START}/${DATE_END}/${MAG_AXIS_MIN}/${MAG_AXIS_MAX}"
 DAY_END=$(echo $DATE_START $DATE_END | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}') # LOOKS LIKE I CAN REPLACE THIS WITH $NDAYS
 echo "$SCRIPT [`date "+%H:%M:%S"`]: ending day of animation: $DAY_END (REPLACE WITH \$NDAYS?)" | tee -a $LOG_FILE
 YEAR_TIKS=$(echo $NDAYS |\
@@ -438,7 +452,7 @@ echo "$SCRIPT [`date "+%H:%M:%S"`]: selecting data within map frame" | tee -a $L
 NCOLS=`head -1 $SEIS_FILE | awk '{print NF-1}'`
 CMD="gmt gmtselect $SEIS_FILE $MAP_LIMS -i1:2,0,3:$NCOLS -o2,0:1,3:$NCOLS"
 echo $CMD >> $LOG_FILE
-$CMD > make_seis_movie_seis.tmp
+$CMD | awk '{if($5>='$MAG_MIN'){print $0}}' > make_seis_movie_seis.tmp
 
 
 # Calculate number of days since starting time for each earthquake
@@ -490,6 +504,7 @@ then
         awk '{d1=$1;getline;d2=$1;print d1,d2}' > j
     paste j $DATE_CPT |\
         awk '{if(NF==6){print $1,$4,$2,$6}else{print $0}}' > ${EQ_CPT}
+    rm j
     echo "$SCRIPT [`date "+%H:%M:%S"`]: created ${EQ_CPT}" | tee -a $LOG_FILE
 fi
 
@@ -538,7 +553,7 @@ then
     if [ ! -f topo_cut_grad.grd ]
     then
         echo "$SCRIPT [`date "+%H:%M:%S"`]: could not find topo gradient file...generating" | tee -a $LOG_FILE
-        gmt grdcut $TOPO_FILE $MAP_LIMS -Gtopo_cut.grd
+        gmt grdcut $TOPO_FILE $MAP_PROJ $MAP_LIMS -Gtopo_cut.grd
         gmt grdgradient topo_cut.grd -A0/270 -Ne0.4 -Gtopo_cut_grad.grd
     else
         echo "$SCRIPT [`date "+%H:%M:%S"`]: using existing topo gradient file" | tee -a $LOG_FILE
@@ -578,6 +593,15 @@ then
     CMD="gmt grdimage topo_cut.grd $MAP_PROJ $MAP_LIMS -Itopo_cut_grad.grd -Cmake_seis_movie_topo.cpt -K -O"
     echo $CMD >> $LOG_FILE
     $CMD >> $PSFILE
+fi
+
+
+
+# Gridlines
+if [ "$GRIDLINES" == "OFF" ]
+then
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting gridlines" | tee -a $LOG_FILE
+    gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxg -Byg -K -O --MAP_GRID_PEN=0.25p,65@60 >> $PSFILE
 fi
 
 
@@ -624,10 +648,17 @@ then
     do
         PSTEXT_FILE=`echo $PSTEXT | awk -F: '{print $1}'`
         PSTEXT_OPTIONS=`echo $PSTEXT | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
-        echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSTEXT_FILE with pstext" | tee -a $LOG_FILE
-        CMD="gmt pstext $PSTEXT_FILE $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O"
+        PSTEXT_FILE_EXIST=`test -f "$PSTEXT_FILE" && echo Y || echo N`
+        if [ "$PSTEXT_FILE_EXIST" == "Y" ]
+        then
+            echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting file $PSTEXT_FILE with pstext" | tee -a $LOG_FILE
+            CMD="gmt pstext $PSTEXT_FILE $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O"
+        else
+            echo "$SCRIPT [`date "+%H:%M:%S"`]: plotting text $PSTEXT_FILE with pstext" | tee -a $LOG_FILE
+            CMD="echo $PSTEXT_FILE | gmt pstext $MAP_PROJ $MAP_LIMS $PSTEXT_OPTIONS -K -O"
+        fi
         echo $CMD >> $LOG_FILE
-        $CMD >> $PSFILE
+        eval $CMD >> $PSFILE
     done < make_seis_movie_pstext_list.tmp
     rm make_seis_movie_pstext_list.tmp
 fi
@@ -700,10 +731,10 @@ then
     fi
     if [ $NDAYS_INT -le 5 ]
     then
-        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_AXIS_MIN}/${MAG_AXIS_MAX} \
             -Bxa${DAY_TIKS}+l"Number of Days Since ${DATE_START}" -BS -K -O >> $PSFILE
     else
-        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
+        gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_AXIS_MIN}/${MAG_AXIS_MAX} \
             -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
     fi
 
@@ -713,7 +744,7 @@ fi
 gmt psxy -T -O >> $PSFILE
 
 echo "$SCRIPT [`date "+%H:%M:%S"`]: converting background PostScript image to PNG" | tee -a $LOG_FILE
-gmt psconvert -Tg -A frame_base.ps -Vt
+gmt psconvert -Tg -A frame_base.ps
 rm frame_base.ps
 
 
@@ -731,141 +762,82 @@ rm frame_base.ps
 echo | tee -a $LOG_FILE
 
 
+function generate_frames() {
 
-IFRAME=1
+    IFRAME=$1
+    ENDFRAME=$2
 
-while [ $IFRAME -le $NFRAMES ]
-do
-    echo "$SCRIPT [`date "+%H:%M:%S"`]: Working on frame $IFRAME of $NFRAMES" | tee -a $LOG_FILE
+    while [ $IFRAME -le $ENDFRAME ]
+    do
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: Working on frame $IFRAME of $ENDFRAME" | tee -a $LOG_FILE
 
-    # Postscript file name
-    IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
-    PSFILE=frame_${IFRAME_ZEROS}.ps
+        # Postscript file name
+        IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
+        PSFILE=frame_${IFRAME_ZEROS}.ps
 
-    # Initialize frame
-    gmt psxy -T -K -Y3.5i > $PSFILE
+        # Initialize frame
+        gmt psxy -T -K -Y3.5i > $PSFILE
 
 
-    # Date of frame
-    if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
-    then
-        DATE=$(echo $DATE_START $IFRAME $DDAY | awk '{print $1,($2-1)*$3}' | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
-    else
-        #echo $IFRAME $IFRAME_CHANGE
-        IDDAY=`echo $IFRAME $IFRAME_CHANGE |\
-            awk '{
-                iframe = $1
-                idday = $2
-                for(i=NF; i>=2; i--) {
-                    if (iframe > $i) {
-                        idday = i-1
-                        break
+        # Date of frame
+        if [ "$DDAY_NDAY_CHANGE_LIST" == "" ]
+        then
+            DATE=$(echo $DATE_START $IFRAME $DDAY | awk '{print $1,($2-1)*$3}' | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
+        else
+            #echo $IFRAME $IFRAME_CHANGE
+            IDDAY=`echo $IFRAME $IFRAME_CHANGE |\
+                awk '{
+                    iframe = $1
+                    idday = $2
+                    for(i=NF; i>=2; i--) {
+                        if (iframe > $i) {
+                            idday = i-1
+                            break
+                        }
                     }
-                }
-                print idday
-            }'`
-        DDAY_CURRENT=`echo $IFRAME_CHANGE $DDAY_CHANGE |\
+                    print idday
+                }'`
+            DDAY_CURRENT=`echo $IFRAME_CHANGE $DDAY_CHANGE |\
+                awk '{
+                    for (i=1;i<='$NCHANGE';i++) {
+                        iframe_change[i] = $i
+                        dday_array[i] = $(i+'$NCHANGE')
+                        #print iframe_change[i],dday_array[i]
+                    }
+                } END {
+                    dday = 0
+                    i = 1
+                    last_frame_change = 1
+                    while (i<'$IDDAY') {
+                        dday = dday + (iframe_change[i+1] - last_frame_change)*dday_array[i]
+                        #print dday"..."
+                        last_frame_change = iframe_change[i+1]
+                        i++
+                    }
+                    dday = dday + ('$IFRAME'-last_frame_change)*dday_array[i]
+                    print dday
+                }'`
+            DATE=$(echo $DATE_START $DDAY_CURRENT | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
+            echo DDAY_CURRENT=$DDAY_CURRENT
+            echo DATE=$DATE
+        fi
+
+        # Seismicity in time range of interest
+        SEIS_FILE_FRAME=seis_range_${IFRAME}.tmp
+        DAY=$(echo $DATE_START $DATE | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}')
+        paste nday.tmp make_seis_movie_seis.tmp |\
             awk '{
-                for (i=1;i<='$NCHANGE';i++) {
-                    iframe_change[i] = $i
-                    dday_array[i] = $(i+'$NCHANGE')
-                    #print iframe_change[i],dday_array[i]
+                if (0<=$1 && $1<='$DAY') {
+                    trans = ('$DAY'-$1)/'$FADE_TIME'
+                    trans = '$MAX_TRANS'*trans
+                    if (trans>'$MAX_TRANS') {
+                        trans = '$MAX_TRANS'
+                    } else if (trans<0) {
+                        trans = 0
+                    }
+                    print $1,$2,$3,$4,$6,trans,$7,$8,$9,$5
                 }
-            } END {
-                dday = 0
-                i = 1
-                last_frame_change = 1
-                while (i<'$IDDAY') {
-                    dday = dday + (iframe_change[i+1] - last_frame_change)*dday_array[i]
-                    #print dday"..."
-                    last_frame_change = iframe_change[i+1]
-                    i++
-                }
-                dday = dday + ('$IFRAME'-last_frame_change)*dday_array[i]
-                print dday
-            }'`
-        DATE=$(echo $DATE_START $DDAY_CURRENT | dateutil -date -format "YYYY-MM-DDTHH:MM:SS")
-        echo DDAY_CURRENT=$DDAY_CURRENT
-        echo DATE=$DATE
-    fi
-
-    # Seismicity in time range of interest
-    DAY=$(echo $DATE_START $DATE | dateutil -nday -format "YYYY-MM-DDTHH:MM:SS" | awk '{print $1}')
-    paste nday.tmp make_seis_movie_seis.tmp |\
-        awk '{
-            if (0<=$1 && $1<='$DAY') {
-                trans = ('$DAY'-$1)/'$FADE_TIME'
-                trans = '$MAX_TRANS'*trans
-                if (trans>'$MAX_TRANS') {
-                    trans = '$MAX_TRANS'
-                } else if (trans<0) {
-                    trans = 0
-                }
-                print $1,$2,$3,$4,$6,trans,$7,$8,$9,$5
-            }
-        }' > seis_range.tmp # day date lon lat mag fade [str dipq rak] dep
-
-    # Seismicity
-    awk '{
-        if ($5>='$MAG_BOLD') {
-            print "> -W2p"
-        } else {
-            print "> -W0.5p"
-        }
-        if ("'$COLOR_BY'"=="DATE") {
-            print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
-        } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
-            print $3,$4,$7,$5*$5*$5*'$SEIS_SCALE',$6
-        } else if ("'$COLOR_BY'"=="COL4" && NF==10) {
-            print $3,$4,$10,$5*$5*$5*'$SEIS_SCALE',$6
-        }
-    }' seis_range.tmp |\
-        gmt psxy $MAP_PROJ $MAP_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
-
-
-    # Label large events
-    awk '{if ($5>='$MAG_LABEL') {print $3,$4,$6,$5}}' seis_range.tmp |\
-        gmt mapproject $MAP_PROJ $MAP_LIMS |\
-        awk '{printf("%.3f %.3f %.3f %.1f\n"),$1,$2+2.54*$4*$4*$4*'$SEIS_SCALE'/2+0.08,$3,$4}' |\
-        gmt mapproject $MAP_PROJ $MAP_LIMS -I |\
-        gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,1,black=0.5p,white+jCB -t -K -O >> $PSFILE
-
-
-    # Focal mechanisms
-    if [ "$PLOT_MECH" == "Y" ]
-    then
-        awk '{if($7!=0||$8!=0||$9!=0){print $3,$4,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' seis_range.tmp |\
-            gmt psmeca $MAP_PROJ $MAP_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
-    fi
-
-    # Basemap
-    gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
-
-
-    # Date in top left corner
-    # echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
-    echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+cTL -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
-
-
-    if [ "$PSIMAGE_LIST" != "" ]
-    then
-        echo $PSIMAGE_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psimage_list.tmp
-        while read PSIMAGE
-        do
-            PSIMAGE_FILE=`echo $PSIMAGE | awk -F: '{print $1}'`
-            PSIMAGE_OPTIONS=`echo $PSIMAGE | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
-            echo plotting file $PSIMAGE_FILE
-            gmt psimage $MAP_PROJ $MAP_LIMS $PSIMAGE_FILE $PSIMAGE_OPTIONS -K -O >> $PSFILE
-        done < psimage_list.tmp
-    fi
-
-
-
-    if [ "$PLOT_MAG_VS_TIME" == "Y" ]
-    then
-
-        # Initialize magnitude versus time origin
-        gmt psxy -T -K -O -Y-2.5i >> $PSFILE
+            }' > $SEIS_FILE_FRAME # day date lon lat mag fade [str dip rak] dep
 
         # Seismicity
         awk '{
@@ -875,86 +847,181 @@ do
                 print "> -W0.5p"
             }
             if ("'$COLOR_BY'"=="DATE") {
-                print $2,$5,$1,$5*$5*$5*'"$SEIS_SCALE"',$6
+                print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
             } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
-                print $2,$5,$7,$5*$5*$5*'"$SEIS_SCALE"',$6
+                print $3,$4,$7,$5*$5*$5*'$SEIS_SCALE',$6
+            } else if ("'$COLOR_BY'"=="COL4" && NF==10) {
+                print $3,$4,$10,$5*$5*$5*'$SEIS_SCALE',$6
             }
-        }' seis_range.tmp |\
-            gmt psxy $TIME_PROJ $TIME_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
+        }' $SEIS_FILE_FRAME |\
+            gmt psxy $MAP_PROJ $MAP_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
+
+
+        # Label large events
+        awk '{if ($5>='$MAG_LABEL') {print $3,$4,$6,$5}}' $SEIS_FILE_FRAME |\
+            gmt mapproject $MAP_PROJ $MAP_LIMS |\
+            awk '{printf("%.3f %.3f %.3f %.1f\n"),$1,$2+2.54*$4*$4*$4*'$SEIS_SCALE'/2+0.08,$3,$4}' |\
+            gmt mapproject $MAP_PROJ $MAP_LIMS -I |\
+            awk '{printf("%.4f %.4f %.3f %.1f\n"),$1,$2,$3,$4}' |\
+            gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,1,black=0.5p,white+jCB -t -K -O >> $PSFILE
+
 
         # Focal mechanisms
         if [ "$PLOT_MECH" == "Y" ]
         then
-            awk '{if($7!=0||$8!=0||$9!=0){print $2,$5,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' seis_range.tmp |\
-                gmt psmeca $TIME_PROJ $TIME_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
+            awk '{if($7!=0||$8!=0||$9!=0){print $3,$4,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' $SEIS_FILE_FRAME |\
+                gmt psmeca $MAP_PROJ $MAP_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
         fi
 
-        # Date line
-        echo $TIME_LIMS | sed -e "s/-R//" | awk -F/ '{print "'$DATE'",$3;print "'$DATE'",$4}' |\
-            gmt psxy $TIME_PROJ $TIME_LIMS -W1p -K -O >> $PSFILE
+        # Basemap
+        gmt psbasemap $MAP_PROJ $MAP_LIMS -Bxa${MAP_TIKS} -Bya${MAP_TIKS} -BWeSn -K -O >> $PSFILE
 
-        # Magnitude versus time frame
-        NDAYS_INT=`echo $NDAYS | awk '{printf("%d"),$1}'`
-        if [ $NDAYS_INT -le 7 ]
+
+        # Date in top left corner
+        # echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
+        echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+cTL -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
+
+
+        if [ "$PSIMAGE_LIST" != "" ]
         then
-            gmt psbasemap $TIME_PROJ $TIME_LIMS \
-                -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}D -Bya${MAG_TIKS}+l"Magnitude" \
-                -BWeN -K -O \
-                --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
-                --FORMAT_DATE_MAP=o-dd --FORMAT_TIME_MAP=a >> $PSFILE
-        elif [ $NDAYS_INT -le 31 ]
-        then
-            gmt psbasemap $TIME_PROJ $TIME_LIMS \
-                -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
-                -BWeN -K -O \
-                --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
-        else
-            gmt psbasemap $TIME_PROJ $TIME_LIMS \
-                -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
-                -BWeN -K -O \
-                --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
-        fi
-        if [ $NDAYS_INT -le 5 ]
-        then
-            gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
-                -Bxa${DAY_TIKS}+l"Number of Days Since ${DATE_START}" -BS -K -O >> $PSFILE
-        else
-            gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_MIN}/${MAG_MAX} \
-                -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+            echo $PSIMAGE_LIST | awk -F";" '{for(i=2;i<=NF;i++){print $i}}' > psimage_list_${FRAME}.tmp
+            while read PSIMAGE
+            do
+                PSIMAGE_FILE=`echo $PSIMAGE | awk -F: '{print $1}'`
+                PSIMAGE_OPTIONS=`echo $PSIMAGE | awk -F: '{for(i=2;i<=NF;i++){print $i}}'`
+                echo plotting file $PSIMAGE_FILE
+                gmt psimage $MAP_PROJ $MAP_LIMS $PSIMAGE_FILE $PSIMAGE_OPTIONS -K -O >> $PSFILE
+            done < psimage_list_${FRAME}.tmp
         fi
 
-    fi
-
-    # Finalize plot
-    gmt psxy -T -O >> $PSFILE
 
 
-    # Convert frame to PNG and superimpose on fixed background image
-    PNG=`basename $PSFILE .ps`.png
-    gmt psconvert $PSFILE -TG -A -Vt
-    gm composite $PNG frame_base.png j && mv j $PNG
+        if [ "$PLOT_MAG_VS_TIME" == "Y" ]
+        then
+
+            # Initialize magnitude versus time origin
+            gmt psxy -T -K -O -Y-2.5i >> $PSFILE
+
+            # Seismicity
+            awk '{
+                if ($5>='$MAG_BOLD') {
+                    print "> -W2p"
+                } else {
+                    print "> -W0.5p"
+                }
+                if ("'$COLOR_BY'"=="DATE") {
+                    print $2,$5,$1,$5*$5*$5*'"$SEIS_SCALE"',$6
+                } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
+                    print $2,$5,$7,$5*$5*$5*'"$SEIS_SCALE"',$6
+                }
+            }' $SEIS_FILE_FRAME |\
+                gmt psxy $TIME_PROJ $TIME_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
+
+            # Focal mechanisms
+            if [ "$PLOT_MECH" == "Y" ]
+            then
+                awk '{if($7!=0||$8!=0||$9!=0){print $2,$5,$1,$7,$8,$9,$5*$5*$5*0.001,$6/1.2}}' $SEIS_FILE_FRAME |\
+                    gmt psmeca $TIME_PROJ $TIME_LIMS -Sa5i -L0.5p -C${EQ_CPT} -t -K -O >> $PSFILE
+            fi
+
+            # Date line
+            echo $TIME_LIMS | sed -e "s/-R//" | awk -F/ '{print "'$DATE'",$3;print "'$DATE'",$4}' |\
+                gmt psxy $TIME_PROJ $TIME_LIMS -W1p -K -O >> $PSFILE
+
+            # Magnitude versus time frame
+            NDAYS_INT=`echo $NDAYS | awk '{printf("%d"),$1}'`
+            if [ $NDAYS_INT -le 7 ]
+            then
+                gmt psbasemap $TIME_PROJ $TIME_LIMS \
+                    -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}D -Bya${MAG_TIKS}+l"Magnitude" \
+                    -BWeN -K -O \
+                    --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
+                    --FORMAT_DATE_MAP=o-dd --FORMAT_TIME_MAP=a >> $PSFILE
+            elif [ $NDAYS_INT -le 31 ]
+            then
+                gmt psbasemap $TIME_PROJ $TIME_LIMS \
+                    -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
+                    -BWeN -K -O \
+                    --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+            else
+                gmt psbasemap $TIME_PROJ $TIME_LIMS \
+                    -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
+                    -BWeN -K -O \
+                    --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+            fi
+            if [ $NDAYS_INT -le 5 ]
+            then
+                gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_AXIS_MIN}/${MAG_AXIS_MAX} \
+                    -Bxa${DAY_TIKS}+l"Number of Days Since ${DATE_START}" -BS -K -O >> $PSFILE
+            else
+                gmt psbasemap $DAY_TIME_PROJ -R0/${DAY_END}/${MAG_AXIS_MIN}/${MAG_AXIS_MAX} \
+                    -Bxa${DAY_TIKS}+l"Number of Days Since $(echo ${DATE_START} | awk -FT '{print $1}')" -BS -K -O >> $PSFILE
+            fi
+
+        fi
+
+        # Finalize plot
+        gmt psxy -T -O >> $PSFILE
 
 
-    # Update frame counter
-    IFRAME=$(echo $IFRAME | awk '{print $1+1}')
+        # Convert frame to PNG and superimpose on fixed background image
+        PNG=`basename $PSFILE .ps`.png
+        gmt psconvert $PSFILE -TG -A
+        gm composite $PNG frame_base.png j${IFRAME} && mv j${IFRAME} $PNG
 
+
+        # Remove seismicity file for this frame
+        rm -f $SEIS_FILE_FRAME
+
+
+        # Update frame counter
+        IFRAME=$(echo $IFRAME | awk '{print $1+1}')
+
+    done
+
+    echo done >> done_file.tmp
+
+}
+
+
+# Create frames in parallel
+# Each process takes a chunk of the loop; set the start and end frames for each sub-loop
+NFRAMES_LOCAL=`echo $NFRAMES $NPROC | awk '{print $1/$2}'`
+seq $NFRAMES_LOCAL $NFRAMES_LOCAL $NFRAMES |\
+    awk 'BEGIN{start=1}{
+        if (NR=='$NPROC') {
+            end = '$NFRAMES'
+        } else {
+            end = int($0)
+        }
+        print start,end
+        start = end + 1
+    }' > end_frame_list.tmp
+
+# Generate frames in parallel
+test -f done_file.tmp && rm -f done_file.tmp && touch done_file.tmp
+while read START END
+do
+    generate_frames $START $END &
+done < end_frame_list.tmp
+DONE=`wc done_file.tmp | awk '{print $1}'`
+while [ $DONE -lt $NPROC ]
+do
+    DONE=`wc done_file.tmp | awk '{print $1}'`
+    sleep 10s
 done
-
-
-
 
 
 
 
 # Clean up a little bit
 rm frame_*.ps
-rm make_seis_movie_seis.tmp nday.tmp color_list.tmp ${EQ_CPT} seis_range.tmp
+rm make_seis_movie_seis.tmp nday.tmp color_list.tmp ${EQ_CPT}
 if [ "$TOPO_CLEAN" == "ON" ]
 then
     rm topo_cut.grd topo_cut_grad.grd
 fi
 rm topo_bw.cpt
-rm $EQ_CPT
 
 
 
