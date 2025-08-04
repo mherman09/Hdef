@@ -55,6 +55,7 @@ function usage() {
     echo "-mag-axis:min MAG_MIN         Minimum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-mag-axis:max MAG_MAX         Maximum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-no-mag-vs-time               Do not plot magnitude versus time" 1>&2
+    echo "-o OUTPUT_NAME                Change name of output video file (default: seis_movie.mp4)" 1>&2
     echo "-parallel N                   Make frames on N processes (default: N=1)" 1>&2
     echo "-clean                        Remove frame files after running (default is to keep them)" 1>&2
     exit 1
@@ -112,15 +113,18 @@ SEIS_SCALE=0.001
 PLOT_MAG_VS_TIME=Y
 ADD_NORTH_ARROW=
 GRIDLINES=OFF
-NPROC=1
 
-# Other commands
+# Other mapping commands
 PSXY_LIST=""
 PSTEXT_LIST=""
 PSIMAGE_LIST=""
 PSCOAST_OPTIONS=""
 PSCOAST_PEN="0.75p"
+
+# Miscellaneous
+NPROC=1
 CLEAN="N"
+OUTPUT_MP4_FILE=seis_movie.mp4
 
 
 # Parse command line
@@ -160,6 +164,7 @@ do
         -pscoast:pen) shift; PSCOAST_PEN="$1" ;;
         -add-gridlines) shift; GRIDLINES=ON ;;
         -add-north-arrow) shift; ADD_NORTH_ARROW="$1" ;;
+        -o) shift; OUTPUT_MP4_FILE="$1" ;;
         -parallel) shift; NPROC="$1" ;;
         -clean) CLEAN="Y";;
         *) ;;
@@ -942,7 +947,8 @@ function generate_frames() {
                 gmt psbasemap $TIME_PROJ $TIME_LIMS \
                     -Bsxa${MONTH_TIKS}O+l"Date" -Bpxa${DAY_TIKS}d -Bya${MAG_TIKS}+l"Magnitude" \
                     -BWeN -K -O \
-                    --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p >> $PSFILE
+                    --MAP_TICK_LENGTH_PRIMARY=2.0p --MAP_TICK_LENGTH_SECONDARY=6.0p \
+                    --FORMAT_DATE_MAP=o --FORMAT_TIME_MAP=a >> $PSFILE
             else
                 gmt psbasemap $TIME_PROJ $TIME_LIMS \
                     -Bsxa${YEAR_TIKS}Y+l"Date" -Bpxa${MONTH_TIKS}o -Bya${MAG_TIKS}+l"Magnitude" \
@@ -1028,9 +1034,9 @@ rm topo_bw.cpt
 
 
 echo | tee -a $LOG_FILE
-echo "$SCRIPT [`date "+%H:%M:%S"`]: running ffmpeg to create movie \"seis_movie.mp4\"" | tee -a $LOG_FILE
+echo "$SCRIPT [`date "+%H:%M:%S"`]: running ffmpeg to create movie \"${OUTPUT_MP4_FILE}\"" | tee -a $LOG_FILE
 echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
-ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4
+ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p ${OUTPUT_MP4_FILE}
 
 
 if [ "$CLEAN" == "Y" ]
