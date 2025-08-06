@@ -274,7 +274,7 @@ if (typ2.eq.'rgb') then
         write(*,1002) trim(typ1),x1,y1,z1,trim(typ2),x2,y2,z2
     endif
 endif
-1002 format(A3,'(',F0.1,',',F0.1,',',F0.1')',' = ',A3,'(',F0.1,',',F0.1,',',F0.1')')
+1002 format(A3,'(',F0.1,',',F0.1,',',F0.1,')',' = ',A3,'(',F0.1,',',F0.1,',',F0.1,')')
 
 return
 end
