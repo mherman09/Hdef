@@ -979,6 +979,8 @@ function generate_frames() {
         # Remove seismicity file for this frame
         rm -f $SEIS_FILE_FRAME
 
+        # Record frame as completed to track progress
+        echo $IFRAME >> frame_progress.tmp
 
         # Update frame counter
         IFRAME=$(echo $IFRAME | awk '{print $1+1}')
@@ -1004,15 +1006,24 @@ seq $NFRAMES_LOCAL $NFRAMES_LOCAL $NFRAMES |\
         start = end + 1
     }' > end_frame_list.tmp
 
+# Remove processor count and total frame progress file if they exist
+test -f done_file.tmp && rm -f done_file.tmp
+test -f frame_progress.tmp && rm -f frame_progress.tmp
+touch done_file.tmp
+touch frame_progress.tmp
+
 # Generate frames in parallel
-test -f done_file.tmp && rm -f done_file.tmp && touch done_file.tmp
 while read START END
 do
     generate_frames $START $END &
 done < end_frame_list.tmp
-DONE=`wc done_file.tmp | awk '{print $1}'`
+
+# Have we finished yet?
+DONE=`test -f done_file.tmp && wc done_file.tmp | awk '{print $1}' || echo 0`
 while [ $DONE -lt $NPROC ]
 do
+    FRAMES_COMPLETED=$(wc frame_progress.tmp | awk '{print $1}')
+    echo "$SCRIPT [`date "+%H:%M:%S"`]: finished $FRAMES_COMPLETED frames out of $NFRAMES total" | tee -a $LOG_FILE
     DONE=`wc done_file.tmp | awk '{print $1}'`
     sleep 10s
 done
@@ -1023,16 +1034,18 @@ done
 # Clean up a little bit
 rm frame_*.ps
 rm make_seis_movie_seis.tmp nday.tmp color_list.tmp ${EQ_CPT}
+rm make_seis_movie.sh.*.cpt
 if [ "$TOPO_CLEAN" == "ON" ]
 then
     rm topo_cut.grd topo_cut_grad.grd
 fi
 rm topo_bw.cpt
+rm end_frame_list.tmp done_file.tmp frame_progress.tmp
 
 
 
 
-
+# Generate movie from frames
 echo | tee -a $LOG_FILE
 echo "$SCRIPT [`date "+%H:%M:%S"`]: running ffmpeg to create movie \"${OUTPUT_MP4_FILE}\"" | tee -a $LOG_FILE
 echo ffmpeg -loglevel warning -framerate 24 -y -i "frame_%05d.png" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vcodec libx264 -pix_fmt yuv420p seis_movie.mp4 >> $LOG_FILE
