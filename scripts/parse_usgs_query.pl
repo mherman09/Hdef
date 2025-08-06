@@ -8,14 +8,14 @@ use Text::CSV;
 
 # Usage statement
 sub usage {
-    print "Usage: parse_usgs_query.pl --input_file FILE [...options...]\n";
-    print "-i|--input_file FILE            Name of input CSV file\n";
-    print "-o|--origin_time                Origin time\n";
-    print "-l|--location                   Location\n";
-    print "-m|--magnitude                  Magnitude\n";
-    print "-t|--tensor                     Moment tensor\n";
-    print "-f|--focal_mechanism            Focal mechanism\n";
-    print "-p|--priority MT_TYP            Select priority MT type (Mww,Mwc,Mwr,Mwb,duputel_Mww)\n";
+    print STDERR "Usage: parse_usgs_query.pl --input_file FILE [...options...]\n";
+    print STDERR "-i|--input_file FILE            Name of input CSV file\n";
+    print STDERR "-o|--origin_time                Origin time\n";
+    print STDERR "-l|--location                   Location\n";
+    print STDERR "-m|--magnitude                  Magnitude\n";
+    print STDERR "-t|--tensor                     Moment tensor\n";
+    print STDERR "-f|--focal_mechanism            Focal mechanism\n";
+    print STDERR "-p|--priority MT_TYP            Select priority MT type (Mww,Mwc,Mwr,Mwb,duputel_Mww)\n";
     die;
 }
 
@@ -37,6 +37,12 @@ GetOptions(
     'priority=s' => \$priorityMTType
 );
 
+
+# Check for the input file
+if (! -f $input_file) {
+    print STDERR "parse_usgs_query.pl: could not find seismicity file named \"$input_file\"\n";
+    &usage;
+}
 
 # Open the input file
 open my $fh, "<", $input_file or &usage;
@@ -285,7 +291,7 @@ while (my $row = $csv->getline ($fh)) {
     if ($iWantSomething eq 1) {
         print "$output\n";
     } else {
-        print "parse_usgs_query.pl: no output defined\n";
+        print STDERR "parse_usgs_query.pl: no output defined\n";
         &usage;
     }
     $i = $i + 1;
