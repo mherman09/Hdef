@@ -74,6 +74,7 @@ my $i_nc_Mww = -1;
 my $i_gcmt_np = -1; # Focal mechanisms
 my $i_us_np = -1;
 my $i_nc_np = -1;
+my $found_blank_depth = 0; # Checks
 
 # First line of the file is a header with field information
 # Get the indices of all variables
@@ -142,7 +143,11 @@ while (my $row = $csv->getline ($fh)) {
     if ($row->[$i_depth] ne "") {
         $dep = sprintf "%6.2f", $row->[$i_depth];
     } else {
-        print STDERR "parse_usgs_query.pl: [WARNING] line $i has blank depth\n";
+        if ($found_blank_depth == 0) {
+            print STDERR "parse_usgs_query.pl: [WARNING] found line with blank depth\n";
+            print STDERR "parse_usgs_query.pl: setting all blank depths to 0\n";
+            $found_blank_depth = 1;
+        }
     }
     my $mag = sprintf "%6.2f", $row->[$i_magnitude];
     my $i_mt = -1;
