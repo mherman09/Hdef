@@ -34,6 +34,9 @@ function usage() {
     echo "-mag:min MAG_MIN              Minimum magnitude to include on map/graph (default: all)" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
     echo "-mag:label MAG_LABEL          Label earthquakes larger than MAG_LABEL" 1>&2
+    echo "-mag:power POWER              Scale earthquake sizes by mag^POWER (default: 3)" 1>&2
+    echo "-mag:scaling POWER|EXP        Earthquake magnitude scaling (default: POWER)" 1>&2
+    echo "-mag:unfade MAG               Earthquakes above MAG do not fade (default: all EQs fade)" 1>&2
     echo "-scale SCALE                  Adjust earthquake scaling (default: 0.001)" 1>&2
     echo "-dday:change DDAY,NDAYS       Change DDAY at NDAYS from start" 1>&2
     echo "-timecpt TIME_CPT             Earthquake timing (by day) color palette" 1>&2
@@ -51,6 +54,7 @@ function usage() {
     echo "-other:pstext WORDS:OPT       Other pstext file to plot (can repeat)" 1>&2
     echo "-other:psimage FILE:OPT       Other psimage file to plot (can repeat)" 1>&2
     echo "-pscoast:options OPT          Additional flags for pscoast (separate by \":\")" 1>&2
+    echo "-date-label:just OPT          Location of date label (default: TL)" 1>&2
     echo "-add-north-arrow JUST         Add north arrow in GMT justified corner (e.g., TR)" 1>&2
     echo "-mag-axis:min MAG_MIN         Minimum magnitude on y-axis of mag vs time frame" 1>&2
     echo "-mag-axis:max MAG_MAX         Maximum magnitude on y-axis of mag vs time frame" 1>&2
@@ -100,6 +104,9 @@ MAG_AXIS_MAX=8
 MAG_COLOR_CHANGE=
 MAG_BOLD=15
 MAG_LABEL=15
+MAG_POWER=3
+MAG_SCALING=POWER
+MAG_UNFADED=20
 TIME_CPT=
 DATE_CPT=
 COL4_CPT=
@@ -113,6 +120,7 @@ SEIS_SCALE=0.001
 PLOT_MAG_VS_TIME=Y
 ADD_NORTH_ARROW=
 GRIDLINES=OFF
+DATE_LABEL_LOCATION=TL
 
 # Other mapping commands
 PSXY_LIST=""
@@ -144,6 +152,9 @@ do
         -mag:color) shift; MAG_COLOR_CHANGE=$1;;
         -mag:bold) shift; MAG_BOLD=$1;;
         -mag:label) shift; MAG_LABEL=$1;;
+        -mag:power) shift; MAG_POWER=$1;;
+        -mag:scaling) shift; MAG_SCALING=$1;;
+        -mag:unfaded) shift; MAG_UNFADED=$1;;
         -scale) shift; SEIS_SCALE=$1;;
         -timecpt) shift; TIME_CPT=$1;;
         -datecpt) shift; DATE_CPT=$1;;
@@ -162,6 +173,7 @@ do
         -other:psimage) shift;PSIMAGE_LIST="$PSIMAGE_LIST;$1";;
         -pscoast:options) shift; PSCOAST_OPTIONS=`echo $1 | sed -e "s/:/ /g"` ;;
         -pscoast:pen) shift; PSCOAST_PEN="$1" ;;
+        -date-label:just) shift; DATE_LABEL_LOCATION="$1";;
         -add-gridlines) shift; GRIDLINES=ON ;;
         -add-north-arrow) shift; ADD_NORTH_ARROW="$1" ;;
         -o) shift; OUTPUT_MP4_FILE="$1" ;;
@@ -327,7 +339,9 @@ MAP_PROJ_PARAM=`echo $MAP_PROJ | sed -e "s/-J[A-Za-z]*//" | awk -F"/" '{for(i=1;
 echo "$SCRIPT [`date "+%H:%M:%S"`]: using MAP_PROJ=$MAP_PROJ" | tee -a $LOG_FILE
 MAP_TIKS=$(echo $MAP_LIMS | sed -e "s/-R//" |\
            awk -F/ '{
-                if (/\+r/) {
+                if (/g/) {
+                   dlon = 360
+                } else if (/\+r/) {
                    dlon = $3-$1
                 } else {
                    dlon = $2-$1
@@ -346,8 +360,12 @@ MAP_TIKS=$(echo $MAP_LIMS | sed -e "s/-R//" |\
                     print 1.0
                 } else if (dlon<10.0) {
                     print 2.0
-                } else {
+                } else if (dlon<20) {
                     print 5.0
+                } else if (dlon<60) {
+                    print 10
+                } else {
+                    print 30
                 }
             }')
 echo "$SCRIPT [`date "+%H:%M:%S"`]: map projection: $MAP_PROJ" | tee -a $LOG_FILE
@@ -527,6 +545,15 @@ then
     fi
 fi
 
+
+
+
+# Date label information
+case $DATE_LABEL_LOCATION in
+    TL|LT) DATE_LABEL_OFFSET="-D0.03i/-0.04i" ;;
+    TC|CT) DATE_LABEL_OFFSET="-D0i/-0.04i" ;;
+    *)
+esac
 
 
 
@@ -769,12 +796,13 @@ echo | tee -a $LOG_FILE
 
 function generate_frames() {
 
-    IFRAME=$1
+    STARTFRAME=$1
     ENDFRAME=$2
+    IFRAME=$STARTFRAME
 
     while [ $IFRAME -le $ENDFRAME ]
     do
-        echo "$SCRIPT [`date "+%H:%M:%S"`]: Working on frame $IFRAME of $ENDFRAME" | tee -a $LOG_FILE
+        echo "$SCRIPT [`date "+%H:%M:%S"`]: Working on frame $IFRAME of ${STARTFRAME}-${ENDFRAME}" | tee -a $LOG_FILE
 
         # Postscript file name
         IFRAME_ZEROS=$(echo $IFRAME | awk '{printf("%05d"),$1}')
@@ -840,6 +868,9 @@ function generate_frames() {
                     } else if (trans<0) {
                         trans = 0
                     }
+                    if ($6>='$MAG_UNFADED') {
+                        trans = 0
+                    }
                     print $1,$2,$3,$4,$6,trans,$7,$8,$9,$5
                 }
             }' > $SEIS_FILE_FRAME # day date lon lat mag fade [str dip rak] dep
@@ -851,12 +882,17 @@ function generate_frames() {
             } else {
                 print "> -W0.5p"
             }
+            if ("'$MAG_SCALING'" == "EXP") {
+                r = ((10^(1.5*($5+6.0)))^(1/3))/1e7
+            } else {
+                r = $5^('$MAG_POWER')
+            }
             if ("'$COLOR_BY'"=="DATE") {
-                print $3,$4,$1,$5*$5*$5*'$SEIS_SCALE',$6
+                print $3,$4,$1,r*'$SEIS_SCALE',$6
             } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
-                print $3,$4,$7,$5*$5*$5*'$SEIS_SCALE',$6
+                print $3,$4,$7,r*'$SEIS_SCALE',$6
             } else if ("'$COLOR_BY'"=="COL4" && NF==10) {
-                print $3,$4,$10,$5*$5*$5*'$SEIS_SCALE',$6
+                print $3,$4,$10,r*'$SEIS_SCALE',$6
             }
         }' $SEIS_FILE_FRAME |\
             gmt psxy $MAP_PROJ $MAP_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
@@ -865,7 +901,14 @@ function generate_frames() {
         # Label large events
         awk '{if ($5>='$MAG_LABEL') {print $3,$4,$6,$5}}' $SEIS_FILE_FRAME |\
             gmt mapproject $MAP_PROJ $MAP_LIMS |\
-            awk '{printf("%.3f %.3f %.3f %.1f\n"),$1,$2+2.54*$4*$4*$4*'$SEIS_SCALE'/2+0.08,$3,$4}' |\
+            awk '{
+                if ("'$MAG_SCALING'" == "EXP") {
+                    r = ((10^(1.5*($4+6.0)))^(1/3))/1e7
+                } else {
+                    r = $4^('$MAG_POWER')
+                }
+                printf("%.3f %.3f %.3f %.1f\n"),$1,$2+2.54*r*'$SEIS_SCALE'/2+0.08,$3,$4
+            }' |\
             gmt mapproject $MAP_PROJ $MAP_LIMS -I |\
             awk '{printf("%.4f %.4f %.3f %.1f\n"),$1,$2,$3,$4}' |\
             gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,1,black=0.5p,white+jCB -t -K -O >> $PSFILE
@@ -883,8 +926,7 @@ function generate_frames() {
 
 
         # Date in top left corner
-        # echo $MAP_LIMS | sed -e "s/-R//" | awk -F/ '{print $1,$4,"12,3 LT '$DATE'"}' |\
-        echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+cTL -D0.03i/-0.04i -Gwhite@15 -N -K -O >> $PSFILE
+        echo $DATE | gmt pstext $MAP_PROJ $MAP_LIMS -F+f12,3+c${DATE_LABEL_LOCATION} ${DATE_LABEL_OFFSET} -Gwhite@15 -N -K -O >> $PSFILE
 
 
         if [ "$PSIMAGE_LIST" != "" ]
@@ -914,10 +956,15 @@ function generate_frames() {
                 } else {
                     print "> -W0.5p"
                 }
+                if ("'$MAG_SCALING'" == "EXP") {
+                    r = ((10^(1.5*($5+6.0)))^(1/3))/1e7
+                } else {
+                    r = $5^('$MAG_POWER')
+                }
                 if ("'$COLOR_BY'"=="DATE") {
-                    print $2,$5,$1,$5*$5*$5*'"$SEIS_SCALE"',$6
+                    print $2,$5,$1,r*'"$SEIS_SCALE"',$6
                 } else if ("'$COLOR_BY'"=="COL4" && NF==7) {
-                    print $2,$5,$7,$5*$5*$5*'"$SEIS_SCALE"',$6
+                    print $2,$5,$7,r*'"$SEIS_SCALE"',$6
                 }
             }' $SEIS_FILE_FRAME |\
                 gmt psxy $TIME_PROJ $TIME_LIMS -Sci -C${EQ_CPT} -t -K -O >> $PSFILE
