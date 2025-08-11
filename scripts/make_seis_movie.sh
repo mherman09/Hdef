@@ -18,18 +18,24 @@ echo "$SCRIPT [`date "+%H:%M:%S"`]: starting" | tee $LOG_FILE
 ####################################################################################################
 # Usage statement
 function usage() {
-    echo "Usage: $0 -f SEIS_FILE -start DATE_START -end DATE_END -dday DDAY" 1>&2
+    echo 1>&2
+    echo "Usage: $SCRIPT -f SEIS_FILE -start DATE_START -end DATE_END -dt DT" 1>&2
     echo "       [...<options>...]" 1>&2
     echo "" 1>&2
-    echo "Required Arguments" 1>&2
-    echo "-f SEIS_FILE                  Seismicity file (origin_time lon lat dep mag [str dip rak])" 1>&2
-    echo "-start DATE_START             Starting time" 1>&2
-    echo "-end DATE_END                 Ending time" 1>&2
-    echo "-dday DDAY                    Time increment between frames (days)" 1>&2
     echo "" 1>&2
-    echo "Optional arguments" 1>&2
-    echo "-J<opt>                       Map projection in GMT format (default: Mercator)" 1>&2
-    echo "-Rw/e/s/n                     Map limits in GMT format (default: plot all seismicity in file)" 1>&2
+    echo "REQUIRED ARGUMENTS" 1>&2
+    echo "-f SEIS_FILE                  Seismicity file (origin_time lon lat dep mag [str dip rak])" 1>&2
+    echo "-start DATE_START             Starting date for animation (YYYY-MM-DD[THH:MM:DD] format)" 1>&2
+    echo "-end DATE_END                 Ending date for animation (YYYY-MM-DD[THH:MM:DD] format)" 1>&2
+    echo "-dt DT[unit]                  Time increment between frames (units: s|m|h|d|y)" 1>&2
+    echo "" 1>&2
+    echo "" 1>&2
+    echo "OPTIONAL ARGUMENTS" 1>&2
+    echo "Map parameters" 1>&2
+    echo "-J<opt>                       Map projection in GMT format (default: -JM5i)" 1>&2
+    echo "-Rw/e/s/n                     Map limits in GMT format (default: include all seismicity)" 1>&2
+    echo "" 1>&2
+    echo "Earthquake parameters" 1>&2
     echo "-mag:color MAG_COLOR_CHANGE   Change color every time earthquake above MAG_COLOR_CHANGE occurs" 1>&2
     echo "-mag:min MAG_MIN              Minimum magnitude to include on map/graph (default: all)" 1>&2
     echo "-mag:bold MAG_BOLD            Make earthquakes larger than MAG_BOLD bolder" 1>&2
@@ -142,7 +148,8 @@ do
         -f) shift; SEIS_FILE=$1;;
         -start) shift; DATE_START=$1;;
         -end) shift; DATE_END=$1;;
-        -dday) shift; DDAY=$1;;
+        # -dday) shift; DDAY=$1;;
+        -dt) shift; DT=$1;;
         -dday:change) shift; DDAY_NDAY_CHANGE_LIST="$DDAY_NDAY_CHANGE_LIST $1";;
         -R*) MAP_LIMS=$1;;
         -J*) MAP_PROJ=$1;;
@@ -191,12 +198,12 @@ for VAR in SEIS_FILE
 do
     if [ "${!VAR}" == "" ]
     then
-        echo "$0: File $VAR is not defined" 1>&2
+        echo "$SCRIPT [ERROR]: file $VAR is not defined" 1>&2
         usage
     fi
     if [ ! -f ${!VAR} ]
     then
-        echo "$SCRIPT: Could not find $VAR named \"${!VAR}\"" 1>&2
+        echo "$SCRIPT [ERROR]: could not find $VAR named \"${!VAR}\"" 1>&2
         usage
     fi
 done
@@ -228,11 +235,11 @@ fi
 
 
 # Check that variables are defined
-for VAR in DATE_START DATE_END DDAY MAP_LIMS
+for VAR in DATE_START DATE_END DT MAP_LIMS
 do
     if [ "${!VAR}" == "" ]
     then
-        echo "$SCRIPT: Variable $VAR is not defined" 1>&2
+        echo "$SCRIPT [ERROR]: variable $VAR is not defined" 1>&2
         usage
     fi
 done
@@ -251,6 +258,38 @@ echo "$SCRIPT [`date "+%H:%M:%S"`]: starting animation at $DATE_START" | tee -a 
 echo "$SCRIPT [`date "+%H:%M:%S"`]: ending animation at $DATE_END" | tee -a $LOG_FILE
 
 
+# Calculate DT in days
+DDAY=`echo $DT |\
+    awk '{
+        if (/s/) {
+            split($1,dt,"s")
+            dt[1] = dt[1]/60/60/24
+        } else if (/m/) {
+            split($1,dt,"m")
+            dt[1] = dt[1]/60/24
+        } else if (/h/) {
+            split($1,dt,"h")
+            dt[1] = dt[1]/24
+        } else if (/d/) {
+            split($1,dt,"d")
+        } else if (/y/) {
+            split($1,dt,"y")
+            dt[1] = dt[1]*365
+        } else {
+            print "ERROR"
+            exit
+        }
+        printf("%20.10e"),dt[1]
+    }' | sed -e "s/ *//g"`
+if [ "$DDAY" == "ERROR" ]
+then
+    echo "$SCRIPT [ERROR]: variable DT=$DT could not be parsed correctly" 1>&2
+    echo "$SCRIPT [ERROR]: check units are included (e.g., 10d) and are one of s|m|h|d|y" 1>&2
+    usage
+fi
+echo "$SCRIPT [`date "+%H:%M:%S"`]: frame increment every $DDAY days" | tee -a $LOG_FILE
+
+
 # Determine magnitude for color changes
 if [ "$TIME_CPT" == "" ]
 then
@@ -267,11 +306,11 @@ fi
 # Look for user-defined cpt files
 if [ "$DATE_CPT" != "" ]
 then
-    test -f $DATE_CPT || { echo "$SCRIPT: could not find date color palette named \"$DATE_CPT\""; usage; }
+    test -f $DATE_CPT || { echo "$SCRIPT [ERROR]: could not find date color palette named \"$DATE_CPT\""; usage; }
 fi
 if [ "$TIME_CPT" != "" ]
 then
-    test -f $TIME_CPT || { echo "$SCRIPT: could not find timing color palette named \"$TIME_CPT\""; usage; }
+    test -f $TIME_CPT || { echo "$SCRIPT [ERROR]: could not find timing color palette named \"$TIME_CPT\""; usage; }
 fi
 
 
