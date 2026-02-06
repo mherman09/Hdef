@@ -34,31 +34,40 @@ public :: read_flt
 public :: read_mag
 public :: get_ffm_outline
 
+
+
 !--------------------------------------------------------------------------------------------------!
 contains
 !--------------------------------------------------------------------------------------------------!
+
+
+
 
 subroutine read_usgs_param(usgs_param_file,usgs_param_data,ierr)
 !----
 ! Read a finite fault model in the standard .param format published by the U.S. Geological Survey.
 !----
 
+
 use io, only: verbosity, stdout, stderr
 
+
 implicit none
+
 
 ! Arguments
 character(len=*) :: usgs_param_file
 type(ffm_data) :: usgs_param_data
 integer :: ierr
 
+
 ! Local variables
 logical :: ex
 integer :: i, j, n, nx, ny, ios, iseg
-character(len=1) :: dum
-character(len=16) :: dx_char, dy_char
-character(len=512) :: input_line
-double precision :: lon, lat, dep, strike, dip, rake, slip, dx, dy, trup
+character(len=16) :: dum, dx_char, dy_char, what_to_read
+character(len=512) :: input_line, input_line_save
+double precision :: lon, lat, dep, strike, dip, rake, slip, dx, dy, trup, number
+
 
 
 if (verbosity.ge.2) then
@@ -66,10 +75,12 @@ if (verbosity.ge.2) then
 endif
 
 
+
 ! As we begin our journey, everything seems okay...
 ierr = 0
 
-! Open the FFM file
+
+! Check whether FFM file exists
 inquire(exist=ex,file=usgs_param_file)
 if (.not.ex) then
     write(stderr,*) 'read_usgs_param: no USGS FFM file found named ',trim(usgs_param_file)
@@ -77,6 +88,8 @@ if (.not.ex) then
     return
 endif
 
+
+! Open the FFM file
 open(unit=34,file=usgs_param_file,status='old',err=1001,iostat=ios)
 1001 if (ios.ne.0) then
     write(stderr,*) 'read_usgs_param: error opening USGS FFM file ',trim(usgs_param_file)
@@ -84,26 +97,76 @@ open(unit=34,file=usgs_param_file,status='old',err=1001,iostat=ios)
     return
 endif
 
-! Header indicates the number of fault segments
-read (34,*) dum,dum,dum,dum,usgs_param_data%nseg
 
-! Count the total number of sub-faults
+! Header indicates the number of fault segments
+read(34,'(A)',iostat=ios) input_line
+if (ios.ne.0) then
+    write(stderr,*) 'read_usgs_param: error reading first line file'
+    ierr = 1
+    return
+endif
+i = index(input_line,'=')
+input_line(1:i) = ''
+read (input_line,*) usgs_param_data%nseg
+
+
+
+! Initialize total number of subfaults
 usgs_param_data%nflt = 0
+
+
+
+! Count the total number of sub-faults without reading values
 do iseg = 1,usgs_param_data%nseg
-    ! First line defines number of sub-faults in segment
-    read(34,'(A)',iostat=ios) input_line
+
+    ! First line of each segment defines number of sub-faults in segment
+    read(34,'(A)',iostat=ios) input_line_save
     if (ios.ne.0) then
-        write(stderr,*) 'read_usgs_param: error reading first line of seg, ',iseg
+        write(stderr,*) 'read_usgs_param: error reading first line of segment, ',iseg
         ierr = 1
         return
     endif
+    input_line = input_line_save
 
     ! Parse line to get number of sub-faults
-    read(input_line,*,iostat=ios) dum,dum,dum,dum,nx,dum,dum,dum,ny
-    if (ios.ne.0) then
-        write(stderr,*) 'read_usgs_param: error parsing line: '
-        write(stderr,*) trim(input_line)
-        write(stderr,*) 'as: _  _  _  _  nx  _  _  _  ny'
+    ios = 0                                                 ! initialize parameters
+    nx = 0
+    ny = 0
+    what_to_read = ''
+    do while (ios.eq.0)                                     ! fields separated by whitespace
+        ! print *,trim(input_line)
+        read(input_line,*,iostat=ios,end=1002) dum
+        ! print *,trim(dum)
+        if (index(dum,'nx').ne.0) then                      ! determine which parameter to read
+            what_to_read = 'nx'
+        else if (index(dum,'Dx').ne.0) then
+            what_to_read = 'Dx'
+        else if (index(dum,'ny').ne.0) then
+            what_to_read = 'ny'
+        else if (index(dum,'Dy').ne.0) then
+            what_to_read = 'Dy'
+        else if (index(dum,'km').ne.0) then                 ! get rid of "km" from Dx/Dy
+            i = index(dum,'km')
+            dum(i:i+1) = ''
+        endif
+        read(dum,*,iostat=ios) number                       ! check if string is a number
+        if (ios.eq.0) then                                  ! set variable
+            if (what_to_read.eq.'nx') then
+                nx = int(number)
+            else if (what_to_read.eq.'ny') then
+                ny = int(number)
+            endif
+        else
+            ios = 0                                         ! reset ios=0
+        endif
+        i = index(input_line,trim(dum))                     ! remove substring
+        input_line(1:i+len_trim(dum)) = ''
+    enddo
+
+    ! Check whether number of subfaults has been set
+    1002 if (nx.eq.0 .or. ny.eq.0) then
+        write(stderr,*) 'read_usgs_param: number of subfaults not read correctly'
+        write(stderr,*) trim(input_line_save)
         ierr = 1
         return
     endif
@@ -116,8 +179,13 @@ do iseg = 1,usgs_param_data%nseg
             write(stderr,*) 'read_usgs_param: reached end of file before expected'
         endif
     enddo
+
 enddo
+
+
+! Restart file to read values
 rewind(34)
+
 
 ! Allocate memory to the sub-fault array
 if (allocated(usgs_param_data%subflt)) then
@@ -131,56 +199,133 @@ if (allocated(usgs_param_data%seg)) then
 endif
 allocate(usgs_param_data%seg(usgs_param_data%nflt))
 
+
+
 ! Now fill the sub-fault array
 n = 0
 
-! First line with number of segments
+
+
+! Skip first line (already read number of fault segments
 read (34,'(A)',iostat=ios) input_line
-read (input_line,*) dum,dum,dum,dum,usgs_param_data%nseg
+
+
 
 ! Read details of each segment
 do iseg = 1,usgs_param_data%nseg
 
-    ! Sub-fault dimensions
-    read (34,'(A)',iostat=ios) input_line
-    !write(0,*) 'Segment:',iseg,' header: ',trim(input_line)
+    ! First line of each segment contains sub-fault parameters
+    read(34,'(A)',iostat=ios) input_line_save
     if (ios.ne.0) then
-        write(stderr,*) 'read_usgs_param: error reading first line of seg ',iseg
+        write(stderr,*) 'read_usgs_param: error reading first line of segment, ',iseg
+        ierr = 1
+        return
+    endif
+    input_line = input_line_save
+
+    ! Parse line to get sub-fault parameters
+    ios = 0                                                 ! initialize parameters
+    dx = -1.0d10
+    dy = -1.0d10
+    what_to_read = ''
+    do while (ios.eq.0)                                     ! fields separated by whitespace
+        ! print *,trim(input_line)
+        read(input_line,*,iostat=ios,end=1003) dum
+        ! print *,trim(dum)
+        if (index(dum,'nx').ne.0) then                      ! determine which parameter to read
+            what_to_read = 'nx'
+        else if (index(dum,'Dx').ne.0) then
+            what_to_read = 'Dx'
+        else if (index(dum,'ny').ne.0) then
+            what_to_read = 'ny'
+        else if (index(dum,'Dy').ne.0) then
+            what_to_read = 'Dy'
+        else if (index(dum,'km').ne.0) then                 ! get rid of "km" from Dx/Dy
+            i = index(dum,'km')
+            dum(i:i+1) = ''
+        endif
+        read(dum,*,iostat=ios) number                       ! check if string is a number
+        if (ios.eq.0) then                                  ! set variable
+            if (what_to_read.eq.'nx') then
+                nx = int(number)
+            else if (what_to_read.eq.'ny') then
+                ny = int(number)
+            else if (what_to_read.eq.'Dx') then
+                dx = number
+            else if (what_to_read.eq.'Dy') then
+                dy = number
+            endif
+        else
+            ios = 0                                         ! reset ios=0
+        endif
+        i = index(input_line,trim(dum))                     ! remove substring
+        input_line(1:i+len_trim(dum)) = ''
+    enddo
+
+    ! Check whether dimensions of subfaults has been set
+    1003 if (dx.lt.-1.0d9 .or. dy.lt.-1.0d9) then
+        write(stderr,*) 'read_usgs_param: dimensions of subfaults not read correctly'
+        write(stderr,*) trim(input_line_save)
         ierr = 1
         return
     endif
 
-    read (input_line,*,iostat=ios) dum,dum,dum,dum,nx,dum,dx_char,dum,ny,dum,dy_char
-    if (ios.ne.0) then
-        write(stderr,*) 'read_usgs_param: error parsing line: '
-        write(stderr,*) trim(input_line)
-        write(stderr,*) 'as: _  _  _  _  nx  _  dx_char  _  ny _ dy_char'
-        ierr = 1
-        return
-    endif
-    j = index(dx_char,'km')
-    dx_char(j:j+1) = ''
-    read(dx_char,*) dx
-    j = index(dy_char,'km')
-    dy_char(j:j+1) = ''
-    read(dy_char,*) dy
+    ! Convert to kilometers
     usgs_param_data%subflt(n+1:n+nx*ny,8) = dy*1.0d3
     usgs_param_data%subflt(n+1:n+nx*ny,9) = dx*1.0d3
 
-    ! Hypocenter
-    read (34,'(A)') input_line
-    read (input_line,*,iostat=ios) (dum,j=1,10),usgs_param_data%hylo,dum,usgs_param_data%hyla
+
+    ! Second line of each segment contains hypocenter
+    read(34,'(A)',iostat=ios) input_line_save
     if (ios.ne.0) then
+        write(stderr,*) 'read_usgs_param: error reading second line of segment, ',iseg
+        ierr = 1
+        return
+    endif
+    input_line = input_line_save
+
+    ! Parse line to get hypocenter
+    ios = 0                                                 ! initialize parameters
+    usgs_param_data%hylo = -1.0d-10
+    usgs_param_data%hyla = -1.0d-10
+    what_to_read = ''
+    do while (ios.eq.0)                                     ! fields separated by whitespace
+        ! print *,trim(input_line)
+        read(input_line,*,iostat=ios,end=1004) dum
+        ! print *,trim(dum)
+        if (index(dum,'Lon:').ne.0) then                      ! determine which parameter to read
+            what_to_read = 'lon'
+        else if (index(dum,'Lat:').ne.0) then
+            what_to_read = 'lat'
+        endif
+        read(dum,*,iostat=ios) number                       ! check if string is a number
+        if (ios.eq.0) then                                  ! set variable
+            if (what_to_read.eq.'lon') then
+                usgs_param_data%hylo = number
+            else if (what_to_read.eq.'lat') then
+                usgs_param_data%hyla = number
+            endif
+        else
+            ios = 0                                         ! reset ios=0
+        endif
+        i = index(input_line,trim(dum))                     ! remove substring
+        input_line(1:i+len_trim(dum)) = ''
+    enddo
+
+    ! Check whether hypocenter has been set
+    1004 if (usgs_param_data%hylo.lt.-1.0d9 .or. usgs_param_data%hyla.lt.-1.0d9) then
         write(0,*) 'read_usgs_param: could not read hypocenter for segment,',iseg,' but continuing...'
+        write(stderr,*) trim(input_line_save)
         usgs_param_data%hylo = -9999.0d0
         usgs_param_data%hyla = -9999.0d0
     endif
-    !write(0,*) 'Segment:',iseg,' hypocenter: ',trim(input_line)
+
 
     ! Not sure what this block is actually...
     do j = 1,7
         read(34,*) dum
     enddo
+
 
     ! Sub-fault locations and slip
     do i = n+1,n+nx*ny
@@ -214,8 +359,10 @@ if (verbosity.ge.2) then
 endif
 
 
+
 return
 end subroutine
+
 
 !--------------------------------------------------------------------------------------------------!
 
