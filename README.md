@@ -1,61 +1,45 @@
-Hdef version 2021.02.01
+# Hdef
 
-The primary purpose for this suite of codes is the forward calculation of displacements, strains,
-and stresses in an elastic half-space (hence, H(alfspace)def(ormation)...). The sources are fault
-slip models, using the solutions derived in Okada (1992) and in Meade (2007). The main engines can
-be found in the file okada92_module.f90 and tri_disloc_module.f90. Most of the programs are designed
-to use these routines in a variety of seismological and geodetic applications.
+*Hdef* is designed to calculate displacements, strains, and stresses for various geologically relevant sources in an elastic half-space (hence, **H**alfspace **def**ormation). The currently available sources are:
 
-There are also several other programs that I wrote as I came across other applications in
-Geodynamics (so in that sense maybe Hdef stands for "Herman Deformation" toolbox). I got tired of
-always rewriting and recalculating and looking up certain equations and typing them into my
-calculator or Matlab, so I wrote some simple codes to have these results at my fingertips. These are
-included, and you may find them useful as well.
+- Point dislocations (shear and tensile)
+- Rectangular dislocations (shear and tensile)
+- Triangular dislocations (shear and tensile)
+- Point volume change (Mogi) sources
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*Hdef* also includes several programs that I wrote to complement and contextualize the half-space outputs (so in that sense, maybe *Hdef* stands for "**H**erman" **def**ormation). Actually, I got tired of looking up and recalculating things like plate velocity vectors, earthquake seismic moments, etc., so I wrote programs to have these results at my fingertips. These are included in *Hdef*, and I hope you find them useful as well.
 
-INSTALLATION
+I have used the codes in *Hdef* to make calculations for several peer-reviewed publications, and many other people have used *Hdef* for their own applications. However, I cannot guarantee that there are no bugs. If you think you have found a bug, please report it to me at matthew.w.herman@gmail.com
 
-Directions for installation are in the file INSTALL.
-Tutorials can be found at my website: http://www.matthewwherman.com/software.html
+
+## Installation
+
+Please see [INSTALL.md](INSTALL.md) for directions on how to download and install Hdef.
+
+
+## Tutorials & Documentation
+
+Tutorials can be found at my [website](http://www.matthewwherman.com/software.html).
+
 Man pages for most of the programs and some of the scripts are in the man/ directory.
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-LICENSE
+## License
 
-There are no guarantees: happy? I think these results are correct, and I have used these codes to
-make calculations for peer-reviewed publications, but I cannot guarantee that there are no bugs. If
-you think you have found a bug, please report it to me at:
-
-matthew.w.herman@gmail.com
-
-Feel free to change the codes and use them as you see fit. Please check out the LICENSE when you use
-the software.
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-CITING HDEF
-
-Please cite the code with the following DOI: https://doi.org/10.5281/zenodo.3894137. You may also
-want to cite uses of the tools in Hdef in addition to the software itself. The first published
-papers using early versions of Hdef are:
-
-	Herman, M.W., Herrmann, R.B., Furlong, K.P., Benz, H.M. (2014). Using regional moment tensors to
-		constrain the kinematics and stress evolution of the 2010–2013 Canterbury earthquake
-		sequence, South Island, New Zealand. Tectonophysics 633, 1-15.
-
-	Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). Foreshock triggering of the 1 April
-		2014 Mw 8.2 Iquique, Chile, earthquake. Earth and Planetary Science Letters 447, 119-129.
+*Hdef* is distributed under the MIT license. Please see [LICENSE](LICENSE) file.
 
 
-The methods behind the Bayesian locking inversion capabilities in fltinv were published in:
 
-	Herman, M.W., Govers, R. (2020). Locating fully locked asperities along the South America
-		subduction megathrust: a new physical inter‐seismic inversion approach in a Bayesian framework.
-		Geochemistry, Geophysics, Geosystems 21, e2020GC009063.
+## Citing Hdef
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+At a minimum, please cite the *Hdef* code with the following DOI: https://doi.org/10.5281/zenodo.3894137, as well as the following papers:
+
+Herman, M.W., Furlong, K.P., Hayes, G.P., Benz, H.M. (2016). [Foreshock triggering of the 1 April 2014 Mw 8.2 Iquique, Chile, earthquake](https://doi.org/10.1016/j.epsl.2016.04.020). *Earth and Planetary Science Letters* 447, 119-129.
+
+
+Herman, M.W., Govers, R. (2020). [Locating fully locked asperities along the South America subduction megathrust: a new physical inter‐seismic inversion approach in a Bayesian framework](https://doi.org/10.1029/2020GC009063). *Geochemistry, Geophysics, Geosystems* 21, e2020GC009063.
+
+<!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Programs in Hdef:
 
@@ -125,4 +109,4 @@ Libraries in Hdef:
 	solver_module.f90
 	test_module.f90
 	tri_disloc_module.f90
-	trig_module.f90
+	trig_module.f90 -->
