@@ -15,6 +15,7 @@ sub usage {
     print STDERR "-m|--magnitude                  Magnitude\n";
     print STDERR "-t|--tensor                     Moment tensor\n";
     print STDERR "-f|--focal_mechanism            Focal mechanism\n";
+    print STDERR "-n|--name                       Event location name\n";
     print STDERR "-p|--priority MT_TYP            Select priority MT type (Mww,Mwc,Mwr,Mwb,duputel_Mww)\n";
     die;
 }
@@ -27,6 +28,7 @@ my $iWantMagnitude = 0;
 my $iWantMomentTensor = 0;
 my $priorityMTType = 'Mww';
 my $iWantFocalMechanism = 0;
+my $iWantEventName = 0;
 GetOptions(
     'input_file=s' => \$input_file,
     'origin_time' => \$iWantOriginTime,
@@ -34,7 +36,8 @@ GetOptions(
     'magnitude' => \$iWantMagnitude,
     'tensor' => \$iWantMomentTensor,
     'focal_mechanism' => \$iWantFocalMechanism,
-    'priority=s' => \$priorityMTType
+    'priority=s' => \$priorityMTType,
+    'name' => \$iWantEventName
 );
 
 
@@ -61,6 +64,7 @@ my $i_longitude = -1;
 my $i_latitude = -1;
 my $i_depth = -1;
 my $i_magnitude = -1;
+my $i_name = -1;
 my $i_us_Mww = -1; # Moment tensors
 my $i_us_Mwb = -1;
 my $i_us_Mwr = -1;
@@ -93,6 +97,8 @@ for (@$row) {
     } elsif ($_ =~ "magnitude" || $_ eq "mag") {
         $i_magnitude = $i;
         #print "i_magnitude=$i_magnitude\n";
+    } elsif ($_ =~ "location") {
+        $i_name = $i;
     } elsif ($_ =~ "time") {
         $i_time = $i;
         #print "i_time=$i_time\n";         # Moment tensors
@@ -149,6 +155,7 @@ while (my $row = $csv->getline ($fh)) {
             $found_blank_depth = 1;
         }
     }
+    my $name = $row->[$i_name];
     my $mag = sprintf "%6.2f", $row->[$i_magnitude];
     my $i_mt = -1;
     my $mt_type = "";
@@ -194,6 +201,15 @@ while (my $row = $csv->getline ($fh)) {
             $output = $output."$mag ";
         } else {
             print "parse_usgs_query.pl: requested magnitude but \"magnitude\" was not found in the header\n";
+            die;
+        }
+        $iWantSomething = 1;
+    }
+    if ($iWantEventName) {
+        if ($i_name >= 0) {
+            $output = $output."$name ";
+        } else {
+            print "parse_usgs_query.pl: requested event location name but \"location\" was not found in the header\n";
             die;
         }
         $iWantSomething = 1;
