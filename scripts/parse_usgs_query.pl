@@ -5,6 +5,8 @@ use warnings;
 use Getopt::Long;
 use Text::CSV;
 
+binmode(STDOUT, ":utf8");
+
 
 # Usage statement
 sub usage {
