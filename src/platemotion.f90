@@ -1,11 +1,12 @@
 module platemotion
 
-character(len=512) :: input_file
-character(len=512) :: output_file
-character(len=16) :: plates(2)
-double precision :: pole(3)
-character(len=32) :: model_name
-character(len=32) :: convert_mode
+    character(len=512) :: input_file
+    character(len=512) :: output_file
+    character(len=16) :: plates(2)
+    double precision :: pole(3)
+    character(len=32) :: model_name
+    character(len=32) :: convert_mode
+    integer :: verbosity
 
 end module
 
@@ -26,7 +27,8 @@ use platemotion, only: input_file, &
                        plates, &
                        pole, &
                        model_name, &
-                       convert_mode
+                       convert_mode, &
+                       verbosity
 
 implicit none
 
@@ -64,8 +66,21 @@ if (plates(1).ne.'') then
     endif
 endif
 
+if (verbosity.ge.1) then
+    write(0,'(A,F12.3,F12.3,F12.3)') 'pole (geo):',pole
+endif
+
+
+
 ! Convert pole to Cartesian coordinates
 call pole_geo2xyz(pole(1),pole(2),pole(3),xyz_pole(1),xyz_pole(2),xyz_pole(3),'sphere')
+
+
+if (verbosity.ge.1) then
+    write(0,'(A,F12.4,F12.4,F12.4)') 'pole (xyz):',xyz_pole
+endif
+
+
 
 
 ! Open input and output streams
@@ -94,6 +109,10 @@ do
     ! Read longitude and latitude
     read(input_line,*) lon, lat
 
+    if (verbosity.ge.1) then
+        write(0,'(A,2F12.3)') 'point (geo):',lon,lat
+    endif
+
     ! Calculate vector from center of Earth to point
     lonr = lon*d2r
     latr = lat*d2r
@@ -102,12 +121,21 @@ do
     r(1) = dcos(latr)*dcos(lonr)
     r(2) = dcos(latr)*dsin(lonr)
     r(3) = dsin(latr)
+    if (verbosity.ge.1) then
+        write(0,'(A,3F12.4)') 'point (xyz):',r
+    endif
 
     ! Velocity at that point is cross product of angular velocity vector and position vector
     call cross_product(xyz_pole,r,vel)
+    if (verbosity.ge.1) then
+        write(0,'(A,3F12.4)') 'vel (xyz):',vel
+    endif
     ve = -vel(1)           *dsin(lonr) + vel(2)           *dcos(lonr)
     vn = -vel(1)*dsin(latr)*dcos(lonr) - vel(2)*dsin(latr)*dsin(lonr) + vel(3)*dcos(latr)
     vz =  vel(1)*dcos(latr)*dcos(lonr) + vel(2)*dcos(latr)*dsin(lonr) + vel(3)*dsin(latr)
+    if (verbosity.ge.1) then
+        write(0,'(A,3F12.4)') 'vel (enz):',ve,vn,vz
+    endif
 
     ! Units are deg/Ma; convert to km/Ma = mm/yr
     ve = ve*deg2km
@@ -130,7 +158,8 @@ use platemotion, only: input_file, &
                        plates, &
                        pole, &
                        model_name, &
-                       convert_mode
+                       convert_mode, &
+                       verbosity
 
 implicit none
 
@@ -145,6 +174,7 @@ plates = ''
 pole = 0.0d0
 model_name = 'MORVEL56'
 convert_mode = ''
+verbosity = 0
 
 ! Number of arguments
 narg = command_argument_count()
@@ -212,6 +242,9 @@ do while (i.le.narg)
     elseif (tag.eq.'-xyz2geo') then
         convert_mode = 'xyz2geo'
 
+    elseif (tag.eq.'-v') then
+        verbosity = 1
+
     else
         call usage('platemotion: no command line option '//trim(tag))
     endif
@@ -254,7 +287,10 @@ write(stderr,*) '-geo2xyz           Convert Euler pole in geographic coordinates
 write(stderr,*) '-xyz2geo           Convert Euler pole in Cartesian coordinates to geographic (assumes LON/LAT/VEL is X/Y/Z)'
 write(stderr,*) '-f IFILE           Input file (default: stdin)'
 write(stderr,*) '-o OFILE           Output file (default: stdout)'
+write(stderr,*) '-azimuth           Print the azimuth in deg CW from N (default: ve vn)'
+write(stderr,*) '-velocity          Print the speed in km/Ma (mm/yr) (default: ve vn)'
 write(stderr,*) '-printpole P1/P2   Print Euler pole (lon lat deg/Ma) for P2 w.r.t. P1'
+write(stderr,*) '-v                 Verbose mode'
 write(stderr,*)
 
 call error_exit(1)
